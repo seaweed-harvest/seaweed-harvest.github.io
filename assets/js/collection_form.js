@@ -1,0 +1,571 @@
+import { APP_CONFIG } from "./config.js";
+import { dataModeLabel, insertRow, selectRows } from "./supabase_client.js";
+
+const state = {
+  communities: [],
+  farmers: [],
+  selectedFarmer: null,
+  gps: null,
+  qrScanner: {
+    detector: null,
+    frameRequest: null,
+    scanTarget: null,
+    scanning: false,
+    stream: null
+  }
+};
+
+const els = {};
+
+document.addEventListener("DOMContentLoaded", init);
+
+async function init() {
+  cacheElements();
+  bindEvents();
+  setDefaultDateTime();
+  await loadFormData();
+  ensureTransactionId();
+}
+
+function cacheElements() {
+  [
+    "collectionConnectionStatus",
+    "collectionForm",
+    "farmerId",
+    "lookupFarmer",
+    "scanFarmerId",
+    "farmerLinkStatus",
+    "farmerDetails",
+    "quickFarmerName",
+    "quickFarmerCommunity",
+    "manualFarmerName",
+    "manualFarmerPhone",
+    "manualCommunityInput",
+    "assignFarmerId",
+    "communityOptions",
+    "communityId",
+    "communityName",
+    "sackId",
+    "scanSackId",
+    "transactionId",
+    "collectedAt",
+    "captureGps",
+    "gpsSummary",
+    "sackWeightKg",
+    "seaweedGrade",
+    "pricePerKg",
+    "totalPrice",
+    "priceOverridden",
+    "collectionNotes",
+    "collectionPhotos",
+    "clearCollectionForm",
+    "collectionSaveStatus",
+    "qrScannerModal",
+    "qrScannerVideo",
+    "qrScannerStatus",
+    "stopQrScanner"
+  ].forEach((id) => {
+    els[id] = document.getElementById(id);
+  });
+}
+
+function bindEvents() {
+  els.lookupFarmer.addEventListener("click", lookupFarmer);
+  els.scanFarmerId.addEventListener("click", () => startQrScanner("farmer"));
+  els.farmerId.addEventListener("change", lookupFarmer);
+  els.farmerId.addEventListener("input", () => {
+    const hadLinkedFarmer = Boolean(state.selectedFarmer);
+    state.selectedFarmer = null;
+    if (hadLinkedFarmer) clearManualFarmerDetails();
+    setFarmerStatus("");
+    updateQuickReference();
+  });
+  els.manualFarmerName.addEventListener("input", updateQuickReference);
+  els.manualFarmerPhone.addEventListener("input", updateQuickReference);
+  els.manualCommunityInput.addEventListener("input", syncManualCommunity);
+  els.manualCommunityInput.addEventListener("change", syncManualCommunity);
+  els.assignFarmerId.addEventListener("click", assignNextFarmerId);
+  els.sackId.addEventListener("change", () => {
+    ensureTransactionId();
+    if (!state.gps) captureGps();
+  });
+  els.scanSackId.addEventListener("click", () => startQrScanner("sack"));
+  els.captureGps.addEventListener("click", captureGps);
+  els.sackWeightKg.addEventListener("input", updatePrice);
+  els.seaweedGrade.addEventListener("change", updatePriceForGrade);
+  els.pricePerKg.addEventListener("input", () => {
+    els.priceOverridden.checked = true;
+    updateTotalPrice();
+  });
+  els.totalPrice.addEventListener("input", () => {
+    els.priceOverridden.checked = true;
+  });
+  els.clearCollectionForm.addEventListener("click", clearForm);
+  els.collectionForm.addEventListener("submit", submitCollection);
+  els.stopQrScanner.addEventListener("click", stopQrScanner);
+}
+
+async function loadFormData() {
+  setConnectionStatus("Loading", "status-muted");
+  try {
+    const [communities, farmers] = await Promise.all([
+      selectRows(APP_CONFIG.tables.communities, "select=*&order=community_id.asc"),
+      selectRows(APP_CONFIG.tables.farmers, "select=*&order=farmer_id.asc")
+    ]);
+    state.communities = communities;
+    state.farmers = farmers;
+    renderCommunityOptions();
+    updateQuickReference();
+    setConnectionStatus(dataModeLabel(), dataModeLabel() === "Preview" ? "status-muted" : "");
+  } catch (error) {
+    setConnectionStatus("Error", "status-muted");
+    setStatus(error.message, "error");
+  }
+}
+
+function renderCommunityOptions() {
+  els.communityOptions.innerHTML = state.communities.map((community) => {
+    const label = communityLabel(community);
+    return `<option value="${escapeAttribute(label)}"></option>`;
+  }).join("");
+  syncCommunityName();
+}
+
+function lookupFarmer() {
+  const farmerId = normalizedFarmerId();
+  if (!farmerId) {
+    state.selectedFarmer = null;
+    setFarmerStatus("");
+    updateQuickReference();
+    return;
+  }
+
+  els.farmerId.value = farmerId;
+  const farmer = state.farmers.find((row) => row.farmer_id.toUpperCase() === farmerId);
+  state.selectedFarmer = farmer || null;
+
+  if (!farmer) {
+    setFarmerStatus("Not found", "status-muted");
+    updateQuickReference();
+    return;
+  }
+
+  els.farmerId.value = farmer.farmer_id;
+  if (farmer.community_id) {
+    els.communityId.value = farmer.community_id;
+    syncCommunityName();
+  }
+  syncManualDetailsFromFarmer(farmer);
+  updateQuickReference();
+  setFarmerStatus("Linked", "");
+}
+
+function syncManualDetailsFromFarmer(farmer) {
+  const community = communityById(farmer.community_id);
+  els.manualFarmerName.value = farmer.name || "";
+  els.manualFarmerPhone.value = farmer.phone || "";
+  els.manualCommunityInput.value = communityLabel(community) || farmer.community_id || "";
+}
+
+function clearManualFarmerDetails() {
+  els.manualFarmerName.value = "";
+  els.manualFarmerPhone.value = "";
+  els.manualCommunityInput.value = "";
+  els.communityId.value = "";
+  syncCommunityName();
+}
+
+function syncCommunityName() {
+  const community = selectedCommunity();
+  els.communityName.value = community?.community_name || "";
+}
+
+function syncManualCommunity(event) {
+  const community = findCommunityFromText(els.manualCommunityInput.value);
+  els.communityId.value = community?.community_id || "";
+  if (community && event?.type === "change") {
+    els.manualCommunityInput.value = communityLabel(community);
+  }
+  syncCommunityName();
+  updateQuickReference();
+}
+
+function updateQuickReference() {
+  const community = selectedCommunity() || findCommunityFromText(els.manualCommunityInput.value);
+  const farmerName = state.selectedFarmer?.name || nullableText(els.manualFarmerName.value);
+  els.quickFarmerName.textContent = farmerName || "-";
+  els.quickFarmerCommunity.textContent = communityLabel(community) || "-";
+}
+
+function assignNextFarmerId() {
+  els.farmerId.value = nextFarmerId();
+  state.selectedFarmer = null;
+  setFarmerStatus("");
+  updateQuickReference();
+}
+
+function updatePriceForGrade() {
+  const grade = els.seaweedGrade.value;
+  const configuredPrice = APP_CONFIG.pricePerKg[grade];
+  if (configuredPrice !== null && configuredPrice !== undefined) {
+    els.pricePerKg.value = configuredPrice;
+    els.priceOverridden.checked = false;
+  }
+  updateTotalPrice();
+}
+
+function updatePrice() {
+  if (!els.priceOverridden.checked) updateTotalPrice();
+}
+
+function updateTotalPrice() {
+  if (els.priceOverridden.checked && document.activeElement === els.totalPrice) return;
+
+  const weight = nullableNumber(els.sackWeightKg.value);
+  const price = nullableNumber(els.pricePerKg.value);
+  if (weight === null || price === null) return;
+  els.totalPrice.value = (weight * price).toFixed(2);
+}
+
+function ensureTransactionId() {
+  if (els.transactionId.value) return;
+  els.transactionId.value = makeTransactionId();
+}
+
+function makeTransactionId() {
+  const now = new Date();
+  const stamp = [
+    String(now.getFullYear()).slice(-2),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+    "-",
+    String(now.getHours()).padStart(2, "0"),
+    String(now.getMinutes()).padStart(2, "0"),
+    String(now.getSeconds()).padStart(2, "0")
+  ].join("");
+  const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `TXN-${stamp}-${suffix}`;
+}
+
+function setDefaultDateTime() {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  els.collectedAt.value = local.toISOString().slice(0, 16);
+}
+
+function captureGps() {
+  if (!navigator.geolocation) {
+    els.gpsSummary.value = "GPS unavailable";
+    return;
+  }
+
+  els.gpsSummary.value = "Getting GPS...";
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      state.gps = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy
+      };
+      els.gpsSummary.value = `${state.gps.latitude.toFixed(5)}, ${state.gps.longitude.toFixed(5)}`;
+    },
+    () => {
+      els.gpsSummary.value = "GPS not captured";
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 60000
+    }
+  );
+}
+
+async function startQrScanner(scanTarget) {
+  if (!("BarcodeDetector" in window)) {
+    setStatus("QR scanning is not supported by this browser. Type the number instead.", "error");
+    return;
+  }
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    setStatus("Camera access is not available. Type the number instead.", "error");
+    return;
+  }
+
+  try {
+    state.qrScanner.scanTarget = scanTarget;
+    state.qrScanner.detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+    els.qrScannerStatus.textContent = "Opening camera...";
+    els.qrScannerModal.hidden = false;
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: { ideal: "environment" }
+      }
+    });
+
+    state.qrScanner.stream = stream;
+    state.qrScanner.scanning = true;
+    els.qrScannerVideo.srcObject = stream;
+    await els.qrScannerVideo.play();
+    els.qrScannerStatus.textContent = scanTarget === "farmer"
+      ? "Scan Farmer ID QR code."
+      : "Scan Sack ID QR code.";
+    scanQrFrame();
+  } catch (error) {
+    stopQrScanner();
+    setStatus(cameraErrorMessage(error), "error");
+  }
+}
+
+async function scanQrFrame() {
+  if (!state.qrScanner.scanning) return;
+
+  try {
+    const codes = await state.qrScanner.detector.detect(els.qrScannerVideo);
+    const code = codes.find((item) => item.rawValue);
+    if (code) {
+      applyScannedValue(code.rawValue);
+      stopQrScanner();
+      return;
+    }
+  } catch {
+    // Keep scanning; camera frames can be briefly unavailable while video starts.
+  }
+
+  state.qrScanner.frameRequest = requestAnimationFrame(scanQrFrame);
+}
+
+function applyScannedValue(rawValue) {
+  const value = extractQrValue(rawValue, state.qrScanner.scanTarget);
+  if (!value) {
+    setStatus("QR code did not contain a usable value.", "error");
+    return;
+  }
+
+  if (state.qrScanner.scanTarget === "farmer") {
+    els.farmerId.value = normalizeFarmerIdValue(value);
+    lookupFarmer();
+    setStatus("Farmer ID scanned.");
+    return;
+  }
+
+  els.sackId.value = value;
+  ensureTransactionId();
+  if (!state.gps) captureGps();
+  setStatus("Sack ID scanned.");
+}
+
+function stopQrScanner() {
+  state.qrScanner.scanning = false;
+  if (state.qrScanner.frameRequest) {
+    cancelAnimationFrame(state.qrScanner.frameRequest);
+    state.qrScanner.frameRequest = null;
+  }
+  if (state.qrScanner.stream) {
+    state.qrScanner.stream.getTracks().forEach((track) => track.stop());
+    state.qrScanner.stream = null;
+  }
+  els.qrScannerVideo.pause();
+  els.qrScannerVideo.srcObject = null;
+  els.qrScannerModal.hidden = true;
+}
+
+function extractQrValue(rawValue, scanTarget) {
+  const text = String(rawValue || "").trim();
+  if (!text) return "";
+
+  try {
+    const parsedUrl = new URL(text);
+    const farmerParam = parsedUrl.searchParams.get("farmer_id")
+      || parsedUrl.searchParams.get("farmerId")
+      || parsedUrl.searchParams.get("rid")
+      || parsedUrl.searchParams.get("id");
+    const sackParam = parsedUrl.searchParams.get("sack_id")
+      || parsedUrl.searchParams.get("sackId")
+      || parsedUrl.searchParams.get("sid")
+      || parsedUrl.searchParams.get("id");
+    if (scanTarget === "farmer" && farmerParam) return farmerParam.trim();
+    if (scanTarget === "sack" && sackParam) return sackParam.trim();
+  } catch {
+    // Plain QR values are expected and fine.
+  }
+
+  if (scanTarget === "farmer") {
+    const ridMatch = text.match(/RID\s*([0-9]+)/i);
+    if (ridMatch) return `RID${ridMatch[1]}`;
+    const digitsOnly = text.match(/^\s*([0-9]+)\s*$/);
+    if (digitsOnly) return digitsOnly[1];
+  }
+
+  return text.split(/\r?\n/)[0].trim();
+}
+
+async function submitCollection(event) {
+  event.preventDefault();
+
+  try {
+    setStatus("Saving collection...");
+    const payload = buildPayload();
+    const rows = await insertRow(APP_CONFIG.tables.collections, payload);
+    const saved = rows[0];
+    setStatus(saved?.transaction_id ? `Saved ${saved.transaction_id}` : "Saved.");
+    clearForm();
+  } catch (error) {
+    setStatus(error.message, "error");
+  }
+}
+
+function buildPayload() {
+  const farmerId = nullableText(normalizedFarmerId());
+  const community = selectedCommunity();
+  const weight = requiredNumber(els.sackWeightKg.value, "Weight kg");
+  const grade = nullableText(els.seaweedGrade.value);
+  const farmerNameSnapshot = state.selectedFarmer?.name || nullableText(els.manualFarmerName.value);
+
+  return {
+    transaction_id: requiredText(els.transactionId.value, "Transaction ID"),
+    farmer_id: farmerId,
+    farmer_record_id: state.selectedFarmer?.id || null,
+    farmer_name_snapshot: farmerNameSnapshot,
+    community_id: nullableText(els.communityId.value),
+    community_record_id: community?.id || null,
+    community_name_snapshot: community?.community_name || null,
+    sack_id: nullableText(els.sackId.value),
+    collected_at: new Date(requiredText(els.collectedAt.value, "Date / time")).toISOString(),
+    gps_latitude: state.gps?.latitude ?? null,
+    gps_longitude: state.gps?.longitude ?? null,
+    gps_accuracy_m: state.gps?.accuracy ?? null,
+    sack_weight_kg: weight,
+    seaweed_grade: grade,
+    price_per_kg: nullableNumber(els.pricePerKg.value),
+    total_price: nullableNumber(els.totalPrice.value),
+    price_overridden: els.priceOverridden.checked,
+    notes: nullableText(els.collectionNotes.value),
+    photo_urls: []
+  };
+}
+
+function clearForm() {
+  els.collectionForm.reset();
+  state.selectedFarmer = null;
+  state.gps = null;
+  els.transactionId.value = "";
+  els.gpsSummary.value = "";
+  setDefaultDateTime();
+  ensureTransactionId();
+  syncCommunityName();
+  updateQuickReference();
+  setFarmerStatus("");
+}
+
+function normalizedFarmerId() {
+  return normalizeFarmerIdValue(els.farmerId.value);
+}
+
+function normalizeFarmerIdValue(value) {
+  const raw = String(value || "").trim().toUpperCase().replace(/\s+/g, "");
+  if (!raw) return "";
+  if (/^\d+$/.test(raw)) return `RID${raw.padStart(4, "0")}`;
+  const match = raw.match(/^RID(\d+)$/);
+  if (match) return `RID${match[1].padStart(4, "0")}`;
+  return raw;
+}
+
+function selectedCommunity() {
+  return communityById(els.communityId.value);
+}
+
+function communityById(communityId) {
+  if (!communityId) return null;
+  return state.communities.find((community) => community.community_id.toUpperCase() === communityId.toUpperCase()) || null;
+}
+
+function communityLabel(community) {
+  if (!community) return "";
+  return [community.community_id, community.community_name].filter(Boolean).join(" - ");
+}
+
+function findCommunityFromText(value) {
+  const text = String(value || "").trim().toUpperCase();
+  if (!text) return null;
+  return state.communities.find((community) => {
+    const id = String(community.community_id || "").toUpperCase();
+    const name = String(community.community_name || "").toUpperCase();
+    const label = communityLabel(community).toUpperCase();
+    return text === id || text === name || text === label || label.includes(text);
+  }) || null;
+}
+
+function nextFarmerId() {
+  const numbers = state.farmers
+    .map((farmer) => String(farmer.farmer_id || "").match(/^RID(\d+)$/i))
+    .filter(Boolean)
+    .map((match) => Number(match[1]))
+    .filter(Number.isFinite);
+  const next = numbers.length ? Math.max(...numbers) + 1 : 4300;
+  return `RID${String(next).padStart(4, "0")}`;
+}
+
+function setConnectionStatus(text, extraClass = "") {
+  els.collectionConnectionStatus.textContent = text;
+  els.collectionConnectionStatus.className = `status-pill ${extraClass}`.trim();
+}
+
+function setFarmerStatus(text, extraClass = "") {
+  if (!text) {
+    els.farmerLinkStatus.textContent = "";
+    els.farmerLinkStatus.className = "status-pill status-hidden";
+    return;
+  }
+  els.farmerLinkStatus.textContent = text;
+  els.farmerLinkStatus.className = `status-pill ${extraClass}`.trim();
+}
+
+function setStatus(message, type = "") {
+  els.collectionSaveStatus.textContent = message || "";
+  els.collectionSaveStatus.dataset.status = type;
+}
+
+function requiredText(value, label) {
+  const text = String(value || "").trim();
+  if (!text) throw new Error(`${label} is required.`);
+  return text;
+}
+
+function requiredNumber(value, label) {
+  const number = nullableNumber(value);
+  if (number === null) throw new Error(`${label} is required.`);
+  return number;
+}
+
+function nullableText(value) {
+  const text = String(value || "").trim();
+  return text || null;
+}
+
+function nullableNumber(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value).replace(/`/g, "&#096;");
+}
+
+function cameraErrorMessage(error) {
+  const name = error?.name || "";
+  if (name === "NotAllowedError") return "Camera permission was blocked. Type the number instead.";
+  if (name === "NotFoundError") return "No camera was found. Type the number instead.";
+  return "Could not open camera. Type the number instead.";
+}

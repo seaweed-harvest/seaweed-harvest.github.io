@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Collection - Seaweed Aggregation</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+</head>
+<body class="collection-page">
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <p class="eyebrow">Seaweed aggregation</p>
+        <h1>Collection</h1>
+      </div>
+      <div class="header-actions">
+        <nav class="app-nav" aria-label="Main navigation">
+          <a href="./index.html" aria-current="page">Collection</a>
+          <a href="./registry.html">Registry</a>
+        </nav>
+        <span id="collectionConnectionStatus" class="status-pill status-muted">Loading</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell">
+    <section class="panel collection-form-panel">
+      <form id="collectionForm" class="collection-form">
+        <fieldset class="farmer-fieldset">
+          <legend>Farmer</legend>
+          <label>
+            Farmer ID
+            <span class="input-action-row scan-action-row farmer-id-row">
+              <input id="farmerId" type="text" autocomplete="off" placeholder="RID4300">
+              <button id="lookupFarmer" type="button">Lookup</button>
+              <button id="scanFarmerId" type="button">Scan</button>
+            </span>
+          </label>
+          <div class="field-status-block">
+            <span id="farmerLinkStatus" class="status-pill status-hidden"></span>
+          </div>
+          <div class="quick-farmer-reference wide-field">
+            <p><span>Name:</span> <strong id="quickFarmerName">-</strong></p>
+            <p><span>Community:</span> <strong id="quickFarmerCommunity">-</strong></p>
+          </div>
+          <details id="farmerDetails" class="form-details wide-field">
+            <summary>Farmer Detail - Enter Details:</summary>
+            <div class="manual-farmer-fields">
+              <label>
+                Name
+                <input id="manualFarmerName" type="text" autocomplete="name">
+              </label>
+              <label>
+                Phone
+                <input id="manualFarmerPhone" type="text" autocomplete="tel">
+              </label>
+              <label>
+                Community
+                <input id="manualCommunityInput" type="text" list="communityOptions" autocomplete="off" placeholder="Type community">
+              </label>
+              <div class="manual-detail-actions">
+                <button id="assignFarmerId" type="button">Assign ID number</button>
+              </div>
+            </div>
+            <datalist id="communityOptions"></datalist>
+            <input id="communityId" type="hidden">
+            <input id="communityName" type="hidden">
+          </details>
+        </fieldset>
+
+        <fieldset class="harvest-fieldset">
+          <legend>Harvest</legend>
+          <label>
+            Sack ID
+            <span class="input-action-row scan-action-row sack-id-row">
+              <input id="sackId" type="text" autocomplete="off">
+              <button id="scanSackId" type="button">Scan</button>
+            </span>
+          </label>
+          <label>
+            Transaction ID
+            <input id="transactionId" type="text" readonly>
+          </label>
+          <label>
+            Date / time
+            <input id="collectedAt" type="datetime-local" required>
+          </label>
+          <label>
+            GPS
+            <span class="input-action-row">
+              <input id="gpsSummary" type="text" readonly>
+              <button id="captureGps" type="button">GPS</button>
+            </span>
+          </label>
+          <label>
+            Weight kg
+            <input id="sackWeightKg" type="number" min="0" step="0.01" required>
+          </label>
+          <label>
+            Grade
+            <select id="seaweedGrade">
+              <option value="">Select</option>
+              <option value="A">A - 12 KSH/kg</option>
+              <option value="B">B - 8 KSH/kg</option>
+              <option value="C">C - Rejected</option>
+            </select>
+          </label>
+          <label>
+            Price / kg
+            <input id="pricePerKg" type="number" min="0" step="0.01">
+          </label>
+          <label>
+            Total price
+            <input id="totalPrice" type="number" min="0" step="0.01">
+          </label>
+          <label class="check-row">
+            <input id="priceOverridden" type="checkbox">
+            Manual price
+          </label>
+          <label class="wide-field">
+            Notes
+            <textarea id="collectionNotes" rows="3"></textarea>
+          </label>
+          <label class="wide-field">
+            Photos
+            <input id="collectionPhotos" type="file" accept="image/*" capture="environment" multiple>
+          </label>
+        </fieldset>
+
+        <div class="button-row">
+          <button id="submitCollection" type="submit">Submit collection</button>
+          <button id="clearCollectionForm" type="button">Clear</button>
+          <span id="collectionSaveStatus" class="admin-status" aria-live="polite"></span>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <section id="qrScannerModal" class="qr-scanner-modal" role="dialog" aria-modal="true" aria-labelledby="qrScannerTitle" hidden>
+    <div class="qr-scanner-panel">
+      <div class="qr-scanner-head">
+        <h2 id="qrScannerTitle">Scan QR Code</h2>
+        <button id="stopQrScanner" type="button">Cancel</button>
+      </div>
+      <div class="qr-video-frame">
+        <video id="qrScannerVideo" playsinline muted></video>
+        <div class="qr-target-box" aria-hidden="true"></div>
+      </div>
+      <p id="qrScannerStatus" class="qr-scanner-status">Point camera at QR code.</p>
+    </div>
+  </section>
+
+  <script type="module" src="./assets/js/collection_form.js"></script>
+</body>
+</html>

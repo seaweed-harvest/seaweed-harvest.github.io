@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Registry - Seaweed Aggregation</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+</head>
+<body class="registry-page">
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <p class="eyebrow">Seaweed aggregation</p>
+        <h1>Registry</h1>
+      </div>
+      <div class="header-actions">
+        <nav class="app-nav" aria-label="Main navigation">
+          <a href="./index.html">Collection</a>
+          <a href="./registry.html" aria-current="page">Registry</a>
+        </nav>
+        <span id="registryConnectionStatus" class="status-pill status-muted">Loading</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell registry-shell">
+    <details id="farmerRegistryCard" class="registry-card panel">
+      <summary class="registry-card-summary">
+        <span>
+          <strong>Farmer Registry</strong>
+        </span>
+        <span id="farmerCount" class="status-pill">0 rows</span>
+      </summary>
+      <div class="registry-card-body">
+        <div class="responsive-table-wrap">
+          <table class="management-table">
+            <thead>
+              <tr>
+                <th>Farmer ID</th>
+                <th>Name</th>
+                <th>Phone Number</th>
+                <th>Community</th>
+              </tr>
+            </thead>
+            <tbody id="farmerRegistryRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </details>
+
+    <details id="communityRegistryCard" class="registry-card panel">
+      <summary class="registry-card-summary">
+        <span>
+          <strong>Community Registry</strong>
+        </span>
+        <span id="communityCount" class="status-pill">0 rows</span>
+      </summary>
+      <div class="registry-card-body">
+        <div class="responsive-table-wrap">
+          <table class="management-table">
+            <thead>
+              <tr>
+                <th>Community / Farm ID</th>
+                <th>Community Name</th>
+                <th>Community Location</th>
+                <th>Chair Person</th>
+                <th>Chair Person Contact</th>
+              </tr>
+            </thead>
+            <tbody id="communityRegistryRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </details>
+  </main>
+
+  <script type="module" src="./assets/js/registry_page.js"></script>
+</body>
+</html>
+
