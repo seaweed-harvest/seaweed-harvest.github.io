@@ -7,6 +7,8 @@ const state = {
   selectedFarmer: null,
   gps: null,
   qrScanner: {
+    canvas: null,
+    context: null,
     detector: null,
     frameRequest: null,
     scanTarget: null,
@@ -281,26 +283,29 @@ function captureGps() {
 }
 
 async function startQrScanner(scanTarget) {
-  if (!("BarcodeDetector" in window)) {
-    setStatus("QR scanning is not supported by this browser. Type the number instead.", "error");
-    return;
-  }
-
   if (!navigator.mediaDevices?.getUserMedia) {
     setStatus("Camera access is not available. Type the number instead.", "error");
     return;
   }
 
+  const detector = await createNativeQrDetector();
+  if (!detector && typeof window.jsQR !== "function") {
+    setStatus("QR scanner could not load. Refresh the page and try again.", "error");
+    return;
+  }
+
   try {
     state.qrScanner.scanTarget = scanTarget;
-    state.qrScanner.detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+    state.qrScanner.detector = detector;
     els.qrScannerStatus.textContent = "Opening camera...";
     els.qrScannerModal.hidden = false;
 
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: {
-        facingMode: { ideal: "environment" }
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
       }
     });
 
@@ -322,10 +327,12 @@ async function scanQrFrame() {
   if (!state.qrScanner.scanning) return;
 
   try {
-    const codes = await state.qrScanner.detector.detect(els.qrScannerVideo);
-    const code = codes.find((item) => item.rawValue);
-    if (code) {
-      applyScannedValue(code.rawValue);
+    const scannedValue = state.qrScanner.detector
+      ? await scanWithNativeDetector()
+      : scanWithJsQr();
+
+    if (scannedValue) {
+      applyScannedValue(scannedValue);
       stopQrScanner();
       return;
     }
@@ -334,6 +341,53 @@ async function scanQrFrame() {
   }
 
   state.qrScanner.frameRequest = requestAnimationFrame(scanQrFrame);
+}
+
+async function createNativeQrDetector() {
+  if (!("BarcodeDetector" in window)) return null;
+
+  try {
+    if (typeof window.BarcodeDetector.getSupportedFormats === "function") {
+      const formats = await window.BarcodeDetector.getSupportedFormats();
+      if (!formats.includes("qr_code")) return null;
+    }
+    return new window.BarcodeDetector({ formats: ["qr_code"] });
+  } catch {
+    return null;
+  }
+}
+
+async function scanWithNativeDetector() {
+  const codes = await state.qrScanner.detector.detect(els.qrScannerVideo);
+  const code = codes.find((item) => item.rawValue);
+  return code?.rawValue || "";
+}
+
+function scanWithJsQr() {
+  const video = els.qrScannerVideo;
+  const width = video.videoWidth;
+  const height = video.videoHeight;
+  if (!width || !height || typeof window.jsQR !== "function") return "";
+
+  if (!state.qrScanner.canvas) {
+    state.qrScanner.canvas = document.createElement("canvas");
+    state.qrScanner.context = state.qrScanner.canvas.getContext("2d", { willReadFrequently: true });
+  }
+
+  const canvas = state.qrScanner.canvas;
+  const context = state.qrScanner.context;
+  if (!context) return "";
+
+  canvas.width = width;
+  canvas.height = height;
+  context.drawImage(video, 0, 0, width, height);
+
+  const imageData = context.getImageData(0, 0, width, height);
+  const code = window.jsQR(imageData.data, width, height, {
+    inversionAttempts: "attemptBoth"
+  });
+
+  return code?.data || "";
 }
 
 function applyScannedValue(rawValue) {
