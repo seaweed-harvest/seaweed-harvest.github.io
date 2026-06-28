@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Tags - Seaweed Aggregation</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+</head>
+<body class="tags-page">
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <p class="eyebrow">Seaweed aggregation</p>
+        <h1>Tags</h1>
+      </div>
+      <div class="header-actions">
+        <nav class="app-nav" aria-label="Main navigation">
+          <a href="./index.html">Collection</a>
+          <a href="./registry.html">Registry</a>
+          <a href="./tags.html" aria-current="page">Tags</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell tag-shell">
+    <section class="panel tag-controls-panel">
+      <form id="tagGeneratorForm" class="tag-generator-form">
+        <label>
+          Tag type
+          <select id="tagType">
+            <option value="farmer">Farmer RID</option>
+            <option value="sack">Sack ID</option>
+            <option value="custom">Custom list</option>
+          </select>
+        </label>
+        <label>
+          Prefix
+          <input id="tagPrefix" type="text" value="RID" autocomplete="off">
+        </label>
+        <label>
+          Start number
+          <input id="tagStartNumber" type="number" min="0" step="1" value="4300">
+        </label>
+        <label>
+          Quantity
+          <input id="tagQuantity" type="number" min="1" max="240" step="1" value="24">
+        </label>
+        <label>
+          Digits
+          <input id="tagDigits" type="number" min="0" max="8" step="1" value="4">
+        </label>
+        <label>
+          Width mm
+          <input id="tagWidthMm" type="number" min="25" max="120" step="1" value="60">
+        </label>
+        <label>
+          Height mm
+          <input id="tagHeightMm" type="number" min="20" max="80" step="1" value="35">
+        </label>
+        <label>
+          QR mm
+          <input id="tagQrMm" type="number" min="14" max="60" step="1" value="24">
+        </label>
+        <label class="wide-field">
+          Custom IDs
+          <textarea id="customIds" rows="4" placeholder="RID4300&#10;RID4301&#10;SACK0001"></textarea>
+        </label>
+        <div class="button-row wide-field">
+          <button id="generateTags" type="submit">Generate</button>
+          <button id="printTags" type="button">Print</button>
+          <span id="tagCountStatus" class="admin-status" aria-live="polite"></span>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel tag-sheet-panel" aria-label="Printable tag sheet">
+      <div id="tagSheet" class="tag-sheet"></div>
+    </section>
+  </main>
+
+  <script src="./assets/js/vendor/qrcode-generator.js"></script>
+  <script src="./assets/js/tag_generator.js"></script>
+</body>
+</html>

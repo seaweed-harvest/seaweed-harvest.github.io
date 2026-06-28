@@ -571,6 +571,99 @@ input[readonly] {
   color: var(--text-muted);
 }
 
+.tag-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.tag-controls-panel,
+.tag-sheet-panel {
+  padding: 16px;
+}
+
+.tag-generator-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tag-generator-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.tag-sheet {
+  --tag-width: 60mm;
+  --tag-height: 35mm;
+  --tag-qr-size: 24mm;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, var(--tag-width));
+  justify-content: start;
+  gap: 4mm;
+}
+
+.print-tag {
+  width: var(--tag-width);
+  height: var(--tag-height);
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--tag-qr-size);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 2mm;
+  padding: 3mm;
+  break-inside: avoid;
+  border: 1px solid #111;
+  border-radius: 2mm;
+  background: #fff;
+  color: #000;
+}
+
+.tag-text {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 1mm;
+}
+
+.tag-text span {
+  color: #333;
+  font-size: 7pt;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.tag-text strong {
+  color: #000;
+  font-size: 14pt;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.tag-qr {
+  width: var(--tag-qr-size);
+  height: var(--tag-qr-size);
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
+  justify-self: center;
+}
+
+.tag-qr svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.tag-repeat {
+  min-width: 0;
+  align-self: end;
+  color: #333;
+  font-size: 8pt;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 980px) {
   .app-header-inner,
   .app-shell {
@@ -584,6 +677,10 @@ input[readonly] {
   .detail-grid,
   .quick-farmer-reference {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .tag-generator-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
 }
@@ -637,5 +734,56 @@ input[readonly] {
 
   .management-table {
     min-width: 680px;
+  }
+
+  .tag-controls-panel,
+  .tag-sheet-panel {
+    padding: 12px;
+  }
+
+  .tag-generator-form {
+    grid-template-columns: 1fr;
+  }
+
+  .tag-sheet {
+    grid-template-columns: repeat(auto-fill, minmax(0, 1fr));
+  }
+}
+
+@media print {
+  @page {
+    margin: 8mm;
+  }
+
+  html,
+  body {
+    min-width: 0;
+    background: #fff;
+  }
+
+  .app-header,
+  .tag-controls-panel {
+    display: none !important;
+  }
+
+  .app-shell {
+    width: auto;
+    margin: 0;
+    padding: 0;
+  }
+
+  .tag-sheet-panel {
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .tag-sheet {
+    grid-template-columns: repeat(auto-fill, var(--tag-width));
+    gap: 3mm;
+  }
+
+  .print-tag {
+    box-shadow: none;
   }
 }
