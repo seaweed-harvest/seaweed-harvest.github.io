@@ -65,7 +65,7 @@ function applyTypeDefaults(clearCustom) {
   }
 
   if (els.tagType.value === "sack") {
-    els.tagPrefix.value = "SACK";
+    els.tagPrefix.value = "B-";
     els.tagStartNumber.value = "1";
     els.tagDigits.value = "4";
   }

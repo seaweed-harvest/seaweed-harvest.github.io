@@ -88,6 +88,7 @@ function bindEvents() {
   els.manualCommunityInput.addEventListener("change", syncManualCommunity);
   els.assignFarmerId.addEventListener("click", assignNextFarmerId);
   els.sackId.addEventListener("change", () => {
+    els.sackId.value = normalizedSackId();
     ensureTransactionId();
     if (!state.gps) captureGps();
   });
@@ -404,7 +405,7 @@ function applyScannedValue(rawValue) {
     return;
   }
 
-  els.sackId.value = value;
+  els.sackId.value = normalizeSackIdValue(value);
   ensureTransactionId();
   if (!state.gps) captureGps();
   setStatus("Sack ID scanned.");
@@ -472,6 +473,7 @@ async function submitCollection(event) {
 
 function buildPayload() {
   const farmerId = nullableText(normalizedFarmerId());
+  const sackId = nullableText(normalizedSackId());
   const community = selectedCommunity();
   const weight = requiredNumber(els.sackWeightKg.value, "Weight kg");
   const grade = nullableText(els.seaweedGrade.value);
@@ -485,7 +487,7 @@ function buildPayload() {
     community_id: nullableText(els.communityId.value),
     community_record_id: community?.id || null,
     community_name_snapshot: community?.community_name || null,
-    sack_id: nullableText(els.sackId.value),
+    sack_id: sackId,
     collected_at: new Date(requiredText(els.collectedAt.value, "Date / time")).toISOString(),
     gps_latitude: state.gps?.latitude ?? null,
     gps_longitude: state.gps?.longitude ?? null,
@@ -517,12 +519,25 @@ function normalizedFarmerId() {
   return normalizeFarmerIdValue(els.farmerId.value);
 }
 
+function normalizedSackId() {
+  return normalizeSackIdValue(els.sackId.value);
+}
+
 function normalizeFarmerIdValue(value) {
   const raw = String(value || "").trim().toUpperCase().replace(/\s+/g, "");
   if (!raw) return "";
   if (/^\d+$/.test(raw)) return `RID${raw.padStart(4, "0")}`;
   const match = raw.match(/^RID(\d+)$/);
   if (match) return `RID${match[1].padStart(4, "0")}`;
+  return raw;
+}
+
+function normalizeSackIdValue(value) {
+  const raw = String(value || "").trim().toUpperCase().replace(/\s+/g, "");
+  if (!raw) return "";
+  if (/^\d+$/.test(raw)) return `B-${raw.padStart(4, "0")}`;
+  const match = raw.match(/^B-?(\d+)$/);
+  if (match) return `B-${match[1].padStart(4, "0")}`;
   return raw;
 }
 
