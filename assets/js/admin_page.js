@@ -213,7 +213,7 @@ function renderSetupError(error) {
   if (els.monthlyRows) els.monthlyRows.innerHTML = emptyRow(13, message);
   if (els.communityGradeRows) els.communityGradeRows.innerHTML = emptyRow(5, message);
   if (els.communityMonthlyRows) els.communityMonthlyRows.innerHTML = emptyRow(6, message);
-  if (els.ledgerRows) els.ledgerRows.innerHTML = emptyRow(13, message);
+  if (els.ledgerRows) els.ledgerRows.innerHTML = emptyRow(14, message);
   if (els.mapStatus) {
     els.mapStatus.textContent = "Setup needed";
     els.mapStatus.className = "status-pill status-muted";
@@ -640,7 +640,7 @@ async function loadLedger(options = {}) {
     state.ledgerTotal = Number(result.total_count || 0);
     renderLedger();
   } catch (error) {
-    els.ledgerRows.innerHTML = emptyRow(13, writeErrorMessage(error));
+    els.ledgerRows.innerHTML = emptyRow(14, writeErrorMessage(error));
     els.ledgerCount.textContent = "Error";
     els.ledgerCount.className = "status-pill status-muted";
     els.ledgerPageStatus.textContent = "Could not load ledger.";
@@ -660,6 +660,7 @@ function renderLedger() {
       <td>${readOnlyStack([row.farmer_id, row.farmer_name_snapshot])}</td>
       <td>${escapeHtml(row.sack_id || "-")}</td>
       <td>${escapeHtml(formatKg(row.sack_weight_kg))}</td>
+      <td>${escapeHtml(formatSeaweedType(row.seaweed_type))}</td>
       <td>${escapeHtml(row.seaweed_grade || "-")}</td>
       <td>${escapeHtml(formatMoney(row.price_per_kg))}</td>
       <td>${escapeHtml(formatMoney(row.total_price))}</td>
@@ -668,7 +669,7 @@ function renderLedger() {
       <td>${escapeHtml(row.notes || "-")}</td>
       <td>${escapeHtml(formatDateTime(row.created_at))}</td>
     </tr>
-  `).join("") || emptyRow(13, "No ledger rows match the current filters.");
+  `).join("") || emptyRow(14, "No ledger rows match the current filters.");
 
   const first = state.ledgerTotal ? state.ledgerPage * LEDGER_PAGE_SIZE + 1 : 0;
   const last = Math.min((state.ledgerPage + 1) * LEDGER_PAGE_SIZE, state.ledgerTotal);
@@ -891,6 +892,7 @@ function rowsToCsv(rows) {
     "farmer_name",
     "sack_id",
     "sack_weight_kg",
+    "seaweed_type",
     "seaweed_grade",
     "price_per_kg",
     "total_price",
@@ -910,6 +912,7 @@ function rowsToCsv(rows) {
       row.farmer_name_snapshot,
       row.sack_id,
       row.sack_weight_kg,
+      row.seaweed_type,
       row.seaweed_grade,
       row.price_per_kg,
       row.total_price,
@@ -1042,6 +1045,14 @@ function formatMoney(value) {
   return number.toLocaleString("en-GB", {
     maximumFractionDigits: 0
   });
+}
+
+function formatSeaweedType(value) {
+  const type = String(value || "").toLowerCase();
+  if (type === "spinosum") return "Spinosum";
+  if (type === "cottonii") return "Cottonii";
+  if (type === "other") return "Other";
+  return value || "-";
 }
 
 function formatInteger(value) {

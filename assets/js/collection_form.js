@@ -54,6 +54,7 @@ function cacheElements() {
     "captureGps",
     "gpsSummary",
     "sackWeightKg",
+    "seaweedType",
     "seaweedGrade",
     "pricePerKg",
     "totalPrice",
@@ -476,6 +477,7 @@ function buildPayload() {
   const sackId = nullableText(normalizedSackId());
   const community = selectedCommunity();
   const weight = requiredNumber(els.sackWeightKg.value, "Weight kg");
+  const seaweedType = requiredText(els.seaweedType.value, "Seaweed type");
   const grade = nullableText(els.seaweedGrade.value);
   const farmerNameSnapshot = state.selectedFarmer?.name || nullableText(els.manualFarmerName.value);
 
@@ -493,6 +495,7 @@ function buildPayload() {
     gps_longitude: state.gps?.longitude ?? null,
     gps_accuracy_m: state.gps?.accuracy ?? null,
     sack_weight_kg: weight,
+    seaweed_type: seaweedType,
     seaweed_grade: grade,
     price_per_kg: nullableNumber(els.pricePerKg.value),
     total_price: nullableNumber(els.totalPrice.value),
@@ -509,6 +512,7 @@ function clearForm() {
   els.transactionId.value = "";
   els.gpsSummary.value = "";
   setDefaultDateTime();
+  els.seaweedType.value = "spinosum";
   ensureTransactionId();
   syncCommunityName();
   updateQuickReference();
