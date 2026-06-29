@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Admin - Seaweed Aggregation</title>
+  <link rel="stylesheet" href="./assets/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="./assets/css/ag.css">
+</head>
+<body class="admin-console-page">
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <p class="eyebrow">Seaweed aggregation</p>
+        <h1>Admin</h1>
+      </div>
+      <div class="header-actions admin-header-controls">
+        <nav class="app-nav" aria-label="Main navigation">
+          <a href="./index.html">Collection</a>
+          <a href="./admin.html" aria-current="page">Admin</a>
+          <a href="./registry.html">Registry</a>
+          <a href="./tags.html">Tags</a>
+        </nav>
+        <span id="adminConnectionStatus" class="status-pill status-muted">Loading</span>
+        <button id="adminSignOut" type="button" hidden>Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell admin-shell admin-layout">
+    <aside class="admin-sidebar" aria-label="Admin menu">
+      <h2>Admin</h2>
+      <a href="#dashboard" aria-current="page">Dashboard</a>
+      <p class="admin-menu-heading">Registry</p>
+      <a href="#member-registry">Member Registry</a>
+      <a href="#community-registry">Community Registry</a>
+      <p class="admin-menu-heading">Map</p>
+      <a href="#map">Community Map</a>
+      <p class="admin-menu-heading">Data</p>
+      <a href="#monthly">Monthly</a>
+      <a href="#per-community">Per Community</a>
+      <a href="#collection-ledger">Collection Ledger</a>
+    </aside>
+
+    <section class="admin-content">
+      <section id="dashboard" class="panel admin-dashboard-panel admin-page-section">
+        <div class="section-head compact">
+          <div>
+            <h2>Dashboard</h2>
+          </div>
+          <button id="reloadAdminDashboard" type="button">Reload</button>
+        </div>
+
+        <div class="admin-metric-grid">
+          <article class="admin-metric-card">
+            <span>Total kg</span>
+            <strong id="metricTotalKg">--</strong>
+          </article>
+          <article class="admin-metric-card">
+            <span>Accepted kg</span>
+            <strong id="metricAcceptedKg">--</strong>
+          </article>
+          <article class="admin-metric-card warning">
+            <span>Rejected kg</span>
+            <strong id="metricRejectedKg">--</strong>
+          </article>
+          <article class="admin-metric-card">
+            <span>Estimated KSH</span>
+            <strong id="metricEstimatedKsh">--</strong>
+          </article>
+          <article class="admin-metric-card">
+            <span>Grade A kg</span>
+            <strong id="metricGradeAKg">--</strong>
+          </article>
+          <article class="admin-metric-card">
+            <span>Grade B kg</span>
+            <strong id="metricGradeBKg">--</strong>
+          </article>
+          <article class="admin-metric-card warning">
+            <span>Grade C kg</span>
+            <strong id="metricGradeCKg">--</strong>
+          </article>
+          <article class="admin-metric-card warning">
+            <span>Ungraded kg</span>
+            <strong id="metricUngradedKg">--</strong>
+          </article>
+          <article class="admin-metric-card">
+            <span>Collection records</span>
+            <strong id="metricCollectionCount">--</strong>
+          </article>
+          <article class="admin-metric-card">
+            <span>This month</span>
+            <strong id="metricCollectionsThisMonth">--</strong>
+          </article>
+          <article class="admin-metric-card">
+            <span>Active members</span>
+            <strong id="metricActiveMembers">--</strong>
+          </article>
+          <article class="admin-metric-card">
+            <span>Active communities</span>
+            <strong id="metricActiveCommunities">--</strong>
+          </article>
+          <article class="admin-metric-card">
+            <span>Last collection</span>
+            <strong id="metricLastCollection">--</strong>
+          </article>
+          <article class="admin-metric-card warning">
+            <span>Missing member ID</span>
+            <strong id="metricMissingMemberId">--</strong>
+          </article>
+          <article class="admin-metric-card warning">
+            <span>Missing sack ID</span>
+            <strong id="metricMissingSackId">--</strong>
+          </article>
+        </div>
+
+        <section class="admin-subsection">
+          <div class="section-head compact">
+            <h3>Community Totals</h3>
+            <span id="communityTotalsCount" class="status-pill">0 rows</span>
+          </div>
+          <div class="responsive-table-wrap">
+            <table class="management-table admin-data-table">
+              <thead>
+                <tr>
+                  <th>Community ID</th>
+                  <th>Community</th>
+                  <th>Total kg</th>
+                  <th>A kg</th>
+                  <th>B kg</th>
+                  <th>C kg</th>
+                  <th>Active members</th>
+                  <th>Last collection</th>
+                </tr>
+              </thead>
+              <tbody id="communityTotalsRows"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="registry" class="panel admin-page-section">
+        <div class="section-head compact admin-section-title">
+          <div>
+            <h2>Registry</h2>
+          </div>
+        </div>
+
+        <details id="member-registry" class="admin-management-card" open>
+          <summary class="admin-card-summary">
+            <span>
+              <strong>Member Registry</strong>
+            </span>
+            <span id="memberRegistryCount" class="status-pill">0 rows</span>
+          </summary>
+          <div class="admin-card-body">
+            <div class="admin-toolbar">
+              <label>
+                Search member
+                <input id="memberSearch" type="search" autocomplete="off" placeholder="Name, member ID, community">
+              </label>
+            </div>
+            <div class="responsive-table-wrap">
+              <table class="management-table admin-data-table">
+                <thead>
+                  <tr>
+                    <th>Member ID</th>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Community ID</th>
+                    <th>Community</th>
+                    <th>Status</th>
+                    <th>Last collection</th>
+                    <th>Total kg</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody id="memberRegistryRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details id="community-registry" class="admin-management-card" open>
+          <summary class="admin-card-summary">
+            <span>
+              <strong>Community Registry</strong>
+            </span>
+            <span id="communityRegistryCount" class="status-pill">0 rows</span>
+          </summary>
+          <div class="admin-card-body">
+            <div class="admin-toolbar">
+              <label>
+                Search community
+                <input id="communitySearch" type="search" autocomplete="off" placeholder="Community name, ID, chair">
+              </label>
+            </div>
+            <div class="responsive-table-wrap">
+              <table class="management-table admin-data-table">
+                <thead>
+                  <tr>
+                    <th>Community ID</th>
+                    <th>Community</th>
+                    <th>GPS</th>
+                    <th>Chair person</th>
+                    <th>Chair contact</th>
+                    <th>Active members</th>
+                    <th>Total kg</th>
+                    <th>Last collection</th>
+                    <th>GPS status</th>
+                    <th>Status</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody id="communityRegistryRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <section id="map" class="panel admin-page-section">
+        <div class="section-head compact admin-section-title">
+          <div>
+            <h2>Map</h2>
+          </div>
+          <span id="mapStatus" class="status-pill status-muted">Loading</span>
+        </div>
+        <div class="admin-map-layout">
+          <div class="admin-map-panel">
+            <div id="adminCommunityMap" class="admin-map" role="application" aria-label="Community map"></div>
+            <div id="adminMapFallback" class="empty-state map-fallback" hidden></div>
+          </div>
+          <div class="map-list-stack">
+            <section class="panel map-list-panel">
+              <div class="section-head compact">
+                <h3>Mapped Communities</h3>
+                <span id="mappedCommunityCount" class="status-pill">0</span>
+              </div>
+              <div id="mappedCommunityList" class="map-table-wrap"></div>
+            </section>
+            <section class="panel map-list-panel">
+              <div class="section-head compact">
+                <h3>Needs GPS</h3>
+                <span id="missingGpsCount" class="status-pill status-muted">0</span>
+              </div>
+              <div id="missingGpsList" class="map-table-wrap"></div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section id="data" class="panel admin-page-section">
+        <div class="section-head compact admin-section-title">
+          <div>
+            <h2>Data</h2>
+          </div>
+        </div>
+
+        <details id="monthly" class="admin-management-card" open>
+          <summary class="admin-card-summary">
+            <span>
+              <strong>Monthly</strong>
+            </span>
+            <span id="monthlyCount" class="status-pill">0 rows</span>
+          </summary>
+          <div class="admin-card-body">
+            <div class="admin-toolbar admin-filter-grid">
+              <label>
+                Year
+                <input id="monthlyYear" type="number" min="2020" max="2100" step="1">
+              </label>
+              <label>
+                Community
+                <select id="monthlyCommunity"></select>
+              </label>
+              <label>
+                Grade
+                <select id="monthlyGrade">
+                  <option value="">All grades</option>
+                  <option value="A">A</option>
+                  <option value="B">B</option>
+                  <option value="C">C</option>
+                </select>
+              </label>
+              <button id="reloadMonthly" type="button">Load</button>
+            </div>
+            <div class="responsive-table-wrap">
+              <table class="management-table admin-data-table">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th>Collections</th>
+                    <th>Members</th>
+                    <th>Communities</th>
+                    <th>Total kg</th>
+                    <th>A kg</th>
+                    <th>B kg</th>
+                    <th>C kg</th>
+                    <th>Ungraded kg</th>
+                    <th>KSH</th>
+                    <th>Avg kg</th>
+                    <th>First date</th>
+                    <th>Last date</th>
+                  </tr>
+                </thead>
+                <tbody id="monthlyRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details id="per-community" class="admin-management-card" open>
+          <summary class="admin-card-summary">
+            <span>
+              <strong>Per Community</strong>
+            </span>
+            <span id="communitySummaryStatus" class="status-pill">Ready</span>
+          </summary>
+          <div class="admin-card-body">
+            <div class="admin-toolbar admin-filter-grid">
+              <label>
+                Community
+                <select id="communitySummarySelect"></select>
+              </label>
+              <label>
+                Period
+                <select id="communityPeriodPreset">
+                  <option value="30">Last 30 days</option>
+                  <option value="7">Last 7 days</option>
+                  <option value="this_month">This month</option>
+                  <option value="month">Selected month</option>
+                  <option value="custom">Custom dates</option>
+                  <option value="all">All records</option>
+                </select>
+              </label>
+              <label>
+                Month
+                <input id="communityMonth" type="month">
+              </label>
+              <label>
+                From
+                <input id="communityStartDate" type="date">
+              </label>
+              <label>
+                To
+                <input id="communityEndDate" type="date">
+              </label>
+              <button id="reloadCommunitySummary" type="button">Load</button>
+            </div>
+            <div id="communitySummaryMetrics" class="admin-metric-grid compact"></div>
+            <div class="admin-two-column">
+              <section class="admin-subsection">
+                <div class="section-head compact">
+                  <h3>Grade Summary</h3>
+                </div>
+                <div class="responsive-table-wrap">
+                  <table class="management-table admin-data-table">
+                    <thead>
+                      <tr>
+                        <th>Grade</th>
+                        <th>Collections</th>
+                        <th>Total kg</th>
+                        <th>KSH</th>
+                        <th>Avg kg</th>
+                      </tr>
+                    </thead>
+                    <tbody id="communityGradeRows"></tbody>
+                  </table>
+                </div>
+              </section>
+              <section class="admin-subsection">
+                <div class="section-head compact">
+                  <h3>Monthly Breakdown</h3>
+                </div>
+                <div class="responsive-table-wrap">
+                  <table class="management-table admin-data-table">
+                    <thead>
+                      <tr>
+                        <th>Month</th>
+                        <th>Collections</th>
+                        <th>Total kg</th>
+                        <th>A kg</th>
+                        <th>B kg</th>
+                        <th>C kg</th>
+                      </tr>
+                    </thead>
+                    <tbody id="communityMonthlyRows"></tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+          </div>
+        </details>
+
+        <details id="collection-ledger" class="admin-management-card" open>
+          <summary class="admin-card-summary">
+            <span>
+              <strong>Collection Ledger</strong>
+            </span>
+            <span id="ledgerCount" class="status-pill status-muted">Sign in</span>
+          </summary>
+          <div class="admin-card-body">
+            <div id="ledgerAuthPanel" class="admin-auth-card">
+              <div>
+                <h3>Ledger sign in</h3>
+                <p id="adminAuthStatus" class="field-hint">Sign in with an approved Supabase Auth user to load raw collection records.</p>
+              </div>
+              <form id="adminAuthForm" class="admin-auth-form">
+                <label>
+                  Email
+                  <input id="adminEmail" type="email" autocomplete="email" required>
+                </label>
+                <label>
+                  Password
+                  <input id="adminPassword" type="password" autocomplete="current-password" required>
+                </label>
+                <button id="adminSignIn" type="submit">Sign in</button>
+              </form>
+            </div>
+
+            <div class="admin-toolbar admin-filter-grid">
+              <label>
+                Period
+                <select id="ledgerPeriodPreset">
+                  <option value="30">Last 30 days</option>
+                  <option value="7">Last 7 days</option>
+                  <option value="this_month">This month</option>
+                  <option value="month">Selected month</option>
+                  <option value="custom">Custom dates</option>
+                  <option value="all">Search all records</option>
+                </select>
+              </label>
+              <label>
+                Month
+                <input id="ledgerMonth" type="month">
+              </label>
+              <label>
+                From
+                <input id="ledgerStartDate" type="date">
+              </label>
+              <label>
+                To
+                <input id="ledgerEndDate" type="date">
+              </label>
+              <label>
+                Community
+                <select id="ledgerCommunity"></select>
+              </label>
+              <label>
+                Grade
+                <select id="ledgerGrade">
+                  <option value="">All grades</option>
+                  <option value="A">A</option>
+                  <option value="B">B</option>
+                  <option value="C">C</option>
+                </select>
+              </label>
+              <label>
+                Search
+                <input id="ledgerSearch" type="search" autocomplete="off" placeholder="Member, sack, transaction">
+              </label>
+              <button id="reloadLedger" type="button">Load</button>
+              <button id="exportLedgerCsv" type="button">Export CSV</button>
+            </div>
+
+            <div class="ledger-pagination">
+              <button id="ledgerPrevPage" type="button">Previous</button>
+              <span id="ledgerPageStatus" class="admin-status">Page 1</span>
+              <button id="ledgerNextPage" type="button">Next</button>
+            </div>
+
+            <div class="responsive-table-wrap">
+              <table class="management-table admin-data-table ledger-table">
+                <thead>
+                  <tr>
+                    <th><button type="button" data-ledger-sort="collected_at">Collected</button></th>
+                    <th><button type="button" data-ledger-sort="transaction_id">Transaction</button></th>
+                    <th><button type="button" data-ledger-sort="community_id">Community</button></th>
+                    <th><button type="button" data-ledger-sort="farmer_id">Member</button></th>
+                    <th><button type="button" data-ledger-sort="sack_id">Sack ID</button></th>
+                    <th><button type="button" data-ledger-sort="sack_weight_kg">Weight kg</button></th>
+                    <th><button type="button" data-ledger-sort="seaweed_grade">Grade</button></th>
+                    <th><button type="button" data-ledger-sort="price_per_kg">Price/kg</button></th>
+                    <th><button type="button" data-ledger-sort="total_price">Total KSH</button></th>
+                    <th>GPS</th>
+                    <th>Photos</th>
+                    <th>Notes</th>
+                    <th><button type="button" data-ledger-sort="created_at">Saved</button></th>
+                  </tr>
+                </thead>
+                <tbody id="ledgerRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      </section>
+    </section>
+  </main>
+
+  <script src="./assets/vendor/leaflet/leaflet.js"></script>
+  <script type="module" src="./assets/js/admin_page.js"></script>
+</body>
+</html>
