@@ -37,6 +37,8 @@ const state = {
   ledgerSort: "collected_at",
   ledgerDirection: "desc",
   todayIntakeRows: [],
+  todaySort: "collected_at",
+  todayDirection: "desc",
   selectedTodayIntakeIds: new Set(),
   map: null,
   markersByKey: new Map()
@@ -48,6 +50,8 @@ document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   cacheElements();
+  setupAdminSidebar();
+  if (!hasAdminDataView()) return;
   setDefaultControls();
   bindEvents();
   await loadAdminData();
@@ -138,20 +142,21 @@ function cacheElements() {
   });
 }
 
+function hasAdminDataView() {
+  return Boolean(els.adminConnectionStatus);
+}
+
 function setDefaultControls() {
   const now = new Date();
   const currentYear = now.getFullYear();
-  const currentMonth = monthInputValue(now);
-  const thirtyDaysAgo = new Date(now);
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   if (els.monthlyYear) els.monthlyYear.value = String(currentYear);
-  if (els.communityMonth) els.communityMonth.value = currentMonth;
-  if (els.ledgerMonth) els.ledgerMonth.value = currentMonth;
-  if (els.communityStartDate) els.communityStartDate.value = dateInputValue(thirtyDaysAgo);
-  if (els.communityEndDate) els.communityEndDate.value = dateInputValue(now);
-  if (els.ledgerStartDate) els.ledgerStartDate.value = dateInputValue(thirtyDaysAgo);
-  if (els.ledgerEndDate) els.ledgerEndDate.value = dateInputValue(now);
+  if (els.communityMonth) els.communityMonth.value = "";
+  if (els.ledgerMonth) els.ledgerMonth.value = "";
+  if (els.communityStartDate) els.communityStartDate.value = "";
+  if (els.communityEndDate) els.communityEndDate.value = "";
+  if (els.ledgerStartDate) els.ledgerStartDate.value = "";
+  if (els.ledgerEndDate) els.ledgerEndDate.value = "";
   if (els.todayIntakeDate) els.todayIntakeDate.value = kenyaDateInputValue(now);
 }
 
@@ -199,6 +204,61 @@ function bindEvents() {
       loadLedger();
     });
   });
+
+  document.querySelectorAll("[data-today-sort]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextSort = button.dataset.todaySort;
+      if (state.todaySort === nextSort) {
+        state.todayDirection = state.todayDirection === "asc" ? "desc" : "asc";
+      } else {
+        state.todaySort = nextSort;
+        state.todayDirection = nextSort === "collected_at" ? "desc" : "asc";
+      }
+      renderTodayIntake();
+    });
+  });
+}
+
+function setupAdminSidebar() {
+  const sidebar = document.querySelector(".admin-sidebar");
+  const layout = document.querySelector(".admin-layout");
+  if (!sidebar || !layout || sidebar.dataset.sidebarReady === "true") return;
+
+  const title = sidebar.querySelector("h2");
+  const sidebarHeader = document.createElement("div");
+  sidebarHeader.className = "admin-sidebar-top";
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "admin-sidebar-toggle";
+
+  if (title) {
+    title.replaceWith(sidebarHeader);
+    sidebarHeader.append(title, toggle);
+  } else {
+    sidebar.prepend(sidebarHeader);
+    sidebarHeader.append(toggle);
+  }
+
+  const reveal = document.createElement("button");
+  reveal.type = "button";
+  reveal.className = "admin-sidebar-reveal";
+  reveal.textContent = "Admin menu";
+  layout.insertBefore(reveal, sidebar);
+
+  const applyPinnedState = (isPinned) => {
+    localStorage.setItem("seaweed_ag:admin_sidebar_pinned", String(isPinned));
+    layout.classList.toggle("admin-sidebar-unpinned", !isPinned);
+    toggle.textContent = isPinned ? "Unpin" : "Pin";
+    toggle.setAttribute("aria-pressed", String(isPinned));
+    reveal.hidden = isPinned;
+  };
+
+  const savedValue = localStorage.getItem("seaweed_ag:admin_sidebar_pinned");
+  applyPinnedState(savedValue === null ? true : savedValue !== "false");
+  toggle.addEventListener("click", () => applyPinnedState(false));
+  reveal.addEventListener("click", () => applyPinnedState(true));
+  sidebar.dataset.sidebarReady = "true";
 }
 
 async function loadAdminData() {
@@ -699,7 +759,7 @@ function renderTodayIntake() {
   if (!els.todayIntakeRows) return;
 
   els.todayIntakeCount.textContent = `${state.todayIntakeRows.length} rows`;
-  els.todayIntakeRows.innerHTML = state.todayIntakeRows.map((row) => {
+  els.todayIntakeRows.innerHTML = sortedTodayIntakeRows().map((row) => {
     const id = String(row.id || "");
     const checked = state.selectedTodayIntakeIds.has(id) ? " checked" : "";
     return `
@@ -707,8 +767,8 @@ function renderTodayIntake() {
         <td class="selection-cell"><input type="checkbox" data-today-id="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(row.transaction_id || "intake row")}"${checked}></td>
         <td>${escapeHtml(formatDateTime(row.collected_at))}</td>
         <td><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
-        <td>${readOnlyStack([row.community_id, row.community_name_snapshot])}</td>
-        <td>${readOnlyStack([row.farmer_id, row.farmer_name_snapshot])}</td>
+        <td>${inlineCell([row.community_id, row.community_name_snapshot])}</td>
+        <td>${inlineCell([row.farmer_id, row.farmer_name_snapshot])}</td>
         <td>${escapeHtml(row.sack_id || "-")}</td>
         <td>${escapeHtml(formatKg(row.sack_weight_kg))}</td>
         <td>${escapeHtml(formatSeaweedType(row.seaweed_type))}</td>
@@ -876,8 +936,8 @@ function renderLedger() {
     <tr>
       <td>${escapeHtml(formatDateTime(row.collected_at))}</td>
       <td><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
-      <td>${readOnlyStack([row.community_id, row.community_name_snapshot])}</td>
-      <td>${readOnlyStack([row.farmer_id, row.farmer_name_snapshot])}</td>
+      <td>${inlineCell([row.community_id, row.community_name_snapshot])}</td>
+      <td>${inlineCell([row.farmer_id, row.farmer_name_snapshot])}</td>
       <td>${escapeHtml(row.sack_id || "-")}</td>
       <td>${escapeHtml(formatKg(row.sack_weight_kg))}</td>
       <td>${escapeHtml(formatSeaweedType(row.seaweed_type))}</td>
@@ -1154,6 +1214,35 @@ function readOnlyStack(values) {
   const lines = values.map((value) => String(value || "").trim()).filter(Boolean);
   if (!lines.length) return `<span class="muted-cell">-</span>`;
   return `<div class="readonly-stack">${lines.map((line) => `<span>${escapeHtml(line)}</span>`).join("")}</div>`;
+}
+
+function inlineCell(values) {
+  const text = values.map((value) => String(value || "").trim()).filter(Boolean).join(" - ");
+  if (!text) return `<span class="muted-cell">-</span>`;
+  return escapeHtml(text);
+}
+
+function sortedTodayIntakeRows() {
+  const rows = [...state.todayIntakeRows];
+  const sortKey = state.todaySort;
+  const direction = state.todayDirection === "asc" ? 1 : -1;
+  rows.sort((a, b) => compareTableValues(a[sortKey], b[sortKey]) * direction);
+  return rows;
+}
+
+function compareTableValues(a, b) {
+  const aNumber = Number(a);
+  const bNumber = Number(b);
+  if (Number.isFinite(aNumber) && Number.isFinite(bNumber)) return aNumber - bNumber;
+
+  const aDate = Date.parse(a);
+  const bDate = Date.parse(b);
+  if (Number.isFinite(aDate) && Number.isFinite(bDate)) return aDate - bDate;
+
+  return String(a || "").localeCompare(String(b || ""), undefined, {
+    numeric: true,
+    sensitivity: "base"
+  });
 }
 
 function photoCount(value) {

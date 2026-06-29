@@ -8,26 +8,45 @@
   <title>Tags - Seaweed Aggregation</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
 </head>
-<body class="tags-page">
+<body class="admin-console-page tags-page">
   <header class="app-header">
     <div class="app-header-inner">
       <div>
         <p class="eyebrow">Seaweed aggregation</p>
-        <h1>Tags</h1>
+        <h1>Admin</h1>
       </div>
       <div class="header-actions">
         <nav class="app-nav" aria-label="Main navigation">
           <a href="./index.html">Collection</a>
-          <a href="./admin.html">Admin</a>
-          <a href="./registry.html">Registry</a>
-          <a href="./tags.html" aria-current="page">Tags</a>
+          <a href="./admin.html" aria-current="page">Admin</a>
         </nav>
       </div>
     </div>
   </header>
 
-  <main class="app-shell tag-shell">
-    <section class="panel tag-controls-panel">
+  <main class="app-shell admin-shell admin-layout">
+    <aside class="admin-sidebar" aria-label="Admin menu">
+      <h2>Admin</h2>
+      <a href="./admin.html">Dashboard</a>
+      <p class="admin-menu-heading">Registry</p>
+      <a href="./admin_registry.html#member-registry">Member Registry</a>
+      <a href="./admin_registry.html#community-registry">Community Registry</a>
+      <p class="admin-menu-heading">Map</p>
+      <a href="./admin_map.html">Community Map</a>
+      <p class="admin-menu-heading">Data</p>
+      <a href="./admin_today.html">Today's Intake</a>
+      <a href="./admin_monthly.html">Monthly</a>
+      <a href="./admin_community.html">Per Community</a>
+      <a href="./admin_ledger.html">Collection Ledger</a>
+      <p class="admin-menu-heading">Tools</p>
+      <a href="./tags.html" aria-current="page">Tags</a>
+    </aside>
+
+    <section class="admin-content tag-shell">
+      <section class="panel tag-controls-panel">
+        <div class="section-head compact">
+          <h2>Tags</h2>
+        </div>
       <form id="tagGeneratorForm" class="tag-generator-form">
         <label>
           Tag type
@@ -75,13 +94,15 @@
           <span id="tagCountStatus" class="admin-status" aria-live="polite"></span>
         </div>
       </form>
-    </section>
+      </section>
 
-    <section class="panel tag-sheet-panel" aria-label="Printable tag sheet">
-      <div id="tagSheet" class="tag-sheet"></div>
+      <section class="panel tag-sheet-panel" aria-label="Printable tag sheet">
+        <div id="tagSheet" class="tag-sheet"></div>
+      </section>
     </section>
   </main>
 
+  <script type="module" src="./assets/js/admin_page.js"></script>
   <script src="./assets/js/vendor/qrcode-generator.js"></script>
   <script src="./assets/js/tag_generator.js"></script>
 </body>
