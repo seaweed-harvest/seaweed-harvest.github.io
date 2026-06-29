@@ -878,7 +878,7 @@ button:disabled {
 .admin-map-panel {
   position: relative;
   min-width: 0;
-  min-height: 650px;
+  min-height: 600px;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -889,8 +889,25 @@ button:disabled {
 .admin-map {
   width: 100%;
   height: 100%;
-  min-height: 650px;
+  min-height: 600px;
   background: #dfeee9;
+}
+
+.map-recency-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: -2px 0 12px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.map-recency-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .map-list-stack {
@@ -967,14 +984,11 @@ button:disabled {
   font-weight: 600;
 }
 
-.map-location-row.farm td:first-child {
-  border-left: 3px solid #16a34a;
-}
-
 .map-location-row.muted td:first-child {
   border-left: 3px solid var(--border);
 }
 
+.map-marker-sample,
 .map-marker-icon {
   width: 34px;
   height: 34px;
@@ -989,17 +1003,55 @@ button:disabled {
   box-shadow: 0 2px 8px rgba(18, 54, 47, 0.28);
 }
 
-.map-marker-icon.farm,
-.map-marker-icon.recent {
+.map-marker-sample {
+  width: 20px;
+  height: 20px;
+  font-size: 0.72rem;
+}
+
+.map-marker-icon.latest-harvest,
+.map-marker-sample.latest-harvest {
   background: #16a34a;
 }
 
-.map-marker-icon.stale {
-  background: #b45309;
+.map-marker-icon.week-harvest,
+.map-marker-sample.week-harvest {
+  background: #4ade80;
 }
 
-.map-marker-icon.no-collections {
-  background: #0ea5e9;
+.map-marker-icon.month-harvest,
+.map-marker-sample.month-harvest {
+  background: #a3b63f;
+}
+
+.map-marker-icon.older-harvest,
+.map-marker-sample.older-harvest {
+  background: #eab308;
+}
+
+.map-marker-icon.never-harvested,
+.map-marker-sample.never-harvested {
+  background: #94a3b8;
+}
+
+.map-location-row.latest-harvest td:first-child {
+  border-left: 3px solid #16a34a;
+}
+
+.map-location-row.week-harvest td:first-child {
+  border-left: 3px solid #4ade80;
+}
+
+.map-location-row.month-harvest td:first-child {
+  border-left: 3px solid #a3b63f;
+}
+
+.map-location-row.older-harvest td:first-child {
+  border-left: 3px solid #eab308;
+}
+
+.map-location-row.never-harvested td:first-child {
+  border-left: 3px solid #94a3b8;
 }
 
 .map-popup {
@@ -1179,7 +1231,7 @@ button:disabled {
 
   .admin-map-panel,
   .admin-map {
-    min-height: 520px;
+    min-height: 500px;
   }
 
 }
@@ -1277,7 +1329,7 @@ button:disabled {
 
   .admin-map-panel,
   .admin-map {
-    min-height: 430px;
+    min-height: 390px;
   }
 
   .tag-sheet {

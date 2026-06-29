@@ -464,11 +464,12 @@ function renderMapSection() {
 
   const mapped = state.communities.filter(hasGps);
   const missing = state.communities.filter((community) => !hasGps(community));
+  const latestHarvestMs = latestHarvestTime(state.communities);
 
   els.mappedCommunityCount.textContent = String(mapped.length);
   els.missingGpsCount.textContent = String(missing.length);
-  renderMapLists(mapped, missing);
-  renderLeafletMap(mapped);
+  renderMapLists(mapped, missing, latestHarvestMs);
+  renderLeafletMap(mapped, latestHarvestMs);
 
   if (mapped.length) {
     els.mapStatus.textContent = `${mapped.length} mapped`;
@@ -479,17 +480,17 @@ function renderMapSection() {
   }
 }
 
-function renderMapLists(mapped, missing) {
+function renderMapLists(mapped, missing, latestHarvestMs) {
   els.mappedCommunityList.innerHTML = mapped.length
-    ? renderMapTable(mapped, true)
+    ? renderMapTable(mapped, true, latestHarvestMs)
     : `<div class="empty-state">No mapped communities found.</div>`;
 
   els.missingGpsList.innerHTML = missing.length
-    ? renderMapTable(missing, false)
+    ? renderMapTable(missing, false, latestHarvestMs)
     : `<div class="empty-state">All active communities have GPS coordinates.</div>`;
 }
 
-function renderMapTable(rows, includeMarkerFocus) {
+function renderMapTable(rows, includeMarkerFocus, latestHarvestMs) {
   return `
     <table class="map-location-table">
       <thead>
@@ -506,8 +507,9 @@ function renderMapTable(rows, includeMarkerFocus) {
           const focusAttr = includeMarkerFocus
             ? ` tabindex="0" role="button" data-focus-marker="${escapeAttribute(community.community_id)}"`
             : "";
+          const rowClass = includeMarkerFocus ? harvestRecencyClass(community, latestHarvestMs) : "muted";
           return `
-            <tr class="map-location-row ${includeMarkerFocus ? "farm" : "muted"}"${focusAttr}>
+            <tr class="map-location-row ${escapeAttribute(rowClass)}"${focusAttr}>
               <td><strong>${escapeHtml(community.community_name || "-")}</strong></td>
               <td>${escapeHtml(community.community_id || "-")}</td>
               <td>${escapeHtml(formatCoordinatePair(community.gps_latitude, community.gps_longitude))}</td>
@@ -521,7 +523,7 @@ function renderMapTable(rows, includeMarkerFocus) {
   `;
 }
 
-function renderLeafletMap(mapped) {
+function renderLeafletMap(mapped, latestHarvestMs) {
   if (state.map) {
     state.map.remove();
     state.map = null;
@@ -550,10 +552,10 @@ function renderLeafletMap(mapped) {
   }
 
   mapped.forEach((community) => {
-    const status = mapStatusForCommunity(community);
+    const status = harvestRecencyClass(community, latestHarvestMs);
     const marker = window.L.marker(
       [Number(community.gps_latitude), Number(community.gps_longitude)],
-      { icon: markerIcon() }
+      { icon: markerIcon(status) }
     )
       .addTo(state.map)
       .bindPopup(renderCommunityPopup(community, status));
@@ -565,10 +567,10 @@ function renderLeafletMap(mapped) {
   window.setTimeout(() => state.map?.invalidateSize(), 100);
 }
 
-function markerIcon() {
+function markerIcon(status) {
   return window.L.divIcon({
     className: "",
-    html: `<span class="map-marker-icon farm">&#127807;</span>`,
+    html: `<span class="map-marker-icon ${escapeAttribute(status)}">&#127807;</span>`,
     iconSize: [34, 34],
     iconAnchor: [17, 17],
     popupAnchor: [0, -15]
@@ -826,18 +828,36 @@ function monthlyYearForRange(range) {
   return new Date().getFullYear();
 }
 
-function mapStatusForCommunity(community) {
-  if (!community.last_collection_at) return "no-collections";
-  const last = new Date(community.last_collection_at);
-  if (Number.isNaN(last.getTime())) return "no-collections";
-  const ageDays = (Date.now() - last.getTime()) / 86400000;
-  return ageDays <= 30 ? "recent" : "stale";
+function latestHarvestTime(rows) {
+  return rows.reduce((latest, community) => {
+    const time = harvestTime(community.last_collection_at);
+    return Number.isFinite(time) ? Math.max(latest, time) : latest;
+  }, Number.NEGATIVE_INFINITY);
+}
+
+function harvestRecencyClass(community, latestHarvestMs) {
+  const time = harvestTime(community.last_collection_at);
+  if (!Number.isFinite(time)) return "never-harvested";
+  if (Number.isFinite(latestHarvestMs) && time === latestHarvestMs) return "latest-harvest";
+
+  const ageDays = (Date.now() - time) / 86400000;
+  if (ageDays <= 7) return "week-harvest";
+  if (ageDays <= 30) return "month-harvest";
+  return "older-harvest";
+}
+
+function harvestTime(value) {
+  if (!value) return Number.NaN;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : Number.NaN;
 }
 
 function statusLabel(status) {
-  if (status === "recent") return "Recent collection";
-  if (status === "stale") return "No collection in last 30 days";
-  return "No collections recorded";
+  if (status === "latest-harvest") return "Latest community harvest";
+  if (status === "week-harvest") return "Harvested in last 7 days";
+  if (status === "month-harvest") return "Harvested in last 30 days";
+  if (status === "older-harvest") return "Harvested more than 30 days ago";
+  return "Never harvested";
 }
 
 function hasGps(row) {
