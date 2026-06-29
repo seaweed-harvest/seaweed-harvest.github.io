@@ -817,6 +817,29 @@ input[readonly] {
   min-width: 0;
 }
 
+.intake-filter-grid {
+  grid-template-columns: minmax(160px, 220px) auto minmax(180px, 1fr);
+}
+
+.intake-batch-grid {
+  grid-template-columns: repeat(6, minmax(130px, 1fr));
+}
+
+.intake-batch-grid .wide-field {
+  grid-column: span 3;
+}
+
+.selection-cell {
+  width: 1%;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.selection-cell input {
+  width: 18px;
+  height: 18px;
+}
+
 .admin-auth-card {
   display: grid;
   grid-template-columns: minmax(220px, 0.8fr) minmax(420px, 1.2fr);
@@ -1115,6 +1138,10 @@ button:disabled {
   min-width: 1420px;
 }
 
+.today-intake-table {
+  min-width: 1320px;
+}
+
 .tag-shell {
   display: grid;
   gap: 12px;
@@ -1338,6 +1365,10 @@ button:disabled {
   .admin-toolbar button,
   .ledger-pagination button {
     width: 100%;
+  }
+
+  .intake-batch-grid .wide-field {
+    grid-column: auto;
   }
 
   .admin-map-panel,

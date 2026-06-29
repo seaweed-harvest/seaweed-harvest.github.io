@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Admin Today's Intake - Seaweed Aggregation</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+</head>
+<body class="admin-console-page">
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <p class="eyebrow">Seaweed aggregation</p>
+        <h1>Admin</h1>
+      </div>
+      <div class="header-actions admin-header-controls">
+        <nav class="app-nav" aria-label="Main navigation">
+          <a href="./index.html">Collection</a>
+          <a href="./admin.html" aria-current="page">Admin</a>
+          <a href="./registry.html">Registry</a>
+          <a href="./tags.html">Tags</a>
+        </nav>
+        <span id="adminConnectionStatus" class="status-pill status-muted">Loading</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell admin-shell admin-layout">
+    <aside class="admin-sidebar" aria-label="Admin menu">
+      <h2>Admin</h2>
+      <a href="./admin.html">Dashboard</a>
+      <p class="admin-menu-heading">Registry</p>
+      <a href="./admin_registry.html#member-registry">Member Registry</a>
+      <a href="./admin_registry.html#community-registry">Community Registry</a>
+      <p class="admin-menu-heading">Map</p>
+      <a href="./admin_map.html">Community Map</a>
+      <p class="admin-menu-heading">Data</p>
+      <a href="./admin_today.html" aria-current="page">Today's Intake</a>
+      <a href="./admin_monthly.html">Monthly</a>
+      <a href="./admin_community.html">Per Community</a>
+      <a href="./admin_ledger.html">Collection Ledger</a>
+    </aside>
+
+    <section class="admin-content">
+      <section class="panel admin-page-section">
+        <div class="section-head compact admin-section-title">
+          <h2>Today's Intake</h2>
+          <span id="todayIntakeCount" class="status-pill">0 rows</span>
+        </div>
+
+        <div class="admin-card-body standalone">
+          <div class="admin-toolbar admin-filter-grid intake-filter-grid">
+            <label>
+              Intake date
+              <input id="todayIntakeDate" type="date">
+            </label>
+            <button id="reloadTodayIntake" type="button">Load</button>
+            <span id="todayIntakeStatus" class="admin-status" aria-live="polite"></span>
+          </div>
+
+          <section class="admin-subsection intake-batch-panel">
+            <div class="section-head compact">
+              <h3>Batch Edit</h3>
+              <span id="todaySelectedCount" class="status-pill status-muted">0 selected</span>
+            </div>
+            <div class="admin-toolbar admin-filter-grid intake-batch-grid">
+              <label>
+                Set farmer
+                <select id="todayBatchFarmer"></select>
+              </label>
+              <label>
+                Set community
+                <select id="todayBatchCommunity"></select>
+              </label>
+              <label>
+                Adjust weight kg
+                <input id="todayWeightAdjustment" type="number" step="0.01" placeholder="-5">
+              </label>
+              <label>
+                Set type
+                <select id="todayBatchSeaweedType">
+                  <option value="">No change</option>
+                  <option value="spinosum">Spinosum</option>
+                  <option value="cottonii">Cottonii</option>
+                  <option value="other">Other</option>
+                </select>
+              </label>
+              <label>
+                Set grade
+                <select id="todayBatchGrade">
+                  <option value="">No change</option>
+                  <option value="A">A</option>
+                  <option value="B">B</option>
+                  <option value="C">C</option>
+                </select>
+              </label>
+              <label>
+                Set price/kg
+                <input id="todayBatchPrice" type="number" min="0" step="0.01">
+              </label>
+              <label class="wide-field">
+                Note
+                <input id="todayBatchNotes" type="text" autocomplete="off" placeholder="Reason for edit">
+              </label>
+              <button id="applyTodayBatch" type="button">Apply to selected</button>
+              <button id="clearTodayBatch" type="button">Clear edit</button>
+            </div>
+          </section>
+
+          <div class="responsive-table-wrap">
+            <table class="management-table admin-data-table today-intake-table">
+              <thead>
+                <tr>
+                  <th class="selection-cell"><input id="todaySelectAll" type="checkbox" aria-label="Select all intake rows"></th>
+                  <th>Collected</th>
+                  <th>Transaction</th>
+                  <th>Community</th>
+                  <th>Member</th>
+                  <th>Sack ID</th>
+                  <th>Weight kg</th>
+                  <th>Type</th>
+                  <th>Grade</th>
+                  <th>Price/kg</th>
+                  <th>Total KSH</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="todayIntakeRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="./assets/js/admin_page.js"></script>
+</body>
+</html>

@@ -11,7 +11,9 @@ const RPC = {
   monthly: "ag_admin_monthly_summary",
   communityPeriod: "ag_admin_community_period_summary",
   communityGrades: "ag_admin_community_grade_summary",
-  ledger: "ag_admin_collection_ledger_page"
+  ledger: "ag_admin_collection_ledger_page",
+  todayIntake: "ag_admin_today_intake",
+  updateTodayIntake: "ag_admin_update_intake_batch"
 };
 
 const LEDGER_PAGE_SIZE = 50;
@@ -34,6 +36,8 @@ const state = {
   ledgerPage: 0,
   ledgerSort: "collected_at",
   ledgerDirection: "desc",
+  todayIntakeRows: [],
+  selectedTodayIntakeIds: new Set(),
   map: null,
   markersByKey: new Map()
 };
@@ -99,6 +103,22 @@ function cacheElements() {
     "communitySummaryMetrics",
     "communityGradeRows",
     "communityMonthlyRows",
+    "todayIntakeCount",
+    "todayIntakeDate",
+    "reloadTodayIntake",
+    "todayIntakeStatus",
+    "todaySelectedCount",
+    "todayBatchFarmer",
+    "todayBatchCommunity",
+    "todayWeightAdjustment",
+    "todayBatchSeaweedType",
+    "todayBatchGrade",
+    "todayBatchPrice",
+    "todayBatchNotes",
+    "applyTodayBatch",
+    "clearTodayBatch",
+    "todaySelectAll",
+    "todayIntakeRows",
     "ledgerCount",
     "ledgerPeriodPreset",
     "ledgerMonth",
@@ -132,6 +152,7 @@ function setDefaultControls() {
   if (els.communityEndDate) els.communityEndDate.value = dateInputValue(now);
   if (els.ledgerStartDate) els.ledgerStartDate.value = dateInputValue(thirtyDaysAgo);
   if (els.ledgerEndDate) els.ledgerEndDate.value = dateInputValue(now);
+  if (els.todayIntakeDate) els.todayIntakeDate.value = kenyaDateInputValue(now);
 }
 
 function bindEvents() {
@@ -143,6 +164,12 @@ function bindEvents() {
   els.reloadMonthly?.addEventListener("click", () => loadMonthly());
   els.reloadCommunitySummary?.addEventListener("click", () => loadCommunitySummary());
   els.communitySummarySelect?.addEventListener("change", () => loadCommunitySummary());
+  els.reloadTodayIntake?.addEventListener("click", () => loadTodayIntake());
+  els.todayIntakeDate?.addEventListener("change", () => loadTodayIntake());
+  els.todayIntakeRows?.addEventListener("change", handleTodayIntakeSelectionChange);
+  els.todaySelectAll?.addEventListener("change", toggleAllTodayIntakeRows);
+  els.applyTodayBatch?.addEventListener("click", applyTodayBatchEdit);
+  els.clearTodayBatch?.addEventListener("click", clearTodayBatchForm);
   els.reloadLedger?.addEventListener("click", () => {
     state.ledgerPage = 0;
     loadLedger();
@@ -195,6 +222,7 @@ async function loadAdminData() {
     renderMapSection();
     await loadMonthly({ quiet: true });
     await loadCommunitySummary({ quiet: true });
+    await loadTodayIntake({ quiet: true });
     await loadLedger({ quiet: true });
 
     const mode = dataModeLabel();
@@ -213,6 +241,7 @@ function renderSetupError(error) {
   if (els.monthlyRows) els.monthlyRows.innerHTML = emptyRow(13, message);
   if (els.communityGradeRows) els.communityGradeRows.innerHTML = emptyRow(5, message);
   if (els.communityMonthlyRows) els.communityMonthlyRows.innerHTML = emptyRow(6, message);
+  if (els.todayIntakeRows) els.todayIntakeRows.innerHTML = emptyRow(12, message);
   if (els.ledgerRows) els.ledgerRows.innerHTML = emptyRow(14, message);
   if (els.mapStatus) {
     els.mapStatus.textContent = "Setup needed";
@@ -315,6 +344,26 @@ function renderSelectors() {
   if (els.monthlyCommunity) setSelectOptions(els.monthlyCommunity, communityOptions, els.monthlyCommunity.value);
   if (els.ledgerCommunity) setSelectOptions(els.ledgerCommunity, communityOptions, els.ledgerCommunity.value);
   if (els.communitySummarySelect) setSelectOptions(els.communitySummarySelect, communityOptions, selectedCommunityValue());
+  if (els.todayBatchCommunity) {
+    const batchCommunityOptions = [
+      ["", "No change"],
+      ...state.communities.map((community) => [
+        community.community_id,
+        communityLabel(community)
+      ])
+    ];
+    setSelectOptions(els.todayBatchCommunity, batchCommunityOptions, els.todayBatchCommunity.value);
+  }
+  if (els.todayBatchFarmer) {
+    const farmerOptions = [
+      ["", "No change"],
+      ...state.members.map((member) => [
+        member.farmer_id || "",
+        [member.farmer_id, member.name, member.community_name].filter(Boolean).join(" - ")
+      ])
+    ];
+    setSelectOptions(els.todayBatchFarmer, farmerOptions, els.todayBatchFarmer.value);
+  }
 }
 
 function selectedCommunityValue() {
@@ -623,6 +672,177 @@ function setActiveMapListItem(key) {
 function showMapFallback(message) {
   els.adminMapFallback.hidden = false;
   els.adminMapFallback.textContent = message;
+}
+
+async function loadTodayIntake(options = {}) {
+  if (!els.todayIntakeRows) return;
+
+  if (!options.quiet) setTodayIntakeStatus("Loading...");
+  state.selectedTodayIntakeIds.clear();
+  updateTodaySelectionUi();
+
+  try {
+    state.todayIntakeRows = await supabaseRpc(RPC.todayIntake, {
+      p_intake_date: nullableText(els.todayIntakeDate.value)
+    });
+    renderTodayIntake();
+    if (!options.quiet) setTodayIntakeStatus("Loaded.");
+  } catch (error) {
+    state.todayIntakeRows = [];
+    els.todayIntakeCount.textContent = "Error";
+    els.todayIntakeRows.innerHTML = emptyRow(12, writeErrorMessage(error));
+    setTodayIntakeStatus("Could not load intake rows.", "error");
+  }
+}
+
+function renderTodayIntake() {
+  if (!els.todayIntakeRows) return;
+
+  els.todayIntakeCount.textContent = `${state.todayIntakeRows.length} rows`;
+  els.todayIntakeRows.innerHTML = state.todayIntakeRows.map((row) => {
+    const id = String(row.id || "");
+    const checked = state.selectedTodayIntakeIds.has(id) ? " checked" : "";
+    return `
+      <tr>
+        <td class="selection-cell"><input type="checkbox" data-today-id="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(row.transaction_id || "intake row")}"${checked}></td>
+        <td>${escapeHtml(formatDateTime(row.collected_at))}</td>
+        <td><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
+        <td>${readOnlyStack([row.community_id, row.community_name_snapshot])}</td>
+        <td>${readOnlyStack([row.farmer_id, row.farmer_name_snapshot])}</td>
+        <td>${escapeHtml(row.sack_id || "-")}</td>
+        <td>${escapeHtml(formatKg(row.sack_weight_kg))}</td>
+        <td>${escapeHtml(formatSeaweedType(row.seaweed_type))}</td>
+        <td>${escapeHtml(row.seaweed_grade || "-")}</td>
+        <td>${escapeHtml(formatMoney(row.price_per_kg))}</td>
+        <td>${escapeHtml(formatMoney(row.total_price))}</td>
+        <td>${escapeHtml(row.notes || "-")}</td>
+      </tr>
+    `;
+  }).join("") || emptyRow(12, "No intake rows recorded for this date.");
+
+  updateTodaySelectionUi();
+}
+
+function handleTodayIntakeSelectionChange(event) {
+  const checkbox = event.target.closest("[data-today-id]");
+  if (!checkbox) return;
+
+  const id = checkbox.dataset.todayId;
+  if (checkbox.checked) {
+    state.selectedTodayIntakeIds.add(id);
+  } else {
+    state.selectedTodayIntakeIds.delete(id);
+  }
+  updateTodaySelectionUi();
+}
+
+function toggleAllTodayIntakeRows() {
+  if (!els.todaySelectAll) return;
+
+  state.selectedTodayIntakeIds.clear();
+  if (els.todaySelectAll.checked) {
+    state.todayIntakeRows.forEach((row) => {
+      if (row.id) state.selectedTodayIntakeIds.add(String(row.id));
+    });
+  }
+  document.querySelectorAll("[data-today-id]").forEach((checkbox) => {
+    checkbox.checked = els.todaySelectAll.checked;
+  });
+  updateTodaySelectionUi();
+}
+
+function updateTodaySelectionUi() {
+  if (!els.todaySelectedCount) return;
+
+  const selected = state.selectedTodayIntakeIds.size;
+  const total = state.todayIntakeRows.length;
+  els.todaySelectedCount.textContent = `${selected} selected`;
+  els.todaySelectedCount.className = selected ? "status-pill" : "status-pill status-muted";
+
+  if (els.todaySelectAll) {
+    els.todaySelectAll.checked = total > 0 && selected === total;
+    els.todaySelectAll.indeterminate = selected > 0 && selected < total;
+  }
+}
+
+async function applyTodayBatchEdit() {
+  if (!els.todayIntakeRows) return;
+
+  const payload = buildTodayBatchPayload();
+  if (!payload) return;
+
+  els.applyTodayBatch.disabled = true;
+  setTodayIntakeStatus("Saving edits...");
+
+  try {
+    const result = await supabaseRpc(RPC.updateTodayIntake, payload);
+    const updatedCount = Number(result[0]?.updated_count || 0);
+    clearTodayBatchForm({ keepSelection: true });
+    state.selectedTodayIntakeIds.clear();
+    await loadTodayIntake({ quiet: true });
+    setTodayIntakeStatus(`Updated ${updatedCount} row${updatedCount === 1 ? "" : "s"}.`);
+  } catch (error) {
+    setTodayIntakeStatus(writeErrorMessage(error), "error");
+  } finally {
+    els.applyTodayBatch.disabled = false;
+  }
+}
+
+function buildTodayBatchPayload() {
+  const selectedIds = [...state.selectedTodayIntakeIds].filter(Boolean);
+  if (!selectedIds.length) {
+    setTodayIntakeStatus("Select at least one row.", "error");
+    return null;
+  }
+
+  const weightAdjustment = optionalNumber(els.todayWeightAdjustment.value);
+  const price = optionalNumber(els.todayBatchPrice.value);
+  const payload = {
+    p_ids: selectedIds,
+    p_intake_date: nullableText(els.todayIntakeDate.value),
+    p_farmer_id: nullableText(els.todayBatchFarmer.value),
+    p_community_id: nullableText(els.todayBatchCommunity.value),
+    p_weight_adjustment_kg: weightAdjustment,
+    p_seaweed_type: nullableText(els.todayBatchSeaweedType.value),
+    p_grade: nullableText(els.todayBatchGrade.value),
+    p_price_per_kg: price,
+    p_notes_append: nullableText(els.todayBatchNotes.value)
+  };
+
+  const hasChange = Boolean(
+    payload.p_farmer_id ||
+    payload.p_community_id ||
+    payload.p_seaweed_type ||
+    payload.p_grade ||
+    payload.p_price_per_kg !== null ||
+    payload.p_notes_append ||
+    (payload.p_weight_adjustment_kg !== null && payload.p_weight_adjustment_kg !== 0)
+  );
+
+  if (!hasChange) {
+    setTodayIntakeStatus("Choose a field to update.", "error");
+    return null;
+  }
+
+  return payload;
+}
+
+function clearTodayBatchForm(options = {}) {
+  if (els.todayBatchFarmer) els.todayBatchFarmer.value = "";
+  if (els.todayBatchCommunity) els.todayBatchCommunity.value = "";
+  if (els.todayWeightAdjustment) els.todayWeightAdjustment.value = "";
+  if (els.todayBatchSeaweedType) els.todayBatchSeaweedType.value = "";
+  if (els.todayBatchGrade) els.todayBatchGrade.value = "";
+  if (els.todayBatchPrice) els.todayBatchPrice.value = "";
+  if (els.todayBatchNotes) els.todayBatchNotes.value = "";
+
+  if (!options.keepSelection) setTodayIntakeStatus("");
+}
+
+function setTodayIntakeStatus(message, type = "") {
+  if (!els.todayIntakeStatus) return;
+  els.todayIntakeStatus.textContent = message || "";
+  els.todayIntakeStatus.dataset.status = type;
 }
 
 async function loadLedger(options = {}) {
@@ -975,6 +1195,13 @@ function numberOrNull(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+function optionalNumber(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  const number = Number(text);
+  return Number.isFinite(number) ? number : null;
+}
+
 function sanitizeSearchTerm(value) {
   return String(value || "")
     .trim()
@@ -989,6 +1216,17 @@ function searchText(value) {
 function dateInputValue(date) {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return local.toISOString().slice(0, 10);
+}
+
+function kenyaDateInputValue(date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Nairobi",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 function monthInputValue(date) {
