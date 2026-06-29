@@ -681,10 +681,15 @@ input[readonly] {
 
 .admin-sidebar-reveal {
   position: fixed;
-  top: 94px;
-  left: 8px;
+  top: 50%;
+  left: 0;
   z-index: 900;
+  min-width: 30px;
+  padding: 10px 5px;
+  border-radius: 0 8px 8px 0;
   box-shadow: var(--shadow);
+  transform: translateY(-50%) rotate(180deg);
+  writing-mode: vertical-rl;
 }
 
 .admin-sidebar-reveal[hidden] {
@@ -1194,6 +1199,12 @@ button:disabled {
   white-space: nowrap;
 }
 
+.registry-table {
+  table-layout: auto;
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
 .ledger-table,
 .management-table.ledger-table {
   min-width: 1420px;
@@ -1204,10 +1215,22 @@ button:disabled {
   min-width: 1320px;
 }
 
+.member-registry-table,
+.management-table.member-registry-table {
+  min-width: 1180px;
+}
+
+.community-registry-table,
+.management-table.community-registry-table {
+  min-width: 1540px;
+}
+
 .ledger-table th,
 .ledger-table td,
 .today-intake-table th,
-.today-intake-table td {
+.today-intake-table td,
+.registry-table th,
+.registry-table td {
   width: auto;
   min-width: 72px;
   padding: 4px 8px;
@@ -1218,7 +1241,8 @@ button:disabled {
 }
 
 .ledger-table th,
-.today-intake-table th {
+.today-intake-table th,
+.registry-table th {
   resize: horizontal;
   overflow: auto;
 }
