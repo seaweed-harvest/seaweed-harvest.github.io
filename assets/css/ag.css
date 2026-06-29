@@ -920,6 +920,19 @@ button:disabled {
   padding: 14px;
 }
 
+.map-list-details {
+  padding: 0;
+  overflow: hidden;
+}
+
+.map-list-summary {
+  min-height: 54px;
+}
+
+.map-list-details .map-table-wrap {
+  padding: 0 14px 14px;
+}
+
 .map-table-wrap {
   width: 100%;
   overflow-x: auto;
