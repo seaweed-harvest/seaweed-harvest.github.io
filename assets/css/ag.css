@@ -611,21 +611,35 @@ input[readonly] {
 .registry-edit-control {
   width: 100%;
   min-width: 110px;
-  min-height: 26px;
-  padding: 3px 7px;
-  border-radius: 6px;
+  min-height: 24px;
+  padding: 2px 6px;
+  border-width: 1px;
+  border-radius: 5px;
+  border-color: rgba(138, 190, 185, 0.72);
+  box-shadow: none;
   font: inherit;
+  font-weight: 500;
 }
 
-.registry-gps-fields {
-  display: inline-grid;
-  grid-template-columns: 92px 92px;
-  gap: 5px;
+.registry-edit-control:focus {
+  outline: none;
+  border-color: rgba(15, 118, 110, 0.48);
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.08);
+}
+
+.registry-gps-control {
+  min-width: 180px;
 }
 
 .registry-save-button {
   border-color: rgba(245, 158, 11, 0.5);
   background: #fff7dd;
+}
+
+.registry-delete-button {
+  border-color: rgba(220, 38, 38, 0.28);
+  background: #fff1f1;
+  color: #991b1b;
 }
 
 .section-head {
@@ -1299,6 +1313,19 @@ button:disabled {
 .registry-table .selection-cell {
   width: 38px;
   min-width: 38px;
+}
+
+.registry-table .selection-cell {
+  width: 26px;
+  min-width: 26px;
+  padding: 3px 5px;
+  resize: none;
+  overflow: hidden;
+}
+
+.registry-table .selection-cell input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
 }
 
 .tag-shell {
