@@ -40,6 +40,7 @@ function cacheElements() {
     "farmerDetails",
     "quickFarmerName",
     "quickFarmerCommunity",
+    "quickFarmerFarmSize",
     "manualFarmerName",
     "manualFarmerPhone",
     "manualCommunityInput",
@@ -199,6 +200,7 @@ function updateQuickReference() {
   const farmerName = state.selectedFarmer?.name || nullableText(els.manualFarmerName.value);
   els.quickFarmerName.textContent = farmerName || "-";
   els.quickFarmerCommunity.textContent = communityLabel(community) || "-";
+  els.quickFarmerFarmSize.textContent = state.selectedFarmer ? formatFarmSize(state.selectedFarmer) : "-";
 }
 
 function assignNextFarmerId() {
@@ -557,6 +559,19 @@ function communityById(communityId) {
 function communityLabel(community) {
   if (!community) return "";
   return [community.community_id, community.community_name].filter(Boolean).join(" - ");
+}
+
+function formatFarmSize(farmer) {
+  const value = nullableNumber(farmer?.farm_size_value);
+  if (value === null) return "-";
+  const unit = String(farmer?.farm_size_unit || "lines").trim() || "lines";
+  return `${formatCompactNumber(value)} ${unit}`;
+}
+
+function formatCompactNumber(value) {
+  return Number(value).toLocaleString(undefined, {
+    maximumFractionDigits: 2
+  });
 }
 
 function findCommunityFromText(value) {

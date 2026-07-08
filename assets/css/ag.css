@@ -398,7 +398,7 @@ input[readonly] {
 
 .quick-farmer-reference {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -629,6 +629,18 @@ input[readonly] {
 
 .registry-gps-control {
   min-width: 180px;
+}
+
+.registry-farm-size-fields {
+  display: inline-grid;
+  grid-template-columns: 76px 96px;
+  gap: 5px;
+  align-items: center;
+}
+
+.registry-farm-size-value,
+.registry-farm-size-unit {
+  min-width: 0;
 }
 
 .registry-save-button {
@@ -1278,7 +1290,7 @@ button:disabled {
 
 .member-registry-table,
 .management-table.member-registry-table {
-  min-width: 1240px;
+  min-width: 1420px;
 }
 
 .community-registry-table,

@@ -322,7 +322,7 @@ async function loadAdminData() {
 function renderSetupError(error) {
   const message = `Admin reporting SQL is not available yet. ${error.message}`;
   if (els.communityTotalsRows) els.communityTotalsRows.innerHTML = emptyRow(8, message);
-  if (els.memberRegistryRows) els.memberRegistryRows.innerHTML = emptyRow(10, message);
+  if (els.memberRegistryRows) els.memberRegistryRows.innerHTML = emptyRow(12, message);
   if (els.communityRegistryRows) els.communityRegistryRows.innerHTML = emptyRow(12, message);
   if (els.monthlyRows) els.monthlyRows.innerHTML = emptyRow(13, message);
   if (els.communityGradeRows) els.communityGradeRows.innerHTML = emptyRow(5, message);
@@ -394,13 +394,15 @@ function renderMemberRegistry() {
       <td${dirtyCellAttribute(isEditing, "phone")}>${isEditing ? registryTextInput("member", "phone", member.phone) : escapeHtml(member.phone || "-")}</td>
       <td${dirtyCellAttribute(isEditing, "community_id")}>${isEditing ? registryCommunitySelect(member.community_id) : escapeHtml(member.community_id || "-")}</td>
       <td>${escapeHtml(member.community_name || "-")}</td>
+      <td${dirtyCellAttribute(isEditing, "farm_size")}>${isEditing ? registryFarmSizeInputs(member) : escapeHtml(formatFarmSize(member))}</td>
+      <td>${escapeHtml(formatDate(member.farm_size_updated_at))}</td>
       <td${dirtyCellAttribute(isEditing, "active")}>${isEditing ? registryActiveSelect("member", member.active !== false) : escapeHtml(member.active === false ? "Inactive" : "Active")}</td>
       <td>${escapeHtml(formatDate(member.last_collection_at))}</td>
       <td>${escapeHtml(formatKg(member.total_weight_kg))}</td>
       <td${dirtyCellAttribute(isEditing, "notes")}>${isEditing ? registryTextInput("member", "notes", member.notes) : escapeHtml(member.notes || "-")}</td>
     </tr>
   `;
-  }).join("") || emptyRow(10, "No member registry rows found.");
+  }).join("") || emptyRow(12, "No member registry rows found.");
   updateRegistryEditUi("member");
 }
 
@@ -487,7 +489,9 @@ async function saveMemberRegistryEdit() {
         p_phone: nullableText(registryFieldValue(row, "phone")),
         p_community_id: nullableText(registryFieldValue(row, "community_id")),
         p_active: registryFieldValue(row, "active") !== "false",
-        p_notes: nullableText(registryFieldValue(row, "notes"))
+        p_notes: nullableText(registryFieldValue(row, "notes")),
+        p_farm_size_value: optionalNumber(registryFieldValue(row, "farm_size_value")),
+        p_farm_size_unit: nullableText(registryFieldValue(row, "farm_size_unit")) || "lines"
       });
     }
     clearRegistrySelection("member");
@@ -599,6 +603,36 @@ function registryCommunitySelect(selectedCommunityId) {
       data-original="${escapeAttribute(selected)}">
       ${options.map(([value, label]) => `<option value="${escapeAttribute(value)}"${String(value) === selected ? " selected" : ""}>${escapeHtml(label)}</option>`).join("")}
     </select>
+  `;
+}
+
+function registryFarmSizeInputs(member) {
+  const value = valueOrEmpty(member.farm_size_value);
+  const selectedUnit = String(member.farm_size_unit || "lines").trim() || "lines";
+  const unitOptions = ["lines", "ropes", "plots", "acres", "hectares", "sqm", "other"];
+  if (!unitOptions.includes(selectedUnit)) unitOptions.push(selectedUnit);
+
+  return `
+    <span class="registry-farm-size-fields">
+      <input class="registry-edit-control registry-farm-size-value"
+        type="number"
+        min="0"
+        step="0.01"
+        inputmode="decimal"
+        data-registry-type="member"
+        data-registry-field="farm_size_value"
+        data-original="${escapeAttribute(value)}"
+        value="${escapeAttribute(value)}"
+        autocomplete="off"
+        aria-label="Farm size value">
+      <select class="registry-edit-control registry-farm-size-unit"
+        data-registry-type="member"
+        data-registry-field="farm_size_unit"
+        data-original="${escapeAttribute(selectedUnit)}"
+        aria-label="Farm size unit">
+        ${unitOptions.map((unit) => `<option value="${escapeAttribute(unit)}"${unit === selectedUnit ? " selected" : ""}>${escapeHtml(unit)}</option>`).join("")}
+      </select>
+    </span>
   `;
 }
 
@@ -1737,6 +1771,22 @@ function formatMonth(value) {
 function formatKg(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return "0";
+  return number.toLocaleString("en-GB", {
+    minimumFractionDigits: number % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2
+  });
+}
+
+function formatFarmSize(row) {
+  const number = optionalNumber(row?.farm_size_value);
+  if (number === null) return "-";
+  const unit = String(row?.farm_size_unit || "lines").trim() || "lines";
+  return `${formatCompactNumber(number)} ${unit}`;
+}
+
+function formatCompactNumber(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "-";
   return number.toLocaleString("en-GB", {
     minimumFractionDigits: number % 1 === 0 ? 0 : 2,
     maximumFractionDigits: 2

@@ -47,7 +47,10 @@ export const APP_CONFIG = {
         name: "Sample Farmer One",
         phone: "+254711000001",
         community_id: "CID1200",
-        etims_status: "unknown"
+        etims_status: "unknown",
+        farm_size_value: 24,
+        farm_size_unit: "lines",
+        farm_size_updated_at: "2026-06-20T09:00:00+03:00"
       },
       {
         id: "preview-farmer-4301",
@@ -55,7 +58,10 @@ export const APP_CONFIG = {
         name: "Sample Farmer Two",
         phone: "+254711000002",
         community_id: "CID1200",
-        etims_status: "no"
+        etims_status: "no",
+        farm_size_value: 36,
+        farm_size_unit: "lines",
+        farm_size_updated_at: "2026-06-21T09:00:00+03:00"
       },
       {
         id: "preview-farmer-4302",
@@ -63,7 +69,10 @@ export const APP_CONFIG = {
         name: "Sample Farmer Three",
         phone: "+254711000003",
         community_id: "CID1201",
-        etims_status: "yes"
+        etims_status: "yes",
+        farm_size_value: 18,
+        farm_size_unit: "lines",
+        farm_size_updated_at: "2026-06-22T09:00:00+03:00"
       }
     ]
   }
