@@ -127,6 +127,25 @@ export async function invokeAdminUsers(payload) {
   return data;
 }
 
+export async function enabledSocialProviders() {
+  try {
+    const response = await fetch(`${APP_CONFIG.supabase.url}/auth/v1/settings`, {
+      headers: { apikey: APP_CONFIG.supabase.anonKey }
+    });
+    if (!response.ok) throw new Error("Auth settings unavailable");
+    const settings = await response.json();
+    return {
+      google: Boolean(settings.external?.google),
+      facebook: Boolean(settings.external?.facebook)
+    };
+  } catch {
+    return {
+      google: Boolean(APP_CONFIG.auth?.providers?.google),
+      facebook: Boolean(APP_CONFIG.auth?.providers?.facebook)
+    };
+  }
+}
+
 export function siteBaseUrl() {
   const url = new URL(".", window.location.href);
   return url.href.replace(/\/$/, "");

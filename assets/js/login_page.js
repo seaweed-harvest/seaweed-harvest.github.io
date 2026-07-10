@@ -1,8 +1,8 @@
-import { APP_CONFIG } from "./config.js";
 import {
   authClient,
   currentProfile,
   currentSession,
+  enabledSocialProviders,
   routeForProfile,
   sendPasswordReset,
   signInWithPassword,
@@ -23,7 +23,7 @@ async function init() {
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
   bindEvents();
-  configureSocialButtons();
+  await configureSocialButtons();
 
   const mode = new URLSearchParams(window.location.search).get("mode");
   const session = await currentSession();
@@ -104,9 +104,8 @@ async function routeSignedInUser() {
   window.location.replace(destination);
 }
 
-function configureSocialButtons() {
-  const google = Boolean(APP_CONFIG.auth?.providers?.google);
-  const facebook = Boolean(APP_CONFIG.auth?.providers?.facebook);
+async function configureSocialButtons() {
+  const { google, facebook } = await enabledSocialProviders();
   els.googleSignIn.hidden = !google;
   els.facebookSignIn.hidden = !facebook;
   els.socialLoginActions.hidden = !(google || facebook);

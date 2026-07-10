@@ -1,5 +1,5 @@
 import { APP_CONFIG } from "./config.js";
-import { authClient, currentSession, signInWithProvider, signUpFarmer } from "./auth_client.js";
+import { currentSession, enabledSocialProviders, signInWithProvider, signUpFarmer } from "./auth_client.js";
 import { callRpc, selectRows } from "./supabase_client.js";
 
 const els = {};
@@ -17,7 +17,7 @@ async function init() {
   els.farmerRegistrationForm.addEventListener("submit", handleRegistration);
   els.registrationGoogle.addEventListener("click", () => socialRegistration("google"));
   els.registrationFacebook.addEventListener("click", () => socialRegistration("facebook"));
-  configureSocialButtons();
+  await configureSocialButtons();
   await loadCommunities();
 
   const session = await currentSession();
@@ -92,9 +92,8 @@ function registrationDetails() {
   };
 }
 
-function configureSocialButtons() {
-  const google = Boolean(APP_CONFIG.auth?.providers?.google);
-  const facebook = Boolean(APP_CONFIG.auth?.providers?.facebook);
+async function configureSocialButtons() {
+  const { google, facebook } = await enabledSocialProviders();
   els.registrationGoogle.hidden = !google;
   els.registrationFacebook.hidden = !facebook;
   els.registrationSocialActions.hidden = !(google || facebook);
