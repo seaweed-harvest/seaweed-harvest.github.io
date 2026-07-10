@@ -24,10 +24,19 @@ export async function insertRow(table, payload) {
   return [payload];
 }
 
+export async function callRpc(functionName, payload = {}) {
+  if (!isSupabaseEnabled()) return [];
+  return supabaseRequest(`rpc/${functionName}`, {
+    method: "POST",
+    body: payload
+  });
+}
+
 async function supabaseRequest(path, options = {}) {
+  const accessToken = await requestAccessToken();
   const headers = {
     apikey: APP_CONFIG.supabase.anonKey,
-    Authorization: `Bearer ${APP_CONFIG.supabase.anonKey}`
+    Authorization: `Bearer ${accessToken}`
   };
 
   if (options.body) headers["Content-Type"] = "application/json";
@@ -47,6 +56,16 @@ async function supabaseRequest(path, options = {}) {
   if (!text) return [];
   if (response.status === 204) return [];
   return JSON.parse(text);
+}
+
+async function requestAccessToken() {
+  if (!localStorage.getItem("seaweed-ag-auth")) return APP_CONFIG.supabase.anonKey;
+  try {
+    const { currentAccessToken } = await import("./auth_client.js");
+    return await currentAccessToken();
+  } catch {
+    return APP_CONFIG.supabase.anonKey;
+  }
 }
 
 function previewRows(table) {

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e"><meta name="robots" content="noindex,nofollow">
+  <title>Finance Review - Seaweed Aggregation</title><link rel="stylesheet" href="./assets/css/ag.css">
+</head>
+<body class="admin-console-page finance-page">
+  <header class="app-header"><div class="app-header-inner"><div><p class="eyebrow">Seaweed aggregation</p><h1>Admin</h1></div><div class="header-actions admin-header-controls"><nav class="app-nav"><a href="./index.html">Collection</a><a href="./admin.html" aria-current="page">Admin</a></nav></div></div></header>
+  <main class="app-shell admin-shell admin-layout">
+    <aside class="admin-sidebar" aria-label="Admin menu"><h2>Admin</h2><a href="./admin.html">Dashboard</a><p class="admin-menu-heading">Registry</p><a href="./admin_member_registry.html">Member Registry</a><a href="./admin_community_registry.html">Community Registry</a><p class="admin-menu-heading">Map</p><a href="./admin_map.html">Community Map</a><p class="admin-menu-heading">Data</p><a href="./admin_today.html">Today's Intake</a><a href="./admin_monthly.html">Monthly</a><a href="./admin_community.html">Per Community</a><a href="./admin_ledger.html">Collection Ledger</a><p class="admin-menu-heading">Tools</p><a href="./tags.html">Tags</a></aside>
+    <section class="admin-content admin-page-section">
+      <section class="panel">
+        <div class="section-head compact"><h2>Finance Review</h2><span class="status-pill">Estimated</span></div>
+        <div class="finance-filter-grid"><label>From<input id="financeStartDate" type="date"></label><label>To<input id="financeEndDate" type="date"></label><label>Community<select id="financeCommunity"><option value="">All communities</option></select></label><button id="loadFinanceReview" type="button">Load</button><button id="exportFinanceReview" type="button">Export CSV</button></div>
+        <div class="admin-metric-grid compact finance-metric-grid"><article class="admin-metric-card"><span>Estimated KSH</span><strong id="financeEstimatedKsh">-</strong></article><article class="admin-metric-card"><span>Accepted kg</span><strong id="financeAcceptedKg">-</strong></article><article class="admin-metric-card warning"><span>Rejected kg</span><strong id="financeRejectedKg">-</strong></article><article class="admin-metric-card"><span>Collections</span><strong id="financeCollectionCount">-</strong></article><article class="admin-metric-card"><span>Members</span><strong id="financeMemberCount">-</strong></article><article class="admin-metric-card"><span>Communities</span><strong id="financeCommunityCount">-</strong></article></div>
+        <div class="responsive-table-wrap compact-data-table-wrap"><table class="management-table admin-data-table finance-review-table"><thead><tr><th>Farmer ID</th><th>Farmer</th><th>Community ID</th><th>Community</th><th>Collections</th><th>Accepted kg</th><th>Rejected kg</th><th>Estimated KSH</th><th>Last collection</th></tr></thead><tbody id="financeReviewRows"></tbody></table></div>
+        <p id="financeStatus" class="admin-status" aria-live="polite"></p>
+      </section>
+    </section>
+  </main>
+  <script type="module" src="./assets/js/admin_page.js"></script><script type="module" src="./assets/js/finance_page.js"></script>
+</body>
+</html>

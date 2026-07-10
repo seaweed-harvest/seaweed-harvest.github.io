@@ -51,6 +51,7 @@ input[type="text"],
 input[type="number"],
 input[type="datetime-local"],
 input[type="email"],
+input[type="tel"],
 input[type="password"],
 input[type="search"],
 input[type="date"],
@@ -1433,6 +1434,324 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+.auth-shell {
+  width: min(440px, calc(100% - 28px));
+  margin: 0 auto;
+  padding: 28px 0 56px;
+}
+
+.auth-shell-wide {
+  width: min(620px, calc(100% - 28px));
+}
+
+.auth-panel {
+  padding: 18px;
+}
+
+.auth-panel h2 {
+  margin-bottom: 16px;
+  font-size: 1.05rem;
+}
+
+.stack-form {
+  display: grid;
+  gap: 12px;
+}
+
+.stack-form label,
+.user-invite-form label {
+  display: grid;
+  gap: 5px;
+  color: var(--text-sec);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.stack-form input,
+.stack-form select,
+.user-invite-form input,
+.user-invite-form select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  font-weight: 400;
+  text-transform: none;
+}
+
+.stack-form > button,
+.user-invite-form .button-row > button {
+  min-height: 40px;
+  padding: 8px 16px;
+}
+
+.auth-secondary-actions,
+.auth-links,
+.account-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.auth-secondary-actions {
+  margin-top: 12px;
+}
+
+.auth-secondary-actions button {
+  flex: 1;
+  padding: 8px 12px;
+}
+
+.auth-links {
+  justify-content: space-between;
+  margin-top: 14px;
+  font-size: 0.86rem;
+}
+
+.text-button {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+}
+
+.form-status {
+  min-height: 24px;
+  margin: 12px 0 0;
+  color: var(--text-sec);
+  font-size: 0.86rem;
+}
+
+.form-status[data-status="error"],
+.admin-status[data-status="error"] {
+  color: #b42318;
+}
+
+.compact-note {
+  margin: 14px 0 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.farm-size-registration-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 0.6fr);
+  gap: 10px;
+}
+
+.account-controls {
+  color: var(--text-sec);
+  font-size: 0.8rem;
+}
+
+.account-controls button {
+  min-height: 34px;
+  padding: 5px 10px;
+}
+
+.user-invite-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.user-invite-form > *,
+.users-page .panel {
+  min-width: 0;
+}
+
+.user-invite-form .wide-field {
+  grid-column: 1 / -1;
+}
+
+.permission-fieldset {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+}
+
+.permission-fieldset legend {
+  padding: 0 5px;
+  color: var(--text-sec);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.permission-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px 14px;
+}
+
+.permission-grid .permission-option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--text-sec);
+  font-size: 0.8rem;
+  font-weight: 400;
+  text-transform: none;
+}
+
+.permission-option input {
+  width: 15px;
+  min-height: 15px;
+  margin: 0;
+}
+
+.compact-data-table-wrap {
+  overflow: auto;
+}
+
+.user-directory-table,
+.farmer-registration-table {
+  min-width: 1180px;
+}
+
+.user-directory-table td,
+.user-directory-table th,
+.farmer-registration-table td,
+.farmer-registration-table th {
+  white-space: nowrap;
+}
+
+.user-directory-wrap {
+  max-height: 650px;
+}
+
+.registration-link-id {
+  width: 110px;
+  min-height: 30px;
+  padding: 4px 7px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.row-actions button {
+  min-height: 30px;
+  padding: 4px 8px;
+}
+
+.user-editor-panel {
+  border-color: #f2ca72;
+  background: #fffdf6;
+}
+
+.builder-page .admin-content,
+.users-page .admin-content {
+  display: grid;
+  gap: 14px;
+}
+
+.builder-table {
+  min-width: 820px;
+}
+
+.builder-table input[type="text"],
+.builder-table input[type="number"],
+.builder-table input[type="date"] {
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 7px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.builder-table input[type="checkbox"],
+.builder-table input[type="radio"] {
+  width: 15px;
+  min-height: 15px;
+}
+
+.finance-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(150px, 1fr)) auto auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.finance-filter-grid label {
+  display: grid;
+  gap: 5px;
+  color: var(--text-sec);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.finance-filter-grid input,
+.finance-filter-grid select {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel);
+}
+
+.finance-filter-grid button {
+  padding: 7px 12px;
+}
+
+.finance-metric-grid {
+  margin-bottom: 14px;
+}
+
+.finance-review-table {
+  min-width: 1100px;
+}
+
+.finance-review-table td,
+.finance-review-table th {
+  white-space: nowrap;
+}
+
+.farmer-account-shell {
+  display: grid;
+  gap: 14px;
+}
+
+.farmer-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  border-top: 1px solid var(--border-soft);
+}
+
+.farmer-profile-grid div {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.farmer-profile-grid dt {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.farmer-profile-grid dd {
+  margin: 3px 0 0;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
 @media (max-width: 980px) {
   .app-header-inner,
   .app-shell {
@@ -1461,6 +1780,16 @@ button:disabled {
   .admin-two-column,
   .admin-map-layout {
     grid-template-columns: 1fr;
+  }
+
+  .user-invite-form,
+  .permission-grid,
+  .farmer-profile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .finance-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .admin-sidebar {
@@ -1576,6 +1905,17 @@ button:disabled {
 
   .tag-sheet {
     grid-template-columns: repeat(auto-fill, minmax(0, 1fr));
+  }
+
+  .farm-size-registration-fields,
+  .user-invite-form,
+  .permission-grid,
+  .farmer-profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-filter-grid {
+    grid-template-columns: 1fr;
   }
 }
 

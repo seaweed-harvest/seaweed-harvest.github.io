@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Sign In - Seaweed Aggregation</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+</head>
+<body class="auth-page">
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <p class="eyebrow">Seaweed aggregation</p>
+        <h1>Sign In</h1>
+      </div>
+      <nav class="app-nav" aria-label="Main navigation">
+        <a href="./index.html">Collection</a>
+        <a href="./login.html" aria-current="page">Sign In</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="auth-shell">
+    <section class="panel auth-panel" id="loginPanel">
+      <h2>Account</h2>
+      <form id="loginForm" class="stack-form">
+        <label>Email<input id="loginEmail" type="email" autocomplete="email" required></label>
+        <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required></label>
+        <button type="submit">Sign in</button>
+      </form>
+      <div id="socialLoginActions" class="auth-secondary-actions" hidden>
+        <button id="googleSignIn" type="button">Continue with Google</button>
+        <button id="facebookSignIn" type="button">Continue with Facebook</button>
+      </div>
+      <div class="auth-links">
+        <button id="showResetPassword" type="button" class="text-button">Forgot password</button>
+        <a href="./register.html">Farmer registration</a>
+      </div>
+    </section>
+
+    <section class="panel auth-panel" id="passwordPanel" hidden>
+      <h2>Set Password</h2>
+      <form id="passwordForm" class="stack-form">
+        <label>New password<input id="newPassword" type="password" autocomplete="new-password" minlength="10" required></label>
+        <label>Confirm password<input id="confirmPassword" type="password" autocomplete="new-password" minlength="10" required></label>
+        <button type="submit">Save password</button>
+      </form>
+    </section>
+
+    <section class="panel auth-panel" id="resetPanel" hidden>
+      <h2>Reset Password</h2>
+      <form id="resetForm" class="stack-form">
+        <label>Email<input id="resetEmail" type="email" autocomplete="email" required></label>
+        <button type="submit">Send reset email</button>
+      </form>
+      <button id="cancelResetPassword" type="button" class="text-button">Back to sign in</button>
+    </section>
+
+    <p id="authStatus" class="form-status" aria-live="polite"></p>
+  </main>
+
+  <script type="module" src="./assets/js/login_page.js"></script>
+</body>
+</html>

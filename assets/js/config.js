@@ -9,8 +9,14 @@ export const APP_CONFIG = {
     restUrl: "https://wwzmajhdusfyfskppupg.supabase.co/rest/v1",
     anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3em1hamhkdXNmeWZza3BwdXBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MDY5MzQsImV4cCI6MjA5ODE4MjkzNH0.9W8zCF8cTjWn6ArYaJmvRNX9_wDlwsOLMDi8yh5c998"
   },
+  auth: {
+    providers: {
+      google: false,
+      facebook: false
+    }
+  },
   tables: {
-    communities: "communities",
+    communities: "ag_public_communities",
     farmers: "farmers",
     collections: "collections"
   },

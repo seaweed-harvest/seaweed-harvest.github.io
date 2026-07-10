@@ -1,0 +1,287 @@
+import { APP_CONFIG } from "./config.js";
+import { authClient, currentProfile, invokeAdminUsers, requireAdminAccess } from "./auth_client.js";
+import { selectRows } from "./supabase_client.js";
+
+const permissionDefinitions = [
+  ["can_access_admin", "Admin pages"],
+  ["can_submit_collection", "Submit collections"],
+  ["can_view_dashboard", "Dashboard"],
+  ["can_view_registry", "View registry"],
+  ["can_edit_registry", "Edit registry"],
+  ["can_view_map", "Map"],
+  ["can_view_data", "Data pages"],
+  ["can_edit_collections", "Edit collections"],
+  ["can_view_finance", "Finance review"],
+  ["can_export_data", "Export data"],
+  ["can_manage_settings", "Builder settings"],
+  ["can_manage_users", "Invite and edit users"],
+  ["can_manage_admin_users", "Add or edit admin users"]
+];
+
+const roleLabels = {
+  company_admin: "Company admin",
+  registry_admin: "Registry admin",
+  finance_admin: "Finance admin",
+  field_collector: "Field collector",
+  community_viewer: "Community viewer",
+  farmer_viewer: "Farmer viewer",
+  read_only_auditor: "Read-only auditor",
+  system_admin: "System admin"
+};
+
+const state = { users: [], registrations: [], communities: [], actor: null };
+const els = {};
+
+document.addEventListener("DOMContentLoaded", init);
+
+async function init() {
+  [
+    "reloadUsers", "inviteUserForm", "inviteEmail", "inviteName", "inviteRole",
+    "inviteCommunity", "invitePermissions", "inviteStatus", "userDirectoryRows",
+    "userEditorPanel", "closeUserEditor", "editUserForm", "editUserId", "editUserEmail",
+    "editUserName", "editUserRole", "editUserStatus", "editUserCommunity", "editPermissions",
+    "editUserMessage", "farmerRegistrationCount", "farmerRegistrationRows", "farmerRegistrationStatus"
+  ].forEach((id) => { els[id] = document.getElementById(id); });
+
+  const access = await requireAdminAccess("can_manage_users");
+  if (!access) return;
+  state.actor = access.profile || await currentProfile(true);
+
+  buildPermissionInputs(els.invitePermissions, "invite");
+  buildPermissionInputs(els.editPermissions, "edit");
+  buildEditRoleOptions();
+  bindEvents();
+  applyRolePreset("invite", els.inviteRole.value);
+  await loadPageData();
+}
+
+function bindEvents() {
+  els.reloadUsers.addEventListener("click", loadPageData);
+  els.inviteRole.addEventListener("change", () => applyRolePreset("invite", els.inviteRole.value));
+  els.editUserRole.addEventListener("change", () => applyRolePreset("edit", els.editUserRole.value));
+  els.inviteUserForm.addEventListener("submit", inviteUser);
+  els.editUserForm.addEventListener("submit", saveUser);
+  els.closeUserEditor.addEventListener("click", () => { els.userEditorPanel.hidden = true; });
+  els.userDirectoryRows.addEventListener("click", handleUserTableClick);
+  els.farmerRegistrationRows.addEventListener("click", handleRegistrationClick);
+}
+
+async function loadPageData() {
+  setStatus(els.inviteStatus, "Loading...");
+  try {
+    const [usersResponse, registrationsResponse, communities] = await Promise.all([
+      authClient.rpc("ag_admin_user_directory"),
+      authClient.rpc("ag_admin_farmer_registration_requests"),
+      selectRows(APP_CONFIG.tables.communities, "select=community_id,community_name&order=community_name.asc")
+    ]);
+    if (usersResponse.error) throw usersResponse.error;
+    if (registrationsResponse.error) throw registrationsResponse.error;
+    state.users = usersResponse.data || [];
+    state.registrations = registrationsResponse.data || [];
+    state.communities = communities;
+    renderCommunityOptions();
+    renderUsers();
+    renderRegistrations();
+    setStatus(els.inviteStatus, "");
+  } catch (error) {
+    setStatus(els.inviteStatus, error.message, "error");
+  }
+}
+
+async function inviteUser(event) {
+  event.preventDefault();
+  setStatus(els.inviteStatus, "Sending invite...");
+  try {
+    await invokeAdminUsers({
+      action: "invite",
+      email: els.inviteEmail.value.trim(),
+      display_name: nullableText(els.inviteName.value),
+      app_role: els.inviteRole.value,
+      community_id: nullableText(els.inviteCommunity.value),
+      permissions: readPermissions("invite")
+    });
+    els.inviteUserForm.reset();
+    els.inviteRole.value = "company_admin";
+    applyRolePreset("invite", "company_admin");
+    setStatus(els.inviteStatus, "Invite sent.");
+    await loadPageData();
+  } catch (error) {
+    setStatus(els.inviteStatus, error.message, "error");
+  }
+}
+
+async function saveUser(event) {
+  event.preventDefault();
+  setStatus(els.editUserMessage, "Saving...");
+  try {
+    await invokeAdminUsers({
+      action: "update",
+      user_id: els.editUserId.value,
+      display_name: nullableText(els.editUserName.value),
+      app_role: els.editUserRole.value,
+      account_status: els.editUserStatus.value,
+      community_id: nullableText(els.editUserCommunity.value),
+      permissions: readPermissions("edit")
+    });
+    setStatus(els.editUserMessage, "Saved.");
+    await loadPageData();
+  } catch (error) {
+    setStatus(els.editUserMessage, error.message, "error");
+  }
+}
+
+function renderUsers() {
+  els.userDirectoryRows.innerHTML = state.users.length ? state.users.map((user) => `
+    <tr>
+      <td>${escapeHtml(user.email)}</td>
+      <td>${escapeHtml(user.display_name || "-")}</td>
+      <td>${escapeHtml(roleLabels[user.app_role] || user.app_role)}</td>
+      <td>${escapeHtml(capitalize(user.account_status))}</td>
+      <td>${escapeHtml(user.community_id || "All")}</td>
+      <td>${escapeHtml(formatDate(user.last_sign_in_at))}</td>
+      <td>${user.can_manage_users ? "Yes" : "No"}</td>
+      <td>${user.can_manage_admin_users ? "Yes" : "No"}</td>
+      <td><button type="button" data-edit-user="${escapeHtml(user.id)}">Edit</button></td>
+    </tr>
+  `).join("") : '<tr><td colspan="9">No users yet.</td></tr>';
+}
+
+function renderRegistrations() {
+  els.farmerRegistrationCount.textContent = `${state.registrations.length} pending`;
+  els.farmerRegistrationRows.innerHTML = state.registrations.length ? state.registrations.map((row) => `
+    <tr>
+      <td>${escapeHtml(row.full_name)}</td>
+      <td>${escapeHtml(row.email)}</td>
+      <td>${escapeHtml(row.phone || "-")}</td>
+      <td>${escapeHtml([row.requested_community_id, row.community_name].filter(Boolean).join(" - ") || "-")}</td>
+      <td>${escapeHtml(row.requested_farmer_id || "-")}</td>
+      <td>${escapeHtml(formatFarmSize(row))}</td>
+      <td><input class="registration-link-id" data-registration-link="${escapeHtml(row.id)}" type="text" placeholder="RID####"></td>
+      <td class="row-actions"><button type="button" data-approve-registration="${escapeHtml(row.id)}">Approve</button><button type="button" data-reject-registration="${escapeHtml(row.id)}">Reject</button></td>
+    </tr>
+  `).join("") : '<tr><td colspan="8">No pending farmer registrations.</td></tr>';
+}
+
+function handleUserTableClick(event) {
+  const button = event.target.closest("[data-edit-user]");
+  if (!button) return;
+  const user = state.users.find((row) => row.id === button.dataset.editUser);
+  if (!user) return;
+
+  els.editUserId.value = user.id;
+  els.editUserEmail.value = user.email;
+  els.editUserName.value = user.display_name || "";
+  els.editUserRole.value = user.app_role;
+  els.editUserStatus.value = user.account_status;
+  els.editUserCommunity.value = user.community_id || "";
+  writePermissions("edit", user);
+  els.userEditorPanel.hidden = false;
+  els.userEditorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function handleRegistrationClick(event) {
+  const approve = event.target.closest("[data-approve-registration]");
+  const reject = event.target.closest("[data-reject-registration]");
+  if (!approve && !reject) return;
+  const requestId = (approve || reject).dataset.approveRegistration || (approve || reject).dataset.rejectRegistration;
+  const action = approve ? "approve_farmer" : "reject_farmer";
+  const linkInput = els.farmerRegistrationRows.querySelector(`[data-registration-link="${CSS.escape(requestId)}"]`);
+
+  if (reject && !window.confirm("Reject this farmer registration?")) return;
+  setStatus(els.farmerRegistrationStatus, approve ? "Approving..." : "Rejecting...");
+  try {
+    await invokeAdminUsers({
+      action,
+      request_id: requestId,
+      link_farmer_id: nullableText(linkInput?.value)
+    });
+    setStatus(els.farmerRegistrationStatus, approve ? "Farmer approved." : "Registration rejected.");
+    await loadPageData();
+  } catch (error) {
+    setStatus(els.farmerRegistrationStatus, error.message, "error");
+  }
+}
+
+function buildPermissionInputs(container, prefix) {
+  container.innerHTML = permissionDefinitions.map(([key, label]) => `
+    <label class="permission-option"><input type="checkbox" id="${prefix}-${key}" data-permission-key="${key}"> ${escapeHtml(label)}</label>
+  `).join("");
+}
+
+function buildEditRoleOptions() {
+  const roles = Object.entries(roleLabels).filter(([role]) => role !== "system_admin" || state.actor?.app_role === "system_admin");
+  els.editUserRole.innerHTML = roles.map(([value, label]) => `<option value="${value}">${escapeHtml(label)}</option>`).join("");
+}
+
+function renderCommunityOptions() {
+  const options = state.communities.map((row) => `<option value="${escapeHtml(row.community_id)}">${escapeHtml(row.community_id)} - ${escapeHtml(row.community_name)}</option>`).join("");
+  [els.inviteCommunity, els.editUserCommunity].forEach((select) => {
+    const current = select.value;
+    select.querySelectorAll("option:not(:first-child)").forEach((option) => option.remove());
+    select.insertAdjacentHTML("beforeend", options);
+    select.value = current;
+  });
+}
+
+function applyRolePreset(prefix, role) {
+  writePermissions(prefix, rolePreset(role));
+}
+
+function rolePreset(role) {
+  const values = Object.fromEntries(permissionDefinitions.map(([key]) => [key, false]));
+  if (role === "company_admin") Object.assign(values, { can_access_admin: true, can_submit_collection: true, can_view_dashboard: true, can_view_registry: true, can_edit_registry: true, can_view_map: true, can_view_data: true, can_edit_collections: true, can_view_finance: true, can_export_data: true, can_manage_settings: true, can_manage_users: true });
+  if (role === "registry_admin") Object.assign(values, { can_access_admin: true, can_submit_collection: true, can_view_dashboard: true, can_view_registry: true, can_edit_registry: true, can_view_map: true, can_view_data: true });
+  if (role === "finance_admin") Object.assign(values, { can_access_admin: true, can_view_dashboard: true, can_view_map: true, can_view_data: true, can_view_finance: true, can_export_data: true });
+  if (role === "field_collector") values.can_submit_collection = true;
+  if (role === "read_only_auditor") Object.assign(values, { can_access_admin: true, can_view_dashboard: true, can_view_registry: true, can_view_map: true, can_view_data: true, can_view_finance: true });
+  return values;
+}
+
+function writePermissions(prefix, values) {
+  permissionDefinitions.forEach(([key]) => {
+    const input = document.getElementById(`${prefix}-${key}`);
+    input.checked = Boolean(values[key]);
+    if (key === "can_manage_admin_users") {
+      input.disabled = state.actor?.app_role !== "system_admin" && !state.actor?.can_manage_admin_users;
+    }
+  });
+}
+
+function readPermissions(prefix) {
+  return Object.fromEntries(permissionDefinitions.map(([key]) => [key, document.getElementById(`${prefix}-${key}`).checked]));
+}
+
+function formatFarmSize(row) {
+  if (row.farm_size_value === null || row.farm_size_value === undefined) return "-";
+  return `${Number(row.farm_size_value).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${row.farm_size_unit || "lines"}`;
+}
+
+function formatDate(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+}
+
+function capitalize(value) {
+  const text = String(value || "");
+  return text ? `${text[0].toUpperCase()}${text.slice(1)}` : "-";
+}
+
+function nullableText(value) {
+  const text = String(value || "").trim();
+  return text || null;
+}
+
+function setStatus(element, message, type = "") {
+  element.textContent = message || "";
+  element.dataset.status = type;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}

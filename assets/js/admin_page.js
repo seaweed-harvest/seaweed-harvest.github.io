@@ -1,23 +1,25 @@
 import { APP_CONFIG } from "./config.js";
 import { dataModeLabel, selectRows } from "./supabase_client.js";
+import { currentAccessToken, requireAdminAccess, signOut } from "./auth_client.js";
 
 const TABLES = {
-  overview: "ag_admin_overview",
-  communityDashboard: "ag_community_dashboard",
-  memberSummary: "ag_member_registry_summary"
+  overview: "ag_secure_admin_overview",
+  communityDashboard: "ag_secure_community_dashboard",
+  memberSummary: "ag_secure_member_registry_summary"
 };
 
 const RPC = {
-  monthly: "ag_admin_monthly_summary",
-  communityPeriod: "ag_admin_community_period_summary",
-  communityGrades: "ag_admin_community_grade_summary",
-  ledger: "ag_admin_collection_ledger_page",
-  todayIntake: "ag_admin_today_intake",
-  updateTodayIntake: "ag_admin_update_intake_batch",
-  updateMemberRegistry: "ag_admin_update_member_registry",
-  updateCommunityRegistry: "ag_admin_update_community_registry",
-  deleteMemberRegistry: "ag_admin_delete_member_registry",
-  deleteCommunityRegistry: "ag_admin_delete_community_registry"
+  monthly: "ag_sec_admin_monthly_summary",
+  communityPeriod: "ag_sec_admin_community_period_summary",
+  communityGrades: "ag_sec_admin_community_grade_summary",
+  ledger: "ag_sec_admin_collection_ledger_page",
+  ledgerExport: "ag_sec_admin_collection_ledger_export",
+  todayIntake: "ag_sec_admin_today_intake",
+  updateTodayIntake: "ag_sec_admin_update_intake_batch",
+  updateMemberRegistry: "ag_sec_admin_update_member_registry",
+  updateCommunityRegistry: "ag_sec_admin_update_community_registry",
+  deleteMemberRegistry: "ag_sec_admin_delete_member_registry",
+  deleteCommunityRegistry: "ag_sec_admin_delete_community_registry"
 };
 
 const LEDGER_PAGE_SIZE = 50;
@@ -49,7 +51,8 @@ const state = {
   selectedCommunityIds: new Set(),
   editingCommunityIds: new Set(),
   map: null,
-  markersByKey: new Map()
+  markersByKey: new Map(),
+  profile: null
 };
 
 const els = {};
@@ -58,7 +61,16 @@ document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   cacheElements();
-  setupAdminSidebar();
+  try {
+    const access = await requireAdminAccess(requiredPermissionForPage());
+    if (!access) return;
+    state.profile = access.profile;
+  } catch (error) {
+    window.location.replace(`./login.html?error=${encodeURIComponent(error.message)}`);
+    return;
+  }
+  setupAdminSidebar(state.profile);
+  setupAccountControls(state.profile);
   if (!hasAdminDataView()) return;
   setDefaultControls();
   bindEvents();
@@ -245,10 +257,13 @@ function bindEvents() {
   });
 }
 
-function setupAdminSidebar() {
+function setupAdminSidebar(profile) {
   const sidebar = document.querySelector(".admin-sidebar");
   const layout = document.querySelector(".admin-layout");
   if (!sidebar || !layout || sidebar.dataset.sidebarReady === "true") return;
+
+  addAdminSidebarLinks(sidebar);
+  applySidebarPermissions(sidebar, profile);
 
   const title = sidebar.querySelector("h2");
   const sidebarHeader = document.createElement("div");
@@ -285,6 +300,89 @@ function setupAdminSidebar() {
   toggle.addEventListener("click", () => applyPinnedState(false));
   reveal.addEventListener("click", () => applyPinnedState(true));
   sidebar.dataset.sidebarReady = "true";
+}
+
+function addAdminSidebarLinks(sidebar) {
+  const dashboard = sidebar.querySelector('a[href="./admin.html"]');
+  if (dashboard && !sidebar.querySelector('a[href="./admin_users.html"]')) {
+    dashboard.insertAdjacentHTML("afterend", '<a href="./admin_users.html" data-permission="can_manage_users">Users</a>');
+  }
+
+  const ledger = sidebar.querySelector('a[href="./admin_ledger.html"]');
+  if (ledger && !sidebar.querySelector('a[href="./admin_finance.html"]')) {
+    ledger.insertAdjacentHTML("afterend", '<a href="./admin_finance.html" data-permission="can_view_finance">Finance Review</a>');
+  }
+
+  const tags = sidebar.querySelector('a[href="./tags.html"]');
+  if (tags && !sidebar.querySelector('a[href="./admin_builder.html"]')) {
+    tags.insertAdjacentHTML("afterend", '<a href="./admin_builder.html" data-permission="can_manage_settings">Settings</a>');
+  }
+
+  const currentFile = window.location.pathname.split("/").pop() || "admin.html";
+  sidebar.querySelectorAll("a").forEach((link) => {
+    const hrefFile = new URL(link.href).pathname.split("/").pop();
+    if (hrefFile === currentFile) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  });
+}
+
+function applySidebarPermissions(sidebar, profile) {
+  const permissionByHref = {
+    "./admin.html": "can_view_dashboard",
+    "./admin_member_registry.html": "can_view_registry",
+    "./admin_community_registry.html": "can_view_registry",
+    "./admin_map.html": "can_view_map",
+    "./admin_today.html": "can_view_data",
+    "./admin_monthly.html": "can_view_data",
+    "./admin_community.html": "can_view_data",
+    "./admin_ledger.html": "can_view_data",
+    "./tags.html": "can_access_admin"
+  };
+
+  sidebar.querySelectorAll("a").forEach((link) => {
+    const permission = link.dataset.permission || permissionByHref[link.getAttribute("href")];
+    if (!permission) return;
+    link.hidden = profile.app_role !== "system_admin" && !profile[permission];
+  });
+}
+
+function setupAccountControls(profile) {
+  const controls = document.querySelector(".admin-header-controls") || document.querySelector(".header-actions");
+  if (!controls || controls.querySelector(".account-controls")) return;
+
+  const account = document.createElement("div");
+  account.className = "account-controls";
+  const name = document.createElement("span");
+  name.textContent = profile.display_name || profile.email;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Sign out";
+  button.addEventListener("click", async () => {
+    await signOut();
+    window.location.replace("./login.html");
+  });
+  account.append(name, button);
+  controls.append(account);
+}
+
+function requiredPermissionForPage() {
+  const file = window.location.pathname.split("/").pop() || "admin.html";
+  const permissions = {
+    "admin.html": "can_view_dashboard",
+    "admin_member_registry.html": "can_view_registry",
+    "admin_community_registry.html": "can_view_registry",
+    "admin_registry.html": "can_view_registry",
+    "admin_map.html": "can_view_map",
+    "admin_today.html": "can_view_data",
+    "admin_monthly.html": "can_view_data",
+    "admin_community.html": "can_view_data",
+    "admin_ledger.html": "can_view_data",
+    "admin_finance.html": "can_view_finance",
+    "admin_users.html": "can_manage_users",
+    "admin_builder.html": "can_manage_settings",
+    "tags.html": "can_access_admin"
+  };
+  return permissions[file] || "can_access_admin";
 }
 
 async function loadAdminData() {
@@ -1362,7 +1460,7 @@ async function exportLedgerCsv() {
   if (!els.ledgerRows) return;
 
   try {
-    const resultRows = await supabaseRpc(RPC.ledger, buildLedgerPayload(EXPORT_MAX_ROWS, 0));
+    const resultRows = await supabaseRpc(RPC.ledgerExport, buildLedgerPayload(EXPORT_MAX_ROWS, 0));
     const rows = Array.isArray(resultRows[0]?.rows) ? resultRows[0].rows : [];
     const csv = rowsToCsv(rows);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -1405,7 +1503,7 @@ async function supabaseRpc(functionName, payload) {
 
   const response = await fetch(`${APP_CONFIG.supabase.restUrl}/rpc/${functionName}`, {
     method: "POST",
-    headers: baseHeaders(),
+    headers: await baseHeaders(),
     body: JSON.stringify(payload)
   });
 
@@ -1417,10 +1515,11 @@ async function supabaseRpc(functionName, payload) {
   return text ? JSON.parse(text) : [];
 }
 
-function baseHeaders() {
+async function baseHeaders() {
+  const accessToken = await currentAccessToken();
   return {
     apikey: APP_CONFIG.supabase.anonKey,
-    Authorization: `Bearer ${APP_CONFIG.supabase.anonKey}`,
+    Authorization: `Bearer ${accessToken}`,
     "Content-Type": "application/json"
   };
 }

@@ -1,9 +1,13 @@
 import { APP_CONFIG } from "./config.js";
-import { dataModeLabel, insertRow, selectRows } from "./supabase_client.js";
+import { callRpc, dataModeLabel, insertRow, isSupabaseEnabled, selectRows } from "./supabase_client.js";
 
 const state = {
   communities: [],
   farmers: [],
+  formSettings: [],
+  pricePerKg: { ...APP_CONFIG.pricePerKg },
+  seaweedTypes: [],
+  defaultSeaweedType: "spinosum",
   selectedFarmer: null,
   gps: null,
   qrScanner: {
@@ -113,13 +117,23 @@ function bindEvents() {
 async function loadFormData() {
   setConnectionStatus("Loading", "status-muted");
   try {
-    const [communities, farmers] = await Promise.all([
+    const [communities, farmers, formSettings, gradePrices, seaweedTypes] = await Promise.all([
       selectRows(APP_CONFIG.tables.communities, "select=*&order=community_id.asc"),
-      selectRows(APP_CONFIG.tables.farmers, "select=*&order=farmer_id.asc")
+      isSupabaseEnabled()
+        ? Promise.resolve([])
+        : selectRows(APP_CONFIG.tables.farmers, "select=*&order=farmer_id.asc"),
+      selectRows("ag_public_collection_form_settings", "select=*&order=display_order.asc"),
+      selectRows("ag_public_grade_price_settings", "select=*&order=grade.asc"),
+      selectRows("ag_public_seaweed_type_settings", "select=*&order=display_order.asc")
     ]);
     state.communities = communities;
     state.farmers = farmers;
+    state.formSettings = formSettings;
+    state.seaweedTypes = seaweedTypes;
+    gradePrices.forEach((row) => { state.pricePerKg[row.grade] = Number(row.price_per_kg); });
+    state.defaultSeaweedType = seaweedTypes.find((row) => row.is_default)?.type_key || "spinosum";
     renderCommunityOptions();
+    applyRuntimeSettings(gradePrices);
     updateQuickReference();
     setConnectionStatus(dataModeLabel(), dataModeLabel() === "Preview" ? "status-muted" : "");
   } catch (error) {
@@ -136,7 +150,7 @@ function renderCommunityOptions() {
   syncCommunityName();
 }
 
-function lookupFarmer() {
+async function lookupFarmer() {
   const farmerId = normalizedFarmerId();
   if (!farmerId) {
     state.selectedFarmer = null;
@@ -146,7 +160,17 @@ function lookupFarmer() {
   }
 
   els.farmerId.value = farmerId;
-  const farmer = state.farmers.find((row) => row.farmer_id.toUpperCase() === farmerId);
+  let farmer = state.farmers.find((row) => row.farmer_id.toUpperCase() === farmerId) || null;
+  if (!farmer && isSupabaseEnabled()) {
+    try {
+      const result = await callRpc("ag_public_farmer_lookup", { p_farmer_id: farmerId });
+      farmer = result && Object.keys(result).length ? result : null;
+    } catch (error) {
+      setFarmerStatus("Lookup failed", "status-muted");
+      setStatus(error.message, "error");
+      return;
+    }
+  }
   state.selectedFarmer = farmer || null;
 
   if (!farmer) {
@@ -168,7 +192,7 @@ function lookupFarmer() {
 function syncManualDetailsFromFarmer(farmer) {
   const community = communityById(farmer.community_id);
   els.manualFarmerName.value = farmer.name || "";
-  els.manualFarmerPhone.value = farmer.phone || "";
+  if (farmer.phone) els.manualFarmerPhone.value = farmer.phone;
   els.manualCommunityInput.value = communityLabel(community) || farmer.community_id || "";
 }
 
@@ -212,7 +236,7 @@ function assignNextFarmerId() {
 
 function updatePriceForGrade() {
   const grade = els.seaweedGrade.value;
-  const configuredPrice = APP_CONFIG.pricePerKg[grade];
+  const configuredPrice = state.pricePerKg[grade];
   if (configuredPrice !== null && configuredPrice !== undefined) {
     els.pricePerKg.value = configuredPrice;
     els.priceOverridden.checked = false;
@@ -514,7 +538,7 @@ function clearForm() {
   els.transactionId.value = "";
   els.gpsSummary.value = "";
   setDefaultDateTime();
-  els.seaweedType.value = "spinosum";
+  els.seaweedType.value = state.defaultSeaweedType;
   ensureTransactionId();
   syncCommunityName();
   updateQuickReference();
@@ -593,6 +617,69 @@ function nextFarmerId() {
     .filter(Number.isFinite);
   const next = numbers.length ? Math.max(...numbers) + 1 : 4300;
   return `RID${String(next).padStart(4, "0")}`;
+}
+
+function applyRuntimeSettings(gradePrices) {
+  setFixedFormOrder();
+  if (state.seaweedTypes.length) {
+    els.seaweedType.innerHTML = state.seaweedTypes.map((row) => {
+      const label = [row.label, row.common_name].filter(Boolean).join(" - ");
+      return `<option value="${escapeAttribute(row.type_key)}">${escapeHtml(label)}</option>`;
+    }).join("");
+    els.seaweedType.value = state.defaultSeaweedType;
+  }
+
+  const pricesByGrade = Object.fromEntries(gradePrices.map((row) => [row.grade, row]));
+  [...els.seaweedGrade.options].forEach((option) => {
+    if (!option.value || !pricesByGrade[option.value]) return;
+    const row = pricesByGrade[option.value];
+    option.textContent = row.rejected
+      ? `${option.value} - Rejected`
+      : `${option.value} - ${formatCompactNumber(row.price_per_kg)} KSH/kg`;
+  });
+
+  const controls = {
+    farmer_id: els.farmerId,
+    sack_id: els.sackId,
+    collected_at: els.collectedAt,
+    gps: els.gpsSummary,
+    sack_weight_kg: els.sackWeightKg,
+    seaweed_type: els.seaweedType,
+    seaweed_grade: els.seaweedGrade,
+    price_per_kg: els.pricePerKg,
+    total_price: els.totalPrice,
+    notes: els.collectionNotes
+  };
+
+  state.formSettings.forEach((setting) => {
+    const control = controls[setting.field_key];
+    const label = control?.closest("label");
+    if (!control || !label) return;
+    label.hidden = !setting.visible;
+    label.style.order = String(setting.display_order || 0);
+    control.required = Boolean(setting.required);
+    updateLabelText(label, setting.label);
+    if (setting.default_value && !control.value) control.value = setting.default_value;
+  });
+}
+
+function setFixedFormOrder() {
+  const fixedOrder = [
+    [document.querySelector(".field-status-block"), 20],
+    [document.querySelector(".quick-farmer-reference"), 30],
+    [els.farmerDetails, 40],
+    [els.transactionId.closest("label"), 25],
+    [els.priceOverridden.closest("label"), 95],
+    [els.collectionPhotos.closest("label"), 110]
+  ];
+  fixedOrder.forEach(([element, order]) => {
+    if (element) element.style.order = String(order);
+  });
+}
+
+function updateLabelText(label, text) {
+  const textNode = [...label.childNodes].find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+  if (textNode) textNode.textContent = `\n            ${text}\n            `;
 }
 
 function setConnectionStatus(text, extraClass = "") {

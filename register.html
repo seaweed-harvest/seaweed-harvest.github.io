@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Farmer Registration - Seaweed Aggregation</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+</head>
+<body class="auth-page">
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <p class="eyebrow">Seaweed aggregation</p>
+        <h1>Farmer Registration</h1>
+      </div>
+      <nav class="app-nav" aria-label="Main navigation">
+        <a href="./index.html">Collection</a>
+        <a href="./login.html">Sign In</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="auth-shell auth-shell-wide">
+    <section class="panel auth-panel">
+      <h2>Register</h2>
+      <form id="farmerRegistrationForm" class="stack-form">
+        <label>Name<input id="registrationName" type="text" autocomplete="name" required></label>
+        <label>Phone<input id="registrationPhone" type="tel" autocomplete="tel"></label>
+        <label>Community
+          <select id="registrationCommunity">
+            <option value="">Select community</option>
+          </select>
+        </label>
+        <label>Farmer ID, if already registered<input id="registrationFarmerId" type="text" inputmode="numeric" placeholder="RID4301 or 4301"></label>
+        <div class="farm-size-registration-fields">
+          <label>Farm size<input id="registrationFarmSize" type="number" min="0" step="0.01"></label>
+          <label>Unit
+            <select id="registrationFarmSizeUnit">
+              <option value="lines">Lines</option>
+              <option value="ropes">Ropes</option>
+              <option value="plots">Plots</option>
+              <option value="acres">Acres</option>
+              <option value="hectares">Hectares</option>
+              <option value="sqm">Square metres</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+        </div>
+        <label>Email<input id="registrationEmail" type="email" autocomplete="email" required></label>
+        <label>Password<input id="registrationPassword" type="password" autocomplete="new-password" minlength="10" required></label>
+        <button type="submit">Register account</button>
+      </form>
+      <div id="registrationSocialActions" class="auth-secondary-actions" hidden>
+        <button id="registrationGoogle" type="button">Register with Google</button>
+        <button id="registrationFacebook" type="button">Register with Facebook</button>
+      </div>
+      <p class="compact-note">An administrator checks and links the account before harvest records become visible.</p>
+      <p id="registrationStatus" class="form-status" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <script type="module" src="./assets/js/register_page.js"></script>
+</body>
+</html>
