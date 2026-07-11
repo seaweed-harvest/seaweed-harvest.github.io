@@ -1,5 +1,12 @@
 import { APP_CONFIG } from "./config.js";
-import { callRpc, dataModeLabel, insertRow, isSupabaseEnabled, selectRows } from "./supabase_client.js";
+import {
+  callRpc,
+  dataModeLabel,
+  insertRow,
+  isSupabaseEnabled,
+  selectRows,
+  uploadStorageObject
+} from "./supabase_client.js";
 import {
   configuredFieldLabel,
   initCollectionLanguage,
@@ -28,6 +35,12 @@ const state = {
     stream: null
   }
 };
+
+const PHOTO_BUCKET = "collection-photos";
+const PHOTO_MAX_COUNT = 5;
+const PHOTO_MAX_BYTES = 700 * 1024;
+const PHOTO_TARGET_BYTES = 550 * 1024;
+const PHOTO_MAX_EDGE = 1920;
 
 const els = {};
 
@@ -79,6 +92,7 @@ function cacheElements() {
     "customCollectionFields",
     "collectionNotes",
     "collectionPhotos",
+    "collectionPhotoStatus",
     "clearCollectionForm",
     "collectionSaveStatus",
     "qrScannerModal",
@@ -129,6 +143,7 @@ function bindEvents() {
   els.collectionForm.addEventListener("submit", submitCollection);
   els.collectionForm.addEventListener("input", updateCustomCalculations);
   els.collectionForm.addEventListener("change", updateCustomCalculations);
+  els.collectionPhotos.addEventListener("change", updatePhotoSelectionStatus);
   els.stopQrScanner.addEventListener("click", stopQrScanner);
   document.addEventListener("seaweed-collection-language-change", refreshTranslatedContent);
 }
@@ -514,12 +529,133 @@ function extractQrValue(rawValue, scanTarget) {
   return text.split(/\r?\n/)[0].trim();
 }
 
+function updatePhotoSelectionStatus() {
+  const count = els.collectionPhotos.files?.length || 0;
+  els.collectionPhotoStatus.textContent = count
+    ? t("photos.selected", { count })
+    : t("photos.hint");
+}
+
+async function uploadSelectedCollectionPhotos() {
+  const files = [...(els.collectionPhotos.files || [])];
+  if (!files.length) return { paths: [] };
+  if (files.length > PHOTO_MAX_COUNT) throw new Error(t("photos.tooMany"));
+  if (files.some((file) => !String(file.type || "").startsWith("image/"))) {
+    throw new Error(t("photos.invalid"));
+  }
+
+  ensureTransactionId();
+  const now = new Date();
+  const year = String(now.getFullYear());
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const transactionFolder = String(els.transactionId.value || "collection")
+    .replace(/[^a-zA-Z0-9_-]/g, "-");
+  const paths = [];
+
+  for (let index = 0; index < files.length; index += 1) {
+    const progress = { current: index + 1, total: files.length };
+    els.collectionPhotoStatus.textContent = t("photos.processing", progress);
+    const photo = await compressCollectionPhoto(files[index]);
+    if (photo.size > PHOTO_MAX_BYTES) throw new Error(t("photos.compressFailed"));
+
+    const objectId = crypto.randomUUID?.() || `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 10)}`;
+    const objectPath = `collections/${year}/${month}/${transactionFolder}/${objectId}.jpg`;
+    els.collectionPhotoStatus.textContent = t("photos.uploading", progress);
+    await uploadStorageObject(PHOTO_BUCKET, objectPath, photo);
+    paths.push(objectPath);
+  }
+
+  return { paths };
+}
+
+export async function compressCollectionPhoto(file) {
+  const image = await loadCollectionImage(file);
+  let width = image.naturalWidth || image.width;
+  let height = image.naturalHeight || image.height;
+  if (!width || !height) throw new Error(t("photos.decodeFailed"));
+
+  const initialScale = Math.min(1, PHOTO_MAX_EDGE / Math.max(width, height));
+  width = Math.max(1, Math.round(width * initialScale));
+  height = Math.max(1, Math.round(height * initialScale));
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d", { alpha: false });
+    if (!context) throw new Error(t("photos.compressFailed"));
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, width, height);
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(image, 0, 0, width, height);
+
+    const blob = await jpegBlobNearTarget(canvas);
+    if (blob.size <= PHOTO_MAX_BYTES) return blob;
+
+    const reduction = Math.min(0.9, Math.sqrt(PHOTO_TARGET_BYTES / blob.size) * 0.96);
+    width = Math.max(1, Math.round(width * reduction));
+    height = Math.max(1, Math.round(height * reduction));
+  }
+
+  throw new Error(t("photos.compressFailed"));
+}
+
+function loadCollectionImage(file) {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error(t("photos.decodeFailed")));
+    };
+    image.src = objectUrl;
+  });
+}
+
+async function jpegBlobNearTarget(canvas) {
+  let low = 0.38;
+  let high = 0.92;
+  let best = null;
+  let smallest = null;
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const quality = (low + high) / 2;
+    const blob = await canvasToBlob(canvas, quality);
+    if (!smallest || blob.size < smallest.size) smallest = blob;
+    if (blob.size <= PHOTO_TARGET_BYTES) {
+      best = blob;
+      low = quality;
+    } else {
+      high = quality;
+    }
+  }
+
+  return best || smallest;
+}
+
+function canvasToBlob(canvas, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error(t("photos.compressFailed")));
+    }, "image/jpeg", quality);
+  });
+}
+
 async function submitCollection(event) {
   event.preventDefault();
+  const submitButton = event.submitter || document.getElementById("submitCollection");
+  submitButton.disabled = true;
 
   try {
     setStatus(t("status.saving"));
-    const payload = buildPayload();
+    const photoUpload = await uploadSelectedCollectionPhotos();
+    const payload = buildPayload(photoUpload.paths);
     const farmSizeUpdate = pendingFarmSizeUpdate();
     const rows = await insertRow(APP_CONFIG.tables.collections, payload);
     const saved = rows[0];
@@ -534,16 +670,21 @@ async function submitCollection(event) {
     const savedMessage = saved?.transaction_id
       ? t("status.savedTransaction", { id: saved.transaction_id })
       : t("status.saved");
+    const photoMessage = photoUpload.paths.length
+      ? ` ${t("photos.uploaded", { count: photoUpload.paths.length })}`
+      : "";
     clearForm();
     const updateMessage = farmSizeUpdate && !farmSizeWarning ? ` ${t("status.farmSizeUpdated")}` : "";
     const warningMessage = farmSizeWarning ? ` ${farmSizeWarning}` : "";
-    setStatus(`${savedMessage}${updateMessage}${warningMessage}`, farmSizeWarning ? "error" : "");
+    setStatus(`${savedMessage}${photoMessage}${updateMessage}${warningMessage}`, farmSizeWarning ? "error" : "");
   } catch (error) {
     setStatus(error.message, "error");
+  } finally {
+    submitButton.disabled = false;
   }
 }
 
-function buildPayload() {
+function buildPayload(photoPaths = []) {
   const farmerId = nullableText(normalizedFarmerId());
   const sackId = nullableText(normalizedSackId());
   const community = selectedCommunity();
@@ -574,7 +715,7 @@ function buildPayload() {
     total_price: nullableNumber(els.totalPrice.value),
     price_overridden: els.priceOverridden.checked,
     notes: nullableText(els.collectionNotes.value),
-    photo_urls: [],
+    photo_urls: photoPaths,
     custom_fields: customFieldPayload()
   };
 }
@@ -591,6 +732,7 @@ function clearForm() {
   syncCommunityName();
   updateQuickReference();
   updateCustomCalculations();
+  updatePhotoSelectionStatus();
   setFarmerStatus("");
 }
 
@@ -967,6 +1109,7 @@ function setFixedFormOrder() {
 function refreshTranslatedContent() {
   applyRuntimeSettings(state.gradePrices);
   updateQuickReference();
+  updatePhotoSelectionStatus();
   setConnectionStatus(translatedDataMode(), dataModeLabel() === "Preview" ? "status-muted" : "");
   if (state.selectedFarmer) {
     setFarmerStatus(t("status.linked"));

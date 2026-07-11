@@ -32,6 +32,33 @@ export async function callRpc(functionName, payload = {}) {
   });
 }
 
+export async function uploadStorageObject(bucket, objectPath, blob) {
+  if (!isSupabaseEnabled()) return { path: objectPath };
+  const accessToken = await requestAccessToken();
+  const encodedPath = String(objectPath)
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  const response = await fetch(
+    `${APP_CONFIG.supabase.url}/storage/v1/object/${encodeURIComponent(bucket)}/${encodedPath}`,
+    {
+      method: "POST",
+      headers: {
+        apikey: APP_CONFIG.supabase.anonKey,
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": blob.type || "application/octet-stream",
+        "x-upsert": "false"
+      },
+      body: blob
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText}${await responseDetail(response)}`);
+  }
+  return response.json();
+}
+
 async function supabaseRequest(path, options = {}) {
   const accessToken = await requestAccessToken();
   const headers = {

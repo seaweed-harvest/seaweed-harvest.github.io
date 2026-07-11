@@ -759,6 +759,11 @@ input[readonly] {
   font-size: 0.82rem;
 }
 
+#collectionPhotoStatus {
+  font-weight: 400;
+  text-transform: none;
+}
+
 .empty-state {
   padding: 12px;
   border: 1px dashed var(--border);
