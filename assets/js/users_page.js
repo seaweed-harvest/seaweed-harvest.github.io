@@ -29,7 +29,7 @@ const roleLabels = {
   system_admin: "System admin"
 };
 
-const state = { users: [], registrations: [], communities: [], actor: null };
+const state = { users: [], registrations: [], communities: [], activity: [], actor: null };
 const els = {};
 
 document.addEventListener("DOMContentLoaded", init);
@@ -40,7 +40,8 @@ async function init() {
     "inviteCommunity", "invitePermissions", "inviteStatus", "userDirectoryRows",
     "userEditorPanel", "closeUserEditor", "editUserForm", "editUserId", "editUserEmail",
     "editUserName", "editUserRole", "editUserStatus", "editUserCommunity", "editPermissions",
-    "editUserMessage", "farmerRegistrationCount", "farmerRegistrationRows", "farmerRegistrationStatus"
+    "editUserMessage", "farmerRegistrationCount", "farmerRegistrationRows", "farmerRegistrationStatus",
+    "userActivityCount", "userActivityRows"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
   const access = await requireAdminAccess("can_manage_users");
@@ -69,19 +70,23 @@ function bindEvents() {
 async function loadPageData() {
   setStatus(els.inviteStatus, "Loading...");
   try {
-    const [usersResponse, registrationsResponse, communities] = await Promise.all([
+    const [usersResponse, registrationsResponse, activityResponse, communities] = await Promise.all([
       authClient.rpc("ag_admin_user_directory"),
       authClient.rpc("ag_admin_farmer_registration_requests"),
+      authClient.rpc("ag_admin_activity_log", { p_limit: 100 }),
       selectRows(APP_CONFIG.tables.communities, "select=community_id,community_name&order=community_name.asc")
     ]);
     if (usersResponse.error) throw usersResponse.error;
     if (registrationsResponse.error) throw registrationsResponse.error;
+    if (activityResponse.error) throw activityResponse.error;
     state.users = usersResponse.data || [];
     state.registrations = registrationsResponse.data || [];
+    state.activity = activityResponse.data || [];
     state.communities = communities;
     renderCommunityOptions();
     renderUsers();
     renderRegistrations();
+    renderActivity();
     setStatus(els.inviteStatus, "");
   } catch (error) {
     setStatus(els.inviteStatus, error.message, "error");
@@ -164,6 +169,18 @@ function renderRegistrations() {
       <td class="row-actions"><button type="button" data-approve-registration="${escapeHtml(row.id)}">Approve</button><button type="button" data-reject-registration="${escapeHtml(row.id)}">Reject</button></td>
     </tr>
   `).join("") : '<tr><td colspan="8">No pending farmer registrations.</td></tr>';
+}
+
+function renderActivity() {
+  els.userActivityCount.textContent = `${state.activity.length} events`;
+  els.userActivityRows.innerHTML = state.activity.length ? state.activity.map((row) => `
+    <tr>
+      <td>${escapeHtml(formatDate(row.event_time))}</td>
+      <td>${escapeHtml(row.actor_name || row.actor_email || "Unauthenticated")}</td>
+      <td>${escapeHtml(row.summary)}</td>
+      <td>${escapeHtml(row.target_id || "-")}</td>
+    </tr>
+  `).join("") : '<tr><td colspan="4">No activity recorded yet.</td></tr>';
 }
 
 function handleUserTableClick(event) {

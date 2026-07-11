@@ -1629,7 +1629,8 @@ button:disabled {
 }
 
 .user-directory-table,
-.farmer-registration-table {
+.farmer-registration-table,
+.user-activity-table {
   min-width: 1180px;
 }
 
@@ -1642,6 +1643,14 @@ button:disabled {
 
 .user-directory-wrap {
   max-height: 650px;
+}
+
+.user-activity-table {
+  min-width: 760px;
+}
+
+.user-activity-wrap {
+  max-height: 520px;
 }
 
 .registration-link-id {
