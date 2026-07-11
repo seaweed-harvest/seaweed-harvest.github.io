@@ -34,16 +34,16 @@
           <button id="reloadBuilderSettings" type="button">Reload</button>
         </div>
         <div class="builder-summary-strip">
-          <span id="builderActiveFieldCount" class="status-pill">0 active fields</span>
+          <span id="builderActiveFieldCount" class="status-pill">0 form fields</span>
           <span id="builderLedgerFieldCount" class="status-pill">0 ledger columns</span>
-          <span id="builderTotalFieldCount" class="status-pill status-muted">0 configured</span>
+          <span id="builderTotalFieldCount" class="status-pill status-muted">0 additional fields</span>
         </div>
         <p id="builderStatus" class="admin-status" aria-live="polite"></p>
       </section>
 
       <section class="panel builder-form-panel">
         <div class="section-head compact">
-          <h2>Collection Form Builder</h2>
+          <h2>Form Fields</h2>
           <div class="builder-head-actions">
             <select id="builderFieldTemplate" aria-label="Field template">
               <option value="blank">Blank field</option>
@@ -55,15 +55,28 @@
               <option value="quality_result">Quality result</option>
             </select>
             <button id="addCustomField" type="button">Add field</button>
-            <button id="saveCustomFields" type="button">Save form</button>
+            <button id="saveFormFields" type="button">Save fields</button>
           </div>
         </div>
 
+        <div class="builder-field-section">
+          <h3>Built-in Fields</h3>
+          <div class="responsive-table-wrap">
+            <table class="management-table admin-data-table builder-table builder-core-table">
+              <thead><tr><th>Order</th><th>Field</th><th>Label</th><th>Type</th><th>Visible</th><th>Required</th><th>Default</th></tr></thead>
+              <tbody id="builderFieldRows"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="builder-field-section">
+          <h3>Additional Fields</h3>
         <div class="responsive-table-wrap builder-custom-table-wrap">
           <table class="management-table admin-data-table builder-table builder-custom-table">
             <thead><tr><th>Order</th><th>Key</th><th>Label</th><th>Field type</th><th>Options / formula</th><th>Default</th><th>Unit</th><th>Min</th><th>Max</th><th>Decimals</th><th>Required</th><th>Ledger</th><th>Active</th><th></th></tr></thead>
             <tbody id="builderCustomFieldRows"></tbody>
           </table>
+        </div>
         </div>
 
         <div class="builder-preview-band">
@@ -73,18 +86,19 @@
       </section>
 
       <section class="panel">
-        <div class="section-head compact"><h2>Grade Prices</h2><button id="saveGradePrices" type="button">Save</button></div>
-        <div class="responsive-table-wrap"><table class="management-table admin-data-table builder-table"><thead><tr><th>Grade</th><th>Price / kg KSH</th><th>Rejected</th><th>Active</th><th>Effective from</th></tr></thead><tbody id="builderGradeRows"></tbody></table></div>
+        <div class="section-head compact">
+          <h2>Grades</h2>
+          <div class="builder-head-actions"><button id="addGrade" type="button">Add grade</button><button id="saveGradePrices" type="button">Save grades</button></div>
+        </div>
+        <div class="responsive-table-wrap"><table class="management-table admin-data-table builder-table builder-settings-table"><thead><tr><th>Order</th><th>Code</th><th>Name</th><th>Price / kg KSH</th><th>Rejected</th><th>Active</th><th>Effective from</th><th></th></tr></thead><tbody id="builderGradeRows"></tbody></table></div>
       </section>
 
       <section class="panel">
-        <div class="section-head compact"><h2>Seaweed Types</h2><button id="saveSeaweedTypes" type="button">Save</button></div>
-        <div class="responsive-table-wrap"><table class="management-table admin-data-table builder-table"><thead><tr><th>Key</th><th>Label</th><th>Common name</th><th>Active</th><th>Default</th><th>Order</th></tr></thead><tbody id="builderSeaweedRows"></tbody></table></div>
-      </section>
-
-      <section class="panel">
-        <div class="section-head compact"><h2>Standard Collection Fields</h2><button id="saveCollectionFields" type="button">Save</button></div>
-        <div class="responsive-table-wrap"><table class="management-table admin-data-table builder-table"><thead><tr><th>Field</th><th>Label</th><th>Visible</th><th>Required</th><th>Default</th><th>Order</th></tr></thead><tbody id="builderFieldRows"></tbody></table></div>
+        <div class="section-head compact">
+          <h2>Seaweed Types</h2>
+          <div class="builder-head-actions"><button id="addSeaweedType" type="button">Add type</button><button id="saveSeaweedTypes" type="button">Save types</button></div>
+        </div>
+        <div class="responsive-table-wrap"><table class="management-table admin-data-table builder-table builder-settings-table"><thead><tr><th>Order</th><th>Key</th><th>Name</th><th>Common name</th><th>Active</th><th>Default</th><th></th></tr></thead><tbody id="builderSeaweedRows"></tbody></table></div>
       </section>
     </section>
   </main>

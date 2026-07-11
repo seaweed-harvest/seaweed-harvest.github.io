@@ -33,6 +33,8 @@ const state = {
   overview: {},
   communities: [],
   members: [],
+  gradeSettings: [],
+  seaweedTypeSettings: [],
   monthlyRows: [],
   communitySummary: null,
   communityGradeRows: [],
@@ -401,17 +403,21 @@ async function loadAdminData() {
   setConnectionStatus("Loading", "status-muted");
 
   try {
-    const [overviewRows, communities, members, customLedgerFields] = await Promise.all([
+    const [overviewRows, communities, members, customLedgerFields, gradeSettings, seaweedTypeSettings] = await Promise.all([
       selectRows(TABLES.overview, "select=*"),
       selectRows(TABLES.communityDashboard, "select=*&order=community_id.asc"),
       selectRows(TABLES.memberSummary, "select=*&order=farmer_id.asc"),
-      selectRows("ag_public_collection_custom_fields", "select=*&show_in_ledger=eq.true&order=display_order.asc")
+      selectRows("ag_public_collection_custom_fields", "select=*&show_in_ledger=eq.true&order=display_order.asc"),
+      selectRows("ag_public_grade_price_settings", "select=*&order=display_order.asc"),
+      selectRows("ag_public_seaweed_type_settings", "select=*&order=display_order.asc")
     ]);
 
     state.overview = overviewRows[0] || {};
     state.communities = communities;
     state.members = members;
     state.customLedgerFields = customLedgerFields;
+    state.gradeSettings = gradeSettings;
+    state.seaweedTypeSettings = seaweedTypeSettings;
 
     renderSelectors();
     renderLedgerCustomHeaders();
@@ -934,6 +940,22 @@ function renderSelectors() {
       ])
     ];
     setSelectOptions(els.todayBatchFarmer, farmerOptions, els.todayBatchFarmer.value);
+  }
+
+  const gradeOptions = state.gradeSettings.map((grade) => [
+    grade.grade,
+    [grade.grade, grade.label && grade.label !== grade.grade ? grade.label : "", grade.rejected ? "Rejected" : ""].filter(Boolean).join(" - ")
+  ]);
+  if (els.monthlyGrade) setSelectOptions(els.monthlyGrade, [["", "All grades"], ...gradeOptions], els.monthlyGrade.value);
+  if (els.ledgerGrade) setSelectOptions(els.ledgerGrade, [["", "All grades"], ...gradeOptions], els.ledgerGrade.value);
+  if (els.todayBatchGrade) setSelectOptions(els.todayBatchGrade, [["", "No change"], ...gradeOptions], els.todayBatchGrade.value);
+
+  const seaweedTypeOptions = state.seaweedTypeSettings.map((seaweedType) => [
+    seaweedType.type_key,
+    [seaweedType.label, seaweedType.common_name].filter(Boolean).join(" - ")
+  ]);
+  if (els.todayBatchSeaweedType) {
+    setSelectOptions(els.todayBatchSeaweedType, [["", "No change"], ...seaweedTypeOptions], els.todayBatchSeaweedType.value);
   }
 }
 

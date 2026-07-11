@@ -131,7 +131,7 @@ async function loadFormData() {
         ? Promise.resolve([])
         : selectRows(APP_CONFIG.tables.farmers, "select=*&order=farmer_id.asc"),
       selectRows("ag_public_collection_form_settings", "select=*&order=display_order.asc"),
-      selectRows("ag_public_grade_price_settings", "select=*&order=grade.asc"),
+      selectRows("ag_public_grade_price_settings", "select=*&order=display_order.asc"),
       selectRows("ag_public_seaweed_type_settings", "select=*&order=display_order.asc"),
       selectRows("ag_public_collection_custom_fields", "select=*&order=display_order.asc")
     ]);
@@ -140,6 +140,7 @@ async function loadFormData() {
     state.formSettings = formSettings;
     state.seaweedTypes = seaweedTypes;
     state.customFields = customFields;
+    state.pricePerKg = {};
     gradePrices.forEach((row) => { state.pricePerKg[row.grade] = Number(row.price_per_kg); });
     state.defaultSeaweedType = seaweedTypes.find((row) => row.is_default)?.type_key || "spinosum";
     renderCommunityOptions();
@@ -528,8 +529,9 @@ function buildPayload() {
   const sackId = nullableText(normalizedSackId());
   const community = selectedCommunity();
   const weight = requiredNumber(els.sackWeightKg.value, "Weight kg");
-  const seaweedType = requiredText(els.seaweedType.value, "Seaweed type");
-  const grade = nullableText(els.seaweedGrade.value);
+  const seaweedType = nullableText(els.seaweedType.value) || state.defaultSeaweedType;
+  const gradeCode = nullableText(els.seaweedGrade.value);
+  const collectedAt = els.collectedAt.value ? new Date(els.collectedAt.value) : new Date();
   const farmerNameSnapshot = state.selectedFarmer?.name || nullableText(els.manualFarmerName.value);
 
   return {
@@ -541,13 +543,14 @@ function buildPayload() {
     community_record_id: community?.id || null,
     community_name_snapshot: community?.community_name || null,
     sack_id: sackId,
-    collected_at: new Date(requiredText(els.collectedAt.value, "Date / time")).toISOString(),
+    collected_at: collectedAt.toISOString(),
     gps_latitude: state.gps?.latitude ?? null,
     gps_longitude: state.gps?.longitude ?? null,
     gps_accuracy_m: state.gps?.accuracy ?? null,
     sack_weight_kg: weight,
     seaweed_type: seaweedType,
-    seaweed_grade: grade,
+    grade_code: gradeCode,
+    seaweed_grade: ["A", "B", "C"].includes(gradeCode) ? gradeCode : null,
     price_per_kg: nullableNumber(els.pricePerKg.value),
     total_price: nullableNumber(els.totalPrice.value),
     price_overridden: els.priceOverridden.checked,
@@ -679,18 +682,19 @@ function applyRuntimeSettings(gradePrices) {
     els.seaweedType.value = state.defaultSeaweedType;
   }
 
-  const pricesByGrade = Object.fromEntries(gradePrices.map((row) => [row.grade, row]));
-  [...els.seaweedGrade.options].forEach((option) => {
-    if (!option.value || !pricesByGrade[option.value]) return;
-    const row = pricesByGrade[option.value];
-    option.textContent = row.rejected
-      ? `${option.value} - Rejected`
-      : `${option.value} - ${formatCompactNumber(row.price_per_kg)} KSH/kg`;
-  });
+  els.seaweedGrade.innerHTML = [
+    '<option value="">Select</option>',
+    ...gradePrices.map((row) => {
+      const name = row.label && row.label !== row.grade ? `${row.grade} - ${row.label}` : row.grade;
+      const detail = row.rejected ? "Rejected" : `${formatCompactNumber(row.price_per_kg)} KSH/kg`;
+      return `<option value="${escapeAttribute(row.grade)}">${escapeHtml(name)} - ${escapeHtml(detail)}</option>`;
+    })
+  ].join("");
 
   const controls = {
     farmer_id: els.farmerId,
     sack_id: els.sackId,
+    transaction_id: els.transactionId,
     collected_at: els.collectedAt,
     gps: els.gpsSummary,
     sack_weight_kg: els.sackWeightKg,
@@ -698,19 +702,31 @@ function applyRuntimeSettings(gradePrices) {
     seaweed_grade: els.seaweedGrade,
     price_per_kg: els.pricePerKg,
     total_price: els.totalPrice,
-    notes: els.collectionNotes
+    notes: els.collectionNotes,
+    photos: els.collectionPhotos
   };
 
   state.formSettings.forEach((setting) => {
     const control = controls[setting.field_key];
     const label = control?.closest("label");
     if (!control || !label) return;
-    label.hidden = !setting.visible;
+    const visible = setting.field_key === "sack_weight_kg" || Boolean(setting.visible);
+    label.hidden = !visible;
     label.style.order = String(setting.display_order || 0);
-    control.required = Boolean(setting.required);
+    control.required = visible && Boolean(setting.required);
+    control.disabled = !visible;
     updateLabelText(label, setting.label);
     if (setting.default_value && !control.value) control.value = setting.default_value;
   });
+
+  const farmerVisible = state.formSettings.find((row) => row.field_key === "farmer_id")?.visible !== false;
+  els.farmerLinkStatus.closest(".field-status-block").hidden = !farmerVisible;
+  document.querySelector(".quick-farmer-reference").hidden = !farmerVisible;
+  els.farmerDetails.hidden = !farmerVisible;
+
+  const priceVisible = state.formSettings.find((row) => row.field_key === "price_per_kg")?.visible !== false;
+  const totalVisible = state.formSettings.find((row) => row.field_key === "total_price")?.visible !== false;
+  els.priceOverridden.closest("label").hidden = !priceVisible && !totalVisible;
 }
 
 function renderCustomFields() {
