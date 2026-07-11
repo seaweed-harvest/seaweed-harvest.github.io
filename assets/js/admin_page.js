@@ -1454,7 +1454,7 @@ function renderLedger() {
       <td>${escapeHtml(formatCoordinatePair(row.gps_latitude, row.gps_longitude))}</td>
       <td>${escapeHtml(photoCount(row.photo_urls))}</td>
       <td>${escapeHtml(row.notes || "-")}</td>
-      <td>${inlineCell([row.recorded_by_name || "Unauthenticated", row.recorded_by_email])}</td>
+      <td>${inlineCell([collectorName(row), row.recorded_by_email])}</td>
       <td>${escapeHtml(formatDateTime(row.created_at))}</td>
     </tr>
   `).join("") || emptyRow(15, "No ledger rows match the current filters.");
@@ -1691,6 +1691,7 @@ function rowsToCsv(rows) {
     "recorded_by_user_id",
     "recorded_by_name",
     "recorded_by_email",
+    "recorded_access_type",
     "created_at"
   ];
   const lines = [headers.join(",")];
@@ -1714,6 +1715,7 @@ function rowsToCsv(rows) {
       row.recorded_by_user_id,
       row.recorded_by_name,
       row.recorded_by_email,
+      row.recorded_access_type,
       row.created_at
     ].map(csvCell).join(","));
   });
@@ -1723,6 +1725,11 @@ function rowsToCsv(rows) {
 function csvCell(value) {
   const text = value === null || value === undefined ? "" : String(value);
   return `"${text.replace(/"/g, '""')}"`;
+}
+
+function collectorName(row) {
+  if (row.recorded_by_name) return row.recorded_by_name;
+  return row.recorded_access_type === "anonymous" ? "Unauthenticated" : "Not recorded";
 }
 
 function readOnlyStack(values) {
