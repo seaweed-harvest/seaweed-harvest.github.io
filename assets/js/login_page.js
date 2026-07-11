@@ -3,6 +3,7 @@ import {
   currentProfile,
   currentSession,
   enabledSocialProviders,
+  recordLogin,
   routeForProfile,
   sendPasswordReset,
   signOut,
@@ -31,6 +32,7 @@ async function init() {
   const mode = new URLSearchParams(window.location.search).get("mode");
   const session = await currentSession();
   if ((mode === "invite" || mode === "recovery" || mode === "change") && session) {
+    await recordLogin(mode).catch(() => {});
     await preparePasswordPanel(session, passwordModeTitle(mode), mode === "invite"
       ? "Create your password to finish setting up the account."
       : "Enter and confirm your new password.");
@@ -46,7 +48,10 @@ async function init() {
     return;
   }
 
-  if (session) await routeSignedInUser();
+  if (session) {
+    await recordLogin(session.user?.app_metadata?.provider || "session").catch(() => {});
+    await routeSignedInUser();
+  }
   showQueryMessage();
 
   authClient.auth.onAuthStateChange((event) => {
@@ -74,6 +79,7 @@ async function handleLogin(event) {
   setStatus("Signing in...");
   try {
     const result = await signInWithPassword(els.loginEmail.value.trim(), els.loginPassword.value);
+    await recordLogin("password").catch(() => {});
     if (requiresPasswordChange(result)) {
       els.loginPassword.value = "";
       await preparePasswordPanel(

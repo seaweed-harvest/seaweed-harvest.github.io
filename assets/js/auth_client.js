@@ -67,6 +67,15 @@ export async function signInWithPassword(email, password) {
   return data;
 }
 
+export async function recordLogin(loginMethod = "session") {
+  const { data, error } = await authClient.rpc("ag_record_login", {
+    p_login_method: loginMethod,
+    p_user_agent: navigator.userAgent
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function signUpFarmer(email, password, details) {
   const { data, error } = await authClient.auth.signUp({
     email,

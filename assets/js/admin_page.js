@@ -1454,9 +1454,10 @@ function renderLedger() {
       <td>${escapeHtml(formatCoordinatePair(row.gps_latitude, row.gps_longitude))}</td>
       <td>${escapeHtml(photoCount(row.photo_urls))}</td>
       <td>${escapeHtml(row.notes || "-")}</td>
+      <td>${inlineCell([row.recorded_by_name || "Unauthenticated", row.recorded_by_email])}</td>
       <td>${escapeHtml(formatDateTime(row.created_at))}</td>
     </tr>
-  `).join("") || emptyRow(14, "No ledger rows match the current filters.");
+  `).join("") || emptyRow(15, "No ledger rows match the current filters.");
 
   const first = state.ledgerTotal ? state.ledgerPage * LEDGER_PAGE_SIZE + 1 : 0;
   const last = Math.min((state.ledgerPage + 1) * LEDGER_PAGE_SIZE, state.ledgerTotal);
@@ -1687,6 +1688,9 @@ function rowsToCsv(rows) {
     "gps_latitude",
     "gps_longitude",
     "notes",
+    "recorded_by_user_id",
+    "recorded_by_name",
+    "recorded_by_email",
     "created_at"
   ];
   const lines = [headers.join(",")];
@@ -1707,6 +1711,9 @@ function rowsToCsv(rows) {
       row.gps_latitude,
       row.gps_longitude,
       row.notes,
+      row.recorded_by_user_id,
+      row.recorded_by_name,
+      row.recorded_by_email,
       row.created_at
     ].map(csvCell).join(","));
   });

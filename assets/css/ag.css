@@ -1678,6 +1678,17 @@ button:disabled {
   font-weight: 600;
 }
 
+.protected-owner-label {
+  display: inline-block;
+  padding: 3px 7px;
+  border: 1px solid rgba(15, 118, 110, 0.32);
+  border-radius: 5px;
+  background: rgba(15, 118, 110, 0.08);
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
 .builder-page .admin-content,
 .users-page .admin-content {
   display: grid;

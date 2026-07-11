@@ -143,7 +143,9 @@ function renderUsers() {
       <td>${escapeHtml(formatDate(user.last_sign_in_at))}</td>
       <td>${user.can_manage_users ? "Yes" : "No"}</td>
       <td>${user.can_manage_admin_users ? "Yes" : "No"}</td>
-      <td><button type="button" data-edit-user="${escapeHtml(user.id)}">Edit</button></td>
+      <td>${user.is_protected_owner
+        ? '<span class="protected-owner-label" title="This owner account cannot be edited or removed">Protected owner</span>'
+        : `<button type="button" data-edit-user="${escapeHtml(user.id)}">Edit</button>`}</td>
     </tr>
   `).join("") : '<tr><td colspan="9">No users yet.</td></tr>';
 }
@@ -168,7 +170,7 @@ function handleUserTableClick(event) {
   const button = event.target.closest("[data-edit-user]");
   if (!button) return;
   const user = state.users.find((row) => row.id === button.dataset.editUser);
-  if (!user) return;
+  if (!user || user.is_protected_owner) return;
 
   els.editUserId.value = user.id;
   els.editUserEmail.value = user.email;
