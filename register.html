@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0f766e">
   <meta name="robots" content="noindex,nofollow">
-  <title>Farmer Registration - Seaweed Aggregation</title>
+  <title>Make Account - Seaweed Aggregation</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
 </head>
 <body class="auth-page">
@@ -13,7 +13,7 @@
     <div class="app-header-inner">
       <div>
         <p class="eyebrow">Seaweed aggregation</p>
-        <h1>Farmer Registration</h1>
+        <h1>Make Account</h1>
       </div>
       <nav class="app-nav" aria-label="Main navigation">
         <a href="./index.html">Collection</a>
@@ -24,7 +24,7 @@
 
   <main class="auth-shell auth-shell-wide">
     <section class="panel auth-panel">
-      <h2>Register</h2>
+      <h2>Farmer Account</h2>
       <form id="farmerRegistrationForm" class="stack-form">
         <label>Name<input id="registrationName" type="text" autocomplete="name" required></label>
         <label>Phone<input id="registrationPhone" type="tel" autocomplete="tel"></label>
@@ -50,13 +50,15 @@
         </div>
         <label>Email<input id="registrationEmail" type="email" autocomplete="email" required></label>
         <label>Password<input id="registrationPassword" type="password" autocomplete="new-password" minlength="10" required></label>
-        <button type="submit">Register account</button>
+        <label>Confirm password<input id="registrationConfirmPassword" type="password" autocomplete="new-password" minlength="10" required></label>
+        <button type="submit">Make account</button>
       </form>
       <div id="registrationSocialActions" class="auth-secondary-actions" hidden>
         <button id="registrationGoogle" type="button">Register with Google</button>
         <button id="registrationFacebook" type="button">Register with Facebook</button>
       </div>
       <p class="compact-note">An administrator checks and links the account before harvest records become visible.</p>
+      <p class="auth-account-link">Already have an account? <a href="./login.html">Sign in</a></p>
       <p id="registrationStatus" class="form-status" aria-live="polite"></p>
     </section>
   </main>

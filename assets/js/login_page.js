@@ -5,6 +5,7 @@ import {
   enabledSocialProviders,
   routeForProfile,
   sendPasswordReset,
+  signOut,
   signInWithPassword,
   signInWithProvider,
   updateMyDisplayName,
@@ -19,7 +20,8 @@ async function init() {
   [
     "loginPanel", "loginForm", "loginEmail", "loginPassword", "socialLoginActions",
     "googleSignIn", "facebookSignIn", "showResetPassword", "passwordPanel",
-    "passwordForm", "accountDisplayName", "newPassword", "confirmPassword", "resetPanel", "resetForm",
+    "passwordPanelTitle", "passwordForm", "accountDisplayName", "newPassword", "confirmPassword",
+    "cancelPasswordUpdate", "resetPanel", "resetForm",
     "resetEmail", "cancelResetPassword", "authStatus"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
@@ -29,14 +31,18 @@ async function init() {
   const mode = new URLSearchParams(window.location.search).get("mode");
   const session = await currentSession();
   if ((mode === "invite" || mode === "recovery" || mode === "change") && session) {
-    await preparePasswordPanel(session, mode === "change" || requiresPasswordChange(session)
-      ? "Set a new password before continuing."
-      : "Set your password to finish signing in.");
+    await preparePasswordPanel(session, passwordModeTitle(mode), mode === "invite"
+      ? "Create your password to finish setting up the account."
+      : "Enter and confirm your new password.");
     return;
   }
 
   if (requiresPasswordChange(session)) {
-    await preparePasswordPanel(session, "Set a new password before continuing.");
+    const email = session.user.email || "";
+    await signOut();
+    els.loginEmail.value = email;
+    showPanel("login");
+    setStatus("Sign in with your temporary password to continue.");
     return;
   }
 
@@ -44,7 +50,11 @@ async function init() {
   showQueryMessage();
 
   authClient.auth.onAuthStateChange((event) => {
-    if (event === "PASSWORD_RECOVERY") showPanel("password");
+    if (event === "PASSWORD_RECOVERY") {
+      currentSession().then((activeSession) => {
+        if (activeSession) preparePasswordPanel(activeSession, "Reset Password", "Enter and confirm your new password.");
+      });
+    }
   });
 }
 
@@ -54,6 +64,7 @@ function bindEvents() {
   els.resetForm.addEventListener("submit", handleReset);
   els.showResetPassword.addEventListener("click", () => showPanel("reset"));
   els.cancelResetPassword.addEventListener("click", () => showPanel("login"));
+  els.cancelPasswordUpdate.addEventListener("click", () => showPanel("login"));
   els.googleSignIn.addEventListener("click", () => socialSignIn("google"));
   els.facebookSignIn.addEventListener("click", () => socialSignIn("facebook"));
 }
@@ -65,12 +76,16 @@ async function handleLogin(event) {
     const result = await signInWithPassword(els.loginEmail.value.trim(), els.loginPassword.value);
     if (requiresPasswordChange(result)) {
       els.loginPassword.value = "";
-      await preparePasswordPanel(result.session, "Temporary password accepted. Add your name and set a new password before continuing.");
+      await preparePasswordPanel(
+        result.session,
+        "Change Password",
+        "Temporary password accepted. Confirm your name and choose a new password."
+      );
       return;
     }
     await routeSignedInUser();
   } catch (error) {
-    setStatus(error.message, "error");
+    setStatus(signInErrorMessage(error), "error");
   }
 }
 
@@ -145,6 +160,24 @@ function showQueryMessage() {
   if (params.get("mode") === "invite") setStatus("Open the newest invite link, then set your password.");
 }
 
+function passwordModeTitle(mode) {
+  if (mode === "invite") return "Create Password";
+  if (mode === "recovery") return "Reset Password";
+  return "Change Password";
+}
+
+function signInErrorMessage(error) {
+  const message = String(error?.message || "").toLowerCase();
+  if (message.includes("invalid login credentials") || message.includes("invalid email or password")) {
+    return "Email or password is incorrect.";
+  }
+  if (message.includes("email not confirmed")) return "Confirm your email before signing in.";
+  if (message.includes("rate limit") || message.includes("too many")) {
+    return "Too many sign-in attempts. Wait a moment and try again.";
+  }
+  return "Unable to sign in. Check your details and try again.";
+}
+
 function safePage(value) {
   const file = String(value || "").replace(/^\.\//, "");
   return /^[a-z0-9_.?=&%-]+$/i.test(file) ? file : "admin.html";
@@ -155,8 +188,9 @@ function requiresPasswordChange(value) {
   return Boolean(user?.user_metadata?.must_change_password);
 }
 
-async function preparePasswordPanel(session, message) {
+async function preparePasswordPanel(session, title, message) {
   showPanel("password");
+  els.passwordPanelTitle.textContent = title;
   let profile = null;
   try {
     profile = await currentProfile(true);

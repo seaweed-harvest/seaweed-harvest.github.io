@@ -10,7 +10,7 @@ async function init() {
   [
     "farmerRegistrationForm", "registrationName", "registrationPhone", "registrationCommunity",
     "registrationFarmerId", "registrationFarmSize", "registrationFarmSizeUnit",
-    "registrationEmail", "registrationPassword", "registrationSocialActions",
+    "registrationEmail", "registrationPassword", "registrationConfirmPassword", "registrationSocialActions",
     "registrationGoogle", "registrationFacebook", "registrationStatus"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
@@ -25,6 +25,8 @@ async function init() {
     els.registrationEmail.value = session.user.email || "";
     els.registrationEmail.disabled = true;
     els.registrationPassword.closest("label").hidden = true;
+    els.registrationConfirmPassword.closest("label").hidden = true;
+    els.registrationConfirmPassword.required = false;
     els.farmerRegistrationForm.querySelector('button[type="submit"]').textContent = "Submit registration";
   }
 }
@@ -42,6 +44,10 @@ async function loadCommunities() {
 
 async function handleRegistration(event) {
   event.preventDefault();
+  if (!els.registrationEmail.disabled && els.registrationPassword.value !== els.registrationConfirmPassword.value) {
+    setStatus("Passwords do not match.", "error");
+    return;
+  }
   const details = registrationDetails();
   setStatus("Submitting registration...");
 

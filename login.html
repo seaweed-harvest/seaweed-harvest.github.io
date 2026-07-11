@@ -24,7 +24,7 @@
 
   <main class="auth-shell">
     <section class="panel auth-panel" id="loginPanel">
-      <h2>Account</h2>
+      <h2>Sign In</h2>
       <form id="loginForm" class="stack-form">
         <label>Email<input id="loginEmail" type="email" autocomplete="email" required></label>
         <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required></label>
@@ -35,26 +35,27 @@
         <button id="facebookSignIn" type="button">Continue with Facebook</button>
       </div>
       <div class="auth-links">
-        <button id="showResetPassword" type="button" class="text-button">Forgot password</button>
-        <a href="./register.html">Farmer registration</a>
+        <a href="./register.html">Make account</a>
+        <button id="showResetPassword" type="button" class="text-button">Reset password</button>
       </div>
     </section>
 
     <section class="panel auth-panel" id="passwordPanel" hidden>
-      <h2>Set Password</h2>
+      <h2 id="passwordPanelTitle">Change Password</h2>
       <form id="passwordForm" class="stack-form">
         <label>Name<input id="accountDisplayName" type="text" autocomplete="name" minlength="2" maxlength="100" required></label>
         <label>New password<input id="newPassword" type="password" autocomplete="new-password" minlength="10" required></label>
         <label>Confirm password<input id="confirmPassword" type="password" autocomplete="new-password" minlength="10" required></label>
         <button type="submit">Save password</button>
       </form>
+      <button id="cancelPasswordUpdate" type="button" class="text-button auth-back-button">Back to sign in</button>
     </section>
 
     <section class="panel auth-panel" id="resetPanel" hidden>
       <h2>Reset Password</h2>
       <form id="resetForm" class="stack-form">
         <label>Email<input id="resetEmail" type="email" autocomplete="email" required></label>
-        <button type="submit">Send reset email</button>
+        <button type="submit">Send reset link</button>
       </form>
       <button id="cancelResetPassword" type="button" class="text-button">Back to sign in</button>
     </section>

@@ -1518,6 +1518,16 @@ button:disabled {
   font-size: 0.86rem;
 }
 
+.auth-back-button,
+.auth-account-link {
+  margin-top: 14px;
+}
+
+.auth-account-link {
+  color: var(--text-sec);
+  font-size: 0.86rem;
+}
+
 .text-button {
   min-height: 0;
   padding: 0;
