@@ -27,8 +27,17 @@ async function init() {
 
   const mode = new URLSearchParams(window.location.search).get("mode");
   const session = await currentSession();
-  if ((mode === "invite" || mode === "recovery") && session) {
+  if ((mode === "invite" || mode === "recovery" || mode === "change") && session) {
     showPanel("password");
+    setStatus(mode === "change" || requiresPasswordChange(session)
+      ? "Set a new password before continuing."
+      : "Set your password to finish signing in.");
+    return;
+  }
+
+  if (requiresPasswordChange(session)) {
+    showPanel("password");
+    setStatus("Set a new password before continuing.");
     return;
   }
 
@@ -54,7 +63,13 @@ async function handleLogin(event) {
   event.preventDefault();
   setStatus("Signing in...");
   try {
-    await signInWithPassword(els.loginEmail.value.trim(), els.loginPassword.value);
+    const result = await signInWithPassword(els.loginEmail.value.trim(), els.loginPassword.value);
+    if (requiresPasswordChange(result)) {
+      els.loginPassword.value = "";
+      showPanel("password");
+      setStatus("Temporary password accepted. Set a new password before continuing.");
+      return;
+    }
     await routeSignedInUser();
   } catch (error) {
     setStatus(error.message, "error");
@@ -82,7 +97,7 @@ async function handleReset(event) {
   setStatus("Sending reset email...");
   try {
     await sendPasswordReset(els.resetEmail.value.trim());
-    setStatus("Reset email sent. Check your inbox.");
+    setStatus("If the account exists, a reset link will be sent by the configured email service.");
   } catch (error) {
     setStatus(error.message, "error");
   }
@@ -127,6 +142,11 @@ function showQueryMessage() {
 function safePage(value) {
   const file = String(value || "").replace(/^\.\//, "");
   return /^[a-z0-9_.?=&%-]+$/i.test(file) ? file : "admin.html";
+}
+
+function requiresPasswordChange(value) {
+  const user = value?.user || value?.session?.user || null;
+  return Boolean(user?.user_metadata?.must_change_password);
 }
 
 function setStatus(message, type = "") {

@@ -40,6 +40,13 @@ export async function requireAdminAccess(permission = "can_access_admin") {
     return null;
   }
 
+  const { data: userData, error: userError } = await authClient.auth.getUser();
+  if (userError) throw userError;
+  if (userData.user?.user_metadata?.must_change_password) {
+    window.location.replace(`./login.html?mode=change&return=${encodeURIComponent(currentPage())}`);
+    return null;
+  }
+
   const profile = await currentProfile(true);
   const isSystemAdmin = profile?.app_role === "system_admin";
   const allowed = profile?.account_status === "active"
@@ -100,7 +107,10 @@ export async function sendPasswordReset(email) {
 }
 
 export async function updatePassword(password) {
-  const { data, error } = await authClient.auth.updateUser({ password });
+  const { data, error } = await authClient.auth.updateUser({
+    password,
+    data: { must_change_password: false }
+  });
   if (error) throw error;
   return data;
 }

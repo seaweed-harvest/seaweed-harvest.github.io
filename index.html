@@ -61,6 +61,24 @@
                 Community
                 <input id="manualCommunityInput" type="text" list="communityOptions" autocomplete="off" placeholder="Type community">
               </label>
+              <div class="manual-farm-size-fields">
+                <label>
+                  Farm size
+                  <input id="manualFarmerFarmSize" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Optional">
+                </label>
+                <label>
+                  Farm size unit
+                  <select id="manualFarmerFarmSizeUnit">
+                    <option value="lines">Lines</option>
+                    <option value="ropes">Ropes</option>
+                    <option value="plots">Plots</option>
+                    <option value="acres">Acres</option>
+                    <option value="hectares">Hectares</option>
+                    <option value="sqm">Square metres</option>
+                    <option value="other">Other</option>
+                  </select>
+                </label>
+              </div>
               <div class="manual-detail-actions">
                 <button id="assignFarmerId" type="button">Assign ID number</button>
               </div>

@@ -48,6 +48,8 @@ function cacheElements() {
     "manualFarmerName",
     "manualFarmerPhone",
     "manualCommunityInput",
+    "manualFarmerFarmSize",
+    "manualFarmerFarmSizeUnit",
     "assignFarmerId",
     "communityOptions",
     "communityId",
@@ -90,6 +92,8 @@ function bindEvents() {
   });
   els.manualFarmerName.addEventListener("input", updateQuickReference);
   els.manualFarmerPhone.addEventListener("input", updateQuickReference);
+  els.manualFarmerFarmSize.addEventListener("input", updateQuickReference);
+  els.manualFarmerFarmSizeUnit.addEventListener("change", updateQuickReference);
   els.manualCommunityInput.addEventListener("input", syncManualCommunity);
   els.manualCommunityInput.addEventListener("change", syncManualCommunity);
   els.assignFarmerId.addEventListener("click", assignNextFarmerId);
@@ -192,14 +196,18 @@ async function lookupFarmer() {
 function syncManualDetailsFromFarmer(farmer) {
   const community = communityById(farmer.community_id);
   els.manualFarmerName.value = farmer.name || "";
-  if (farmer.phone) els.manualFarmerPhone.value = farmer.phone;
+  els.manualFarmerPhone.value = farmer.phone || "";
   els.manualCommunityInput.value = communityLabel(community) || farmer.community_id || "";
+  els.manualFarmerFarmSize.value = farmer.farm_size_value ?? "";
+  els.manualFarmerFarmSizeUnit.value = farmer.farm_size_unit || "lines";
 }
 
 function clearManualFarmerDetails() {
   els.manualFarmerName.value = "";
   els.manualFarmerPhone.value = "";
   els.manualCommunityInput.value = "";
+  els.manualFarmerFarmSize.value = "";
+  els.manualFarmerFarmSizeUnit.value = "lines";
   els.communityId.value = "";
   syncCommunityName();
 }
@@ -224,7 +232,7 @@ function updateQuickReference() {
   const farmerName = state.selectedFarmer?.name || nullableText(els.manualFarmerName.value);
   els.quickFarmerName.textContent = farmerName || "-";
   els.quickFarmerCommunity.textContent = communityLabel(community) || "-";
-  els.quickFarmerFarmSize.textContent = state.selectedFarmer ? formatFarmSize(state.selectedFarmer) : "-";
+  els.quickFarmerFarmSize.textContent = formatManualFarmSize();
 }
 
 function assignNextFarmerId() {
@@ -489,10 +497,20 @@ async function submitCollection(event) {
   try {
     setStatus("Saving collection...");
     const payload = buildPayload();
+    const farmSizeUpdate = pendingFarmSizeUpdate();
     const rows = await insertRow(APP_CONFIG.tables.collections, payload);
     const saved = rows[0];
-    setStatus(saved?.transaction_id ? `Saved ${saved.transaction_id}` : "Saved.");
+    let farmSizeWarning = "";
+    if (farmSizeUpdate) {
+      try {
+        await callRpc("ag_update_farmer_farm_size_from_collection", farmSizeUpdate);
+      } catch (error) {
+        farmSizeWarning = ` Collection saved, but farm size was not updated: ${error.message}`;
+      }
+    }
+    const savedMessage = saved?.transaction_id ? `Saved ${saved.transaction_id}.` : "Saved.";
     clearForm();
+    setStatus(`${savedMessage}${farmSizeUpdate && !farmSizeWarning ? " Farm size updated." : farmSizeWarning}`, farmSizeWarning ? "error" : "");
   } catch (error) {
     setStatus(error.message, "error");
   }
@@ -590,6 +608,29 @@ function formatFarmSize(farmer) {
   if (value === null) return "-";
   const unit = String(farmer?.farm_size_unit || "lines").trim() || "lines";
   return `${formatCompactNumber(value)} ${unit}`;
+}
+
+function formatManualFarmSize() {
+  const value = nullableNumber(els.manualFarmerFarmSize.value);
+  if (value === null) return "-";
+  const unit = String(els.manualFarmerFarmSizeUnit.value || "lines").trim() || "lines";
+  return `${formatCompactNumber(value)} ${unit}`;
+}
+
+function pendingFarmSizeUpdate() {
+  if (!state.selectedFarmer) return null;
+
+  const previousValue = nullableNumber(state.selectedFarmer.farm_size_value);
+  const nextValue = nullableNumber(els.manualFarmerFarmSize.value);
+  const previousUnit = String(state.selectedFarmer.farm_size_unit || "lines").trim() || "lines";
+  const nextUnit = String(els.manualFarmerFarmSizeUnit.value || "lines").trim() || "lines";
+  if (previousValue === nextValue && previousUnit === nextUnit) return null;
+
+  return {
+    p_farmer_id: state.selectedFarmer.farmer_id,
+    p_farm_size_value: nextValue,
+    p_farm_size_unit: nextUnit
+  };
 }
 
 function formatCompactNumber(value) {

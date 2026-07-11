@@ -427,6 +427,12 @@ input[readonly] {
   border-top: 1px solid var(--border-soft);
 }
 
+.manual-farm-size-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.55fr);
+  gap: 10px;
+}
+
 .manual-detail-actions {
   display: flex;
 }
@@ -1657,6 +1663,12 @@ button:disabled {
   gap: 14px;
 }
 
+.users-page .admin-content > .panel,
+.builder-page .admin-content > .panel,
+.finance-page .admin-content > .panel {
+  padding: 16px;
+}
+
 .builder-table {
   min-width: 820px;
 }
@@ -1908,6 +1920,7 @@ button:disabled {
   }
 
   .farm-size-registration-fields,
+  .manual-farm-size-fields,
   .user-invite-form,
   .permission-grid,
   .farmer-profile-grid {
@@ -1916,6 +1929,12 @@ button:disabled {
 
   .finance-filter-grid {
     grid-template-columns: 1fr;
+  }
+
+  .users-page .admin-content > .panel,
+  .builder-page .admin-content > .panel,
+  .finance-page .admin-content > .panel {
+    padding: 12px;
   }
 }
 

@@ -354,6 +354,12 @@ function setupAccountControls(profile) {
   account.className = "account-controls";
   const name = document.createElement("span");
   name.textContent = profile.display_name || profile.email;
+  const passwordButton = document.createElement("button");
+  passwordButton.type = "button";
+  passwordButton.textContent = "Change password";
+  passwordButton.addEventListener("click", () => {
+    window.location.href = `./login.html?mode=change&return=${encodeURIComponent(currentAdminPage())}`;
+  });
   const button = document.createElement("button");
   button.type = "button";
   button.textContent = "Sign out";
@@ -361,8 +367,13 @@ function setupAccountControls(profile) {
     await signOut();
     window.location.replace("./login.html");
   });
-  account.append(name, button);
+  account.append(name, passwordButton, button);
   controls.append(account);
+}
+
+function currentAdminPage() {
+  const file = window.location.pathname.split("/").pop() || "admin.html";
+  return `${file}${window.location.search}`;
 }
 
 function requiredPermissionForPage() {
