@@ -115,7 +115,8 @@ async function socialSignIn(provider) {
 async function routeSignedInUser() {
   const profile = await currentProfile(true);
   const requested = new URLSearchParams(window.location.search).get("return");
-  const destination = requested && profile?.can_access_admin ? `./${safePage(requested)}` : routeForProfile(profile);
+  const canUseRequestedPage = profile?.app_role === "system_admin" || profile?.can_access_admin;
+  const destination = requested && canUseRequestedPage ? `./${safePage(requested)}` : routeForProfile(profile);
   window.location.replace(destination);
 }
 
