@@ -72,7 +72,11 @@
           <label>Status<select id="editUserStatus"><option value="active">Active</option><option value="pending">Pending</option><option value="suspended">Suspended</option></select></label>
           <label>Community<select id="editUserCommunity"><option value="">All / not assigned</option></select></label>
           <fieldset class="permission-fieldset wide-field"><legend>Permissions</legend><div id="editPermissions" class="permission-grid"></div></fieldset>
-          <div class="button-row wide-field"><button type="submit">Save user</button><span id="editUserMessage" class="admin-status" aria-live="polite"></span></div>
+          <div class="button-row wide-field">
+            <button type="submit">Save user</button>
+            <button id="deleteUser" class="danger-button" type="button">Delete user</button>
+            <span id="editUserMessage" class="admin-status" aria-live="polite"></span>
+          </div>
         </form>
       </section>
 

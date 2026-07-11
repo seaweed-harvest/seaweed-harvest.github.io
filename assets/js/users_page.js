@@ -40,7 +40,7 @@ async function init() {
     "inviteCommunity", "invitePermissions", "inviteStatus", "userDirectoryRows",
     "userEditorPanel", "closeUserEditor", "editUserForm", "editUserId", "editUserEmail",
     "editUserName", "editUserRole", "editUserStatus", "editUserCommunity", "editPermissions",
-    "editUserMessage", "farmerRegistrationCount", "farmerRegistrationRows", "farmerRegistrationStatus",
+    "editUserMessage", "deleteUser", "farmerRegistrationCount", "farmerRegistrationRows", "farmerRegistrationStatus",
     "userActivityCount", "userActivityRows"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
@@ -62,6 +62,7 @@ function bindEvents() {
   els.editUserRole.addEventListener("change", () => applyRolePreset("edit", els.editUserRole.value));
   els.inviteUserForm.addEventListener("submit", inviteUser);
   els.editUserForm.addEventListener("submit", saveUser);
+  els.deleteUser.addEventListener("click", deleteSelectedUser);
   els.closeUserEditor.addEventListener("click", () => { els.userEditorPanel.hidden = true; });
   els.userDirectoryRows.addEventListener("click", handleUserTableClick);
   els.farmerRegistrationRows.addEventListener("click", handleRegistrationClick);
@@ -135,6 +136,34 @@ async function saveUser(event) {
   }
 }
 
+async function deleteSelectedUser() {
+  const user = state.users.find((row) => row.id === els.editUserId.value);
+  if (!user || user.is_protected_owner) return;
+  if (user.id === state.actor?.id) {
+    setStatus(els.editUserMessage, "You cannot delete your own account.", "error");
+    return;
+  }
+
+  const name = user.display_name || user.email;
+  const confirmed = window.confirm(
+    `Delete the account for ${name}?\n\nTheir sign-in access will be removed. Existing collections and farmer records will remain.`
+  );
+  if (!confirmed) return;
+
+  els.deleteUser.disabled = true;
+  setStatus(els.editUserMessage, "Deleting user...");
+  try {
+    await invokeAdminUsers({ action: "delete", user_id: user.id });
+    els.userEditorPanel.hidden = true;
+    await loadPageData();
+    setStatus(els.inviteStatus, `${name} was deleted.`);
+  } catch (error) {
+    setStatus(els.editUserMessage, error.message, "error");
+  } finally {
+    els.deleteUser.disabled = false;
+  }
+}
+
 function renderUsers() {
   els.userDirectoryRows.innerHTML = state.users.length ? state.users.map((user) => `
     <tr>
@@ -195,6 +224,8 @@ function handleUserTableClick(event) {
   els.editUserRole.value = user.app_role;
   els.editUserStatus.value = user.account_status;
   els.editUserCommunity.value = user.community_id || "";
+  els.deleteUser.disabled = user.id === state.actor?.id;
+  els.deleteUser.title = user.id === state.actor?.id ? "You cannot delete your own account" : "Delete this user account";
   writePermissions("edit", user);
   els.userEditorPanel.hidden = false;
   els.userEditorPanel.scrollIntoView({ behavior: "smooth", block: "start" });

@@ -733,6 +733,17 @@ input[readonly] {
   color: #991b1b;
 }
 
+.danger-button {
+  border-color: rgba(220, 38, 38, 0.32);
+  background: #fff1f1;
+  color: #991b1b;
+}
+
+.danger-button:hover {
+  border-color: #b42318;
+  color: #7f1d1d;
+}
+
 .section-head {
   display: flex;
   align-items: flex-start;
