@@ -1,21 +1,95 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0f766e"><meta name="robots" content="noindex,nofollow">
-  <title>Admin Settings - Seaweed Aggregation</title><link rel="stylesheet" href="./assets/css/ag.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Configuration Portal - Seaweed Aggregation</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
 </head>
 <body class="admin-console-page builder-page">
-  <header class="app-header"><div class="app-header-inner"><div><p class="eyebrow">Seaweed aggregation</p><h1>Admin</h1></div><div class="header-actions admin-header-controls"><nav class="app-nav"><a href="./index.html">Collection</a><a href="./admin.html" aria-current="page">Admin</a></nav></div></div></header>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div><p class="eyebrow">Seaweed aggregation</p><h1>Admin</h1></div>
+      <div class="header-actions admin-header-controls">
+        <nav class="app-nav" aria-label="Main navigation"><a href="./index.html">Collection</a><a href="./admin.html" aria-current="page">Admin</a></nav>
+      </div>
+    </div>
+  </header>
+
   <main class="app-shell admin-shell admin-layout">
-    <aside class="admin-sidebar" aria-label="Admin menu"><h2>Admin</h2><a href="./admin.html">Dashboard</a><p class="admin-menu-heading">Registry</p><a href="./admin_member_registry.html">Member Registry</a><a href="./admin_community_registry.html">Community Registry</a><p class="admin-menu-heading">Map</p><a href="./admin_map.html">Community Map</a><p class="admin-menu-heading">Data</p><a href="./admin_today.html">Today's Intake</a><a href="./admin_monthly.html">Monthly</a><a href="./admin_community.html">Per Community</a><a href="./admin_ledger.html">Collection Ledger</a><p class="admin-menu-heading">Tools</p><a href="./tags.html">Tags</a></aside>
+    <aside class="admin-sidebar" aria-label="Admin menu">
+      <h2>Admin</h2><a href="./admin.html">Dashboard</a>
+      <p class="admin-menu-heading">Registry</p><a href="./admin_member_registry.html">Member Registry</a><a href="./admin_community_registry.html">Community Registry</a>
+      <p class="admin-menu-heading">Map</p><a href="./admin_map.html">Community Map</a>
+      <p class="admin-menu-heading">Data</p><a href="./admin_today.html">Today's Intake</a><a href="./admin_monthly.html">Monthly</a><a href="./admin_community.html">Per Community</a><a href="./admin_ledger.html">Collection Ledger</a>
+      <p class="admin-menu-heading">Tools</p><a href="./tags.html">Tags</a>
+    </aside>
+
     <section class="admin-content admin-page-section">
-      <section class="panel"><div class="section-head compact"><h2>Settings</h2><button id="reloadBuilderSettings" type="button">Reload</button></div><p id="builderStatus" class="admin-status" aria-live="polite"></p></section>
-      <section class="panel"><div class="section-head compact"><h2>Grade Prices</h2><button id="saveGradePrices" type="button">Save</button></div><div class="responsive-table-wrap"><table class="management-table admin-data-table builder-table"><thead><tr><th>Grade</th><th>Price / kg KSH</th><th>Rejected</th><th>Active</th><th>Effective from</th></tr></thead><tbody id="builderGradeRows"></tbody></table></div></section>
-      <section class="panel"><div class="section-head compact"><h2>Seaweed Types</h2><button id="saveSeaweedTypes" type="button">Save</button></div><div class="responsive-table-wrap"><table class="management-table admin-data-table builder-table"><thead><tr><th>Key</th><th>Label</th><th>Common name</th><th>Active</th><th>Default</th><th>Order</th></tr></thead><tbody id="builderSeaweedRows"></tbody></table></div></section>
-      <section class="panel"><div class="section-head compact"><h2>Collection Form</h2><button id="saveCollectionFields" type="button">Save</button></div><div class="responsive-table-wrap"><table class="management-table admin-data-table builder-table"><thead><tr><th>Field</th><th>Label</th><th>Visible</th><th>Required</th><th>Default</th><th>Order</th></tr></thead><tbody id="builderFieldRows"></tbody></table></div></section>
+      <section class="panel builder-portal-head">
+        <div class="section-head compact">
+          <div><p class="eyebrow">Configure</p><h2>Configuration Portal</h2></div>
+          <button id="reloadBuilderSettings" type="button">Reload</button>
+        </div>
+        <div class="builder-summary-strip">
+          <span id="builderActiveFieldCount" class="status-pill">0 active fields</span>
+          <span id="builderLedgerFieldCount" class="status-pill">0 ledger columns</span>
+          <span id="builderTotalFieldCount" class="status-pill status-muted">0 configured</span>
+        </div>
+        <p id="builderStatus" class="admin-status" aria-live="polite"></p>
+      </section>
+
+      <section class="panel builder-form-panel">
+        <div class="section-head compact">
+          <h2>Collection Form Builder</h2>
+          <div class="builder-head-actions">
+            <select id="builderFieldTemplate" aria-label="Field template">
+              <option value="blank">Blank field</option>
+              <option value="moisture_percent">Moisture percentage</option>
+              <option value="dry_weight_kg">Calculated dry weight</option>
+              <option value="payment_status">Payment status</option>
+              <option value="buyer_batch">Buyer batch</option>
+              <option value="harvest_method">Harvest method</option>
+              <option value="quality_result">Quality result</option>
+            </select>
+            <button id="addCustomField" type="button">Add field</button>
+            <button id="saveCustomFields" type="button">Save form</button>
+          </div>
+        </div>
+
+        <div class="responsive-table-wrap builder-custom-table-wrap">
+          <table class="management-table admin-data-table builder-table builder-custom-table">
+            <thead><tr><th>Order</th><th>Key</th><th>Label</th><th>Field type</th><th>Options / formula</th><th>Default</th><th>Unit</th><th>Min</th><th>Max</th><th>Decimals</th><th>Required</th><th>Ledger</th><th>Active</th><th></th></tr></thead>
+            <tbody id="builderCustomFieldRows"></tbody>
+          </table>
+        </div>
+
+        <div class="builder-preview-band">
+          <div class="section-head compact"><h3>Form Preview</h3><span id="builderPreviewStatus" class="status-pill status-muted">Live preview</span></div>
+          <div id="builderFormPreview" class="builder-form-preview"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head compact"><h2>Grade Prices</h2><button id="saveGradePrices" type="button">Save</button></div>
+        <div class="responsive-table-wrap"><table class="management-table admin-data-table builder-table"><thead><tr><th>Grade</th><th>Price / kg KSH</th><th>Rejected</th><th>Active</th><th>Effective from</th></tr></thead><tbody id="builderGradeRows"></tbody></table></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head compact"><h2>Seaweed Types</h2><button id="saveSeaweedTypes" type="button">Save</button></div>
+        <div class="responsive-table-wrap"><table class="management-table admin-data-table builder-table"><thead><tr><th>Key</th><th>Label</th><th>Common name</th><th>Active</th><th>Default</th><th>Order</th></tr></thead><tbody id="builderSeaweedRows"></tbody></table></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head compact"><h2>Standard Collection Fields</h2><button id="saveCollectionFields" type="button">Save</button></div>
+        <div class="responsive-table-wrap"><table class="management-table admin-data-table builder-table"><thead><tr><th>Field</th><th>Label</th><th>Visible</th><th>Required</th><th>Default</th><th>Order</th></tr></thead><tbody id="builderFieldRows"></tbody></table></div>
+      </section>
     </section>
   </main>
-  <script type="module" src="./assets/js/admin_page.js"></script><script type="module" src="./assets/js/builder_page.js"></script>
+
+  <script type="module" src="./assets/js/admin_page.js"></script>
+  <script type="module" src="./assets/js/builder_page.js"></script>
 </body>
 </html>

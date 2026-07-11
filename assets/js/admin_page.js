@@ -38,6 +38,7 @@ const state = {
   communityGradeRows: [],
   communityMonthlyRows: [],
   ledgerRows: [],
+  customLedgerFields: [],
   ledgerTotal: 0,
   ledgerPage: 0,
   ledgerSort: "collected_at",
@@ -400,17 +401,20 @@ async function loadAdminData() {
   setConnectionStatus("Loading", "status-muted");
 
   try {
-    const [overviewRows, communities, members] = await Promise.all([
+    const [overviewRows, communities, members, customLedgerFields] = await Promise.all([
       selectRows(TABLES.overview, "select=*"),
       selectRows(TABLES.communityDashboard, "select=*&order=community_id.asc"),
-      selectRows(TABLES.memberSummary, "select=*&order=farmer_id.asc")
+      selectRows(TABLES.memberSummary, "select=*&order=farmer_id.asc"),
+      selectRows("ag_public_collection_custom_fields", "select=*&show_in_ledger=eq.true&order=display_order.asc")
     ]);
 
     state.overview = overviewRows[0] || {};
     state.communities = communities;
     state.members = members;
+    state.customLedgerFields = customLedgerFields;
 
     renderSelectors();
+    renderLedgerCustomHeaders();
     renderDashboard();
     renderMemberRegistry();
     renderCommunityRegistry();
@@ -437,7 +441,7 @@ function renderSetupError(error) {
   if (els.communityGradeRows) els.communityGradeRows.innerHTML = emptyRow(5, message);
   if (els.communityMonthlyRows) els.communityMonthlyRows.innerHTML = emptyRow(6, message);
   if (els.todayIntakeRows) els.todayIntakeRows.innerHTML = emptyRow(12, message);
-  if (els.ledgerRows) els.ledgerRows.innerHTML = emptyRow(14, message);
+  if (els.ledgerRows) els.ledgerRows.innerHTML = emptyRow(15 + state.customLedgerFields.length, message);
   if (els.mapStatus) {
     els.mapStatus.textContent = "Setup needed";
     els.mapStatus.className = "status-pill status-muted";
@@ -1427,7 +1431,7 @@ async function loadLedger(options = {}) {
     state.ledgerTotal = Number(result.total_count || 0);
     renderLedger();
   } catch (error) {
-    els.ledgerRows.innerHTML = emptyRow(14, writeErrorMessage(error));
+    els.ledgerRows.innerHTML = emptyRow(15 + state.customLedgerFields.length, writeErrorMessage(error));
     els.ledgerCount.textContent = "Error";
     els.ledgerCount.className = "status-pill status-muted";
     els.ledgerPageStatus.textContent = "Could not load ledger.";
@@ -1454,10 +1458,11 @@ function renderLedger() {
       <td>${escapeHtml(formatCoordinatePair(row.gps_latitude, row.gps_longitude))}</td>
       <td>${escapeHtml(photoCount(row.photo_urls))}</td>
       <td>${escapeHtml(row.notes || "-")}</td>
+      ${state.customLedgerFields.map((field) => `<td>${escapeHtml(formatCustomFieldValue(row.custom_fields?.[field.field_key], field))}</td>`).join("")}
       <td>${inlineCell([collectorName(row), row.recorded_by_email])}</td>
       <td>${escapeHtml(formatDateTime(row.created_at))}</td>
     </tr>
-  `).join("") || emptyRow(15, "No ledger rows match the current filters.");
+  `).join("") || emptyRow(15 + state.customLedgerFields.length, "No ledger rows match the current filters.");
 
   const first = state.ledgerTotal ? state.ledgerPage * LEDGER_PAGE_SIZE + 1 : 0;
   const last = Math.min((state.ledgerPage + 1) * LEDGER_PAGE_SIZE, state.ledgerTotal);
@@ -1466,6 +1471,20 @@ function renderLedger() {
     : "No rows";
   els.ledgerPrevPage.disabled = state.ledgerPage <= 0;
   els.ledgerNextPage.disabled = (state.ledgerPage + 1) * LEDGER_PAGE_SIZE >= state.ledgerTotal;
+}
+
+function renderLedgerCustomHeaders() {
+  const headerRow = document.querySelector(".ledger-table thead tr");
+  if (!headerRow) return;
+  headerRow.querySelectorAll("[data-custom-ledger-field]").forEach((header) => header.remove());
+  const recordedByHeader = headerRow.querySelector('[data-ledger-sort="recorded_by_name"]')?.closest("th");
+  if (!recordedByHeader) return;
+  state.customLedgerFields.forEach((field) => {
+    const header = document.createElement("th");
+    header.dataset.customLedgerField = field.field_key;
+    header.textContent = field.label;
+    recordedByHeader.before(header);
+  });
 }
 
 async function exportLedgerCsv() {
@@ -1672,6 +1691,7 @@ function communityLabel(community) {
 }
 
 function rowsToCsv(rows) {
+  const customHeaders = state.customLedgerFields.map((field) => `custom_${field.field_key}`);
   const headers = [
     "collected_at",
     "transaction_id",
@@ -1688,6 +1708,7 @@ function rowsToCsv(rows) {
     "gps_latitude",
     "gps_longitude",
     "notes",
+    ...customHeaders,
     "recorded_by_user_id",
     "recorded_by_name",
     "recorded_by_email",
@@ -1712,6 +1733,7 @@ function rowsToCsv(rows) {
       row.gps_latitude,
       row.gps_longitude,
       row.notes,
+      ...state.customLedgerFields.map((field) => formatCustomFieldValue(row.custom_fields?.[field.field_key], field)),
       row.recorded_by_user_id,
       row.recorded_by_name,
       row.recorded_by_email,
@@ -1720,6 +1742,21 @@ function rowsToCsv(rows) {
     ].map(csvCell).join(","));
   });
   return `${lines.join("\r\n")}\r\n`;
+}
+
+function formatCustomFieldValue(value, field) {
+  if (value === null || value === undefined || value === "") return "-";
+  if (Array.isArray(value)) return value.join(", ");
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "number") {
+    const formatted = value.toLocaleString("en-GB", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: Number(field?.decimal_places ?? 2)
+    });
+    return field?.unit ? `${formatted} ${field.unit}` : formatted;
+  }
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
 }
 
 function csvCell(value) {

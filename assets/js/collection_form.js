@@ -7,6 +7,7 @@ const state = {
   formSettings: [],
   pricePerKg: { ...APP_CONFIG.pricePerKg },
   seaweedTypes: [],
+  customFields: [],
   defaultSeaweedType: "spinosum",
   selectedFarmer: null,
   gps: null,
@@ -66,6 +67,7 @@ function cacheElements() {
     "pricePerKg",
     "totalPrice",
     "priceOverridden",
+    "customCollectionFields",
     "collectionNotes",
     "collectionPhotos",
     "clearCollectionForm",
@@ -115,29 +117,34 @@ function bindEvents() {
   });
   els.clearCollectionForm.addEventListener("click", clearForm);
   els.collectionForm.addEventListener("submit", submitCollection);
+  els.collectionForm.addEventListener("input", updateCustomCalculations);
+  els.collectionForm.addEventListener("change", updateCustomCalculations);
   els.stopQrScanner.addEventListener("click", stopQrScanner);
 }
 
 async function loadFormData() {
   setConnectionStatus("Loading", "status-muted");
   try {
-    const [communities, farmers, formSettings, gradePrices, seaweedTypes] = await Promise.all([
+    const [communities, farmers, formSettings, gradePrices, seaweedTypes, customFields] = await Promise.all([
       selectRows(APP_CONFIG.tables.communities, "select=*&order=community_id.asc"),
       isSupabaseEnabled()
         ? Promise.resolve([])
         : selectRows(APP_CONFIG.tables.farmers, "select=*&order=farmer_id.asc"),
       selectRows("ag_public_collection_form_settings", "select=*&order=display_order.asc"),
       selectRows("ag_public_grade_price_settings", "select=*&order=grade.asc"),
-      selectRows("ag_public_seaweed_type_settings", "select=*&order=display_order.asc")
+      selectRows("ag_public_seaweed_type_settings", "select=*&order=display_order.asc"),
+      selectRows("ag_public_collection_custom_fields", "select=*&order=display_order.asc")
     ]);
     state.communities = communities;
     state.farmers = farmers;
     state.formSettings = formSettings;
     state.seaweedTypes = seaweedTypes;
+    state.customFields = customFields;
     gradePrices.forEach((row) => { state.pricePerKg[row.grade] = Number(row.price_per_kg); });
     state.defaultSeaweedType = seaweedTypes.find((row) => row.is_default)?.type_key || "spinosum";
     renderCommunityOptions();
     applyRuntimeSettings(gradePrices);
+    renderCustomFields();
     updateQuickReference();
     setConnectionStatus(dataModeLabel(), dataModeLabel() === "Preview" ? "status-muted" : "");
   } catch (error) {
@@ -545,7 +552,8 @@ function buildPayload() {
     total_price: nullableNumber(els.totalPrice.value),
     price_overridden: els.priceOverridden.checked,
     notes: nullableText(els.collectionNotes.value),
-    photo_urls: []
+    photo_urls: [],
+    custom_fields: customFieldPayload()
   };
 }
 
@@ -560,6 +568,7 @@ function clearForm() {
   ensureTransactionId();
   syncCommunityName();
   updateQuickReference();
+  updateCustomCalculations();
   setFarmerStatus("");
 }
 
@@ -704,6 +713,182 @@ function applyRuntimeSettings(gradePrices) {
   });
 }
 
+function renderCustomFields() {
+  els.customCollectionFields.hidden = state.customFields.length === 0;
+  els.customCollectionFields.innerHTML = state.customFields.map(customFieldControl).join("");
+  updateCustomCalculations();
+}
+
+function customFieldControl(field) {
+  const id = `custom-${field.field_key}`;
+  const label = `${field.label}${field.unit ? ` (${field.unit})` : ""}`;
+  const required = field.required ? "required" : "";
+  const placeholder = field.placeholder ? `placeholder="${escapeAttribute(field.placeholder)}"` : "";
+  const common = `id="${escapeAttribute(id)}" data-custom-field="${escapeAttribute(field.field_key)}" ${required}`;
+
+  if (field.field_type === "checkbox") {
+    const checked = String(field.default_value || "").toLowerCase() === "true" ? "checked" : "";
+    return `<label class="check-row custom-field-control"><input type="checkbox" ${common} ${checked}> ${escapeHtml(label)}</label>`;
+  }
+  if (field.field_type === "long_text") {
+    return `<label class="custom-field-control">${escapeHtml(label)}<textarea rows="3" ${common} ${placeholder}>${escapeHtml(field.default_value || "")}</textarea></label>`;
+  }
+  if (field.field_type === "single_select" || field.field_type === "multi_select") {
+    const defaults = new Set(String(field.default_value || "").split(",").map((value) => value.trim()).filter(Boolean));
+    const emptyOption = field.field_type === "single_select" && !field.required ? '<option value="">Select</option>' : "";
+    const options = (field.options || []).map((option) => `<option value="${escapeAttribute(option)}" ${defaults.has(option) ? "selected" : ""}>${escapeHtml(option)}</option>`).join("");
+    return `<label class="custom-field-control">${escapeHtml(label)}<select ${common} ${field.field_type === "multi_select" ? "multiple" : ""}>${emptyOption}${options}</select></label>`;
+  }
+
+  const type = {
+    number: "number",
+    currency: "number",
+    calculation: "number",
+    date: "date",
+    time: "time",
+    datetime: "datetime-local",
+    email: "email",
+    phone: "tel"
+  }[field.field_type] || "text";
+  const numberSettings = ["number", "currency", "calculation"].includes(field.field_type)
+    ? `step="${field.decimal_places === 0 ? "1" : "any"}" ${field.min_value !== null ? `min="${field.min_value}"` : ""} ${field.max_value !== null ? `max="${field.max_value}"` : ""}`
+    : "";
+  const readonly = field.field_type === "calculation" ? "readonly" : "";
+  return `<label class="custom-field-control">${escapeHtml(label)}<input type="${type}" ${common} ${placeholder} ${numberSettings} ${readonly} value="${escapeAttribute(field.default_value || "")}"></label>`;
+}
+
+function customFieldPayload() {
+  const payload = {};
+  state.customFields.forEach((field) => {
+    const control = els.customCollectionFields.querySelector(`[data-custom-field="${CSS.escape(field.field_key)}"]`);
+    if (!control) return;
+
+    if (field.field_type === "checkbox") {
+      payload[field.field_key] = control.checked;
+      return;
+    }
+    if (field.field_type === "multi_select") {
+      const values = [...control.selectedOptions].map((option) => option.value);
+      if (values.length) payload[field.field_key] = values;
+      return;
+    }
+    if (["number", "currency", "calculation"].includes(field.field_type)) {
+      const number = nullableNumber(control.value);
+      if (number !== null) payload[field.field_key] = number;
+      return;
+    }
+    const text = nullableText(control.value);
+    if (text !== null) payload[field.field_key] = text;
+  });
+  return payload;
+}
+
+function updateCustomCalculations() {
+  if (!els.customCollectionFields || !state.customFields.length) return;
+  for (let pass = 0; pass < 3; pass += 1) {
+    const values = numericFormulaValues();
+    state.customFields.filter((field) => field.field_type === "calculation").forEach((field) => {
+      const control = els.customCollectionFields.querySelector(`[data-custom-field="${CSS.escape(field.field_key)}"]`);
+      if (!control) return;
+      const result = evaluateFormula(field.formula, values);
+      control.value = result === null ? "" : result.toFixed(Number(field.decimal_places ?? 2));
+    });
+  }
+}
+
+function numericFormulaValues() {
+  const values = {
+    sack_weight_kg: nullableNumber(els.sackWeightKg.value),
+    price_per_kg: nullableNumber(els.pricePerKg.value),
+    total_price: nullableNumber(els.totalPrice.value)
+  };
+  state.customFields.forEach((field) => {
+    const control = els.customCollectionFields.querySelector(`[data-custom-field="${CSS.escape(field.field_key)}"]`);
+    if (control && ["number", "currency", "calculation"].includes(field.field_type)) {
+      values[field.field_key] = nullableNumber(control.value);
+    }
+  });
+  return values;
+}
+
+function evaluateFormula(formula, values) {
+  try {
+    const tokens = formulaTokens(String(formula || ""), values);
+    const output = [];
+    const operators = [];
+    const precedence = { "+": 1, "-": 1, "*": 2, "/": 2, "u-": 3 };
+    let previous = "start";
+
+    tokens.forEach((token) => {
+      if (token.type === "number") {
+        output.push(token);
+        previous = "value";
+      } else if (token.value === "(") {
+        operators.push(token.value);
+        previous = "left";
+      } else if (token.value === ")") {
+        while (operators.length && operators.at(-1) !== "(") output.push({ type: "operator", value: operators.pop() });
+        if (operators.pop() !== "(") throw new Error("Unmatched parenthesis");
+        previous = "value";
+      } else {
+        let operator = token.value;
+        if (operator === "-" && ["start", "operator", "left"].includes(previous)) operator = "u-";
+        while (operators.length && operators.at(-1) !== "(" && precedence[operators.at(-1)] >= precedence[operator]) {
+          output.push({ type: "operator", value: operators.pop() });
+        }
+        operators.push(operator);
+        previous = "operator";
+      }
+    });
+    while (operators.length) {
+      const operator = operators.pop();
+      if (operator === "(") throw new Error("Unmatched parenthesis");
+      output.push({ type: "operator", value: operator });
+    }
+
+    const stack = [];
+    output.forEach((token) => {
+      if (token.type === "number") stack.push(token.value);
+      else if (token.value === "u-") stack.push(-stack.pop());
+      else {
+        const right = stack.pop();
+        const left = stack.pop();
+        if (!Number.isFinite(left) || !Number.isFinite(right)) throw new Error("Missing value");
+        if (token.value === "+") stack.push(left + right);
+        if (token.value === "-") stack.push(left - right);
+        if (token.value === "*") stack.push(left * right);
+        if (token.value === "/") stack.push(right === 0 ? NaN : left / right);
+      }
+    });
+    return stack.length === 1 && Number.isFinite(stack[0]) ? stack[0] : null;
+  } catch {
+    return null;
+  }
+}
+
+function formulaTokens(expression, values) {
+  const tokens = [];
+  let index = 0;
+  while (index < expression.length) {
+    const rest = expression.slice(index);
+    const whitespace = rest.match(/^\s+/);
+    if (whitespace) { index += whitespace[0].length; continue; }
+    const number = rest.match(/^(?:\d+\.?\d*|\.\d+)/);
+    if (number) { tokens.push({ type: "number", value: Number(number[0]) }); index += number[0].length; continue; }
+    const identifier = rest.match(/^[a-zA-Z_][a-zA-Z0-9_]*/);
+    if (identifier) {
+      const value = values[identifier[0]];
+      if (!Number.isFinite(value)) throw new Error("Missing value");
+      tokens.push({ type: "number", value });
+      index += identifier[0].length;
+      continue;
+    }
+    if ("+-*/()".includes(rest[0])) { tokens.push({ type: "operator", value: rest[0] }); index += 1; continue; }
+    throw new Error("Invalid formula");
+  }
+  return tokens;
+}
+
 function setFixedFormOrder() {
   const fixedOrder = [
     [document.querySelector(".field-status-block"), 20],
@@ -711,6 +896,7 @@ function setFixedFormOrder() {
     [els.farmerDetails, 40],
     [els.transactionId.closest("label"), 25],
     [els.priceOverridden.closest("label"), 95],
+    [els.customCollectionFields, 96],
     [els.collectionPhotos.closest("label"), 110]
   ];
   fixedOrder.forEach(([element, order]) => {

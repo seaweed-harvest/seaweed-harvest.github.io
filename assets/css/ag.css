@@ -442,6 +442,24 @@ input[readonly] {
   padding: 0 12px;
 }
 
+.custom-collection-fields {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.custom-collection-fields[hidden] {
+  display: none;
+}
+
+.custom-collection-fields .custom-field-control {
+  min-width: 0;
+}
+
+.custom-collection-fields select[multiple] {
+  min-height: 92px;
+}
+
 .qr-scanner-modal {
   position: fixed;
   inset: 0;
@@ -1704,6 +1722,13 @@ button:disabled {
   gap: 14px;
 }
 
+.builder-page .panel,
+.builder-form-panel,
+.builder-custom-table-wrap {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .users-page .admin-content > .panel,
 .builder-page .admin-content > .panel,
 .finance-page .admin-content > .panel {
@@ -1716,18 +1741,164 @@ button:disabled {
 
 .builder-table input[type="text"],
 .builder-table input[type="number"],
-.builder-table input[type="date"] {
+.builder-table input[type="date"],
+.builder-table select {
   width: 100%;
   min-height: 30px;
   padding: 4px 7px;
   border: 1px solid var(--border);
   border-radius: 5px;
+  background: var(--panel);
+  color: var(--text);
 }
 
 .builder-table input[type="checkbox"],
 .builder-table input[type="radio"] {
   width: 15px;
   min-height: 15px;
+}
+
+.builder-portal-head {
+  border-left: 4px solid var(--accent);
+}
+
+.builder-portal-head .eyebrow {
+  margin-bottom: 3px;
+}
+
+.builder-summary-strip,
+.builder-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.builder-summary-strip {
+  margin-top: 12px;
+}
+
+.builder-head-actions select {
+  min-height: 38px;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel);
+}
+
+.builder-custom-table-wrap {
+  width: 100%;
+  max-height: 620px;
+  margin-top: 12px;
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.builder-custom-table {
+  min-width: 2020px;
+}
+
+.builder-custom-table th,
+.builder-custom-table td {
+  white-space: nowrap;
+}
+
+.builder-custom-table td:nth-child(2) {
+  background: #f8fbfa;
+}
+
+.builder-order-input {
+  width: 68px !important;
+}
+
+.builder-key-input {
+  min-width: 170px;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.78rem;
+}
+
+.builder-unit-input {
+  width: 82px !important;
+}
+
+.builder-number-setting {
+  width: 76px !important;
+}
+
+.builder-custom-table [data-key="label"] {
+  min-width: 170px;
+}
+
+.builder-custom-table [data-key="configuration"] {
+  min-width: 300px;
+}
+
+.builder-custom-table [data-key="default_value"] {
+  min-width: 130px;
+}
+
+.builder-remove-field {
+  min-height: 30px;
+  padding: 4px 8px;
+  border-color: rgba(180, 35, 24, 0.25);
+  color: #9c2f27;
+}
+
+.builder-preview-band {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.builder-preview-band h3 {
+  font-size: 0.95rem;
+}
+
+.builder-form-preview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel-soft);
+}
+
+.builder-form-preview label {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  color: var(--text-sec);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.builder-form-preview input,
+.builder-form-preview select,
+.builder-form-preview textarea {
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  opacity: 1;
+  text-transform: none;
+}
+
+.builder-form-preview .check-row {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding-top: 18px;
+}
+
+.builder-form-preview .check-row input {
+  width: 16px;
+  min-height: 16px;
 }
 
 .finance-filter-grid {
@@ -1842,6 +2013,10 @@ button:disabled {
   }
 
   .finance-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .builder-form-preview {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1970,6 +2145,17 @@ button:disabled {
 
   .finance-filter-grid {
     grid-template-columns: 1fr;
+  }
+
+  .builder-head-actions,
+  .builder-head-actions select,
+  .builder-head-actions button {
+    width: 100%;
+  }
+
+  .builder-form-preview {
+    grid-template-columns: 1fr;
+    padding: 10px;
   }
 
   .users-page .admin-content > .panel,
