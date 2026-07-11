@@ -1,10 +1,17 @@
 import { APP_CONFIG } from "./config.js";
 import { callRpc, dataModeLabel, insertRow, isSupabaseEnabled, selectRows } from "./supabase_client.js";
+import {
+  configuredFieldLabel,
+  initCollectionLanguage,
+  t,
+  unitLabel
+} from "./collection_language.js";
 
 const state = {
   communities: [],
   farmers: [],
   formSettings: [],
+  gradePrices: [],
   pricePerKg: { ...APP_CONFIG.pricePerKg },
   seaweedTypes: [],
   customFields: [],
@@ -27,6 +34,7 @@ const els = {};
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
+  initCollectionLanguage();
   cacheElements();
   bindEvents();
   setDefaultDateTime();
@@ -46,7 +54,8 @@ function cacheElements() {
     "quickFarmerName",
     "quickFarmerCommunity",
     "quickFarmerFarmSize",
-    "manualFarmerName",
+    "manualFarmerFirstName",
+    "manualFarmerLastNames",
     "manualFarmerPhone",
     "manualCommunityInput",
     "manualFarmerFarmSize",
@@ -92,7 +101,8 @@ function bindEvents() {
     setFarmerStatus("");
     updateQuickReference();
   });
-  els.manualFarmerName.addEventListener("input", updateQuickReference);
+  els.manualFarmerFirstName.addEventListener("input", updateQuickReference);
+  els.manualFarmerLastNames.addEventListener("input", updateQuickReference);
   els.manualFarmerPhone.addEventListener("input", updateQuickReference);
   els.manualFarmerFarmSize.addEventListener("input", updateQuickReference);
   els.manualFarmerFarmSizeUnit.addEventListener("change", updateQuickReference);
@@ -120,10 +130,11 @@ function bindEvents() {
   els.collectionForm.addEventListener("input", updateCustomCalculations);
   els.collectionForm.addEventListener("change", updateCustomCalculations);
   els.stopQrScanner.addEventListener("click", stopQrScanner);
+  document.addEventListener("seaweed-collection-language-change", refreshTranslatedContent);
 }
 
 async function loadFormData() {
-  setConnectionStatus("Loading", "status-muted");
+  setConnectionStatus(t("status.loading"), "status-muted");
   try {
     const [communities, farmers, formSettings, gradePrices, seaweedTypes, customFields] = await Promise.all([
       selectRows(APP_CONFIG.tables.communities, "select=*&order=community_id.asc"),
@@ -138,6 +149,7 @@ async function loadFormData() {
     state.communities = communities;
     state.farmers = farmers;
     state.formSettings = formSettings;
+    state.gradePrices = gradePrices;
     state.seaweedTypes = seaweedTypes;
     state.customFields = customFields;
     state.pricePerKg = {};
@@ -147,9 +159,9 @@ async function loadFormData() {
     applyRuntimeSettings(gradePrices);
     renderCustomFields();
     updateQuickReference();
-    setConnectionStatus(dataModeLabel(), dataModeLabel() === "Preview" ? "status-muted" : "");
+    setConnectionStatus(translatedDataMode(), dataModeLabel() === "Preview" ? "status-muted" : "");
   } catch (error) {
-    setConnectionStatus("Error", "status-muted");
+    setConnectionStatus(t("status.error"), "status-muted");
     setStatus(error.message, "error");
   }
 }
@@ -178,7 +190,7 @@ async function lookupFarmer() {
       const result = await callRpc("ag_public_farmer_lookup", { p_farmer_id: farmerId });
       farmer = result && Object.keys(result).length ? result : null;
     } catch (error) {
-      setFarmerStatus("Lookup failed", "status-muted");
+      setFarmerStatus(t("status.lookupFailed"), "status-muted");
       setStatus(error.message, "error");
       return;
     }
@@ -186,7 +198,7 @@ async function lookupFarmer() {
   state.selectedFarmer = farmer || null;
 
   if (!farmer) {
-    setFarmerStatus("Not found", "status-muted");
+    setFarmerStatus(t("status.notFound"), "status-muted");
     updateQuickReference();
     return;
   }
@@ -198,12 +210,14 @@ async function lookupFarmer() {
   }
   syncManualDetailsFromFarmer(farmer);
   updateQuickReference();
-  setFarmerStatus("Linked", "");
+  setFarmerStatus(t("status.linked"), "");
 }
 
 function syncManualDetailsFromFarmer(farmer) {
   const community = communityById(farmer.community_id);
-  els.manualFarmerName.value = farmer.name || "";
+  const name = splitFarmerName(farmer.name);
+  els.manualFarmerFirstName.value = name.firstName;
+  els.manualFarmerLastNames.value = name.lastNames;
   els.manualFarmerPhone.value = farmer.phone || "";
   els.manualCommunityInput.value = communityLabel(community) || farmer.community_id || "";
   els.manualFarmerFarmSize.value = farmer.farm_size_value ?? "";
@@ -211,7 +225,8 @@ function syncManualDetailsFromFarmer(farmer) {
 }
 
 function clearManualFarmerDetails() {
-  els.manualFarmerName.value = "";
+  els.manualFarmerFirstName.value = "";
+  els.manualFarmerLastNames.value = "";
   els.manualFarmerPhone.value = "";
   els.manualCommunityInput.value = "";
   els.manualFarmerFarmSize.value = "";
@@ -237,7 +252,7 @@ function syncManualCommunity(event) {
 
 function updateQuickReference() {
   const community = selectedCommunity() || findCommunityFromText(els.manualCommunityInput.value);
-  const farmerName = state.selectedFarmer?.name || nullableText(els.manualFarmerName.value);
+  const farmerName = combinedManualFarmerName() || state.selectedFarmer?.name;
   els.quickFarmerName.textContent = farmerName || "-";
   els.quickFarmerCommunity.textContent = communityLabel(community) || "-";
   els.quickFarmerFarmSize.textContent = formatManualFarmSize();
@@ -301,11 +316,11 @@ function setDefaultDateTime() {
 
 function captureGps() {
   if (!navigator.geolocation) {
-    els.gpsSummary.value = "GPS unavailable";
+    els.gpsSummary.value = t("gps.unavailable");
     return;
   }
 
-  els.gpsSummary.value = "Getting GPS...";
+  els.gpsSummary.value = t("gps.getting");
   navigator.geolocation.getCurrentPosition(
     (position) => {
       state.gps = {
@@ -316,7 +331,7 @@ function captureGps() {
       els.gpsSummary.value = `${state.gps.latitude.toFixed(5)}, ${state.gps.longitude.toFixed(5)}`;
     },
     () => {
-      els.gpsSummary.value = "GPS not captured";
+      els.gpsSummary.value = t("gps.notCaptured");
     },
     {
       enableHighAccuracy: true,
@@ -328,20 +343,20 @@ function captureGps() {
 
 async function startQrScanner(scanTarget) {
   if (!navigator.mediaDevices?.getUserMedia) {
-    setStatus("Camera access is not available. Type the number instead.", "error");
+    setStatus(t("scanner.unavailable"), "error");
     return;
   }
 
   const detector = await createNativeQrDetector();
   if (!detector && typeof window.jsQR !== "function") {
-    setStatus("QR scanner could not load. Refresh the page and try again.", "error");
+    setStatus(t("scanner.loadFailed"), "error");
     return;
   }
 
   try {
     state.qrScanner.scanTarget = scanTarget;
     state.qrScanner.detector = detector;
-    els.qrScannerStatus.textContent = "Opening camera...";
+    els.qrScannerStatus.textContent = t("scanner.opening");
     els.qrScannerModal.hidden = false;
 
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -358,8 +373,8 @@ async function startQrScanner(scanTarget) {
     els.qrScannerVideo.srcObject = stream;
     await els.qrScannerVideo.play();
     els.qrScannerStatus.textContent = scanTarget === "farmer"
-      ? "Scan Farmer ID QR code."
-      : "Scan Sack ID QR code.";
+      ? t("scanner.farmer")
+      : t("scanner.sack");
     scanQrFrame();
   } catch (error) {
     stopQrScanner();
@@ -437,21 +452,21 @@ function scanWithJsQr() {
 function applyScannedValue(rawValue) {
   const value = extractQrValue(rawValue, state.qrScanner.scanTarget);
   if (!value) {
-    setStatus("QR code did not contain a usable value.", "error");
+    setStatus(t("scanner.noValue"), "error");
     return;
   }
 
   if (state.qrScanner.scanTarget === "farmer") {
     els.farmerId.value = normalizeFarmerIdValue(value);
     lookupFarmer();
-    setStatus("Farmer ID scanned.");
+    setStatus(t("scanner.farmerScanned"));
     return;
   }
 
   els.sackId.value = normalizeSackIdValue(value);
   ensureTransactionId();
   if (!state.gps) captureGps();
-  setStatus("Sack ID scanned.");
+  setStatus(t("scanner.sackScanned"));
 }
 
 function stopQrScanner() {
@@ -503,7 +518,7 @@ async function submitCollection(event) {
   event.preventDefault();
 
   try {
-    setStatus("Saving collection...");
+    setStatus(t("status.saving"));
     const payload = buildPayload();
     const farmSizeUpdate = pendingFarmSizeUpdate();
     const rows = await insertRow(APP_CONFIG.tables.collections, payload);
@@ -513,12 +528,16 @@ async function submitCollection(event) {
       try {
         await callRpc("ag_update_farmer_farm_size_from_collection", farmSizeUpdate);
       } catch (error) {
-        farmSizeWarning = ` Collection saved, but farm size was not updated: ${error.message}`;
+        farmSizeWarning = t("status.farmSizeWarning", { message: error.message });
       }
     }
-    const savedMessage = saved?.transaction_id ? `Saved ${saved.transaction_id}.` : "Saved.";
+    const savedMessage = saved?.transaction_id
+      ? t("status.savedTransaction", { id: saved.transaction_id })
+      : t("status.saved");
     clearForm();
-    setStatus(`${savedMessage}${farmSizeUpdate && !farmSizeWarning ? " Farm size updated." : farmSizeWarning}`, farmSizeWarning ? "error" : "");
+    const updateMessage = farmSizeUpdate && !farmSizeWarning ? ` ${t("status.farmSizeUpdated")}` : "";
+    const warningMessage = farmSizeWarning ? ` ${farmSizeWarning}` : "";
+    setStatus(`${savedMessage}${updateMessage}${warningMessage}`, farmSizeWarning ? "error" : "");
   } catch (error) {
     setStatus(error.message, "error");
   }
@@ -528,14 +547,14 @@ function buildPayload() {
   const farmerId = nullableText(normalizedFarmerId());
   const sackId = nullableText(normalizedSackId());
   const community = selectedCommunity();
-  const weight = requiredNumber(els.sackWeightKg.value, "Weight kg");
+  const weight = requiredNumber(els.sackWeightKg.value, t("harvest.weight"));
   const seaweedType = nullableText(els.seaweedType.value) || state.defaultSeaweedType;
   const gradeCode = nullableText(els.seaweedGrade.value);
   const collectedAt = els.collectedAt.value ? new Date(els.collectedAt.value) : new Date();
-  const farmerNameSnapshot = state.selectedFarmer?.name || nullableText(els.manualFarmerName.value);
+  const farmerNameSnapshot = combinedManualFarmerName() || state.selectedFarmer?.name || null;
 
   return {
-    transaction_id: requiredText(els.transactionId.value, "Transaction ID"),
+    transaction_id: requiredText(els.transactionId.value, t("harvest.transactionId")),
     farmer_id: farmerId,
     farmer_record_id: state.selectedFarmer?.id || null,
     farmer_name_snapshot: farmerNameSnapshot,
@@ -573,6 +592,21 @@ function clearForm() {
   updateQuickReference();
   updateCustomCalculations();
   setFarmerStatus("");
+}
+
+function splitFarmerName(value) {
+  const parts = String(value || "").trim().split(/\s+/).filter(Boolean);
+  return {
+    firstName: parts.shift() || "",
+    lastNames: parts.join(" ")
+  };
+}
+
+function combinedManualFarmerName() {
+  return [els.manualFarmerFirstName.value, els.manualFarmerLastNames.value]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(" ") || null;
 }
 
 function normalizedFarmerId() {
@@ -619,14 +653,14 @@ function formatFarmSize(farmer) {
   const value = nullableNumber(farmer?.farm_size_value);
   if (value === null) return "-";
   const unit = String(farmer?.farm_size_unit || "lines").trim() || "lines";
-  return `${formatCompactNumber(value)} ${unit}`;
+  return `${formatCompactNumber(value)} ${unitLabel(unit)}`;
 }
 
 function formatManualFarmSize() {
   const value = nullableNumber(els.manualFarmerFarmSize.value);
   if (value === null) return "-";
   const unit = String(els.manualFarmerFarmSizeUnit.value || "lines").trim() || "lines";
-  return `${formatCompactNumber(value)} ${unit}`;
+  return `${formatCompactNumber(value)} ${unitLabel(unit)}`;
 }
 
 function pendingFarmSizeUpdate() {
@@ -673,23 +707,31 @@ function nextFarmerId() {
 }
 
 function applyRuntimeSettings(gradePrices) {
+  const selectedType = els.seaweedType.value || state.defaultSeaweedType;
+  const selectedGrade = els.seaweedGrade.value;
   setFixedFormOrder();
   if (state.seaweedTypes.length) {
     els.seaweedType.innerHTML = state.seaweedTypes.map((row) => {
-      const label = [row.label, row.common_name].filter(Boolean).join(" - ");
+      const configuredLabel = row.type_key === "other" ? t("type.other") : row.label;
+      const label = [configuredLabel, row.common_name].filter(Boolean).join(" - ");
       return `<option value="${escapeAttribute(row.type_key)}">${escapeHtml(label)}</option>`;
     }).join("");
-    els.seaweedType.value = state.defaultSeaweedType;
+    els.seaweedType.value = [...els.seaweedType.options].some((option) => option.value === selectedType)
+      ? selectedType
+      : state.defaultSeaweedType;
   }
 
   els.seaweedGrade.innerHTML = [
-    '<option value="">Select</option>',
+    `<option value="">${escapeHtml(t("common.select"))}</option>`,
     ...gradePrices.map((row) => {
       const name = row.label && row.label !== row.grade ? `${row.grade} - ${row.label}` : row.grade;
-      const detail = row.rejected ? "Rejected" : `${formatCompactNumber(row.price_per_kg)} KSH/kg`;
+      const detail = row.rejected ? t("grade.rejected") : `${formatCompactNumber(row.price_per_kg)} KSH/kg`;
       return `<option value="${escapeAttribute(row.grade)}">${escapeHtml(name)} - ${escapeHtml(detail)}</option>`;
     })
   ].join("");
+  els.seaweedGrade.value = [...els.seaweedGrade.options].some((option) => option.value === selectedGrade)
+    ? selectedGrade
+    : "";
 
   const controls = {
     farmer_id: els.farmerId,
@@ -715,7 +757,7 @@ function applyRuntimeSettings(gradePrices) {
     label.style.order = String(setting.display_order || 0);
     control.required = visible && Boolean(setting.required);
     control.disabled = !visible;
-    updateLabelText(label, setting.label);
+    updateLabelText(label, configuredFieldLabel(setting.field_key, setting.label));
     if (setting.default_value && !control.value) control.value = setting.default_value;
   });
 
@@ -751,7 +793,9 @@ function customFieldControl(field) {
   }
   if (field.field_type === "single_select" || field.field_type === "multi_select") {
     const defaults = new Set(String(field.default_value || "").split(",").map((value) => value.trim()).filter(Boolean));
-    const emptyOption = field.field_type === "single_select" && !field.required ? '<option value="">Select</option>' : "";
+    const emptyOption = field.field_type === "single_select" && !field.required
+      ? `<option value="">${escapeHtml(t("common.select"))}</option>`
+      : "";
     const options = (field.options || []).map((option) => `<option value="${escapeAttribute(option)}" ${defaults.has(option) ? "selected" : ""}>${escapeHtml(option)}</option>`).join("");
     return `<label class="custom-field-control">${escapeHtml(label)}<select ${common} ${field.field_type === "multi_select" ? "multiple" : ""}>${emptyOption}${options}</select></label>`;
   }
@@ -920,7 +964,30 @@ function setFixedFormOrder() {
   });
 }
 
+function refreshTranslatedContent() {
+  applyRuntimeSettings(state.gradePrices);
+  updateQuickReference();
+  setConnectionStatus(translatedDataMode(), dataModeLabel() === "Preview" ? "status-muted" : "");
+  if (state.selectedFarmer) {
+    setFarmerStatus(t("status.linked"));
+  } else if (!normalizedFarmerId()) {
+    setFarmerStatus("");
+  }
+}
+
+function translatedDataMode() {
+  const mode = dataModeLabel();
+  if (mode === "Preview") return t("status.preview");
+  if (mode === "Live") return t("status.live");
+  return mode;
+}
+
 function updateLabelText(label, text) {
+  const labelSpan = [...label.children].find((child) => child.tagName === "SPAN" && !child.classList.contains("input-action-row"));
+  if (labelSpan) {
+    labelSpan.textContent = text;
+    return;
+  }
   const textNode = [...label.childNodes].find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
   if (textNode) textNode.textContent = `\n            ${text}\n            `;
 }
@@ -947,13 +1014,13 @@ function setStatus(message, type = "") {
 
 function requiredText(value, label) {
   const text = String(value || "").trim();
-  if (!text) throw new Error(`${label} is required.`);
+  if (!text) throw new Error(t("validation.required", { field: label }));
   return text;
 }
 
 function requiredNumber(value, label) {
   const number = nullableNumber(value);
-  if (number === null) throw new Error(`${label} is required.`);
+  if (number === null) throw new Error(t("validation.required", { field: label }));
   return number;
 }
 
@@ -983,7 +1050,7 @@ function escapeAttribute(value) {
 
 function cameraErrorMessage(error) {
   const name = error?.name || "";
-  if (name === "NotAllowedError") return "Camera permission was blocked. Type the number instead.";
-  if (name === "NotFoundError") return "No camera was found. Type the number instead.";
-  return "Could not open camera. Type the number instead.";
+  if (name === "NotAllowedError") return t("scanner.permissionBlocked");
+  if (name === "NotFoundError") return t("scanner.noCamera");
+  return t("scanner.openFailed");
 }

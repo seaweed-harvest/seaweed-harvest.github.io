@@ -165,6 +165,60 @@ h1 {
   color: var(--accent);
 }
 
+.language-card {
+  width: fit-content;
+  max-width: 100%;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 6px 8px 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow);
+}
+
+.language-card-label {
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.language-card-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel-soft);
+}
+
+.language-card-actions button {
+  min-width: 72px;
+  min-height: 28px;
+  padding: 2px 9px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-sec);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.language-card-actions button:hover {
+  background: rgba(15, 118, 110, 0.08);
+}
+
+.language-card-actions button[aria-pressed="true"] {
+  background: var(--accent);
+  color: #fff;
+}
+
 .panel,
 .registry-card {
   border: 1px solid var(--border);

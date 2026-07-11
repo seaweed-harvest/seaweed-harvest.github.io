@@ -5,82 +5,93 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0f766e">
   <meta name="robots" content="noindex,nofollow">
-  <title>Collection - Seaweed Aggregation</title>
+  <title data-i18n="meta.title">Collection - Seaweed Aggregation</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
 </head>
 <body class="collection-page">
   <header class="app-header">
     <div class="app-header-inner">
       <div>
-        <p class="eyebrow">Seaweed aggregation</p>
-        <h1>Collection</h1>
+        <p class="eyebrow" data-i18n="app.eyebrow">Seaweed aggregation</p>
+        <h1 data-i18n="page.title">Collection</h1>
       </div>
       <div class="header-actions">
-        <nav class="app-nav" aria-label="Main navigation">
-          <a href="./index.html" aria-current="page">Collection</a>
-          <a href="./admin.html">Admin</a>
+        <nav class="app-nav" aria-label="Main navigation" data-i18n-aria-label="nav.ariaLabel">
+          <a href="./index.html" aria-current="page" data-i18n="nav.collection">Collection</a>
+          <a href="./admin.html" data-i18n="nav.admin">Admin</a>
         </nav>
-        <span id="collectionConnectionStatus" class="status-pill status-muted">Loading</span>
+        <span id="collectionConnectionStatus" class="status-pill status-muted" hidden>Loading</span>
       </div>
     </div>
   </header>
 
   <main class="app-shell">
+    <section class="language-card" aria-label="Language" data-i18n-aria-label="language.ariaLabel">
+      <span class="language-card-label" data-i18n="language.label">Language:</span>
+      <div class="language-card-actions" role="group" aria-label="Choose language" data-i18n-aria-label="language.choose">
+        <button type="button" data-language-option="en" aria-pressed="true">English</button>
+        <button type="button" data-language-option="sw" aria-pressed="false">Kiswahili</button>
+      </div>
+    </section>
     <section class="panel collection-form-panel">
       <form id="collectionForm" class="collection-form">
         <fieldset class="farmer-fieldset">
-          <legend>Farmer</legend>
+          <legend data-i18n="farmer.legend">Farmer</legend>
           <label>
-            Farmer ID
+            <span data-i18n="farmer.id">Farmer ID</span>
             <span class="input-action-row scan-action-row farmer-id-row">
               <input id="farmerId" type="text" autocomplete="off" placeholder="RID4300">
-              <button id="lookupFarmer" type="button">Lookup</button>
-              <button id="scanFarmerId" type="button">Scan</button>
+              <button id="lookupFarmer" type="button" data-i18n="action.lookup">Lookup</button>
+              <button id="scanFarmerId" type="button" data-i18n="action.scan">Scan</button>
             </span>
           </label>
           <div class="field-status-block">
             <span id="farmerLinkStatus" class="status-pill status-hidden"></span>
           </div>
           <div class="quick-farmer-reference wide-field">
-            <p><span>Name:</span> <strong id="quickFarmerName">-</strong></p>
-            <p><span>Community:</span> <strong id="quickFarmerCommunity">-</strong></p>
-            <p><span>Farm size:</span> <strong id="quickFarmerFarmSize">-</strong></p>
+            <p><span data-i18n="quick.name">Name:</span> <strong id="quickFarmerName">-</strong></p>
+            <p><span data-i18n="quick.community">Community:</span> <strong id="quickFarmerCommunity">-</strong></p>
+            <p><span data-i18n="quick.farmSize">Farm size:</span> <strong id="quickFarmerFarmSize">-</strong></p>
           </div>
           <details id="farmerDetails" class="form-details wide-field">
-            <summary>Farmer Detail - Enter Details:</summary>
+            <summary data-i18n="farmer.detailsSummary">Farmer Detail - Enter Details:</summary>
             <div class="manual-farmer-fields">
               <label>
-                Name
-                <input id="manualFarmerName" type="text" autocomplete="name">
+                <span data-i18n="farmer.firstName">First name</span>
+                <input id="manualFarmerFirstName" type="text" autocomplete="given-name">
               </label>
               <label>
-                Phone
+                <span data-i18n="farmer.lastNames">Last / other names</span>
+                <input id="manualFarmerLastNames" type="text" autocomplete="family-name">
+              </label>
+              <label>
+                <span data-i18n="farmer.phone">Phone</span>
                 <input id="manualFarmerPhone" type="text" autocomplete="tel">
               </label>
               <label>
-                Community
-                <input id="manualCommunityInput" type="text" list="communityOptions" autocomplete="off" placeholder="Type community">
+                <span data-i18n="farmer.community">Community</span>
+                <input id="manualCommunityInput" type="text" list="communityOptions" autocomplete="off" placeholder="Type community" data-i18n-placeholder="farmer.communityPlaceholder">
               </label>
               <div class="manual-farm-size-fields">
                 <label>
-                  Farm size
-                  <input id="manualFarmerFarmSize" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Optional">
+                  <span data-i18n="farmer.farmSize">Farm size</span>
+                  <input id="manualFarmerFarmSize" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Optional" data-i18n-placeholder="common.optional">
                 </label>
                 <label>
-                  Farm size unit
+                  <span data-i18n="farmer.farmSizeUnit">Farm size unit</span>
                   <select id="manualFarmerFarmSizeUnit">
-                    <option value="lines">Lines</option>
-                    <option value="ropes">Ropes</option>
-                    <option value="plots">Plots</option>
-                    <option value="acres">Acres</option>
-                    <option value="hectares">Hectares</option>
-                    <option value="sqm">Square metres</option>
-                    <option value="other">Other</option>
+                    <option value="lines" data-i18n="unit.lines">Lines</option>
+                    <option value="ropes" data-i18n="unit.ropes">Ropes</option>
+                    <option value="plots" data-i18n="unit.plots">Plots</option>
+                    <option value="acres" data-i18n="unit.acres">Acres</option>
+                    <option value="hectares" data-i18n="unit.hectares">Hectares</option>
+                    <option value="sqm" data-i18n="unit.sqm">Square metres</option>
+                    <option value="other" data-i18n="unit.other">Other</option>
                   </select>
                 </label>
               </div>
               <div class="manual-detail-actions">
-                <button id="assignFarmerId" type="button">Assign ID number</button>
+                <button id="assignFarmerId" type="button" data-i18n="farmer.assignId">Assign ID number</button>
               </div>
             </div>
             <datalist id="communityOptions"></datalist>
@@ -90,35 +101,35 @@
         </fieldset>
 
         <fieldset class="harvest-fieldset">
-          <legend>Harvest</legend>
+          <legend data-i18n="harvest.legend">Harvest</legend>
           <label>
-            Sack ID
+            <span data-i18n="harvest.sackId">Sack ID</span>
             <span class="input-action-row scan-action-row sack-id-row">
               <input id="sackId" type="text" autocomplete="off" placeholder="B-0001">
-              <button id="scanSackId" type="button">Scan</button>
+              <button id="scanSackId" type="button" data-i18n="action.scan">Scan</button>
             </span>
           </label>
           <label>
-            Transaction ID
+            <span data-i18n="harvest.transactionId">Transaction ID</span>
             <input id="transactionId" type="text" readonly>
           </label>
           <label>
-            Date / time
+            <span data-i18n="harvest.dateTime">Date / time</span>
             <input id="collectedAt" type="datetime-local" required>
           </label>
           <label>
-            GPS
+            <span data-i18n="harvest.gps">GPS</span>
             <span class="input-action-row">
               <input id="gpsSummary" type="text" readonly>
               <button id="captureGps" type="button">GPS</button>
             </span>
           </label>
           <label>
-            Weight kg
+            <span data-i18n="harvest.weight">Weight kg</span>
             <input id="sackWeightKg" type="number" min="0" step="0.01" required>
           </label>
           <label>
-            Seaweed type (common name)
+            <span data-i18n="harvest.seaweedType">Seaweed type (common name)</span>
             <select id="seaweedType">
               <option value="spinosum" selected>Spinosum - spiny seaweed</option>
               <option value="cottonii">Cottonii - cottonii seaweed</option>
@@ -126,7 +137,7 @@
             </select>
           </label>
           <label>
-            Grade
+            <span data-i18n="harvest.grade">Grade</span>
             <select id="seaweedGrade">
               <option value="">Select</option>
               <option value="A">A - 12 KSH/kg</option>
@@ -135,31 +146,31 @@
             </select>
           </label>
           <label>
-            Price / kg
+            <span data-i18n="harvest.pricePerKg">Price / kg</span>
             <input id="pricePerKg" type="number" min="0" step="0.01">
           </label>
           <label>
-            Total price
+            <span data-i18n="harvest.totalPrice">Total price</span>
             <input id="totalPrice" type="number" min="0" step="0.01">
           </label>
           <label class="check-row">
             <input id="priceOverridden" type="checkbox">
-            Manual price
+            <span data-i18n="harvest.manualPrice">Manual price</span>
           </label>
           <div id="customCollectionFields" class="custom-collection-fields" hidden></div>
           <label class="wide-field">
-            Notes
+            <span data-i18n="harvest.notes">Notes</span>
             <textarea id="collectionNotes" rows="3"></textarea>
           </label>
           <label class="wide-field">
-            Photos
+            <span data-i18n="harvest.photos">Photos</span>
             <input id="collectionPhotos" type="file" accept="image/*" capture="environment" multiple>
           </label>
         </fieldset>
 
         <div class="button-row">
-          <button id="submitCollection" type="submit">Submit collection</button>
-          <button id="clearCollectionForm" type="button">Clear</button>
+          <button id="submitCollection" type="submit" data-i18n="action.submit">Submit collection</button>
+          <button id="clearCollectionForm" type="button" data-i18n="action.clear">Clear</button>
           <span id="collectionSaveStatus" class="admin-status" aria-live="polite"></span>
         </div>
       </form>
@@ -169,14 +180,14 @@
   <section id="qrScannerModal" class="qr-scanner-modal" role="dialog" aria-modal="true" aria-labelledby="qrScannerTitle" hidden>
     <div class="qr-scanner-panel">
       <div class="qr-scanner-head">
-        <h2 id="qrScannerTitle">Scan QR Code</h2>
-        <button id="stopQrScanner" type="button">Cancel</button>
+        <h2 id="qrScannerTitle" data-i18n="scanner.title">Scan QR Code</h2>
+        <button id="stopQrScanner" type="button" data-i18n="action.cancel">Cancel</button>
       </div>
       <div class="qr-video-frame">
         <video id="qrScannerVideo" playsinline muted></video>
         <div class="qr-target-box" aria-hidden="true"></div>
       </div>
-      <p id="qrScannerStatus" class="qr-scanner-status">Point camera at QR code.</p>
+      <p id="qrScannerStatus" class="qr-scanner-status" data-i18n="scanner.pointCamera">Point camera at QR code.</p>
     </div>
   </section>
 
