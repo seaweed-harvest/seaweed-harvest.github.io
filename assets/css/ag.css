@@ -1657,6 +1657,17 @@ button:disabled {
   background: #fffdf6;
 }
 
+.user-name-warning {
+  display: inline-block;
+  padding: 3px 7px;
+  border: 1px solid #eab85c;
+  border-radius: 5px;
+  background: #fff7dd;
+  color: #855c00;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
 .builder-page .admin-content,
 .users-page .admin-content {
   display: grid;

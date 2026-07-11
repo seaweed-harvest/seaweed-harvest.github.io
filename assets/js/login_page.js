@@ -7,6 +7,7 @@ import {
   sendPasswordReset,
   signInWithPassword,
   signInWithProvider,
+  updateMyDisplayName,
   updatePassword
 } from "./auth_client.js";
 
@@ -18,7 +19,7 @@ async function init() {
   [
     "loginPanel", "loginForm", "loginEmail", "loginPassword", "socialLoginActions",
     "googleSignIn", "facebookSignIn", "showResetPassword", "passwordPanel",
-    "passwordForm", "newPassword", "confirmPassword", "resetPanel", "resetForm",
+    "passwordForm", "accountDisplayName", "newPassword", "confirmPassword", "resetPanel", "resetForm",
     "resetEmail", "cancelResetPassword", "authStatus"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
@@ -28,16 +29,14 @@ async function init() {
   const mode = new URLSearchParams(window.location.search).get("mode");
   const session = await currentSession();
   if ((mode === "invite" || mode === "recovery" || mode === "change") && session) {
-    showPanel("password");
-    setStatus(mode === "change" || requiresPasswordChange(session)
+    await preparePasswordPanel(session, mode === "change" || requiresPasswordChange(session)
       ? "Set a new password before continuing."
       : "Set your password to finish signing in.");
     return;
   }
 
   if (requiresPasswordChange(session)) {
-    showPanel("password");
-    setStatus("Set a new password before continuing.");
+    await preparePasswordPanel(session, "Set a new password before continuing.");
     return;
   }
 
@@ -66,8 +65,7 @@ async function handleLogin(event) {
     const result = await signInWithPassword(els.loginEmail.value.trim(), els.loginPassword.value);
     if (requiresPasswordChange(result)) {
       els.loginPassword.value = "";
-      showPanel("password");
-      setStatus("Temporary password accepted. Set a new password before continuing.");
+      await preparePasswordPanel(result.session, "Temporary password accepted. Add your name and set a new password before continuing.");
       return;
     }
     await routeSignedInUser();
@@ -82,9 +80,16 @@ async function handlePasswordUpdate(event) {
     setStatus("Passwords do not match.", "error");
     return;
   }
+  const displayName = els.accountDisplayName.value.trim();
+  if (displayName.length < 2) {
+    setStatus("Enter your name before continuing.", "error");
+    els.accountDisplayName.focus();
+    return;
+  }
   setStatus("Saving password...");
   try {
-    await updatePassword(els.newPassword.value);
+    await updateMyDisplayName(displayName);
+    await updatePassword(els.newPassword.value, displayName);
     setStatus("Password saved.");
     await routeSignedInUser();
   } catch (error) {
@@ -148,6 +153,20 @@ function safePage(value) {
 function requiresPasswordChange(value) {
   const user = value?.user || value?.session?.user || null;
   return Boolean(user?.user_metadata?.must_change_password);
+}
+
+async function preparePasswordPanel(session, message) {
+  showPanel("password");
+  let profile = null;
+  try {
+    profile = await currentProfile(true);
+  } catch {
+    // The metadata name remains available if the profile request is unavailable.
+  }
+  els.accountDisplayName.value = profile?.display_name
+    || session?.user?.user_metadata?.full_name
+    || "";
+  setStatus(els.accountDisplayName.value ? message : `${message} Your name is also required.`);
 }
 
 function setStatus(message, type = "") {

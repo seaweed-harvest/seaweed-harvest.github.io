@@ -134,7 +134,9 @@ function renderUsers() {
   els.userDirectoryRows.innerHTML = state.users.length ? state.users.map((user) => `
     <tr>
       <td>${escapeHtml(user.email)}</td>
-      <td>${escapeHtml(user.display_name || "-")}</td>
+      <td>${user.display_name
+        ? escapeHtml(user.display_name)
+        : '<span class="user-name-warning" title="This user must add a name">Name required</span>'}</td>
       <td>${escapeHtml(roleLabels[user.app_role] || user.app_role)}</td>
       <td>${escapeHtml(capitalize(user.account_status))}</td>
       <td>${escapeHtml(user.community_id || "All")}</td>

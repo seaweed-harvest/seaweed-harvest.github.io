@@ -36,7 +36,7 @@
         <div class="section-head compact"><h2>Users</h2><button id="reloadUsers" type="button">Reload</button></div>
         <form id="inviteUserForm" class="user-invite-form">
           <label>Email<input id="inviteEmail" type="email" autocomplete="email" required></label>
-          <label>Name<input id="inviteName" type="text" autocomplete="name"></label>
+          <label>Name<input id="inviteName" type="text" autocomplete="name" minlength="2" maxlength="100" required></label>
           <label>Role
             <select id="inviteRole">
               <option value="company_admin">Company admin</option>
@@ -67,7 +67,7 @@
         <form id="editUserForm" class="user-invite-form">
           <input id="editUserId" type="hidden">
           <label>Email<input id="editUserEmail" type="email" disabled></label>
-          <label>Name<input id="editUserName" type="text"></label>
+          <label>Name<input id="editUserName" type="text" minlength="2" maxlength="100" required></label>
           <label>Role<select id="editUserRole"></select></label>
           <label>Status<select id="editUserStatus"><option value="active">Active</option><option value="pending">Pending</option><option value="suspended">Suspended</option></select></label>
           <label>Community<select id="editUserCommunity"><option value="">All / not assigned</option></select></label>

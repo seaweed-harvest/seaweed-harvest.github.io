@@ -106,12 +106,24 @@ export async function sendPasswordReset(email) {
   return data;
 }
 
-export async function updatePassword(password) {
+export async function updatePassword(password, displayName) {
   const { data, error } = await authClient.auth.updateUser({
     password,
-    data: { must_change_password: false }
+    data: {
+      full_name: displayName,
+      must_change_password: false
+    }
   });
   if (error) throw error;
+  return data;
+}
+
+export async function updateMyDisplayName(displayName) {
+  const { data, error } = await authClient.rpc("ag_update_my_display_name", {
+    p_display_name: displayName
+  });
+  if (error) throw error;
+  profilePromise = null;
   return data;
 }
 
