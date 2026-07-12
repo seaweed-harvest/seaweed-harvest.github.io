@@ -1,5 +1,6 @@
 import {
   requireAuthenticatedAccount,
+  currentProfile,
   routeForProfile,
   setupAccountControls,
   updateMyDetails
@@ -13,6 +14,8 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   [
     "myDetailsForm",
+    "myDetailsFarmerIdField",
+    "myDetailsFarmerId",
     "myDetailsName",
     "myDetailsEmail",
     "myDetailsPhone",
@@ -53,6 +56,8 @@ function configureHomeLink() {
 }
 
 function populateForm() {
+  els.myDetailsFarmerIdField.hidden = !profile.farmer_id;
+  els.myDetailsFarmerId.value = profile.farmer_id || "";
   els.myDetailsName.value = profile.display_name || "";
   els.myDetailsEmail.value = profile.email || "";
   els.myDetailsPhone.value = profile.phone || "";
@@ -66,12 +71,13 @@ async function saveDetails(event) {
   els.saveMyDetails.disabled = true;
   setStatus("Saving...");
   try {
-    profile = await updateMyDetails({
+    await updateMyDetails({
       display_name: els.myDetailsName.value.trim(),
       phone: els.myDetailsPhone.value.trim(),
       address: els.myDetailsAddress.value.trim(),
       date_of_birth: els.myDetailsDateOfBirth.value
     });
+    profile = await currentProfile(true);
     document.querySelector(".account-name").textContent = profile.display_name || profile.email;
     populateForm();
     setStatus("Details saved.");

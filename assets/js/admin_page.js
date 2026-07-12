@@ -411,7 +411,7 @@ async function loadAdminData() {
 function renderSetupError(error) {
   const message = `Admin reporting SQL is not available yet. ${error.message}`;
   if (els.communityTotalsRows) els.communityTotalsRows.innerHTML = emptyRow(8, message);
-  if (els.memberRegistryRows) els.memberRegistryRows.innerHTML = emptyRow(12, message);
+  if (els.memberRegistryRows) els.memberRegistryRows.innerHTML = emptyRow(14, message);
   if (els.communityRegistryRows) els.communityRegistryRows.innerHTML = emptyRow(12, message);
   if (els.monthlyRows) els.monthlyRows.innerHTML = emptyRow(13, message);
   if (els.communityGradeRows) els.communityGradeRows.innerHTML = emptyRow(5, message);
@@ -481,6 +481,8 @@ function renderMemberRegistry() {
       <td><strong>${escapeHtml(member.farmer_id || "-")}</strong></td>
       <td${dirtyCellAttribute(isEditing, "name")}>${isEditing ? registryTextInput("member", "name", member.name) : escapeHtml(member.name || "-")}</td>
       <td${dirtyCellAttribute(isEditing, "phone")}>${isEditing ? registryTextInput("member", "phone", member.phone) : escapeHtml(member.phone || "-")}</td>
+      <td${dirtyCellAttribute(isEditing, "address")}>${isEditing ? registryTextInput("member", "address", member.address) : escapeHtml(member.address || "-")}</td>
+      <td${dirtyCellAttribute(isEditing, "date_of_birth")}>${isEditing ? registryDateInput("member", "date_of_birth", member.date_of_birth) : escapeHtml(formatDate(member.date_of_birth))}</td>
       <td${dirtyCellAttribute(isEditing, "community_id")}>${isEditing ? registryCommunitySelect(member.community_id) : escapeHtml(member.community_id || "-")}</td>
       <td>${escapeHtml(member.community_name || "-")}</td>
       <td${dirtyCellAttribute(isEditing, "farm_size")}>${isEditing ? registryFarmSizeInputs(member) : escapeHtml(formatFarmSize(member))}</td>
@@ -491,7 +493,7 @@ function renderMemberRegistry() {
       <td${dirtyCellAttribute(isEditing, "notes")}>${isEditing ? registryTextInput("member", "notes", member.notes) : escapeHtml(member.notes || "-")}</td>
     </tr>
   `;
-  }).join("") || emptyRow(12, "No member registry rows found.");
+  }).join("") || emptyRow(14, "No member registry rows found.");
   updateRegistryEditUi("member");
 }
 
@@ -580,7 +582,9 @@ async function saveMemberRegistryEdit() {
         p_active: registryFieldValue(row, "active") !== "false",
         p_notes: nullableText(registryFieldValue(row, "notes")),
         p_farm_size_value: optionalNumber(registryFieldValue(row, "farm_size_value")),
-        p_farm_size_unit: nullableText(registryFieldValue(row, "farm_size_unit")) || "lines"
+        p_farm_size_unit: nullableText(registryFieldValue(row, "farm_size_unit")) || "lines",
+        p_address: nullableText(registryFieldValue(row, "address")),
+        p_date_of_birth: nullableText(registryFieldValue(row, "date_of_birth"))
       });
     }
     clearRegistrySelection("member");
@@ -673,6 +677,19 @@ function registryTextInput(type, fieldName, value) {
       data-original="${escapeAttribute(safeValue)}"
       value="${escapeAttribute(safeValue)}"
       autocomplete="off">
+  `;
+}
+
+function registryDateInput(type, fieldName, value) {
+  const safeValue = String(value ?? "").slice(0, 10);
+  return `
+    <input class="registry-edit-control"
+      type="date"
+      data-registry-type="${escapeAttribute(type)}"
+      data-registry-field="${escapeAttribute(fieldName)}"
+      data-original="${escapeAttribute(safeValue)}"
+      value="${escapeAttribute(safeValue)}"
+      max="${dateInputValue(new Date())}">
   `;
 }
 
@@ -1555,6 +1572,7 @@ function filteredMembers() {
       member.farmer_id,
       member.name,
       member.phone,
+      member.address,
       member.community_id,
       member.community_name,
       member.notes

@@ -20,6 +20,8 @@ async function init() {
       container: document.querySelector(".farmer-header-controls"),
       returnPage: "farmer.html"
     });
+    const collectionLink = document.getElementById("farmerCollectionLink");
+    if (collectionLink) collectionLink.hidden = !profile.can_submit_collection;
 
     const [summaryResponse, collectionsResponse] = await Promise.all([
       authClient.rpc("ag_my_farmer_summary"),
@@ -43,6 +45,9 @@ function renderSummary(summary) {
   setText("farmerAccountCommunity", [farmer.community_id, farmer.community_name].filter(Boolean).join(" - ") || "-");
   setText("farmerAccountFarmSize", formatFarmSize(farmer));
   setText("farmerAccountTotalKg", formatNumber(summary.total_kg));
+  setText("farmerAccountGradeAKg", formatNumber(summary.grade_a_kg));
+  setText("farmerAccountGradeBKg", formatNumber(summary.grade_b_kg));
+  setText("farmerAccountGradeCKg", formatNumber(summary.grade_c_kg));
   setText("farmerAccountEstimatedKsh", formatNumber(summary.estimated_ksh));
   setText("farmerAccountCollectionCount", formatNumber(summary.collection_count, 0));
   setText("farmerAccountLastCollection", formatDate(summary.last_collection_at));

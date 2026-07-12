@@ -25,7 +25,7 @@ const roleLabels = {
   finance_admin: "Finance admin",
   field_collector: "Field collector",
   community_viewer: "Community viewer",
-  farmer_viewer: "Farmer viewer",
+  farmer_viewer: "Farmer",
   read_only_auditor: "Read-only auditor",
   system_admin: "System admin"
 };
@@ -38,9 +38,9 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   [
     "reloadUsers", "inviteUserForm", "inviteEmail", "inviteName", "inviteRole",
-    "inviteCommunity", "invitePermissions", "inviteStatus", "userDirectoryRows",
+    "inviteCommunity", "inviteFarmerIdField", "inviteFarmerId", "invitePermissions", "inviteStatus", "userDirectoryRows",
     "userEditorPanel", "closeUserEditor", "editUserForm", "editUserId", "editUserEmail",
-    "editUserName", "editUserRole", "editUserStatus", "editUserCommunity", "editPermissions",
+    "editUserName", "editUserRole", "editUserStatus", "editUserCommunity", "editFarmerIdField", "editFarmerId", "editPermissions",
     "editUserMessage", "deleteUser", "farmerRegistrationCount", "farmerRegistrationRows", "farmerRegistrationStatus",
     "userActivityPanel", "userActivityCount", "userActivityRows"
   ].forEach((id) => { els[id] = document.getElementById(id); });
@@ -55,13 +55,20 @@ async function init() {
   buildEditRoleOptions();
   bindEvents();
   applyRolePreset("invite", els.inviteRole.value);
+  configureFarmerRoleFields("invite");
   await loadPageData();
 }
 
 function bindEvents() {
   els.reloadUsers.addEventListener("click", loadPageData);
-  els.inviteRole.addEventListener("change", () => applyRolePreset("invite", els.inviteRole.value));
-  els.editUserRole.addEventListener("change", () => applyRolePreset("edit", els.editUserRole.value));
+  els.inviteRole.addEventListener("change", () => {
+    applyRolePreset("invite", els.inviteRole.value);
+    configureFarmerRoleFields("invite");
+  });
+  els.editUserRole.addEventListener("change", () => {
+    applyRolePreset("edit", els.editUserRole.value);
+    configureFarmerRoleFields("edit");
+  });
   els.inviteUserForm.addEventListener("submit", inviteUser);
   els.editUserForm.addEventListener("submit", saveUser);
   els.deleteUser.addEventListener("click", deleteSelectedUser);
@@ -117,10 +124,12 @@ async function inviteUser(event) {
       display_name: nullableText(els.inviteName.value),
       app_role: els.inviteRole.value,
       community_id: nullableText(els.inviteCommunity.value),
+      farmer_id: nullableText(els.inviteFarmerId.value),
       permissions: readPermissions("invite")
     });
     els.inviteUserForm.reset();
     els.inviteRole.value = "company_admin";
+    configureFarmerRoleFields("invite");
     applyRolePreset("invite", "company_admin");
     setStatus(els.inviteStatus, "Invite sent.");
     await loadPageData();
@@ -140,6 +149,7 @@ async function saveUser(event) {
       app_role: els.editUserRole.value,
       account_status: els.editUserStatus.value,
       community_id: nullableText(els.editUserCommunity.value),
+      farmer_id: nullableText(els.editFarmerId.value),
       permissions: readPermissions("edit")
     });
     setStatus(els.editUserMessage, "Saved.");
@@ -239,6 +249,8 @@ function handleUserTableClick(event) {
   els.editUserRole.value = user.app_role;
   els.editUserStatus.value = user.account_status;
   els.editUserCommunity.value = user.community_id || "";
+  els.editFarmerId.value = user.farmer_id || "";
+  configureFarmerRoleFields("edit");
   els.deleteUser.disabled = user.id === state.actor?.id;
   els.deleteUser.title = user.id === state.actor?.id ? "You cannot delete your own account" : "Delete this user account";
   writePermissions("edit", user);
@@ -292,6 +304,24 @@ function renderCommunityOptions() {
 
 function applyRolePreset(prefix, role) {
   writePermissions(prefix, rolePreset(role));
+}
+
+function configureFarmerRoleFields(prefix) {
+  const isInvite = prefix === "invite";
+  const role = isInvite ? els.inviteRole.value : els.editUserRole.value;
+  const field = isInvite ? els.inviteFarmerIdField : els.editFarmerIdField;
+  const input = isInvite ? els.inviteFarmerId : els.editFarmerId;
+  const nameInput = isInvite ? els.inviteName : els.editUserName;
+  const communityInput = isInvite ? els.inviteCommunity : els.editUserCommunity;
+  const isFarmer = role === "farmer_viewer";
+  field.hidden = !isFarmer;
+  input.required = isFarmer;
+  nameInput.disabled = isFarmer;
+  nameInput.required = !isFarmer;
+  nameInput.placeholder = isFarmer ? "Uses farmer registry name" : "";
+  communityInput.disabled = isFarmer;
+  communityInput.title = isFarmer ? "Uses the farmer registry community" : "";
+  if (!isFarmer && isInvite) input.value = "";
 }
 
 function rolePreset(role) {

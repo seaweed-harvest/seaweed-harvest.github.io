@@ -43,10 +43,12 @@
               <option value="registry_admin">Registry admin</option>
               <option value="finance_admin">Finance admin</option>
               <option value="field_collector">Field collector</option>
+              <option value="farmer_viewer">Farmer</option>
               <option value="read_only_auditor">Read-only auditor</option>
             </select>
           </label>
           <label>Community<select id="inviteCommunity"><option value="">All / not assigned</option></select></label>
+          <label id="inviteFarmerIdField" hidden>Farmer ID<input id="inviteFarmerId" type="text" inputmode="numeric" placeholder="RID4301 or 4301"></label>
           <fieldset class="permission-fieldset wide-field">
             <legend>Permissions</legend>
             <div id="invitePermissions" class="permission-grid"></div>
@@ -71,6 +73,7 @@
           <label>Role<select id="editUserRole"></select></label>
           <label>Status<select id="editUserStatus"><option value="active">Active</option><option value="pending">Pending</option><option value="suspended">Suspended</option></select></label>
           <label>Community<select id="editUserCommunity"><option value="">All / not assigned</option></select></label>
+          <label id="editFarmerIdField" hidden>Farmer ID<input id="editFarmerId" type="text" inputmode="numeric" placeholder="RID4301 or 4301"></label>
           <fieldset class="permission-fieldset wide-field"><legend>Permissions</legend><div id="editPermissions" class="permission-grid"></div></fieldset>
           <div class="button-row wide-field">
             <button type="submit">Save user</button>
