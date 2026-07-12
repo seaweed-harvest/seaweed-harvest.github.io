@@ -15,7 +15,8 @@ const permissionDefinitions = [
   ["can_export_data", "Export data"],
   ["can_manage_settings", "Builder settings"],
   ["can_manage_users", "Invite and edit users"],
-  ["can_manage_admin_users", "Add or edit admin users"]
+  ["can_manage_admin_users", "Add or edit admin users"],
+  ["can_view_user_activity", "Recent Activity"]
 ];
 
 const roleLabels = {
@@ -41,12 +42,13 @@ async function init() {
     "userEditorPanel", "closeUserEditor", "editUserForm", "editUserId", "editUserEmail",
     "editUserName", "editUserRole", "editUserStatus", "editUserCommunity", "editPermissions",
     "editUserMessage", "deleteUser", "farmerRegistrationCount", "farmerRegistrationRows", "farmerRegistrationStatus",
-    "userActivityCount", "userActivityRows"
+    "userActivityPanel", "userActivityCount", "userActivityRows"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
   const access = await requireAdminAccess("can_manage_users");
   if (!access) return;
   state.actor = access.profile || await currentProfile(true);
+  els.userActivityPanel.hidden = !canViewUserActivity();
 
   buildPermissionInputs(els.invitePermissions, "invite");
   buildPermissionInputs(els.editPermissions, "edit");
@@ -74,10 +76,13 @@ function bindEvents() {
 async function loadPageData() {
   setStatus(els.inviteStatus, "Loading...");
   try {
+    const activityRequest = canViewUserActivity()
+      ? authClient.rpc("ag_admin_activity_log", { p_limit: 100 })
+      : Promise.resolve({ data: [], error: null });
     const [usersResponse, registrationsResponse, activityResponse, communities] = await Promise.all([
       authClient.rpc("ag_admin_user_directory"),
       authClient.rpc("ag_admin_farmer_registration_requests"),
-      authClient.rpc("ag_admin_activity_log", { p_limit: 100 }),
+      activityRequest,
       selectRows(APP_CONFIG.tables.communities, "select=community_id,community_name&order=community_name.asc")
     ]);
     if (usersResponse.error) throw usersResponse.error;
@@ -95,6 +100,11 @@ async function loadPageData() {
   } catch (error) {
     setStatus(els.inviteStatus, error.message, "error");
   }
+}
+
+function canViewUserActivity() {
+  return state.actor?.app_role === "system_admin"
+    || Boolean(state.actor?.can_manage_users && state.actor?.can_view_user_activity);
 }
 
 async function inviteUser(event) {
