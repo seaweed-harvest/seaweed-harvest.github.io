@@ -29,7 +29,7 @@ const roleLabels = {
   system_admin: "System admin"
 };
 
-const state = { users: [], registrations: [], communities: [], activity: [], actor: null };
+const state = { users: [], registrations: [], communities: [], activity: [], actor: null, editingUser: null };
 const els = {};
 
 document.addEventListener("DOMContentLoaded", init);
@@ -63,7 +63,10 @@ function bindEvents() {
   els.inviteUserForm.addEventListener("submit", inviteUser);
   els.editUserForm.addEventListener("submit", saveUser);
   els.deleteUser.addEventListener("click", deleteSelectedUser);
-  els.closeUserEditor.addEventListener("click", () => { els.userEditorPanel.hidden = true; });
+  els.closeUserEditor.addEventListener("click", () => {
+    state.editingUser = null;
+    els.userEditorPanel.hidden = true;
+  });
   els.userDirectoryRows.addEventListener("click", handleUserTableClick);
   els.farmerRegistrationRows.addEventListener("click", handleRegistrationClick);
 }
@@ -154,6 +157,7 @@ async function deleteSelectedUser() {
   setStatus(els.editUserMessage, "Deleting user...");
   try {
     await invokeAdminUsers({ action: "delete", user_id: user.id });
+    state.editingUser = null;
     els.userEditorPanel.hidden = true;
     await loadPageData();
     setStatus(els.inviteStatus, `${name} was deleted.`);
@@ -218,6 +222,7 @@ function handleUserTableClick(event) {
   const user = state.users.find((row) => row.id === button.dataset.editUser);
   if (!user || user.is_protected_owner) return;
 
+  state.editingUser = user;
   els.editUserId.value = user.id;
   els.editUserEmail.value = user.email;
   els.editUserName.value = user.display_name || "";
@@ -292,11 +297,21 @@ function rolePreset(role) {
 function writePermissions(prefix, values) {
   permissionDefinitions.forEach(([key]) => {
     const input = document.getElementById(`${prefix}-${key}`);
-    input.checked = Boolean(values[key]);
-    if (key === "can_manage_admin_users") {
-      input.disabled = state.actor?.app_role !== "system_admin" && !state.actor?.can_manage_admin_users;
-    }
+    const canChange = actorCanChangePermission(key);
+    input.checked = canChange
+      ? Boolean(values[key])
+      : prefix === "edit" && state.editingUser
+        ? Boolean(state.editingUser[key])
+        : false;
+    input.disabled = !canChange;
+    input.title = canChange ? "" : "You cannot grant or change a permission you do not have";
   });
+}
+
+function actorCanChangePermission(key) {
+  return state.actor?.is_protected_owner
+    || state.actor?.app_role === "system_admin"
+    || Boolean(state.actor?.[key]);
 }
 
 function readPermissions(prefix) {
