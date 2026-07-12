@@ -33,7 +33,7 @@ async function init() {
 
 async function loadCommunities() {
   try {
-    const rows = await selectRows(APP_CONFIG.tables.communities, "select=community_id,community_name&order=community_name.asc");
+    const rows = await selectRows("ag_public_communities", "select=community_id,community_name&order=community_name.asc");
     els.registrationCommunity.insertAdjacentHTML("beforeend", rows.map((row) => (
       `<option value="${escapeHtml(row.community_id)}">${escapeHtml(row.community_id)} - ${escapeHtml(row.community_name)}</option>`
     )).join(""));

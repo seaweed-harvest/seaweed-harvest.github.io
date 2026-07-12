@@ -27,6 +27,14 @@
         <label>Phone number<input id="myDetailsPhone" type="tel" autocomplete="tel" maxlength="40"></label>
         <label>Address<textarea id="myDetailsAddress" rows="3" autocomplete="street-address" maxlength="500"></textarea></label>
         <label>Date of birth<input id="myDetailsDateOfBirth" type="date" autocomplete="bday"></label>
+        <fieldset id="myReceiptPreferences" class="my-details-preferences" hidden>
+          <legend>Receipt delivery</legend>
+          <label>Send receipts by<select id="myReceiptDelivery"><option value="none">Do not send</option><option value="email">Email</option><option value="sms">SMS</option><option value="both">Email and SMS</option></select></label>
+          <label>Receipt email<input id="myReceiptEmail" type="email" autocomplete="email"></label>
+          <label>Receipt phone<input id="myReceiptPhone" type="tel" autocomplete="tel"></label>
+          <label>Receipt language<select id="myReceiptLanguage"><option value="en">English</option><option value="sw">Kiswahili</option></select></label>
+          <label class="check-row"><input id="myReceiptNotifications" type="checkbox" checked> Allow transaction notifications</label>
+        </fieldset>
         <div class="button-row">
           <button id="saveMyDetails" type="submit">Save details</button>
           <span id="myDetailsStatus" class="form-status" aria-live="polite"></span>

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0f766e"><meta name="robots" content="noindex,nofollow"><title>Pricing Matrix - Seaweed Aggregation</title><link rel="stylesheet" href="./assets/css/ag.css"></head>
+<body class="admin-console-page pricing-page">
+  <header class="app-header"><div class="app-header-inner"><div><p class="eyebrow">Seaweed aggregation</p><h1>Admin</h1></div><div class="header-actions admin-header-controls"><nav class="app-nav"><a href="./index.html">Collection</a><a href="./admin.html" aria-current="page">Admin</a></nav></div></div></header>
+  <main class="app-shell admin-shell admin-layout">
+    <aside class="admin-sidebar" aria-label="Admin menu"><h2>Admin</h2><a href="./admin.html">Dashboard</a><p class="admin-menu-heading">Registry</p><a href="./admin_member_registry.html">Member Registry</a><a href="./admin_community_registry.html">Community Registry</a><p class="admin-menu-heading">Map</p><a href="./admin_map.html">Community Map</a><p class="admin-menu-heading">Data</p><a href="./admin_today.html">Today's Intake</a><a href="./admin_monthly.html">Monthly</a><a href="./admin_community.html">Per Community</a><a href="./admin_ledger.html">Collection Ledger</a><p class="admin-menu-heading">Tools</p><a href="./tags.html">Tags</a></aside>
+    <section class="admin-content admin-page-section">
+      <section class="panel">
+        <div class="section-head compact"><h2>Pricing Matrix</h2><button id="addPricingRule" type="button">Add price</button></div>
+        <div class="admin-toolbar pricing-filter-bar"><label>Seaweed type<select id="pricingTypeFilter"><option value="">All types</option></select></label><label>Grade<select id="pricingGradeFilter"><option value="">All grades</option></select></label><label>Product form<select id="pricingFormFilter"><option value="">All forms</option><option value="wet">Wet</option><option value="dried">Dried</option><option value="milled">Milled</option></select></label><label>Status<select id="pricingStatusFilter"><option value="active">Active</option><option value="all">All</option><option value="inactive">Inactive</option></select></label></div>
+        <div class="responsive-table-wrap compact-data-table-wrap"><table class="management-table admin-data-table pricing-table"><thead><tr><th>Type</th><th>Grade</th><th>Form</th><th>Price/kg</th><th>Currency</th><th>From</th><th>To</th><th>Status</th><th>Last changed</th><th></th></tr></thead><tbody id="pricingRows"></tbody></table></div>
+        <p id="pricingStatus" class="admin-status" aria-live="polite"></p>
+      </section>
+      <section id="pricingEditor" class="panel" hidden>
+        <div class="section-head compact"><h2>Price Rule</h2><button id="closePricingEditor" type="button">Close</button></div>
+        <form id="pricingRuleForm" class="tenant-form-grid">
+          <input id="pricingRuleId" type="hidden">
+          <label>Seaweed type<select id="pricingType" required></select></label>
+          <label>Grade<select id="pricingGrade" required></select></label>
+          <label>Product form<select id="pricingProductForm"><option value="wet">Wet</option><option value="dried">Dried</option><option value="milled">Milled</option></select></label>
+          <label>Price / kg<input id="pricingPrice" type="number" min="0" step="0.01" required></label>
+          <label>Currency<input id="pricingCurrency" type="text" value="KES" maxlength="3" required></label>
+          <label>Effective from<input id="pricingEffectiveFrom" type="date" required></label>
+          <label>Effective to<input id="pricingEffectiveTo" type="date"></label>
+          <label class="check-row"><input id="pricingActive" type="checkbox" checked> Active</label>
+          <label class="wide-field">Notes<input id="pricingNotes" type="text" maxlength="300"></label>
+          <div class="button-row wide-field"><button type="submit">Save price</button><button id="deactivatePricingRule" type="button" class="danger-button" hidden>Deactivate</button><span id="pricingSaveStatus" class="admin-status"></span></div>
+        </form>
+      </section>
+    </section>
+  </main>
+  <script type="module" src="./assets/js/admin_page.js"></script><script type="module" src="./assets/js/pricing_page.js"></script>
+</body></html>

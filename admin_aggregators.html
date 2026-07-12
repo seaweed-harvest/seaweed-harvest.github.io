@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e"><meta name="robots" content="noindex,nofollow">
+  <title>Aggregator Registry - Seaweed Aggregation</title><link rel="stylesheet" href="./assets/css/ag.css">
+</head>
+<body class="admin-console-page aggregator-admin-page">
+  <header class="app-header"><div class="app-header-inner"><div><p class="eyebrow">Seaweed aggregation</p><h1>Admin</h1></div><div class="header-actions admin-header-controls"><nav class="app-nav"><a href="./index.html">Collection</a><a href="./admin.html" aria-current="page">Admin</a></nav></div></div></header>
+  <main class="app-shell admin-shell admin-layout">
+    <aside class="admin-sidebar" aria-label="Admin menu"><h2>Admin</h2><a href="./admin.html">Dashboard</a><p class="admin-menu-heading">Registry</p><a href="./admin_member_registry.html">Member Registry</a><a href="./admin_community_registry.html">Community Registry</a><p class="admin-menu-heading">Map</p><a href="./admin_map.html">Community Map</a><p class="admin-menu-heading">Data</p><a href="./admin_today.html">Today's Intake</a><a href="./admin_monthly.html">Monthly</a><a href="./admin_community.html">Per Community</a><a href="./admin_ledger.html">Collection Ledger</a><p class="admin-menu-heading">Tools</p><a href="./tags.html">Tags</a></aside>
+    <section class="admin-content admin-page-section tenant-admin-content">
+      <section class="panel">
+        <div class="section-head compact"><h2>Aggregator Registry</h2><button id="addAggregator" type="button">Add aggregator</button></div>
+        <div class="responsive-table-wrap compact-data-table-wrap"><table class="management-table admin-data-table tenant-table"><thead><tr><th>Code</th><th>Organisation</th><th>Role</th><th>Prefix</th><th>Currency</th><th>Members</th><th>Farmers</th><th>Communities</th><th>Status</th><th></th></tr></thead><tbody id="aggregatorRows"></tbody></table></div>
+        <p id="aggregatorStatus" class="admin-status" aria-live="polite"></p>
+      </section>
+
+      <section id="aggregatorEditor" class="panel" hidden>
+        <div class="section-head compact"><h2>Aggregator Details</h2><button id="closeAggregatorEditor" type="button">Close</button></div>
+        <form id="aggregatorForm" class="tenant-form-grid">
+          <input id="aggregatorId" type="hidden">
+          <label>Code<input id="aggregatorCode" type="text" maxlength="20" required></label>
+          <label>Organisation name<input id="aggregatorName" type="text" maxlength="160" required></label>
+          <label>Short name<input id="aggregatorShortName" type="text" maxlength="60"></label>
+          <label>Role<select id="aggregatorRole"><option value="aggregator">Aggregator</option><option value="offtaker">Offtaker</option><option value="both">Both</option></select></label>
+          <label>Receipt prefix<input id="aggregatorReceiptPrefix" type="text" maxlength="12" required></label>
+          <label>Currency<input id="aggregatorCurrency" type="text" value="KES" maxlength="3" required></label>
+          <label>Main contact<input id="aggregatorContactName" type="text"></label>
+          <label>Phone<input id="aggregatorPhone" type="tel"></label>
+          <label>Email<input id="aggregatorEmail" type="email"></label>
+          <label>Operating area<input id="aggregatorOperatingArea" type="text"></label>
+          <label class="wide-field">Address<textarea id="aggregatorAddress" rows="2"></textarea></label>
+          <label class="wide-field">Notes<textarea id="aggregatorNotes" rows="2"></textarea></label>
+          <label class="check-row"><input id="aggregatorActive" type="checkbox" checked> Active</label>
+          <div class="button-row wide-field"><button type="submit">Save aggregator</button><span id="aggregatorSaveStatus" class="admin-status"></span></div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="section-head compact"><h2>Users for Active Aggregator</h2><span id="membershipCount" class="status-pill">0</span></div>
+        <form id="membershipForm" class="tenant-inline-form">
+          <label>User email<input id="membershipEmail" type="email" required></label>
+          <label>Aggregator role<select id="membershipRole"><option value="aggregator_admin">Aggregator admin</option><option value="collector">Collector</option><option value="finance">Finance</option><option value="viewer">Viewer</option></select></label>
+          <label class="check-row"><input id="membershipActive" type="checkbox" checked> Active</label>
+          <button type="submit">Save membership</button><span id="membershipStatus" class="admin-status"></span>
+        </form>
+        <div class="responsive-table-wrap compact-data-table-wrap"><table class="management-table admin-data-table tenant-table"><thead><tr><th>Email</th><th>Name</th><th>Application role</th><th>Aggregator role</th><th>Status</th><th></th></tr></thead><tbody id="membershipRows"></tbody></table></div>
+      </section>
+
+      <section id="relationshipPanel" class="panel">
+        <div class="section-head compact"><h2>Registry Relationships</h2><span id="relationshipStatus" class="admin-status"></span></div>
+        <div class="tenant-relationship-grid">
+          <section><label>Search communities<input id="relationshipCommunitySearch" type="search"></label><div class="tenant-check-list" id="relationshipCommunities"></div></section>
+          <section><label>Search farmers<input id="relationshipFarmerSearch" type="search"></label><div class="tenant-check-list" id="relationshipFarmers"></div></section>
+        </div>
+      </section>
+    </section>
+  </main>
+  <script type="module" src="./assets/js/admin_page.js"></script><script type="module" src="./assets/js/aggregator_page.js"></script>
+</body>
+</html>

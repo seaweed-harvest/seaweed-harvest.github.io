@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0f766e"><meta name="robots" content="noindex,nofollow"><title>Collection Receipt - Seaweed Aggregation</title><link rel="stylesheet" href="./assets/css/ag.css"></head>
+<body class="receipt-page" data-auth-pending>
+  <header class="app-header no-print"><div class="app-header-inner"><div><p class="eyebrow">Seaweed aggregation</p><h1>Collection Receipt</h1></div><div class="header-actions receipt-header-controls"><nav class="app-nav"><a id="receiptHome" href="./index.html">Back</a></nav></div></div></header>
+  <main class="receipt-shell"><article id="receiptDocument" class="receipt-document" hidden>
+    <header class="receipt-document-head"><div><p class="eyebrow">Collection receipt</p><h2 id="receiptAggregator">-</h2><p id="receiptAggregatorContact"></p></div><div class="receipt-number-block"><span>Receipt</span><strong id="receiptNumber">-</strong><time id="receiptIssuedAt"></time></div></header>
+    <section class="receipt-parties"><div><span>Farmer</span><strong id="receiptFarmer">-</strong></div><div><span>Community</span><strong id="receiptCommunity">-</strong></div><div><span>Collector</span><strong id="receiptCollector">-</strong></div></section>
+    <table class="receipt-lines"><thead><tr><th>Seaweed</th><th>Grade</th><th>Form</th><th>Weight</th><th>Price / kg</th><th>Total</th></tr></thead><tbody><tr><td id="receiptType">-</td><td id="receiptGrade">-</td><td id="receiptForm">-</td><td id="receiptWeight">-</td><td id="receiptUnitPrice">-</td><td id="receiptTotal">-</td></tr></tbody></table>
+    <dl class="receipt-meta"><div><dt>Collection time</dt><dd id="receiptCollectedAt">-</dd></div><div><dt>Transaction</dt><dd id="receiptTransaction">-</dd></div><div><dt>Sack</dt><dd id="receiptSack">-</dd></div><div><dt>Payment status</dt><dd id="receiptPayment">-</dd></div></dl>
+    <p id="receiptNotes" class="receipt-notes" hidden></p><p class="receipt-tax-note">This is an intake purchase record. It is not an eTIMS tax invoice.</p>
+    <div class="button-row no-print"><button id="printReceipt" type="button">Print</button></div>
+  </article><p id="receiptLoadStatus" class="form-status" aria-live="polite">Loading receipt...</p></main>
+  <script type="module" src="./assets/js/receipt_page.js"></script>
+</body></html>

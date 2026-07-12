@@ -11,6 +11,7 @@ export const authClient = createClient(APP_CONFIG.supabase.url, APP_CONFIG.supab
 });
 
 let profilePromise = null;
+let aggregatorContextPromise = null;
 
 export async function currentSession() {
   const { data, error } = await authClient.auth.getSession();
@@ -31,6 +32,26 @@ export async function currentProfile(force = false) {
     });
   }
   return profilePromise;
+}
+
+export async function currentAggregatorContext(force = false) {
+  if (!aggregatorContextPromise || force) {
+    aggregatorContextPromise = authClient.rpc("ag_my_aggregator_context").then(({ data, error }) => {
+      if (error) throw error;
+      return data || { active_aggregator: null, aggregators: [] };
+    });
+  }
+  return aggregatorContextPromise;
+}
+
+export async function setActiveAggregator(aggregatorId) {
+  const { data, error } = await authClient.rpc("ag_set_active_aggregator", {
+    p_aggregator_id: aggregatorId
+  });
+  if (error) throw error;
+  aggregatorContextPromise = Promise.resolve(data);
+  profilePromise = null;
+  return data;
 }
 
 export async function requireAdminAccess(permission = "can_access_admin") {
@@ -147,7 +168,51 @@ export function setupAccountControls(profile, options = {}) {
   if (options.showMyDetails !== false) account.append(detailsButton);
   account.append(passwordButton, signOutButton);
   controls.append(account);
+  setupAggregatorControl(account, options).catch(() => {});
   return account;
+}
+
+async function setupAggregatorControl(account, options) {
+  if (options.showAggregator === false || account.querySelector(".aggregator-context-control")) return;
+  const context = await currentAggregatorContext();
+  const rows = context?.aggregators || [];
+  if (!rows.length) return;
+
+  const wrapper = document.createElement("label");
+  wrapper.className = "aggregator-context-control";
+  wrapper.title = "Active aggregator";
+  const active = context.active_aggregator;
+
+  if (rows.length === 1) {
+    const badge = document.createElement("span");
+    badge.className = "aggregator-context-badge";
+    badge.textContent = active?.short_name || active?.organisation_name || rows[0].short_name || rows[0].organisation_name;
+    wrapper.append(badge);
+  } else {
+    const select = document.createElement("select");
+    select.setAttribute("aria-label", "Active aggregator");
+    rows.forEach((row) => {
+      const option = document.createElement("option");
+      option.value = row.id;
+      option.textContent = row.short_name || row.organisation_name;
+      option.selected = row.id === context.active_aggregator_id;
+      select.append(option);
+    });
+    select.addEventListener("change", async () => {
+      select.disabled = true;
+      try {
+        await setActiveAggregator(select.value);
+        window.location.reload();
+      } catch (error) {
+        select.disabled = false;
+        window.alert(error.message);
+      }
+    });
+    wrapper.append(select);
+  }
+
+  account.insertBefore(wrapper, account.firstChild);
+  document.dispatchEvent(new CustomEvent("seaweed-aggregator-context-ready", { detail: context }));
 }
 
 export async function signInWithPassword(email, password) {
@@ -242,6 +307,7 @@ export async function signOut() {
   const { error } = await authClient.auth.signOut();
   if (error) throw error;
   profilePromise = null;
+  aggregatorContextPromise = null;
 }
 
 export async function invokeAdminUsers(payload) {

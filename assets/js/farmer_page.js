@@ -58,15 +58,22 @@ function renderCollections(rows) {
   body.innerHTML = rows.length ? rows.map((row) => `
     <tr>
       <td>${escapeHtml(formatDate(row.collected_at))}</td>
-      <td>${escapeHtml(row.transaction_id || "-")}</td>
+      <td>${escapeHtml(row.aggregator_name || "-")}</td>
+      <td>${escapeHtml(row.receipt_number || "-")}</td>
       <td>${escapeHtml(row.sack_id || "-")}</td>
       <td>${escapeHtml(formatNumber(row.sack_weight_kg))}</td>
       <td>${escapeHtml(row.seaweed_type || "-")}</td>
       <td>${escapeHtml(row.seaweed_grade || "-")}</td>
+      <td>${escapeHtml(formatLabel(row.product_form))}</td>
       <td>${escapeHtml(formatNumber(row.price_per_kg))}</td>
-      <td>${escapeHtml(formatNumber(row.total_price))}</td>
+      <td>${escapeHtml(formatNumber(row.total_price))} ${escapeHtml(row.currency || "KES")}</td>
+      <td>${row.receipt_id ? `<a class="table-action-link" href="./receipt.html?id=${encodeURIComponent(row.receipt_id)}">View</a>` : ""}</td>
     </tr>
-  `).join("") : '<tr><td colspan="8">No collection records yet.</td></tr>';
+  `).join("") : '<tr><td colspan="11">No collection records yet.</td></tr>';
+}
+
+function formatLabel(value) {
+  return String(value || "-").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function formatFarmSize(farmer) {

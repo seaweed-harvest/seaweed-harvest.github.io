@@ -2,7 +2,6 @@ import { APP_CONFIG } from "./config.js";
 import {
   callRpc,
   dataModeLabel,
-  insertRow,
   isSupabaseEnabled,
   selectRows,
   uploadStorageObject
@@ -13,18 +12,22 @@ import {
   t,
   unitLabel
 } from "./collection_language.js";
-import { requireCollectionAccess, setupAccountControls } from "./auth_client.js";
+import { currentAggregatorContext, requireCollectionAccess, setupAccountControls } from "./auth_client.js";
 
 const state = {
   communities: [],
   farmers: [],
   formSettings: [],
   gradePrices: [],
+  pricingRules: [],
   pricePerKg: { ...APP_CONFIG.pricePerKg },
   seaweedTypes: [],
   customFields: [],
   defaultSeaweedType: "spinosum",
   profile: null,
+  aggregatorContext: null,
+  canOverridePrice: false,
+  submissionId: crypto.randomUUID(),
   selectedFarmer: null,
   gps: null,
   qrScanner: {
@@ -55,6 +58,9 @@ async function init() {
     const access = await requireCollectionAccess();
     if (!access) return;
     state.profile = access.profile;
+    state.aggregatorContext = await currentAggregatorContext(true);
+    state.canOverridePrice = state.profile.app_role === "system_admin"
+      || (state.profile.can_view_finance && ["platform_admin", "aggregator_admin", "finance"].includes(state.profile.active_membership_role));
   } catch (error) {
     window.location.replace(`./login.html?return=index.html&error=${encodeURIComponent(error.message)}`);
     return;
@@ -69,6 +75,7 @@ async function init() {
       signOut: t("account.signOut")
     })
   });
+  renderActiveAggregator();
   bindEvents();
   setDefaultDateTime();
   await loadFormData();
@@ -106,15 +113,27 @@ function cacheElements() {
     "sackWeightKg",
     "seaweedType",
     "seaweedGrade",
+    "productForm",
     "pricePerKg",
+    "priceSourceStatus",
     "totalPrice",
     "priceOverridden",
+    "priceOverrideReasonField",
+    "priceOverrideReason",
     "customCollectionFields",
     "collectionNotes",
     "collectionPhotos",
     "collectionPhotoStatus",
     "clearCollectionForm",
     "collectionSaveStatus",
+    "collectionReceiptResult",
+    "savedReceiptNumber",
+    "savedReceiptAggregator",
+    "savedReceiptWeight",
+    "savedReceiptPrice",
+    "savedReceiptTotal",
+    "viewSavedReceipt",
+    "dismissSavedReceipt",
     "qrScannerModal",
     "qrScannerVideo",
     "qrScannerStatus",
@@ -152,12 +171,17 @@ function bindEvents() {
   els.captureGps.addEventListener("click", captureGps);
   els.sackWeightKg.addEventListener("input", updatePrice);
   els.seaweedGrade.addEventListener("change", updatePriceForGrade);
+  els.seaweedType.addEventListener("change", updatePriceForGrade);
+  els.productForm.addEventListener("change", updatePriceForGrade);
+  els.collectedAt.addEventListener("change", refreshPricingForDate);
   els.pricePerKg.addEventListener("input", () => {
     els.priceOverridden.checked = true;
+    updateOverrideReasonVisibility();
     updateTotalPrice();
   });
-  els.totalPrice.addEventListener("input", () => {
-    els.priceOverridden.checked = true;
+  els.priceOverridden.addEventListener("change", () => {
+    updateOverrideReasonVisibility();
+    if (!els.priceOverridden.checked) updatePriceForGrade();
   });
   els.clearCollectionForm.addEventListener("click", clearForm);
   els.collectionForm.addEventListener("submit", submitCollection);
@@ -165,13 +189,14 @@ function bindEvents() {
   els.collectionForm.addEventListener("change", updateCustomCalculations);
   els.collectionPhotos.addEventListener("change", updatePhotoSelectionStatus);
   els.stopQrScanner.addEventListener("click", stopQrScanner);
+  els.dismissSavedReceipt.addEventListener("click", () => { els.collectionReceiptResult.hidden = true; });
   document.addEventListener("seaweed-collection-language-change", refreshTranslatedContent);
 }
 
 async function loadFormData() {
   setConnectionStatus(t("status.loading"), "status-muted");
   try {
-    const [communities, farmers, formSettings, gradePrices, seaweedTypes, customFields] = await Promise.all([
+    const [communities, farmers, formSettings, gradePrices, seaweedTypes, customFields, pricingRules] = await Promise.all([
       selectRows(APP_CONFIG.tables.communities, "select=*&order=community_id.asc"),
       isSupabaseEnabled()
         ? Promise.resolve([])
@@ -179,7 +204,8 @@ async function loadFormData() {
       selectRows("ag_public_collection_form_settings", "select=*&order=display_order.asc"),
       selectRows("ag_public_grade_price_settings", "select=*&order=display_order.asc"),
       selectRows("ag_public_seaweed_type_settings", "select=*&order=display_order.asc"),
-      selectRows("ag_public_collection_custom_fields", "select=*&order=display_order.asc")
+      selectRows("ag_public_collection_custom_fields", "select=*&order=display_order.asc"),
+      callRpc("ag_my_current_pricing", { p_collection_date: collectionDateValue() })
     ]);
     state.communities = communities;
     state.farmers = farmers;
@@ -187,13 +213,14 @@ async function loadFormData() {
     state.gradePrices = gradePrices;
     state.seaweedTypes = seaweedTypes;
     state.customFields = customFields;
+    state.pricingRules = pricingRules;
     state.pricePerKg = {};
-    gradePrices.forEach((row) => { state.pricePerKg[row.grade] = Number(row.price_per_kg); });
     state.defaultSeaweedType = seaweedTypes.find((row) => row.is_default)?.type_key || "spinosum";
     renderCommunityOptions();
     applyRuntimeSettings(gradePrices);
     renderCustomFields();
     updateQuickReference();
+    updatePriceForGrade();
     setConnectionStatus(translatedDataMode(), dataModeLabel() === "Preview" ? "status-muted" : "");
   } catch (error) {
     setConnectionStatus(t("status.error"), "status-muted");
@@ -301,12 +328,19 @@ function assignNextFarmerId() {
 }
 
 function updatePriceForGrade() {
-  const grade = els.seaweedGrade.value;
-  const configuredPrice = state.pricePerKg[grade];
-  if (configuredPrice !== null && configuredPrice !== undefined) {
-    els.pricePerKg.value = configuredPrice;
+  const rule = selectedPricingRule();
+  if (rule) {
+    els.pricePerKg.value = Number(rule.price_per_kg).toFixed(2);
     els.priceOverridden.checked = false;
+    els.priceSourceStatus.textContent = `${state.aggregatorContext?.active_aggregator?.default_currency || rule.currency} matrix price`;
+  } else if (!els.priceOverridden.checked) {
+    els.pricePerKg.value = "";
+    els.totalPrice.value = "";
+    els.priceSourceStatus.textContent = els.seaweedGrade.value
+      ? "No configured price for this combination"
+      : "Select a grade or enter an authorised price";
   }
+  updateOverrideReasonVisibility();
   updateTotalPrice();
 }
 
@@ -321,6 +355,56 @@ function updateTotalPrice() {
   const price = nullableNumber(els.pricePerKg.value);
   if (weight === null || price === null) return;
   els.totalPrice.value = (weight * price).toFixed(2);
+}
+
+function selectedPricingRule() {
+  const type = String(els.seaweedType.value || "").toLowerCase();
+  const grade = String(els.seaweedGrade.value || "").toUpperCase();
+  const form = String(els.productForm.value || "wet").toLowerCase();
+  if (!type || !grade) return null;
+  return state.pricingRules.find((row) => (
+    row.seaweed_type === type
+    && row.grade_code === grade
+    && row.product_form === form
+  )) || null;
+}
+
+function updateOverrideReasonVisibility() {
+  const isOverride = Boolean(els.priceOverridden.checked);
+  els.priceOverrideReasonField.hidden = !isOverride;
+  els.priceOverrideReason.required = isOverride;
+  els.pricePerKg.readOnly = !state.canOverridePrice;
+  els.priceOverridden.closest("label").hidden = !state.canOverridePrice;
+  if (!isOverride) els.priceOverrideReason.value = "";
+  if (isOverride) els.priceSourceStatus.textContent = "Authorised manual price";
+}
+
+function collectionDateValue() {
+  const value = els.collectedAt?.value;
+  if (!value) return new Date().toISOString().slice(0, 10);
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? new Date().toISOString().slice(0, 10) : date.toISOString().slice(0, 10);
+}
+
+async function refreshPricingForDate() {
+  try {
+    state.pricingRules = await callRpc("ag_my_current_pricing", {
+      p_collection_date: collectionDateValue()
+    });
+    updatePriceForGrade();
+  } catch (error) {
+    els.priceSourceStatus.textContent = error.message;
+    setStatus(error.message, "error");
+  }
+}
+
+function renderActiveAggregator() {
+  const aggregator = state.aggregatorContext?.active_aggregator;
+  if (!aggregator) throw new Error("No active aggregator is assigned to this account.");
+  els.activeAggregatorBar = document.getElementById("activeAggregatorBar");
+  els.activeAggregatorName = document.getElementById("activeAggregatorName");
+  els.activeAggregatorName.textContent = `${aggregator.aggregator_code} - ${aggregator.organisation_name}`;
+  els.activeAggregatorBar.hidden = false;
 }
 
 function ensureTransactionId() {
@@ -677,8 +761,10 @@ async function submitCollection(event) {
     const photoUpload = await uploadSelectedCollectionPhotos();
     const payload = buildPayload(photoUpload.paths);
     const farmSizeUpdate = pendingFarmSizeUpdate();
-    const rows = await insertRow(APP_CONFIG.tables.collections, payload);
-    const saved = rows[0];
+    const saved = await callRpc("ag_submit_collection_v2", {
+      p_submission_id: state.submissionId,
+      p_collection: payload
+    });
     let farmSizeWarning = "";
     if (farmSizeUpdate) {
       try {
@@ -693,7 +779,8 @@ async function submitCollection(event) {
     const photoMessage = photoUpload.paths.length
       ? ` ${t("photos.uploaded", { count: photoUpload.paths.length })}`
       : "";
-    clearForm();
+    renderReceiptResult(saved);
+    clearForm({ keepReceipt: true });
     const updateMessage = farmSizeUpdate && !farmSizeWarning ? ` ${t("status.farmSizeUpdated")}` : "";
     const warningMessage = farmSizeWarning ? ` ${farmSizeWarning}` : "";
     setStatus(`${savedMessage}${photoMessage}${updateMessage}${warningMessage}`, farmSizeWarning ? "error" : "");
@@ -729,18 +816,20 @@ function buildPayload(photoPaths = []) {
     gps_accuracy_m: state.gps?.accuracy ?? null,
     sack_weight_kg: weight,
     seaweed_type: seaweedType,
+    product_form: els.productForm.value || "wet",
     grade_code: gradeCode,
     seaweed_grade: ["A", "B", "C"].includes(gradeCode) ? gradeCode : null,
     price_per_kg: nullableNumber(els.pricePerKg.value),
     total_price: nullableNumber(els.totalPrice.value),
     price_overridden: els.priceOverridden.checked,
+    price_override_reason: nullableText(els.priceOverrideReason.value),
     notes: nullableText(els.collectionNotes.value),
     photo_urls: photoPaths,
     custom_fields: customFieldPayload()
   };
 }
 
-function clearForm() {
+function clearForm(options = {}) {
   els.collectionForm.reset();
   state.selectedFarmer = null;
   state.gps = null;
@@ -748,12 +837,27 @@ function clearForm() {
   els.gpsSummary.value = "";
   setDefaultDateTime();
   els.seaweedType.value = state.defaultSeaweedType;
+  els.productForm.value = "wet";
+  state.submissionId = crypto.randomUUID();
   ensureTransactionId();
   syncCommunityName();
   updateQuickReference();
   updateCustomCalculations();
   updatePhotoSelectionStatus();
   setFarmerStatus("");
+  updatePriceForGrade();
+  if (!options.keepReceipt) els.collectionReceiptResult.hidden = true;
+}
+
+function renderReceiptResult(saved) {
+  if (!saved?.receipt_id) return;
+  els.savedReceiptNumber.textContent = saved.receipt_number || "Saved";
+  els.savedReceiptAggregator.textContent = saved.aggregator_name || state.aggregatorContext?.active_aggregator?.organisation_name || "-";
+  els.savedReceiptWeight.textContent = `${formatCompactNumber(saved.weight_kg)} kg`;
+  els.savedReceiptPrice.textContent = `${formatCompactNumber(saved.unit_price)} ${saved.currency || "KES"}`;
+  els.savedReceiptTotal.textContent = `${formatCompactNumber(saved.total)} ${saved.currency || "KES"}`;
+  els.viewSavedReceipt.href = `./receipt.html?id=${encodeURIComponent(saved.receipt_id)}`;
+  els.collectionReceiptResult.hidden = false;
 }
 
 function splitFarmerName(value) {
@@ -887,8 +991,8 @@ function applyRuntimeSettings(gradePrices) {
     `<option value="">${escapeHtml(t("common.select"))}</option>`,
     ...gradePrices.map((row) => {
       const name = row.label && row.label !== row.grade ? `${row.grade} - ${row.label}` : row.grade;
-      const detail = row.rejected ? t("grade.rejected") : `${formatCompactNumber(row.price_per_kg)} KSH/kg`;
-      return `<option value="${escapeAttribute(row.grade)}">${escapeHtml(name)} - ${escapeHtml(detail)}</option>`;
+      const detail = row.rejected ? ` - ${t("grade.rejected")}` : "";
+      return `<option value="${escapeAttribute(row.grade)}">${escapeHtml(name)}${escapeHtml(detail)}</option>`;
     })
   ].join("");
   els.seaweedGrade.value = [...els.seaweedGrade.options].some((option) => option.value === selectedGrade)
@@ -904,6 +1008,7 @@ function applyRuntimeSettings(gradePrices) {
     sack_weight_kg: els.sackWeightKg,
     seaweed_type: els.seaweedType,
     seaweed_grade: els.seaweedGrade,
+    product_form: els.productForm,
     price_per_kg: els.pricePerKg,
     total_price: els.totalPrice,
     notes: els.collectionNotes,
@@ -931,6 +1036,7 @@ function applyRuntimeSettings(gradePrices) {
   const priceVisible = state.formSettings.find((row) => row.field_key === "price_per_kg")?.visible !== false;
   const totalVisible = state.formSettings.find((row) => row.field_key === "total_price")?.visible !== false;
   els.priceOverridden.closest("label").hidden = !priceVisible && !totalVisible;
+  updateOverrideReasonVisibility();
 }
 
 function renderCustomFields() {
@@ -1117,6 +1223,7 @@ function setFixedFormOrder() {
     [document.querySelector(".quick-farmer-reference"), 30],
     [els.farmerDetails, 40],
     [els.transactionId.closest("label"), 25],
+    [els.productForm.closest("label"), 85],
     [els.priceOverridden.closest("label"), 95],
     [els.customCollectionFields, 96],
     [els.collectionPhotos.closest("label"), 110]

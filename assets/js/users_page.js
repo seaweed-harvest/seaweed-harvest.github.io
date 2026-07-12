@@ -196,6 +196,7 @@ function renderUsers() {
         ? escapeHtml(user.display_name)
         : '<span class="user-name-warning" title="This user must add a name">Name required</span>'}</td>
       <td>${escapeHtml(roleLabels[user.app_role] || user.app_role)}</td>
+      <td>${escapeHtml(capitalize(String(user.active_aggregator_role || "-").replaceAll("_", " ")))}</td>
       <td>${escapeHtml(capitalize(user.account_status))}</td>
       <td>${escapeHtml(user.community_id || "All")}</td>
       <td>${escapeHtml(formatDate(user.last_sign_in_at))}</td>
@@ -205,7 +206,7 @@ function renderUsers() {
         ? '<span class="protected-owner-label" title="This owner account cannot be edited or removed">Protected owner</span>'
         : `<button type="button" data-edit-user="${escapeHtml(user.id)}">Edit</button>`}</td>
     </tr>
-  `).join("") : '<tr><td colspan="9">No users yet.</td></tr>';
+  `).join("") : '<tr><td colspan="10">No users yet.</td></tr>';
 }
 
 function renderRegistrations() {

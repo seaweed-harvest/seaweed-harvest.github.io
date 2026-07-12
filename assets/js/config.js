@@ -16,7 +16,7 @@ export const APP_CONFIG = {
     }
   },
   tables: {
-    communities: "ag_public_communities",
+    communities: "ag_secure_communities",
     farmers: "farmers",
     collections: "collections"
   },

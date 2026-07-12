@@ -1,4 +1,5 @@
 import {
+  authClient,
   requireAuthenticatedAccount,
   currentProfile,
   routeForProfile,
@@ -21,6 +22,12 @@ async function init() {
     "myDetailsPhone",
     "myDetailsAddress",
     "myDetailsDateOfBirth",
+    "myReceiptPreferences",
+    "myReceiptDelivery",
+    "myReceiptEmail",
+    "myReceiptPhone",
+    "myReceiptLanguage",
+    "myReceiptNotifications",
     "saveMyDetails",
     "myDetailsStatus",
     "myDetailsHomeLink"
@@ -43,6 +50,11 @@ async function init() {
   });
   configureHomeLink();
   populateForm();
+  try {
+    await loadReceiptPreferences();
+  } catch (error) {
+    setStatus(error.message, "error");
+  }
   els.myDetailsForm.addEventListener("submit", saveDetails);
 }
 
@@ -78,6 +90,16 @@ async function saveDetails(event) {
       date_of_birth: els.myDetailsDateOfBirth.value
     });
     profile = await currentProfile(true);
+    if (profile.farmer_id) {
+      const { error: preferenceError } = await authClient.rpc("ag_update_my_receipt_preferences", {
+        p_delivery_preference: els.myReceiptDelivery.value,
+        p_receipt_email: els.myReceiptEmail.value.trim() || null,
+        p_receipt_phone: els.myReceiptPhone.value.trim() || null,
+        p_preferred_language: els.myReceiptLanguage.value,
+        p_allow_transaction_notifications: els.myReceiptNotifications.checked
+      });
+      if (preferenceError) throw preferenceError;
+    }
     document.querySelector(".account-name").textContent = profile.display_name || profile.email;
     populateForm();
     setStatus("Details saved.");
@@ -86,6 +108,18 @@ async function saveDetails(event) {
   } finally {
     els.saveMyDetails.disabled = false;
   }
+}
+
+async function loadReceiptPreferences() {
+  els.myReceiptPreferences.hidden = !profile.farmer_id;
+  if (!profile.farmer_id) return;
+  const { data, error } = await authClient.rpc("ag_my_receipt_preferences");
+  if (error) throw error;
+  els.myReceiptDelivery.value = data?.receipt_delivery_preference || "none";
+  els.myReceiptEmail.value = data?.receipt_email || profile.email || "";
+  els.myReceiptPhone.value = data?.receipt_phone || profile.phone || "";
+  els.myReceiptLanguage.value = data?.preferred_language || "en";
+  els.myReceiptNotifications.checked = data?.allow_transaction_notifications !== false;
 }
 
 function setStatus(message, type = "") {

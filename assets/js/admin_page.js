@@ -311,9 +311,23 @@ function addAdminSidebarLinks(sidebar) {
     dashboard.insertAdjacentHTML("afterend", '<a href="./admin_users.html" data-permission="can_manage_users">Users</a>');
   }
 
+  const users = sidebar.querySelector('a[href="./admin_users.html"]') || dashboard;
+  if (users && !sidebar.querySelector('a[href="./admin_aggregators.html"]')) {
+    users.insertAdjacentHTML("afterend", '<a href="./admin_aggregators.html" data-permission="can_access_admin">Aggregators</a>');
+  }
+
   const ledger = sidebar.querySelector('a[href="./admin_ledger.html"]');
   if (ledger && !sidebar.querySelector('a[href="./admin_finance.html"]')) {
     ledger.insertAdjacentHTML("afterend", '<a href="./admin_finance.html" data-permission="can_view_finance">Finance Review</a>');
+  }
+
+  const finance = sidebar.querySelector('a[href="./admin_finance.html"]') || ledger;
+  if (finance && !sidebar.querySelector('a[href="./admin_pricing.html"]')) {
+    finance.insertAdjacentHTML("afterend", '<a href="./admin_pricing.html" data-permission="can_view_finance">Pricing Matrix</a>');
+  }
+  const pricing = sidebar.querySelector('a[href="./admin_pricing.html"]') || finance;
+  if (pricing && !sidebar.querySelector('a[href="./admin_receipts.html"]')) {
+    pricing.insertAdjacentHTML("afterend", '<a href="./admin_receipts.html" data-permission="can_view_data">Receipts</a>');
   }
 
   const tags = sidebar.querySelector('a[href="./tags.html"]');
@@ -361,6 +375,9 @@ function requiredPermissionForPage() {
     "admin_monthly.html": "can_view_data",
     "admin_community.html": "can_view_data",
     "admin_ledger.html": "can_view_data",
+    "admin_receipts.html": "can_view_data",
+    "admin_pricing.html": "can_view_finance",
+    "admin_aggregators.html": "can_access_admin",
     "admin_finance.html": "can_view_finance",
     "admin_users.html": "can_manage_users",
     "admin_builder.html": "can_manage_settings",
@@ -417,7 +434,7 @@ function renderSetupError(error) {
   if (els.communityGradeRows) els.communityGradeRows.innerHTML = emptyRow(5, message);
   if (els.communityMonthlyRows) els.communityMonthlyRows.innerHTML = emptyRow(6, message);
   if (els.todayIntakeRows) els.todayIntakeRows.innerHTML = emptyRow(12, message);
-  if (els.ledgerRows) els.ledgerRows.innerHTML = emptyRow(15 + state.customLedgerFields.length, message);
+  if (els.ledgerRows) els.ledgerRows.innerHTML = emptyRow(17 + state.customLedgerFields.length, message);
   if (els.mapStatus) {
     els.mapStatus.textContent = "Setup needed";
     els.mapStatus.className = "status-pill status-muted";
@@ -1440,7 +1457,7 @@ async function loadLedger(options = {}) {
     state.ledgerTotal = Number(result.total_count || 0);
     renderLedger();
   } catch (error) {
-    els.ledgerRows.innerHTML = emptyRow(15 + state.customLedgerFields.length, writeErrorMessage(error));
+    els.ledgerRows.innerHTML = emptyRow(17 + state.customLedgerFields.length, writeErrorMessage(error));
     els.ledgerCount.textContent = "Error";
     els.ledgerCount.className = "status-pill status-muted";
     els.ledgerPageStatus.textContent = "Could not load ledger.";
@@ -1456,11 +1473,13 @@ function renderLedger() {
     <tr>
       <td>${escapeHtml(formatDateTime(row.collected_at))}</td>
       <td><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
+      <td>${row.receipt_id ? `<a class="table-action-link" href="./receipt.html?id=${encodeURIComponent(row.receipt_id)}">${escapeHtml(row.receipt_number || "View")}</a>` : "-"}</td>
       <td>${inlineCell([row.community_id, row.community_name_snapshot])}</td>
       <td>${inlineCell([row.farmer_id, row.farmer_name_snapshot])}</td>
       <td>${escapeHtml(row.sack_id || "-")}</td>
       <td>${escapeHtml(formatKg(row.sack_weight_kg))}</td>
       <td>${escapeHtml(formatSeaweedType(row.seaweed_type))}</td>
+      <td>${escapeHtml(formatDataLabel(row.product_form || "wet"))}</td>
       <td>${escapeHtml(row.seaweed_grade || "-")}</td>
       <td>${escapeHtml(formatMoney(row.price_per_kg))}</td>
       <td>${escapeHtml(formatMoney(row.total_price))}</td>
@@ -1471,7 +1490,7 @@ function renderLedger() {
       <td>${inlineCell([collectorName(row), row.recorded_by_email])}</td>
       <td>${escapeHtml(formatDateTime(row.created_at))}</td>
     </tr>
-  `).join("") || emptyRow(15 + state.customLedgerFields.length, "No ledger rows match the current filters.");
+  `).join("") || emptyRow(17 + state.customLedgerFields.length, "No ledger rows match the current filters.");
 
   const first = state.ledgerTotal ? state.ledgerPage * LEDGER_PAGE_SIZE + 1 : 0;
   const last = Math.min((state.ledgerPage + 1) * LEDGER_PAGE_SIZE, state.ledgerTotal);
@@ -1705,6 +1724,7 @@ function rowsToCsv(rows) {
   const headers = [
     "collected_at",
     "transaction_id",
+    "receipt_number",
     "community_id",
     "community_name",
     "farmer_id",
@@ -1712,6 +1732,7 @@ function rowsToCsv(rows) {
     "sack_id",
     "sack_weight_kg",
     "seaweed_type",
+    "product_form",
     "seaweed_grade",
     "price_per_kg",
     "total_price",
@@ -1730,6 +1751,7 @@ function rowsToCsv(rows) {
     lines.push([
       row.collected_at,
       row.transaction_id,
+      row.receipt_number,
       row.community_id,
       row.community_name_snapshot,
       row.farmer_id,
@@ -1737,6 +1759,7 @@ function rowsToCsv(rows) {
       row.sack_id,
       row.sack_weight_kg,
       row.seaweed_type,
+      row.product_form,
       row.seaweed_grade,
       row.price_per_kg,
       row.total_price,
@@ -1978,6 +2001,14 @@ function formatSeaweedType(value) {
   if (type === "cottonii") return "Cottonii";
   if (type === "other") return "Other";
   return value || "-";
+}
+
+function formatDataLabel(value) {
+  const text = String(value || "").trim();
+  if (!text) return "-";
+  return text
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function formatInteger(value) {

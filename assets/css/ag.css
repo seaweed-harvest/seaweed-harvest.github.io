@@ -2127,6 +2127,384 @@ button:disabled {
   font-weight: 600;
 }
 
+.aggregator-context-control {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  text-transform: none;
+}
+
+.aggregator-context-control select,
+.aggregator-context-badge {
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel-soft);
+  color: var(--text-sec);
+  font: inherit;
+}
+
+.aggregator-context-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.active-aggregator-bar {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel-soft);
+  color: var(--text-sec);
+  font-size: 0.82rem;
+}
+
+.active-aggregator-bar span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.collection-receipt-result {
+  padding: 16px;
+}
+
+.receipt-result-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0 0 12px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.receipt-result-grid div {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.receipt-result-grid dt,
+.receipt-meta dt {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.receipt-result-grid dd,
+.receipt-meta dd {
+  margin: 3px 0 0;
+  font-weight: 600;
+}
+
+.button-link,
+.table-action-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.button-link {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+
+.tenant-admin-content {
+  gap: 14px;
+}
+
+.tenant-admin-content > .panel,
+.pricing-page .admin-content > .panel,
+.receipts-page .admin-content > .panel {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.tenant-admin-content .responsive-table-wrap,
+.pricing-page .responsive-table-wrap,
+.receipts-page .responsive-table-wrap {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.tenant-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 12px;
+  padding: 14px 16px 16px;
+}
+
+.tenant-form-grid label,
+.tenant-inline-form label,
+.tenant-relationship-grid > section > label {
+  display: grid;
+  gap: 5px;
+  color: var(--text-sec);
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.tenant-form-grid input,
+.tenant-form-grid select,
+.tenant-form-grid textarea,
+.tenant-inline-form input,
+.tenant-inline-form select,
+.tenant-relationship-grid input {
+  width: 100%;
+  min-height: 38px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-weight: 400;
+  text-transform: none;
+}
+
+.tenant-form-grid .wide-field {
+  grid-column: span 2;
+}
+
+.tenant-inline-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(180px, 1fr) auto auto minmax(120px, 1fr);
+  align-items: end;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.tenant-table,
+.pricing-table,
+.receipt-ledger-table,
+.farmer-transactions-table {
+  min-width: 1180px;
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+.tenant-table th,
+.tenant-table td,
+.pricing-table th,
+.pricing-table td,
+.receipt-ledger-table th,
+.receipt-ledger-table td,
+.farmer-transactions-table th,
+.farmer-transactions-table td {
+  padding: 5px 8px;
+  white-space: nowrap;
+}
+
+.tenant-relationship-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding: 14px 16px 16px;
+}
+
+.tenant-check-list {
+  max-height: 360px;
+  margin-top: 8px;
+  overflow: auto;
+  border: 1px solid var(--border-soft);
+}
+
+.tenant-check-list label {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 5px 9px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 0.78rem;
+}
+
+.tenant-check-list input {
+  width: 15px;
+  height: 15px;
+}
+
+.pricing-filter-bar,
+.receipt-filter-bar {
+  padding: 12px 16px;
+}
+
+.my-details-preferences {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+  margin: 4px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+}
+
+.my-details-preferences legend {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.receipt-shell {
+  width: min(900px, calc(100% - 28px));
+  margin: 0 auto;
+  padding: 24px 0 56px;
+}
+
+.receipt-document {
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.receipt-document-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px;
+  border-bottom: 2px solid var(--accent);
+}
+
+.receipt-document-head h2 {
+  margin: 3px 0;
+  font-size: 1.4rem;
+}
+
+.receipt-number-block {
+  display: grid;
+  justify-items: end;
+  align-content: start;
+  gap: 3px;
+}
+
+.receipt-number-block span,
+.receipt-parties span {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.receipt-number-block strong {
+  font-size: 1.15rem;
+}
+
+.receipt-parties {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.receipt-parties div {
+  display: grid;
+  gap: 3px;
+  padding: 14px 18px;
+}
+
+.receipt-lines {
+  width: calc(100% - 36px);
+  margin: 18px;
+  border-collapse: collapse;
+}
+
+.receipt-lines th,
+.receipt-lines td {
+  padding: 9px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.receipt-lines th {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.receipt-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0 18px 18px;
+}
+
+.receipt-meta div {
+  padding: 8px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.receipt-notes,
+.receipt-tax-note,
+.receipt-document > .button-row {
+  margin: 12px 18px 18px;
+}
+
+.receipt-tax-note {
+  padding: 9px 10px;
+  border-left: 3px solid var(--warn);
+  background: #fff8e8;
+  color: var(--text-sec);
+  font-size: 0.78rem;
+}
+
+@media (max-width: 780px) {
+  .receipt-result-grid,
+  .tenant-form-grid,
+  .tenant-relationship-grid,
+  .my-details-preferences,
+  .receipt-parties,
+  .receipt-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .tenant-form-grid .wide-field {
+    grid-column: auto;
+  }
+
+  .tenant-inline-form {
+    grid-template-columns: 1fr;
+  }
+
+  .receipt-document-head {
+    display: grid;
+  }
+
+  .receipt-number-block {
+    justify-items: start;
+  }
+
+  .receipt-lines {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body,
+  .receipt-shell {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: #fff;
+  }
+
+  .receipt-document {
+    border: 0;
+  }
+}
+
 @media (max-width: 980px) {
   .app-header-inner,
   .app-shell {

@@ -33,6 +33,10 @@
         <button type="button" data-language-option="sw" aria-pressed="false">Kiswahili</button>
       </div>
     </section>
+    <section id="activeAggregatorBar" class="active-aggregator-bar" hidden>
+      <span data-i18n="aggregator.label">Aggregator</span>
+      <strong id="activeAggregatorName">-</strong>
+    </section>
     <section class="panel collection-form-panel">
       <form id="collectionForm" class="collection-form">
         <fieldset class="farmer-fieldset">
@@ -146,16 +150,29 @@
             </select>
           </label>
           <label>
+            <span data-i18n="harvest.productForm">Product form</span>
+            <select id="productForm">
+              <option value="wet" selected data-i18n="product.wet">Wet</option>
+              <option value="dried" data-i18n="product.dried">Dried</option>
+              <option value="milled" data-i18n="product.milled">Milled</option>
+            </select>
+          </label>
+          <label>
             <span data-i18n="harvest.pricePerKg">Price / kg</span>
             <input id="pricePerKg" type="number" min="0" step="0.01">
+            <span id="priceSourceStatus" class="field-hint"></span>
           </label>
           <label>
             <span data-i18n="harvest.totalPrice">Total price</span>
-            <input id="totalPrice" type="number" min="0" step="0.01">
+            <input id="totalPrice" type="number" min="0" step="0.01" readonly>
           </label>
           <label class="check-row">
             <input id="priceOverridden" type="checkbox">
             <span data-i18n="harvest.manualPrice">Manual price</span>
+          </label>
+          <label id="priceOverrideReasonField" class="wide-field" hidden>
+            <span data-i18n="harvest.overrideReason">Price override reason</span>
+            <input id="priceOverrideReason" type="text" maxlength="300">
           </label>
           <div id="customCollectionFields" class="custom-collection-fields" hidden></div>
           <label class="wide-field">
@@ -175,6 +192,22 @@
           <span id="collectionSaveStatus" class="admin-status" aria-live="polite"></span>
         </div>
       </form>
+    </section>
+    <section id="collectionReceiptResult" class="panel collection-receipt-result" hidden>
+      <div class="section-head compact">
+        <h2 data-i18n="receipt.saved">Collection receipt</h2>
+        <span id="savedReceiptNumber" class="status-pill"></span>
+      </div>
+      <dl class="receipt-result-grid">
+        <div><dt data-i18n="aggregator.label">Aggregator</dt><dd id="savedReceiptAggregator">-</dd></div>
+        <div><dt data-i18n="harvest.weight">Weight kg</dt><dd id="savedReceiptWeight">-</dd></div>
+        <div><dt data-i18n="harvest.pricePerKg">Price / kg</dt><dd id="savedReceiptPrice">-</dd></div>
+        <div><dt data-i18n="harvest.totalPrice">Total price</dt><dd id="savedReceiptTotal">-</dd></div>
+      </dl>
+      <div class="button-row">
+        <a id="viewSavedReceipt" class="button-link" href="./receipt.html" data-i18n="receipt.view">View receipt</a>
+        <button id="dismissSavedReceipt" type="button" data-i18n="action.close">Close</button>
+      </div>
     </section>
   </main>
 
