@@ -60,6 +60,69 @@ export async function requireAdminAccess(permission = "can_access_admin") {
   return { session, profile };
 }
 
+export async function requireCollectionAccess() {
+  const session = await currentSession();
+  if (!session) {
+    window.location.replace("./login.html?return=index.html");
+    return null;
+  }
+
+  const { data: userData, error: userError } = await authClient.auth.getUser();
+  if (userError) throw userError;
+  if (userData.user?.user_metadata?.must_change_password) {
+    window.location.replace("./login.html?mode=change&return=index.html");
+    return null;
+  }
+
+  const profile = await currentProfile(true);
+  const allowed = profile?.account_status === "active"
+    && (profile.app_role === "system_admin" || profile.can_submit_collection);
+
+  if (!allowed) {
+    window.location.replace(profile?.app_role === "farmer_viewer" ? "./farmer.html" : "./access_pending.html");
+    return null;
+  }
+
+  return { session, profile };
+}
+
+export function setupAccountControls(profile, options = {}) {
+  const controls = options.container
+    || document.querySelector(".admin-header-controls")
+    || document.querySelector(".header-actions");
+  if (!controls || controls.querySelector(".account-controls")) return null;
+
+  const account = document.createElement("div");
+  account.className = "account-controls";
+  const name = document.createElement("span");
+  name.className = "account-name";
+  name.textContent = profile.display_name || profile.email;
+  const passwordButton = document.createElement("button");
+  passwordButton.type = "button";
+  passwordButton.addEventListener("click", () => {
+    const returnPage = options.returnPage || currentPage();
+    window.location.href = `./login.html?mode=change&return=${encodeURIComponent(returnPage)}`;
+  });
+  const signOutButton = document.createElement("button");
+  signOutButton.type = "button";
+  signOutButton.addEventListener("click", async () => {
+    await signOut();
+    window.location.replace("./login.html");
+  });
+
+  const applyLabels = () => {
+    const labels = typeof options.labels === "function" ? options.labels() : options.labels || {};
+    passwordButton.textContent = labels.changePassword || "Change password";
+    signOutButton.textContent = labels.signOut || "Sign out";
+  };
+  applyLabels();
+  if (options.languageEvent) document.addEventListener(options.languageEvent, applyLabels);
+
+  account.append(name, passwordButton, signOutButton);
+  controls.append(account);
+  return account;
+}
+
 export async function signInWithPassword(email, password) {
   const { data, error } = await authClient.auth.signInWithPassword({ email, password });
   if (error) throw error;
@@ -196,6 +259,6 @@ export function routeForProfile(profile) {
 }
 
 function currentPage() {
-  const file = window.location.pathname.split("/").pop() || "admin.html";
+  const file = window.location.pathname.split("/").pop() || "index.html";
   return `${file}${window.location.search}`;
 }

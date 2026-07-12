@@ -1,6 +1,6 @@
 import { APP_CONFIG } from "./config.js";
 import { dataModeLabel, selectRows } from "./supabase_client.js";
-import { currentAccessToken, requireAdminAccess, signOut } from "./auth_client.js";
+import { currentAccessToken, requireAdminAccess, setupAccountControls } from "./auth_client.js";
 
 const TABLES = {
   overview: "ag_secure_admin_overview",
@@ -347,36 +347,6 @@ function applySidebarPermissions(sidebar, profile) {
     if (!permission) return;
     link.hidden = profile.app_role !== "system_admin" && !profile[permission];
   });
-}
-
-function setupAccountControls(profile) {
-  const controls = document.querySelector(".admin-header-controls") || document.querySelector(".header-actions");
-  if (!controls || controls.querySelector(".account-controls")) return;
-
-  const account = document.createElement("div");
-  account.className = "account-controls";
-  const name = document.createElement("span");
-  name.textContent = profile.display_name || profile.email;
-  const passwordButton = document.createElement("button");
-  passwordButton.type = "button";
-  passwordButton.textContent = "Change password";
-  passwordButton.addEventListener("click", () => {
-    window.location.href = `./login.html?mode=change&return=${encodeURIComponent(currentAdminPage())}`;
-  });
-  const button = document.createElement("button");
-  button.type = "button";
-  button.textContent = "Sign out";
-  button.addEventListener("click", async () => {
-    await signOut();
-    window.location.replace("./login.html");
-  });
-  account.append(name, passwordButton, button);
-  controls.append(account);
-}
-
-function currentAdminPage() {
-  const file = window.location.pathname.split("/").pop() || "admin.html";
-  return `${file}${window.location.search}`;
 }
 
 function requiredPermissionForPage() {

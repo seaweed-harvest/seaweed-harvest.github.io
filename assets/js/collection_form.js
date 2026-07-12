@@ -13,6 +13,7 @@ import {
   t,
   unitLabel
 } from "./collection_language.js";
+import { requireCollectionAccess, setupAccountControls } from "./auth_client.js";
 
 const state = {
   communities: [],
@@ -23,6 +24,7 @@ const state = {
   seaweedTypes: [],
   customFields: [],
   defaultSeaweedType: "spinosum",
+  profile: null,
   selectedFarmer: null,
   gps: null,
   qrScanner: {
@@ -49,6 +51,23 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   initCollectionLanguage();
   cacheElements();
+  try {
+    const access = await requireCollectionAccess();
+    if (!access) return;
+    state.profile = access.profile;
+  } catch (error) {
+    window.location.replace(`./login.html?return=index.html&error=${encodeURIComponent(error.message)}`);
+    return;
+  }
+  document.body.removeAttribute("data-auth-pending");
+  setupAccountControls(state.profile, {
+    returnPage: "index.html",
+    languageEvent: "seaweed-collection-language-change",
+    labels: () => ({
+      changePassword: t("account.changePassword"),
+      signOut: t("account.signOut")
+    })
+  });
   bindEvents();
   setDefaultDateTime();
   await loadFormData();

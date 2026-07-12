@@ -38,6 +38,10 @@ body {
     var(--bg);
 }
 
+body[data-auth-pending] .app-shell {
+  visibility: hidden;
+}
+
 button,
 input,
 select,
