@@ -326,6 +326,11 @@ function addAdminSidebarLinks(sidebar) {
     finance.insertAdjacentHTML("afterend", '<a href="./admin_receipts.html" data-permission="can_view_data">Receipts</a>');
   }
 
+  const receipts = sidebar.querySelector('a[href="./admin_receipts.html"]') || finance;
+  if (receipts && !sidebar.querySelector('a[href="./admin_notifications.html"]')) {
+    receipts.insertAdjacentHTML("afterend", '<a href="./admin_notifications.html" data-permission="can_view_notifications">Notifications</a>');
+  }
+
   const tags = sidebar.querySelector('a[href="./tags.html"]');
   if (tags && !sidebar.querySelector('a[href="./admin_builder.html"]')) {
     tags.insertAdjacentHTML("afterend", '<a href="./admin_builder.html" data-permission="can_manage_settings">Settings</a>');
@@ -333,6 +338,10 @@ function addAdminSidebarLinks(sidebar) {
   const settings = sidebar.querySelector('a[href="./admin_builder.html"]') || tags;
   if (settings && !sidebar.querySelector('a[href="./admin_pricing.html"]')) {
     settings.insertAdjacentHTML("afterend", '<a href="./admin_pricing.html" data-permission="can_view_finance">Pricing Matrix</a>');
+  }
+  const pricing = sidebar.querySelector('a[href="./admin_pricing.html"]') || settings;
+  if (pricing && !sidebar.querySelector('a[href="./admin_seaweedke.html"]')) {
+    pricing.insertAdjacentHTML("afterend", '<a href="./admin_seaweedke.html" data-permission="can_manage_notifications">SEAWEEDKE</a>');
   }
 
   const currentFile = window.location.pathname.split("/").pop() || "admin.html";
@@ -376,6 +385,8 @@ function requiredPermissionForPage() {
     "admin_community.html": "can_view_data",
     "admin_ledger.html": "can_view_data",
     "admin_receipts.html": "can_view_data",
+    "admin_notifications.html": "can_view_notifications",
+    "admin_seaweedke.html": "can_manage_notifications",
     "admin_pricing.html": "can_view_finance",
     "admin_aggregators.html": "can_access_admin",
     "admin_finance.html": "can_view_finance",

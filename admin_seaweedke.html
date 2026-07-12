@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>SEAWEEDKE - Seaweed Aggregation</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+</head>
+<body class="admin-console-page seaweedke-page">
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div><p class="eyebrow">Seaweed aggregation</p><h1>Admin</h1></div>
+      <div class="header-actions admin-header-controls"><nav class="app-nav"><a href="./index.html">Collection</a><a href="./admin.html" aria-current="page">Admin</a></nav></div>
+    </div>
+  </header>
+  <main class="app-shell admin-shell admin-layout">
+    <aside class="admin-sidebar" aria-label="Admin menu">
+      <h2>Admin</h2><a href="./admin.html">Dashboard</a>
+      <p class="admin-menu-heading">Registry</p><a href="./admin_member_registry.html">Member Registry</a><a href="./admin_community_registry.html">Community Registry</a>
+      <p class="admin-menu-heading">Map</p><a href="./admin_map.html">Community Map</a>
+      <p class="admin-menu-heading">Data</p><a href="./admin_today.html">Today's Intake</a><a href="./admin_monthly.html">Monthly</a><a href="./admin_community.html">Per Community</a><a href="./admin_ledger.html">Collection Ledger</a>
+      <p class="admin-menu-heading">Tools</p><a href="./tags.html">Tags</a>
+    </aside>
+    <section class="admin-content admin-page-section">
+      <section class="panel">
+        <div class="section-head compact"><h2>SEAWEEDKE</h2><button id="reloadSeaweedke" type="button">Reload</button></div>
+        <div class="admin-metric-grid compact notification-metrics">
+          <article class="admin-metric-card"><span>Mode</span><strong id="smsMode">--</strong></article>
+          <article class="admin-metric-card"><span>Sending</span><strong id="smsEnabled">--</strong></article>
+          <article class="admin-metric-card"><span>Provider</span><strong id="smsProvider">--</strong></article>
+          <article class="admin-metric-card"><span>Sender ID</span><strong id="smsSender">--</strong></article>
+          <article class="admin-metric-card"><span>Callback</span><strong id="smsCallback">--</strong></article>
+          <article class="admin-metric-card"><span>Production</span><strong id="smsProductionReady">--</strong></article>
+        </div>
+        <p id="smsReadinessStatus" class="admin-status" aria-live="polite"></p>
+      </section>
+
+      <section class="panel">
+        <div class="section-head compact"><h2>Test Message</h2><span id="smsTestEstimate" class="status-pill">0 segments</span></div>
+        <form id="smsTestForm" class="tenant-form-grid">
+          <label>Phone<input id="smsTestPhone" type="tel" inputmode="tel" placeholder="0712 345 678" required></label>
+          <label>Scenario<select id="smsTestScenario"><option value="success">Delivered</option><option value="temporary_failure">Temporary failure</option><option value="permanent_failure">Permanent failure</option><option value="timeout">Timeout</option></select></label>
+          <label class="wide-field">Message<textarea id="smsTestMessage" rows="2" maxlength="612" required>SEAWEEDKE test: notification service check.</textarea></label>
+          <div class="button-row wide-field"><button id="previewSmsTest" type="button">Preview</button><button type="submit">Queue and simulate</button></div>
+        </form>
+        <p id="smsTestStatus" class="admin-status" aria-live="polite"></p>
+      </section>
+
+      <section class="panel">
+        <div class="section-head compact"><h2>Settings</h2><div class="button-row"><button id="checkSmsBalance" type="button">Check balance</button><button id="saveSmsSettings" type="button">Save</button></div></div>
+        <div class="tenant-form-grid seaweedke-settings-grid">
+          <label>Local mode<select id="smsLocalMode"><option value="disabled">Disabled</option><option value="fake">Fake tests</option></select></label>
+          <label>Est. KES / segment<input id="smsEstimatedCost" type="number" min="0" step="0.01"></label>
+          <label>Max segments<input id="smsMaxSegments" type="number" min="1" max="10" step="1"></label>
+          <label>Max attempts<input id="smsMaxAttempts" type="number" min="1" max="20" step="1"></label>
+          <label>Retry seconds<input id="smsRetrySeconds" type="number" min="5" step="5"></label>
+          <label>Worker batch<input id="smsWorkerBatch" type="number" min="1" max="200" step="1"></label>
+          <label>Manual balance KES<input id="smsManualBalance" type="number" min="0" step="0.01"></label>
+          <label>Low balance KES<input id="smsLowBalance" type="number" min="0" step="0.01"></label>
+          <label class="wide-field">Balance note<input id="smsBalanceNote" type="text" maxlength="300"></label>
+        </div>
+        <p id="smsSettingsStatus" class="admin-status" aria-live="polite"></p>
+      </section>
+
+      <section id="smsClientsPanel" class="panel" hidden>
+        <div class="section-head compact"><h2>Application Clients</h2><button id="saveSmsClient" type="button">Save client</button></div>
+        <div class="tenant-form-grid">
+          <label>Client<select id="smsClientSelect"></select></label>
+          <label>Code<input id="smsClientCode" type="text" maxlength="32"></label>
+          <label>Name<input id="smsClientName" type="text" maxlength="100"></label>
+          <label>Source<input id="smsClientSource" type="text" maxlength="32"></label>
+          <label class="check-row"><input id="smsClientActive" type="checkbox"> Active</label>
+          <label class="check-row"><input id="smsClientApproval" type="checkbox" checked> Manual approval</label>
+          <fieldset id="smsClientAggregators" class="aggregator-access-fieldset wide-field"><legend>Aggregators</legend></fieldset>
+          <label class="wide-field">Event types<input id="smsClientEvents" type="text" placeholder="tide_alert"></label>
+          <label class="wide-field">Notes<input id="smsClientNotes" type="text" maxlength="300"></label>
+          <div class="button-row wide-field"><button id="rotateSmsClientToken" type="button">Rotate token</button></div>
+          <label id="smsClientTokenField" class="wide-field" hidden>New token<textarea id="smsClientToken" rows="3" readonly></textarea></label>
+        </div>
+        <p id="smsClientStatus" class="admin-status" aria-live="polite"></p>
+      </section>
+    </section>
+  </main>
+  <script type="module" src="./assets/js/admin_page.js"></script>
+  <script type="module" src="./assets/js/seaweedke_page.js"></script>
+</body>
+</html>

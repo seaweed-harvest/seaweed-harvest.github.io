@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Notifications - Seaweed Aggregation</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+</head>
+<body class="admin-console-page notifications-page">
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div><p class="eyebrow">Seaweed aggregation</p><h1>Admin</h1></div>
+      <div class="header-actions admin-header-controls"><nav class="app-nav"><a href="./index.html">Collection</a><a href="./admin.html" aria-current="page">Admin</a></nav></div>
+    </div>
+  </header>
+  <main class="app-shell admin-shell admin-layout">
+    <aside class="admin-sidebar" aria-label="Admin menu">
+      <h2>Admin</h2><a href="./admin.html">Dashboard</a>
+      <p class="admin-menu-heading">Registry</p><a href="./admin_member_registry.html">Member Registry</a><a href="./admin_community_registry.html">Community Registry</a>
+      <p class="admin-menu-heading">Map</p><a href="./admin_map.html">Community Map</a>
+      <p class="admin-menu-heading">Data</p><a href="./admin_today.html">Today's Intake</a><a href="./admin_monthly.html">Monthly</a><a href="./admin_community.html">Per Community</a><a href="./admin_ledger.html">Collection Ledger</a>
+      <p class="admin-menu-heading">Tools</p><a href="./tags.html">Tags</a>
+    </aside>
+    <section class="admin-content admin-page-section">
+      <section class="panel">
+        <div class="section-head compact"><h2>Notifications</h2><span id="notificationCount" class="status-pill">0 rows</span></div>
+        <div class="admin-toolbar notification-filter-grid">
+          <label>From<input id="notificationFrom" type="date"></label>
+          <label>To<input id="notificationTo" type="date"></label>
+          <label>Status<select id="notificationStatus"><option value="">All statuses</option><option value="queued">Queued</option><option value="processing">Processing</option><option value="sent">Sent</option><option value="delivered">Delivered</option><option value="failed">Failed</option><option value="suppressed">Suppressed</option><option value="cancelled">Cancelled</option></select></label>
+          <label>Source<select id="notificationSource"><option value="">All sources</option><option value="aggregation">Aggregation</option><option value="tide">Tide</option><option value="platform">Platform</option></select></label>
+          <label>Category<select id="notificationCategory"><option value="">All categories</option><option value="collection_receipt">Collection receipt</option><option value="payment_confirmation">Payment confirmation</option><option value="tide_alert">Tide alert</option><option value="community_notice">Community notice</option><option value="system_test">System test</option><option value="low_balance_warning">Low balance</option><option value="other">Other</option></select></label>
+          <label class="notification-search-field">Search<input id="notificationSearch" type="search" placeholder="Recipient, message, provider ID"></label>
+          <button id="loadNotifications" type="button">Load</button>
+        </div>
+        <div class="admin-metric-grid compact notification-metrics">
+          <article class="admin-metric-card"><span>Messages</span><strong id="notificationMetricMessages">0</strong></article>
+          <article class="admin-metric-card"><span>Segments</span><strong id="notificationMetricSegments">0</strong></article>
+          <article class="admin-metric-card"><span>Estimated KES</span><strong id="notificationMetricCost">0.00</strong></article>
+          <article class="admin-metric-card"><span>Delivered</span><strong id="notificationMetricDelivered">0</strong></article>
+          <article class="admin-metric-card warning"><span>Failed</span><strong id="notificationMetricFailed">0</strong></article>
+          <article class="admin-metric-card"><span>Suppressed</span><strong id="notificationMetricSuppressed">0</strong></article>
+        </div>
+        <div class="responsive-table-wrap compact-data-table-wrap notification-table-wrap">
+          <table class="management-table admin-data-table notification-table">
+            <thead><tr><th>Created</th><th>Source</th><th>Aggregator</th><th>Category</th><th>Recipient</th><th>Phone</th><th>Message</th><th>Status</th><th>Attempts</th><th>Segments</th><th>Est. KES</th><th>Provider status</th><th>Error</th><th></th></tr></thead>
+            <tbody id="notificationRows"></tbody>
+          </table>
+        </div>
+        <div class="notification-pager"><button id="notificationPrevious" type="button">Previous</button><span id="notificationPageStatus">0 rows</span><button id="notificationNext" type="button">Next</button></div>
+        <p id="notificationStatusText" class="admin-status" aria-live="polite"></p>
+      </section>
+      <section id="notificationDetailPanel" class="panel" hidden>
+        <div class="section-head compact"><h2>Notification Detail</h2><button id="closeNotificationDetail" type="button">Close</button></div>
+        <div id="notificationDetail" class="notification-detail"></div>
+      </section>
+    </section>
+  </main>
+  <script type="module" src="./assets/js/admin_page.js"></script>
+  <script type="module" src="./assets/js/notifications_page.js"></script>
+</body>
+</html>

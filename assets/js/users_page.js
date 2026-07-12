@@ -16,7 +16,9 @@ const permissionDefinitions = [
   ["can_manage_settings", "Builder settings"],
   ["can_manage_users", "Invite and edit users"],
   ["can_manage_admin_users", "Add or edit admin users"],
-  ["can_view_user_activity", "Recent Activity"]
+  ["can_view_user_activity", "Recent Activity"],
+  ["can_view_notifications", "View notifications"],
+  ["can_manage_notifications", "Manage notifications"]
 ];
 
 const roleLabels = {
@@ -380,11 +382,11 @@ function configureFarmerRoleFields(prefix) {
 
 function rolePreset(role) {
   const values = Object.fromEntries(permissionDefinitions.map(([key]) => [key, false]));
-  if (role === "company_admin") Object.assign(values, { can_access_admin: true, can_submit_collection: true, can_view_dashboard: true, can_view_registry: true, can_edit_registry: true, can_view_map: true, can_view_data: true, can_edit_collections: true, can_view_finance: true, can_export_data: true, can_manage_settings: true, can_manage_users: true });
+  if (role === "company_admin") Object.assign(values, { can_access_admin: true, can_submit_collection: true, can_view_dashboard: true, can_view_registry: true, can_edit_registry: true, can_view_map: true, can_view_data: true, can_edit_collections: true, can_view_finance: true, can_export_data: true, can_manage_settings: true, can_manage_users: true, can_view_notifications: true, can_manage_notifications: true });
   if (role === "registry_admin") Object.assign(values, { can_access_admin: true, can_submit_collection: true, can_view_dashboard: true, can_view_registry: true, can_edit_registry: true, can_view_map: true, can_view_data: true });
-  if (role === "finance_admin") Object.assign(values, { can_access_admin: true, can_view_dashboard: true, can_view_map: true, can_view_data: true, can_view_finance: true, can_export_data: true });
+  if (role === "finance_admin") Object.assign(values, { can_access_admin: true, can_view_dashboard: true, can_view_map: true, can_view_data: true, can_view_finance: true, can_export_data: true, can_view_notifications: true });
   if (role === "field_collector") values.can_submit_collection = true;
-  if (role === "read_only_auditor") Object.assign(values, { can_access_admin: true, can_view_dashboard: true, can_view_registry: true, can_view_map: true, can_view_data: true, can_view_finance: true });
+  if (role === "read_only_auditor") Object.assign(values, { can_access_admin: true, can_view_dashboard: true, can_view_registry: true, can_view_map: true, can_view_data: true, can_view_finance: true, can_view_notifications: true });
   return values;
 }
 

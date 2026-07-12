@@ -2282,6 +2282,129 @@ button:disabled {
   grid-column: span 2;
 }
 
+.notifications-page .admin-content > .panel,
+.seaweedke-page .admin-content > .panel {
+  min-width: 0;
+  max-width: 100%;
+  padding: 16px;
+}
+
+.notification-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(130px, 1fr)) minmax(220px, 1.4fr) auto;
+  align-items: end;
+}
+
+.notification-filter-grid label {
+  min-width: 0;
+}
+
+.notification-metrics {
+  margin-top: 14px;
+}
+
+.notification-table-wrap {
+  max-height: 650px;
+  margin-top: 14px;
+}
+
+.notification-table {
+  min-width: 1900px;
+}
+
+.notification-table th,
+.notification-table td {
+  height: 42px;
+  white-space: nowrap;
+}
+
+.notification-message-cell {
+  max-width: 520px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notification-pager {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 10px;
+}
+
+.notification-pager span {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.notification-detail {
+  display: grid;
+  gap: 14px;
+}
+
+.notification-detail h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.notification-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 16px;
+  margin: 0;
+}
+
+.notification-detail-grid > div {
+  min-width: 0;
+}
+
+.notification-detail-grid .wide {
+  grid-column: 1 / -1;
+}
+
+.notification-detail-grid dt {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.notification-detail-grid dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.seaweedke-page .tenant-form-grid {
+  padding-left: 0;
+  padding-right: 0;
+  padding-bottom: 0;
+}
+
+.seaweedke-page .aggregator-access-fieldset {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.seaweedke-page .check-row {
+  align-self: end;
+  min-height: 38px;
+}
+
+.seaweedke-page textarea[readonly] {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.76rem;
+}
+
+@media (max-width: 1100px) {
+  .notification-filter-grid {
+    grid-template-columns: repeat(3, minmax(130px, 1fr));
+  }
+
+  .notification-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .aggregator-access-fieldset {
   min-width: 0;
   margin: 0;
