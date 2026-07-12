@@ -322,17 +322,17 @@ function addAdminSidebarLinks(sidebar) {
   }
 
   const finance = sidebar.querySelector('a[href="./admin_finance.html"]') || ledger;
-  if (finance && !sidebar.querySelector('a[href="./admin_pricing.html"]')) {
-    finance.insertAdjacentHTML("afterend", '<a href="./admin_pricing.html" data-permission="can_view_finance">Pricing Matrix</a>');
-  }
-  const pricing = sidebar.querySelector('a[href="./admin_pricing.html"]') || finance;
-  if (pricing && !sidebar.querySelector('a[href="./admin_receipts.html"]')) {
-    pricing.insertAdjacentHTML("afterend", '<a href="./admin_receipts.html" data-permission="can_view_data">Receipts</a>');
+  if (finance && !sidebar.querySelector('a[href="./admin_receipts.html"]')) {
+    finance.insertAdjacentHTML("afterend", '<a href="./admin_receipts.html" data-permission="can_view_data">Receipts</a>');
   }
 
   const tags = sidebar.querySelector('a[href="./tags.html"]');
   if (tags && !sidebar.querySelector('a[href="./admin_builder.html"]')) {
     tags.insertAdjacentHTML("afterend", '<a href="./admin_builder.html" data-permission="can_manage_settings">Settings</a>');
+  }
+  const settings = sidebar.querySelector('a[href="./admin_builder.html"]') || tags;
+  if (settings && !sidebar.querySelector('a[href="./admin_pricing.html"]')) {
+    settings.insertAdjacentHTML("afterend", '<a href="./admin_pricing.html" data-permission="can_view_finance">Pricing Matrix</a>');
   }
 
   const currentFile = window.location.pathname.split("/").pop() || "admin.html";

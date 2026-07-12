@@ -2100,6 +2100,11 @@ button:disabled {
   gap: 14px;
 }
 
+.farmer-account-shell > .panel {
+  min-width: 0;
+  padding: 16px;
+}
+
 .farmer-profile-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2227,6 +2232,7 @@ button:disabled {
 .receipts-page .admin-content > .panel {
   min-width: 0;
   max-width: 100%;
+  padding: 16px;
 }
 
 .tenant-admin-content .responsive-table-wrap,
@@ -2274,6 +2280,45 @@ button:disabled {
 
 .tenant-form-grid .wide-field {
   grid-column: span 2;
+}
+
+.aggregator-access-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+
+.aggregator-access-fieldset legend {
+  padding: 0 5px;
+  color: var(--text-sec);
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.aggregator-access-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+
+.user-invite-form .aggregator-access-option {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-sec);
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-transform: none;
+}
+
+.user-invite-form .aggregator-access-option input {
+  width: 15px;
+  min-height: 15px;
+  margin: 0;
 }
 
 .tenant-inline-form {

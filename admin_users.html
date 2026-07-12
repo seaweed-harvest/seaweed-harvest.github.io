@@ -49,6 +49,10 @@
           </label>
           <label>Community<select id="inviteCommunity"><option value="">All / not assigned</option></select></label>
           <label id="inviteFarmerIdField" hidden>Farmer ID<input id="inviteFarmerId" type="text" inputmode="numeric" placeholder="RID4301 or 4301"></label>
+          <fieldset class="aggregator-access-fieldset wide-field">
+            <legend>Aggregator access</legend>
+            <div id="inviteAggregators" class="aggregator-access-options"></div>
+          </fieldset>
           <fieldset class="permission-fieldset wide-field">
             <legend>Permissions</legend>
             <div id="invitePermissions" class="permission-grid"></div>
@@ -58,7 +62,7 @@
 
         <div class="responsive-table-wrap compact-data-table-wrap user-directory-wrap">
           <table class="management-table admin-data-table user-directory-table">
-            <thead><tr><th>Email</th><th>Name</th><th>Application role</th><th>Aggregator role</th><th>Status</th><th>Community</th><th>Last sign in</th><th>Manage users</th><th>Manage admins</th><th></th></tr></thead>
+            <thead><tr><th>Email</th><th>Name</th><th>Application role</th><th>Aggregators</th><th>Status</th><th>Community</th><th>Last sign in</th><th>Manage users</th><th>Manage admins</th><th></th></tr></thead>
             <tbody id="userDirectoryRows"></tbody>
           </table>
         </div>
@@ -74,6 +78,10 @@
           <label>Status<select id="editUserStatus"><option value="active">Active</option><option value="pending">Pending</option><option value="suspended">Suspended</option></select></label>
           <label>Community<select id="editUserCommunity"><option value="">All / not assigned</option></select></label>
           <label id="editFarmerIdField" hidden>Farmer ID<input id="editFarmerId" type="text" inputmode="numeric" placeholder="RID4301 or 4301"></label>
+          <fieldset class="aggregator-access-fieldset wide-field">
+            <legend>Aggregator access</legend>
+            <div id="editAggregators" class="aggregator-access-options"></div>
+          </fieldset>
           <fieldset class="permission-fieldset wide-field"><legend>Permissions</legend><div id="editPermissions" class="permission-grid"></div></fieldset>
           <div class="button-row wide-field">
             <button type="submit">Save user</button>

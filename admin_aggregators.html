@@ -37,24 +37,6 @@
         </form>
       </section>
 
-      <section class="panel">
-        <div class="section-head compact"><h2>Users for Active Aggregator</h2><span id="membershipCount" class="status-pill">0</span></div>
-        <form id="membershipForm" class="tenant-inline-form">
-          <label>User email<input id="membershipEmail" type="email" required></label>
-          <label>Aggregator role<select id="membershipRole"><option value="aggregator_admin">Aggregator admin</option><option value="collector">Collector</option><option value="finance">Finance</option><option value="viewer">Viewer</option></select></label>
-          <label class="check-row"><input id="membershipActive" type="checkbox" checked> Active</label>
-          <button type="submit">Save membership</button><span id="membershipStatus" class="admin-status"></span>
-        </form>
-        <div class="responsive-table-wrap compact-data-table-wrap"><table class="management-table admin-data-table tenant-table"><thead><tr><th>Email</th><th>Name</th><th>Application role</th><th>Aggregator role</th><th>Status</th><th></th></tr></thead><tbody id="membershipRows"></tbody></table></div>
-      </section>
-
-      <section id="relationshipPanel" class="panel">
-        <div class="section-head compact"><h2>Registry Relationships</h2><span id="relationshipStatus" class="admin-status"></span></div>
-        <div class="tenant-relationship-grid">
-          <section><label>Search communities<input id="relationshipCommunitySearch" type="search"></label><div class="tenant-check-list" id="relationshipCommunities"></div></section>
-          <section><label>Search farmers<input id="relationshipFarmerSearch" type="search"></label><div class="tenant-check-list" id="relationshipFarmers"></div></section>
-        </div>
-      </section>
     </section>
   </main>
   <script type="module" src="./assets/js/admin_page.js"></script><script type="module" src="./assets/js/aggregator_page.js"></script>

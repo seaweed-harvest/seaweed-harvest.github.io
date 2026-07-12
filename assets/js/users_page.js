@@ -30,7 +30,7 @@ const roleLabels = {
   system_admin: "System admin"
 };
 
-const state = { users: [], registrations: [], communities: [], activity: [], actor: null, editingUser: null };
+const state = { users: [], registrations: [], communities: [], aggregators: [], activity: [], actor: null, editingUser: null };
 const els = {};
 
 document.addEventListener("DOMContentLoaded", init);
@@ -38,9 +38,9 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   [
     "reloadUsers", "inviteUserForm", "inviteEmail", "inviteName", "inviteRole",
-    "inviteCommunity", "inviteFarmerIdField", "inviteFarmerId", "invitePermissions", "inviteStatus", "userDirectoryRows",
+    "inviteCommunity", "inviteFarmerIdField", "inviteFarmerId", "inviteAggregators", "invitePermissions", "inviteStatus", "userDirectoryRows",
     "userEditorPanel", "closeUserEditor", "editUserForm", "editUserId", "editUserEmail",
-    "editUserName", "editUserRole", "editUserStatus", "editUserCommunity", "editFarmerIdField", "editFarmerId", "editPermissions",
+    "editUserName", "editUserRole", "editUserStatus", "editUserCommunity", "editFarmerIdField", "editFarmerId", "editAggregators", "editPermissions",
     "editUserMessage", "deleteUser", "farmerRegistrationCount", "farmerRegistrationRows", "farmerRegistrationStatus",
     "userActivityPanel", "userActivityCount", "userActivityRows"
   ].forEach((id) => { els[id] = document.getElementById(id); });
@@ -68,6 +68,7 @@ function bindEvents() {
   els.editUserRole.addEventListener("change", () => {
     applyRolePreset("edit", els.editUserRole.value);
     configureFarmerRoleFields("edit");
+    renderAggregatorInputs("edit", selectedAggregatorIds("edit"), els.editUserRole.value === "system_admin");
   });
   els.inviteUserForm.addEventListener("submit", inviteUser);
   els.editUserForm.addEventListener("submit", saveUser);
@@ -86,20 +87,24 @@ async function loadPageData() {
     const activityRequest = canViewUserActivity()
       ? authClient.rpc("ag_admin_activity_log", { p_limit: 100 })
       : Promise.resolve({ data: [], error: null });
-    const [usersResponse, registrationsResponse, activityResponse, communities] = await Promise.all([
+    const [usersResponse, registrationsResponse, activityResponse, aggregatorResponse, communities] = await Promise.all([
       authClient.rpc("ag_admin_user_directory"),
       authClient.rpc("ag_admin_farmer_registration_requests"),
       activityRequest,
+      authClient.rpc("ag_admin_user_aggregator_options"),
       selectRows(APP_CONFIG.tables.communities, "select=community_id,community_name&order=community_name.asc")
     ]);
     if (usersResponse.error) throw usersResponse.error;
     if (registrationsResponse.error) throw registrationsResponse.error;
     if (activityResponse.error) throw activityResponse.error;
+    if (aggregatorResponse.error) throw aggregatorResponse.error;
     state.users = usersResponse.data || [];
     state.registrations = registrationsResponse.data || [];
     state.activity = activityResponse.data || [];
+    state.aggregators = aggregatorResponse.data || [];
     state.communities = communities;
     renderCommunityOptions();
+    renderAggregatorInputs("invite", defaultInviteAggregatorIds());
     renderUsers();
     renderRegistrations();
     renderActivity();
@@ -116,6 +121,11 @@ function canViewUserActivity() {
 
 async function inviteUser(event) {
   event.preventDefault();
+  const aggregatorIds = selectedAggregatorIds("invite");
+  if (!aggregatorIds.length) {
+    setStatus(els.inviteStatus, "Select at least one aggregator.", "error");
+    return;
+  }
   setStatus(els.inviteStatus, "Sending invite...");
   try {
     await invokeAdminUsers({
@@ -125,12 +135,14 @@ async function inviteUser(event) {
       app_role: els.inviteRole.value,
       community_id: nullableText(els.inviteCommunity.value),
       farmer_id: nullableText(els.inviteFarmerId.value),
+      aggregator_ids: aggregatorIds,
       permissions: readPermissions("invite")
     });
     els.inviteUserForm.reset();
     els.inviteRole.value = "company_admin";
     configureFarmerRoleFields("invite");
     applyRolePreset("invite", "company_admin");
+    renderAggregatorInputs("invite", defaultInviteAggregatorIds());
     setStatus(els.inviteStatus, "Invite sent.");
     await loadPageData();
   } catch (error) {
@@ -140,6 +152,11 @@ async function inviteUser(event) {
 
 async function saveUser(event) {
   event.preventDefault();
+  const aggregatorIds = selectedAggregatorIds("edit");
+  if (els.editUserRole.value !== "system_admin" && !aggregatorIds.length) {
+    setStatus(els.editUserMessage, "Select at least one aggregator.", "error");
+    return;
+  }
   setStatus(els.editUserMessage, "Saving...");
   try {
     await invokeAdminUsers({
@@ -150,9 +167,12 @@ async function saveUser(event) {
       account_status: els.editUserStatus.value,
       community_id: nullableText(els.editUserCommunity.value),
       farmer_id: nullableText(els.editFarmerId.value),
+      aggregator_ids: aggregatorIds,
       permissions: readPermissions("edit")
     });
     setStatus(els.editUserMessage, "Saved.");
+    state.editingUser = null;
+    els.userEditorPanel.hidden = true;
     await loadPageData();
   } catch (error) {
     setStatus(els.editUserMessage, error.message, "error");
@@ -196,7 +216,7 @@ function renderUsers() {
         ? escapeHtml(user.display_name)
         : '<span class="user-name-warning" title="This user must add a name">Name required</span>'}</td>
       <td>${escapeHtml(roleLabels[user.app_role] || user.app_role)}</td>
-      <td>${escapeHtml(capitalize(String(user.active_aggregator_role || "-").replaceAll("_", " ")))}</td>
+      <td>${escapeHtml(formatAggregatorAccess(user))}</td>
       <td>${escapeHtml(capitalize(user.account_status))}</td>
       <td>${escapeHtml(user.community_id || "All")}</td>
       <td>${escapeHtml(formatDate(user.last_sign_in_at))}</td>
@@ -252,6 +272,7 @@ function handleUserTableClick(event) {
   els.editUserCommunity.value = user.community_id || "";
   els.editFarmerId.value = user.farmer_id || "";
   configureFarmerRoleFields("edit");
+  renderAggregatorInputs("edit", user.aggregator_ids || [], user.all_aggregators);
   els.deleteUser.disabled = user.id === state.actor?.id;
   els.deleteUser.title = user.id === state.actor?.id ? "You cannot delete your own account" : "Delete this user account";
   writePermissions("edit", user);
@@ -301,6 +322,38 @@ function renderCommunityOptions() {
     select.insertAdjacentHTML("beforeend", options);
     select.value = current;
   });
+}
+
+function renderAggregatorInputs(prefix, selectedIds = [], allAggregators = false) {
+  const container = prefix === "invite" ? els.inviteAggregators : els.editAggregators;
+  const selected = new Set((selectedIds || []).map(String));
+  if (allAggregators) {
+    container.innerHTML = '<label class="aggregator-access-option"><input type="checkbox" checked disabled> All current and future aggregators</label>';
+    return;
+  }
+  container.innerHTML = state.aggregators.map((row) => `
+    <label class="aggregator-access-option">
+      <input type="checkbox" data-aggregator-access="${prefix}" value="${escapeHtml(row.id)}" ${selected.has(String(row.id)) ? "checked" : ""}>
+      ${escapeHtml(row.aggregator_code)} - ${escapeHtml(row.organisation_name)}
+    </label>
+  `).join("") || '<span class="admin-status">No manageable aggregators.</span>';
+}
+
+function selectedAggregatorIds(prefix) {
+  const container = prefix === "invite" ? els.inviteAggregators : els.editAggregators;
+  return [...container.querySelectorAll(`[data-aggregator-access="${prefix}"]:checked`)].map((input) => input.value);
+}
+
+function defaultInviteAggregatorIds() {
+  const activeId = String(state.actor?.active_aggregator_id || "");
+  if (state.aggregators.some((row) => String(row.id) === activeId)) return [activeId];
+  return state.aggregators[0]?.id ? [String(state.aggregators[0].id)] : [];
+}
+
+function formatAggregatorAccess(user) {
+  if (user.all_aggregators) return "All";
+  const names = Array.isArray(user.aggregator_names) ? user.aggregator_names : [];
+  return names.length ? names.join(", ") : "None";
 }
 
 function applyRolePreset(prefix, role) {
