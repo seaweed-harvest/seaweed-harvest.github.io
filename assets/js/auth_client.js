@@ -86,6 +86,25 @@ export async function requireCollectionAccess() {
   return { session, profile };
 }
 
+export async function requireAuthenticatedAccount(returnPage = "my_details.html") {
+  const session = await currentSession();
+  if (!session) {
+    window.location.replace(`./login.html?return=${encodeURIComponent(returnPage)}`);
+    return null;
+  }
+
+  const { data: userData, error: userError } = await authClient.auth.getUser();
+  if (userError) throw userError;
+  if (userData.user?.user_metadata?.must_change_password) {
+    window.location.replace(`./login.html?mode=change&return=${encodeURIComponent(returnPage)}`);
+    return null;
+  }
+
+  const profile = await currentProfile(true);
+  if (!profile) throw new Error("User profile was not found.");
+  return { session, profile };
+}
+
 export function setupAccountControls(profile, options = {}) {
   const controls = options.container
     || document.querySelector(".admin-header-controls")
@@ -97,6 +116,11 @@ export function setupAccountControls(profile, options = {}) {
   const name = document.createElement("span");
   name.className = "account-name";
   name.textContent = profile.display_name || profile.email;
+  const detailsButton = document.createElement("button");
+  detailsButton.type = "button";
+  detailsButton.addEventListener("click", () => {
+    window.location.href = "./my_details.html";
+  });
   const passwordButton = document.createElement("button");
   passwordButton.type = "button";
   passwordButton.addEventListener("click", () => {
@@ -112,13 +136,16 @@ export function setupAccountControls(profile, options = {}) {
 
   const applyLabels = () => {
     const labels = typeof options.labels === "function" ? options.labels() : options.labels || {};
+    detailsButton.textContent = labels.myDetails || "My details";
     passwordButton.textContent = labels.changePassword || "Change password";
     signOutButton.textContent = labels.signOut || "Sign out";
   };
   applyLabels();
   if (options.languageEvent) document.addEventListener(options.languageEvent, applyLabels);
 
-  account.append(name, passwordButton, signOutButton);
+  account.append(name);
+  if (options.showMyDetails !== false) account.append(detailsButton);
+  account.append(passwordButton, signOutButton);
   controls.append(account);
   return account;
 }
@@ -199,6 +226,18 @@ export async function updateMyDisplayName(displayName) {
   return data;
 }
 
+export async function updateMyDetails(details) {
+  const { data, error } = await authClient.rpc("ag_update_my_details", {
+    p_display_name: details.display_name,
+    p_phone: details.phone || null,
+    p_address: details.address || null,
+    p_date_of_birth: details.date_of_birth || null
+  });
+  if (error) throw error;
+  profilePromise = Promise.resolve(data);
+  return data;
+}
+
 export async function signOut() {
   const { error } = await authClient.auth.signOut();
   if (error) throw error;
@@ -255,7 +294,8 @@ export function routeForProfile(profile) {
   if (profile?.can_view_finance) return "./admin_finance.html";
   if (profile?.can_manage_users) return "./admin_users.html";
   if (profile?.can_manage_settings) return "./admin_builder.html";
-  return "./index.html";
+  if (profile?.can_submit_collection) return "./index.html";
+  return "./access_pending.html";
 }
 
 function currentPage() {

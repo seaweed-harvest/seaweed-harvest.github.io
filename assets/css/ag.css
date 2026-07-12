@@ -1542,6 +1542,32 @@ button:disabled {
   width: min(620px, calc(100% - 28px));
 }
 
+.my-details-shell {
+  width: min(760px, calc(100% - 28px));
+}
+
+.my-details-panel {
+  padding: 18px;
+}
+
+.my-details-form {
+  display: grid;
+  gap: 12px;
+}
+
+.my-details-form label {
+  display: grid;
+  gap: 5px;
+  color: var(--text-sec);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.my-details-form textarea {
+  text-transform: none;
+}
+
 .auth-panel {
   padding: 18px;
 }

@@ -1,4 +1,4 @@
-import { currentProfile, currentSession, signOut } from "./auth_client.js";
+import { currentProfile, currentSession, routeForProfile, setupAccountControls } from "./auth_client.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const status = document.getElementById("pendingStatus");
@@ -10,18 +10,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   try {
     const profile = await currentProfile(true);
+    setupAccountControls(profile, {
+      container: document.querySelector(".pending-header-controls"),
+      returnPage: "access_pending.html"
+    });
     if (profile?.account_status === "active") {
-      window.location.replace(profile.app_role === "farmer_viewer" ? "./farmer.html" : "./admin.html");
-      return;
+      const destination = routeForProfile(profile);
+      if (!destination.includes("access_pending.html")) {
+        window.location.replace(destination);
+        return;
+      }
     }
     status.textContent = profile?.email || session.user.email || "";
   } catch (error) {
     status.textContent = error.message;
     status.dataset.status = "error";
   }
-
-  document.getElementById("pendingSignOut").addEventListener("click", async () => {
-    await signOut();
-    window.location.replace("./login.html");
-  });
 });

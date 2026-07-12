@@ -1,4 +1,4 @@
-import { authClient, currentProfile, currentSession, signOut } from "./auth_client.js";
+import { authClient, currentProfile, currentSession, setupAccountControls } from "./auth_client.js";
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -10,17 +10,16 @@ async function init() {
     return;
   }
 
-  document.getElementById("farmerSignOut").addEventListener("click", async () => {
-    await signOut();
-    window.location.replace("./login.html");
-  });
-
   try {
     const profile = await currentProfile(true);
     if (profile?.account_status !== "active" || profile.app_role !== "farmer_viewer") {
       window.location.replace(profile?.can_access_admin ? "./admin.html" : "./access_pending.html");
       return;
     }
+    setupAccountControls(profile, {
+      container: document.querySelector(".farmer-header-controls"),
+      returnPage: "farmer.html"
+    });
 
     const [summaryResponse, collectionsResponse] = await Promise.all([
       authClient.rpc("ag_my_farmer_summary"),

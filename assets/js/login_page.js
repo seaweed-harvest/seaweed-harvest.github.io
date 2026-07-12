@@ -141,8 +141,15 @@ async function socialSignIn(provider) {
 async function routeSignedInUser() {
   const profile = await currentProfile(true);
   const requested = new URLSearchParams(window.location.search).get("return");
-  const canUseRequestedPage = profile?.app_role === "system_admin" || profile?.can_access_admin;
-  const destination = requested && canUseRequestedPage ? `./${safePage(requested)}` : routeForProfile(profile);
+  const requestedPage = safePage(requested);
+  const requestedFile = requestedPage.split("?")[0];
+  const canUseRequestedPage = requestedFile === "my_details.html"
+    || profile?.app_role === "system_admin"
+    || profile?.can_access_admin
+    || (requestedFile === "index.html" && profile?.can_submit_collection)
+    || (requestedFile === "farmer.html" && profile?.app_role === "farmer_viewer")
+    || requestedFile === "access_pending.html";
+  const destination = requested && canUseRequestedPage ? `./${requestedPage}` : routeForProfile(profile);
   window.location.replace(destination);
 }
 

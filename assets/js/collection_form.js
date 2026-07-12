@@ -64,6 +64,7 @@ async function init() {
     returnPage: "index.html",
     languageEvent: "seaweed-collection-language-change",
     labels: () => ({
+      myDetails: t("account.myDetails"),
       changePassword: t("account.changePassword"),
       signOut: t("account.signOut")
     })

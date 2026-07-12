@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>My Details - Seaweed Aggregation</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+</head>
+<body class="my-details-page" data-auth-pending>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div><p class="eyebrow">Seaweed aggregation</p><h1>My Details</h1></div>
+      <div class="header-actions my-details-header-controls">
+        <nav class="app-nav" aria-label="Account navigation"><a id="myDetailsHomeLink" href="./access_pending.html">Account home</a></nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell my-details-shell">
+    <section class="panel my-details-panel">
+      <form id="myDetailsForm" class="my-details-form">
+        <label>Name<input id="myDetailsName" type="text" autocomplete="name" minlength="2" maxlength="100" required></label>
+        <label>Email<input id="myDetailsEmail" type="email" autocomplete="email" readonly></label>
+        <label>Phone number<input id="myDetailsPhone" type="tel" autocomplete="tel" maxlength="40"></label>
+        <label>Address<textarea id="myDetailsAddress" rows="3" autocomplete="street-address" maxlength="500"></textarea></label>
+        <label>Date of birth<input id="myDetailsDateOfBirth" type="date" autocomplete="bday"></label>
+        <div class="button-row">
+          <button id="saveMyDetails" type="submit">Save details</button>
+          <span id="myDetailsStatus" class="form-status" aria-live="polite"></span>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script type="module" src="./assets/js/my_details_page.js"></script>
+</body>
+</html>
