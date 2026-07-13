@@ -18,7 +18,9 @@
       <div class="header-actions">
         <nav class="app-nav" aria-label="Main navigation" data-i18n-aria-label="nav.ariaLabel">
           <a href="./index.html" aria-current="page" data-i18n="nav.collection">Collection</a>
-          <a href="./admin.html" data-i18n="nav.admin">Admin</a>
+          <a href="./today.html" data-i18n="nav.today">Today's Intake</a>
+          <a id="collectionAdminLink" href="./admin.html" data-i18n="nav.admin" hidden>Admin</a>
+          <a id="collectionSignInLink" href="./login.html?return=index.html" data-i18n="nav.signIn">Sign in</a>
         </nav>
         <span id="collectionConnectionStatus" class="status-pill status-muted" hidden>Loading</span>
       </div>
@@ -39,6 +41,14 @@
     </section>
     <section class="panel collection-form-panel">
       <form id="collectionForm" class="collection-form">
+        <label class="collector-name-field">
+          <span data-i18n="collector.name">Collector name</span>
+          <input id="collectorName" type="text" autocomplete="name" maxlength="100" required>
+        </label>
+        <label class="public-form-trap" aria-hidden="true">
+          Website
+          <input id="collectionWebsite" type="text" tabindex="-1" autocomplete="off">
+        </label>
         <fieldset class="farmer-fieldset">
           <legend data-i18n="farmer.legend">Farmer</legend>
           <label>
@@ -179,7 +189,7 @@
             <span data-i18n="harvest.notes">Notes</span>
             <textarea id="collectionNotes" rows="3"></textarea>
           </label>
-          <label class="wide-field">
+          <label id="collectionPhotosField" class="wide-field">
             <span data-i18n="harvest.photos">Photos</span>
             <input id="collectionPhotos" type="file" accept="image/*" capture="environment" multiple>
             <span id="collectionPhotoStatus" class="field-hint" data-i18n="photos.hint">Up to 5 photos. Compressed before upload.</span>

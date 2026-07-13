@@ -240,6 +240,34 @@ h1 {
   gap: 12px;
 }
 
+.collector-name-field {
+  width: min(520px, 100%);
+  display: grid;
+  gap: 5px;
+  padding: 0 1px;
+}
+
+.collector-name-field > span {
+  color: var(--text-sec);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.collector-name-field input {
+  width: 100%;
+}
+
+.public-form-trap {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+}
+
 .collection-form fieldset {
   min-width: 0;
   display: grid;
@@ -254,6 +282,47 @@ h1 {
 
 .collection-form .harvest-fieldset {
   grid-template-columns: minmax(0, 1fr);
+}
+
+.public-intake-shell {
+  max-width: 1500px;
+}
+
+.public-intake-panel {
+  padding: 16px;
+}
+
+.public-intake-panel .section-head {
+  margin-bottom: 12px;
+}
+
+.public-intake-panel .section-head h2 {
+  margin-bottom: 2px;
+}
+
+.public-intake-panel .field-hint,
+.public-intake-panel .admin-status {
+  margin: 0;
+}
+
+.public-intake-table-wrap {
+  max-height: min(68vh, 720px);
+  overflow: auto;
+}
+
+.public-intake-table {
+  min-width: 1080px;
+}
+
+.public-intake-table th,
+.public-intake-table td {
+  height: 40px;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
+.compact-actions {
+  align-items: center;
 }
 
 .collection-form .harvest-fieldset .wide-field {

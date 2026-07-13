@@ -1,5 +1,6 @@
 import { APP_CONFIG } from "./config.js";
 import {
+  callPublicRpc,
   callRpc,
   dataModeLabel,
   isSupabaseEnabled,
@@ -12,7 +13,12 @@ import {
   t,
   unitLabel
 } from "./collection_language.js";
-import { currentAggregatorContext, requireCollectionAccess, setupAccountControls } from "./auth_client.js";
+import {
+  currentAggregatorContext,
+  currentProfile,
+  currentSession,
+  setupAccountControls
+} from "./auth_client.js";
 
 const state = {
   communities: [],
@@ -24,8 +30,10 @@ const state = {
   seaweedTypes: [],
   customFields: [],
   defaultSeaweedType: "spinosum",
+  session: null,
   profile: null,
   aggregatorContext: null,
+  publicMode: true,
   canOverridePrice: false,
   submissionId: crypto.randomUUID(),
   selectedFarmer: null,
@@ -46,6 +54,7 @@ const PHOTO_MAX_COUNT = 5;
 const PHOTO_MAX_BYTES = 700 * 1024;
 const PHOTO_TARGET_BYTES = 550 * 1024;
 const PHOTO_MAX_EDGE = 1920;
+const COLLECTOR_NAME_STORAGE_KEY = "seaweed_harvest:collector_name";
 
 const els = {};
 
@@ -55,26 +64,23 @@ async function init() {
   initCollectionLanguage();
   cacheElements();
   try {
-    const access = await requireCollectionAccess();
-    if (!access) return;
-    state.profile = access.profile;
-    state.aggregatorContext = await currentAggregatorContext(true);
-    state.canOverridePrice = state.profile.app_role === "system_admin"
-      || (state.profile.can_view_finance && ["platform_admin", "aggregator_admin", "finance"].includes(state.profile.active_membership_role));
+    await initialiseCollectionAccess();
   } catch (error) {
-    window.location.replace(`./login.html?return=index.html&error=${encodeURIComponent(error.message)}`);
-    return;
+    state.session = null;
+    state.profile = null;
+    state.publicMode = true;
+    try {
+      await loadPublicMawimbiContext();
+    } catch (publicError) {
+      document.body.removeAttribute("data-auth-pending");
+      setStatus(publicError.message || error.message, "error");
+      return;
+    }
   }
   document.body.removeAttribute("data-auth-pending");
-  setupAccountControls(state.profile, {
-    returnPage: "index.html",
-    languageEvent: "seaweed-collection-language-change",
-    labels: () => ({
-      myDetails: t("account.myDetails"),
-      changePassword: t("account.changePassword"),
-      signOut: t("account.signOut")
-    })
-  });
+  setupCollectionHeader();
+  setupCollectorName();
+  applyCollectionAccessMode();
   renderActiveAggregator();
   bindEvents();
   setDefaultDateTime();
@@ -82,10 +88,100 @@ async function init() {
   ensureTransactionId();
 }
 
+async function initialiseCollectionAccess() {
+  state.session = await currentSession();
+  if (state.session) {
+    try {
+      state.profile = await currentProfile(true);
+    } catch {
+      state.profile = null;
+    }
+  }
+
+  const profile = state.profile;
+  const canUseAuthenticatedRoute = Boolean(
+    state.session
+    && profile?.account_status === "active"
+    && (profile.app_role === "system_admin" || profile.can_submit_collection)
+  );
+
+  state.publicMode = !canUseAuthenticatedRoute;
+  if (canUseAuthenticatedRoute) {
+    state.aggregatorContext = await currentAggregatorContext(true);
+    state.canOverridePrice = profile.app_role === "system_admin"
+      || (profile.can_view_finance && ["platform_admin", "aggregator_admin", "finance"].includes(profile.active_membership_role));
+    return;
+  }
+
+  state.canOverridePrice = false;
+  await loadPublicMawimbiContext();
+}
+
+async function loadPublicMawimbiContext() {
+  const aggregator = await callPublicRpc("ag_public_mawimbi_context");
+  if (!aggregator?.id) throw new Error("Mawimbi collection intake is not available.");
+  state.aggregatorContext = {
+    active_aggregator_id: aggregator.id,
+    active_aggregator: aggregator,
+    aggregators: [aggregator]
+  };
+}
+
+function setupCollectionHeader() {
+  const profile = state.profile;
+  const signedIn = Boolean(state.session && profile);
+  els.collectionSignInLink.hidden = signedIn;
+  els.collectionAdminLink.hidden = !(signedIn
+    && profile.account_status === "active"
+    && (profile.app_role === "system_admin" || profile.can_access_admin));
+
+  if (!signedIn) return;
+  setupAccountControls(profile, {
+    returnPage: "index.html",
+    signOutReturn: "./index.html",
+    showAggregator: !state.publicMode,
+    languageEvent: "seaweed-collection-language-change",
+    labels: () => ({
+      myDetails: t("account.myDetails"),
+      changePassword: t("account.changePassword"),
+      signOut: t("account.signOut")
+    })
+  });
+}
+
+function setupCollectorName() {
+  const remembered = String(localStorage.getItem(COLLECTOR_NAME_STORAGE_KEY) || "").trim();
+  els.collectorName.value = remembered || state.profile?.display_name || "";
+  rememberCollectorName();
+  els.collectorName.addEventListener("input", rememberCollectorName);
+}
+
+function rememberCollectorName() {
+  const name = String(els.collectorName.value || "").trim().replace(/\s+/g, " ");
+  if (name) localStorage.setItem(COLLECTOR_NAME_STORAGE_KEY, name);
+}
+
+function applyCollectionAccessMode() {
+  els.assignFarmerId.hidden = state.publicMode;
+  if (!state.publicMode) return;
+
+  els.collectionPhotosField.hidden = true;
+  els.collectionPhotos.disabled = true;
+  els.collectionPhotos.value = "";
+  const gradeField = els.seaweedGrade.closest("label");
+  if (gradeField) gradeField.hidden = false;
+  els.seaweedGrade.disabled = false;
+  els.seaweedGrade.required = true;
+}
+
 function cacheElements() {
   [
     "collectionConnectionStatus",
+    "collectionAdminLink",
+    "collectionSignInLink",
     "collectionForm",
+    "collectorName",
+    "collectionWebsite",
     "farmerId",
     "lookupFarmer",
     "scanFarmerId",
@@ -123,6 +219,7 @@ function cacheElements() {
     "customCollectionFields",
     "collectionNotes",
     "collectionPhotos",
+    "collectionPhotosField",
     "collectionPhotoStatus",
     "clearCollectionForm",
     "collectionSaveStatus",
@@ -197,7 +294,9 @@ async function loadFormData() {
   setConnectionStatus(t("status.loading"), "status-muted");
   try {
     const [communities, farmers, formSettings, gradePrices, seaweedTypes, customFields, pricingRules] = await Promise.all([
-      selectRows(APP_CONFIG.tables.communities, "select=*&order=community_id.asc"),
+      state.publicMode
+        ? callPublicRpc("ag_public_mawimbi_communities")
+        : selectRows(APP_CONFIG.tables.communities, "select=*&order=community_id.asc"),
       isSupabaseEnabled()
         ? Promise.resolve([])
         : selectRows(APP_CONFIG.tables.farmers, "select=*&order=farmer_id.asc"),
@@ -205,7 +304,9 @@ async function loadFormData() {
       selectRows("ag_public_grade_price_settings", "select=*&order=display_order.asc"),
       selectRows("ag_public_seaweed_type_settings", "select=*&order=display_order.asc"),
       selectRows("ag_public_collection_custom_fields", "select=*&order=display_order.asc"),
-      callRpc("ag_my_current_pricing", { p_collection_date: collectionDateValue() })
+      state.publicMode
+        ? callPublicRpc("ag_public_mawimbi_pricing", { p_collection_date: collectionDateValue() })
+        : callRpc("ag_my_current_pricing", { p_collection_date: collectionDateValue() })
     ]);
     state.communities = communities;
     state.farmers = farmers;
@@ -249,7 +350,9 @@ async function lookupFarmer() {
   let farmer = state.farmers.find((row) => row.farmer_id.toUpperCase() === farmerId) || null;
   if (!farmer && isSupabaseEnabled()) {
     try {
-      const result = await callRpc("ag_public_farmer_lookup", { p_farmer_id: farmerId });
+      const result = state.publicMode
+        ? await callPublicRpc("ag_public_mawimbi_farmer_lookup", { p_farmer_id: farmerId })
+        : await callRpc("ag_public_farmer_lookup", { p_farmer_id: farmerId });
       farmer = result && Object.keys(result).length ? result : null;
     } catch (error) {
       setFarmerStatus(t("status.lookupFailed"), "status-muted");
@@ -388,9 +491,9 @@ function collectionDateValue() {
 
 async function refreshPricingForDate() {
   try {
-    state.pricingRules = await callRpc("ag_my_current_pricing", {
-      p_collection_date: collectionDateValue()
-    });
+    state.pricingRules = state.publicMode
+      ? await callPublicRpc("ag_public_mawimbi_pricing", { p_collection_date: collectionDateValue() })
+      : await callRpc("ag_my_current_pricing", { p_collection_date: collectionDateValue() });
     updatePriceForGrade();
   } catch (error) {
     els.priceSourceStatus.textContent = error.message;
@@ -757,16 +860,25 @@ async function submitCollection(event) {
   submitButton.disabled = true;
 
   try {
+    rememberCollectorName();
     setStatus(t("status.saving"));
-    const photoUpload = await uploadSelectedCollectionPhotos();
+    const photoUpload = state.publicMode ? { paths: [] } : await uploadSelectedCollectionPhotos();
     const payload = buildPayload(photoUpload.paths);
     const farmSizeUpdate = pendingFarmSizeUpdate();
-    const saved = await callRpc("ag_submit_collection_v2", {
-      p_submission_id: state.submissionId,
-      p_collection: payload
-    });
+    if (state.publicMode && farmSizeUpdate) {
+      payload.farm_size_update = {
+        value: farmSizeUpdate.p_farm_size_value,
+        unit: farmSizeUpdate.p_farm_size_unit
+      };
+    }
+    const saved = state.publicMode
+      ? await submitPublicCollection(payload)
+      : await callRpc("ag_submit_collection_v2", {
+        p_submission_id: state.submissionId,
+        p_collection: payload
+      });
     let farmSizeWarning = "";
-    if (farmSizeUpdate) {
+    if (farmSizeUpdate && !state.publicMode) {
       try {
         await callRpc("ag_update_farmer_farm_size_from_collection", farmSizeUpdate);
       } catch (error) {
@@ -802,6 +914,7 @@ function buildPayload(photoPaths = []) {
   const farmerNameSnapshot = combinedManualFarmerName() || state.selectedFarmer?.name || null;
 
   return {
+    collector_name: requiredText(els.collectorName.value, t("collector.name")),
     transaction_id: requiredText(els.transactionId.value, t("harvest.transactionId")),
     farmer_id: farmerId,
     farmer_record_id: state.selectedFarmer?.id || null,
@@ -830,7 +943,10 @@ function buildPayload(photoPaths = []) {
 }
 
 function clearForm(options = {}) {
+  const collectorName = String(els.collectorName.value || "").trim();
   els.collectionForm.reset();
+  els.collectorName.value = collectorName || localStorage.getItem(COLLECTOR_NAME_STORAGE_KEY) || "";
+  els.collectionWebsite.value = "";
   state.selectedFarmer = null;
   state.gps = null;
   els.transactionId.value = "";
@@ -857,7 +973,28 @@ function renderReceiptResult(saved) {
   els.savedReceiptPrice.textContent = `${formatCompactNumber(saved.unit_price)} ${saved.currency || "KES"}`;
   els.savedReceiptTotal.textContent = `${formatCompactNumber(saved.total)} ${saved.currency || "KES"}`;
   els.viewSavedReceipt.href = `./receipt.html?id=${encodeURIComponent(saved.receipt_id)}`;
+  els.viewSavedReceipt.hidden = state.publicMode;
   els.collectionReceiptResult.hidden = false;
+}
+
+async function submitPublicCollection(payload) {
+  const response = await fetch(`${APP_CONFIG.supabase.url}/functions/v1/public-collection`, {
+    method: "POST",
+    headers: {
+      apikey: APP_CONFIG.supabase.anonKey,
+      Authorization: `Bearer ${APP_CONFIG.supabase.anonKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      submission_id: state.submissionId,
+      collector_name: String(els.collectorName.value || "").trim(),
+      website: els.collectionWebsite.value,
+      collection: payload
+    })
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || `Collection could not be saved (${response.status}).`);
+  return body.result;
 }
 
 function splitFarmerName(value) {
@@ -1037,6 +1174,7 @@ function applyRuntimeSettings(gradePrices) {
   const totalVisible = state.formSettings.find((row) => row.field_key === "total_price")?.visible !== false;
   els.priceOverridden.closest("label").hidden = !priceVisible && !totalVisible;
   updateOverrideReasonVisibility();
+  applyCollectionAccessMode();
 }
 
 function renderCustomFields() {

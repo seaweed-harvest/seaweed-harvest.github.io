@@ -152,7 +152,7 @@ export function setupAccountControls(profile, options = {}) {
   signOutButton.type = "button";
   signOutButton.addEventListener("click", async () => {
     await signOut();
-    window.location.replace("./login.html");
+    window.location.replace(options.signOutReturn || "./login.html");
   });
 
   const applyLabels = () => {

@@ -32,6 +32,15 @@ export async function callRpc(functionName, payload = {}) {
   });
 }
 
+export async function callPublicRpc(functionName, payload = {}) {
+  if (!isSupabaseEnabled()) return [];
+  return supabaseRequest(`rpc/${functionName}`, {
+    method: "POST",
+    body: payload,
+    accessToken: APP_CONFIG.supabase.anonKey
+  });
+}
+
 export async function uploadStorageObject(bucket, objectPath, blob) {
   if (!isSupabaseEnabled()) return { path: objectPath };
   const accessToken = await requestAccessToken();
@@ -60,7 +69,7 @@ export async function uploadStorageObject(bucket, objectPath, blob) {
 }
 
 async function supabaseRequest(path, options = {}) {
-  const accessToken = await requestAccessToken();
+  const accessToken = options.accessToken || await requestAccessToken();
   const headers = {
     apikey: APP_CONFIG.supabase.anonKey,
     Authorization: `Bearer ${accessToken}`
