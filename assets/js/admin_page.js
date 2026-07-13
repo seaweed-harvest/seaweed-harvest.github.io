@@ -149,7 +149,7 @@ function cacheElements() {
     "todaySelectedCount",
     "todayStartEdit",
     "todaySaveEdits",
-    "todayCancelEdits",
+    "todayDiscardEdits",
     "todaySelectionHeader",
     "todaySelectAll",
     "todayIntakeRows",
@@ -216,7 +216,7 @@ function bindEvents() {
   els.todaySelectAll?.addEventListener("change", toggleAllTodayIntakeRows);
   els.todayStartEdit?.addEventListener("click", startTodayIntakeEdit);
   els.todaySaveEdits?.addEventListener("click", saveTodayIntakeEdits);
-  els.todayCancelEdits?.addEventListener("click", cancelTodayIntakeEdits);
+  els.todayDiscardEdits?.addEventListener("click", discardTodayIntakeEdits);
   els.reloadLedger?.addEventListener("click", () => {
     state.ledgerPage = 0;
     loadLedger();
@@ -1402,7 +1402,7 @@ function updateTodaySelectionUi() {
     els.todaySaveEdits.disabled = dirty === 0;
     els.todaySaveEdits.textContent = dirty ? `Save ${dirty}` : "Save";
   }
-  if (els.todayCancelEdits) els.todayCancelEdits.hidden = !editing;
+  if (els.todayDiscardEdits) els.todayDiscardEdits.hidden = !editing;
   if (els.todaySelectionHeader) els.todaySelectionHeader.hidden = !canEdit;
   if (els.todayIntakeDate) els.todayIntakeDate.disabled = editing;
   if (els.reloadTodayIntake) els.reloadTodayIntake.disabled = editing;
@@ -1428,12 +1428,12 @@ function startTodayIntakeEdit() {
   setTodayIntakeStatus(`Editing ${state.editingTodayIntakeIds.size} selected row${state.editingTodayIntakeIds.size === 1 ? "" : "s"}.`);
 }
 
-function cancelTodayIntakeEdits() {
+function discardTodayIntakeEdits() {
   state.editingTodayIntakeIds.clear();
   state.dirtyTodayIntakeIds.clear();
   state.todayIntakeDrafts.clear();
   renderTodayIntake();
-  setTodayIntakeStatus("Edits discarded.");
+  setTodayIntakeStatus("Changes discarded. Nothing was saved.");
 }
 
 async function saveTodayIntakeEdits() {
@@ -1443,7 +1443,7 @@ async function saveTodayIntakeEdits() {
   if (!updates.length) return;
 
   els.todaySaveEdits.disabled = true;
-  els.todayCancelEdits.disabled = true;
+  els.todayDiscardEdits.disabled = true;
   setTodayIntakeStatus("Saving edits...");
 
   try {
@@ -1458,7 +1458,7 @@ async function saveTodayIntakeEdits() {
     setTodayIntakeStatus(writeErrorMessage(error), "error");
   } finally {
     els.todaySaveEdits.disabled = state.dirtyTodayIntakeIds.size === 0;
-    els.todayCancelEdits.disabled = false;
+    els.todayDiscardEdits.disabled = false;
   }
 }
 
