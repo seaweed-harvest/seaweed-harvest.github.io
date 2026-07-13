@@ -1119,12 +1119,17 @@ input[readonly] {
   grid-template-columns: minmax(160px, 220px) auto minmax(180px, 1fr);
 }
 
-.intake-batch-grid {
-  grid-template-columns: repeat(6, minmax(130px, 1fr));
+.today-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 0 4px;
 }
 
-.intake-batch-grid .wide-field {
-  grid-column: span 3;
+.today-edit-actions button {
+  min-height: 32px;
+  padding: 0 12px;
 }
 
 .selection-cell {
@@ -1454,6 +1459,50 @@ button:disabled {
 .today-intake-table,
 .management-table.today-intake-table {
   min-width: 1320px;
+}
+
+.today-intake-table .today-inline-editor {
+  width: 100%;
+  min-width: 118px;
+  height: 30px;
+  min-height: 30px;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.today-intake-table .today-inline-editor:focus {
+  border-color: var(--accent);
+  outline: 2px solid rgba(15, 118, 110, 0.14);
+  outline-offset: 0;
+}
+
+.today-intake-table .today-number-editor {
+  width: 82px;
+  min-width: 82px;
+}
+
+.today-intake-table .today-sack-editor {
+  width: 104px;
+  min-width: 104px;
+}
+
+.today-intake-table .today-notes-editor {
+  width: 230px;
+  min-width: 230px;
+}
+
+.today-intake-table .today-row-dirty td {
+  background: #fff8dc;
+}
+
+.today-intake-table .today-row-dirty:hover td {
+  background: #fff2bd;
 }
 
 .member-registry-table,
@@ -2886,10 +2935,6 @@ button:disabled {
   .admin-toolbar button,
   .ledger-pagination button {
     width: 100%;
-  }
-
-  .intake-batch-grid .wide-field {
-    grid-column: auto;
   }
 
   .admin-map-panel,

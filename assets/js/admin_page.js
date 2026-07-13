@@ -15,7 +15,7 @@ const RPC = {
   ledger: "ag_sec_admin_collection_ledger_page",
   ledgerExport: "ag_sec_admin_collection_ledger_export",
   todayIntake: "ag_sec_admin_today_intake",
-  updateTodayIntake: "ag_sec_admin_update_intake_batch",
+  updateTodayIntake: "ag_sec_admin_update_intake_rows",
   updateMemberRegistry: "ag_sec_admin_update_member_registry",
   updateCommunityRegistry: "ag_sec_admin_update_community_registry",
   deleteMemberRegistry: "ag_sec_admin_delete_member_registry",
@@ -49,6 +49,9 @@ const state = {
   todaySort: "collected_at",
   todayDirection: "desc",
   selectedTodayIntakeIds: new Set(),
+  editingTodayIntakeIds: new Set(),
+  dirtyTodayIntakeIds: new Set(),
+  todayIntakeDrafts: new Map(),
   selectedMemberIds: new Set(),
   editingMemberIds: new Set(),
   selectedCommunityIds: new Set(),
@@ -142,16 +145,12 @@ function cacheElements() {
     "todayIntakeDate",
     "reloadTodayIntake",
     "todayIntakeStatus",
+    "todayEditActions",
     "todaySelectedCount",
-    "todayBatchFarmer",
-    "todayBatchCommunity",
-    "todayWeightAdjustment",
-    "todayBatchSeaweedType",
-    "todayBatchGrade",
-    "todayBatchPrice",
-    "todayBatchNotes",
-    "applyTodayBatch",
-    "clearTodayBatch",
+    "todayStartEdit",
+    "todaySaveEdits",
+    "todayCancelEdits",
+    "todaySelectionHeader",
     "todaySelectAll",
     "todayIntakeRows",
     "ledgerCount",
@@ -212,10 +211,12 @@ function bindEvents() {
   els.communitySummarySelect?.addEventListener("change", () => loadCommunitySummary());
   els.reloadTodayIntake?.addEventListener("click", () => loadTodayIntake());
   els.todayIntakeDate?.addEventListener("change", () => loadTodayIntake());
-  els.todayIntakeRows?.addEventListener("change", handleTodayIntakeSelectionChange);
+  els.todayIntakeRows?.addEventListener("change", handleTodayIntakeTableChange);
+  els.todayIntakeRows?.addEventListener("input", handleTodayIntakeDraftInput);
   els.todaySelectAll?.addEventListener("change", toggleAllTodayIntakeRows);
-  els.applyTodayBatch?.addEventListener("click", applyTodayBatchEdit);
-  els.clearTodayBatch?.addEventListener("click", clearTodayBatchForm);
+  els.todayStartEdit?.addEventListener("click", startTodayIntakeEdit);
+  els.todaySaveEdits?.addEventListener("click", saveTodayIntakeEdits);
+  els.todayCancelEdits?.addEventListener("click", cancelTodayIntakeEdits);
   els.reloadLedger?.addEventListener("click", () => {
     state.ledgerPage = 0;
     loadLedger();
@@ -248,6 +249,7 @@ function bindEvents() {
 
   document.querySelectorAll("[data-today-sort]").forEach((button) => {
     button.addEventListener("click", () => {
+      if (state.editingTodayIntakeIds.size) return;
       const nextSort = button.dataset.todaySort;
       if (state.todaySort === nextSort) {
         state.todayDirection = state.todayDirection === "asc" ? "desc" : "asc";
@@ -936,26 +938,6 @@ function renderSelectors() {
   if (els.monthlyCommunity) setSelectOptions(els.monthlyCommunity, communityOptions, els.monthlyCommunity.value);
   if (els.ledgerCommunity) setSelectOptions(els.ledgerCommunity, communityOptions, els.ledgerCommunity.value);
   if (els.communitySummarySelect) setSelectOptions(els.communitySummarySelect, communityOptions, selectedCommunityValue());
-  if (els.todayBatchCommunity) {
-    const batchCommunityOptions = [
-      ["", "No change"],
-      ...state.communities.map((community) => [
-        community.community_id,
-        communityLabel(community)
-      ])
-    ];
-    setSelectOptions(els.todayBatchCommunity, batchCommunityOptions, els.todayBatchCommunity.value);
-  }
-  if (els.todayBatchFarmer) {
-    const farmerOptions = [
-      ["", "No change"],
-      ...state.members.map((member) => [
-        member.farmer_id || "",
-        [member.farmer_id, member.name, member.community_name].filter(Boolean).join(" - ")
-      ])
-    ];
-    setSelectOptions(els.todayBatchFarmer, farmerOptions, els.todayBatchFarmer.value);
-  }
 
   const gradeOptions = state.gradeSettings.map((grade) => [
     grade.grade,
@@ -963,15 +945,6 @@ function renderSelectors() {
   ]);
   if (els.monthlyGrade) setSelectOptions(els.monthlyGrade, [["", "All grades"], ...gradeOptions], els.monthlyGrade.value);
   if (els.ledgerGrade) setSelectOptions(els.ledgerGrade, [["", "All grades"], ...gradeOptions], els.ledgerGrade.value);
-  if (els.todayBatchGrade) setSelectOptions(els.todayBatchGrade, [["", "No change"], ...gradeOptions], els.todayBatchGrade.value);
-
-  const seaweedTypeOptions = state.seaweedTypeSettings.map((seaweedType) => [
-    seaweedType.type_key,
-    [seaweedType.label, seaweedType.common_name].filter(Boolean).join(" - ")
-  ]);
-  if (els.todayBatchSeaweedType) {
-    setSelectOptions(els.todayBatchSeaweedType, [["", "No change"], ...seaweedTypeOptions], els.todayBatchSeaweedType.value);
-  }
 }
 
 function selectedCommunityValue() {
@@ -1286,7 +1259,7 @@ async function loadTodayIntake(options = {}) {
   if (!els.todayIntakeRows) return;
 
   if (!options.quiet) setTodayIntakeStatus("Loading...");
-  state.selectedTodayIntakeIds.clear();
+  resetTodayIntakeEditState();
   updateTodaySelectionUi();
 
   try {
@@ -1306,24 +1279,32 @@ async function loadTodayIntake(options = {}) {
 function renderTodayIntake() {
   if (!els.todayIntakeRows) return;
 
+  const canEdit = canEditTodayIntake();
+  const editing = state.editingTodayIntakeIds.size > 0;
   els.todayIntakeCount.textContent = `${state.todayIntakeRows.length} rows`;
   els.todayIntakeRows.innerHTML = sortedTodayIntakeRows().map((row) => {
     const id = String(row.id || "");
     const checked = state.selectedTodayIntakeIds.has(id) ? " checked" : "";
+    const isEditing = state.editingTodayIntakeIds.has(id);
+    const isDirty = state.dirtyTodayIntakeIds.has(id);
+    const draft = state.todayIntakeDrafts.get(id) || todayIntakeDraft(row);
+    const rowClasses = [isEditing ? "today-row-editing" : "", isDirty ? "today-row-dirty" : ""]
+      .filter(Boolean)
+      .join(" ");
     return `
-      <tr>
-        <td class="selection-cell"><input type="checkbox" data-today-id="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(row.transaction_id || "intake row")}"${checked}></td>
+      <tr data-today-row="${escapeAttribute(id)}" class="${rowClasses}">
+        <td class="selection-cell"${canEdit ? "" : " hidden"}><input type="checkbox" data-today-id="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(row.transaction_id || "intake row")}"${checked}${editing ? " disabled" : ""}></td>
         <td>${escapeHtml(formatDateTime(row.collected_at))}</td>
         <td><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
-        <td>${inlineCell([row.community_id, row.community_name_snapshot])}</td>
-        <td>${inlineCell([row.farmer_id, row.farmer_name_snapshot])}</td>
-        <td>${escapeHtml(row.sack_id || "-")}</td>
-        <td>${escapeHtml(formatKg(row.sack_weight_kg))}</td>
-        <td>${escapeHtml(formatSeaweedType(row.seaweed_type))}</td>
-        <td>${escapeHtml(row.seaweed_grade || "-")}</td>
-        <td>${escapeHtml(formatMoney(row.price_per_kg))}</td>
-        <td>${escapeHtml(formatMoney(row.total_price))}</td>
-        <td>${escapeHtml(row.notes || "-")}</td>
+        <td>${isEditing ? todaySelectControl(id, "community_id", draft.community_id, todayCommunityOptions(row)) : inlineCell([row.community_id, row.community_name_snapshot])}</td>
+        <td>${isEditing ? todaySelectControl(id, "farmer_id", draft.farmer_id, todayMemberOptions(row)) : inlineCell([row.farmer_id, row.farmer_name_snapshot])}</td>
+        <td>${isEditing ? todayTextControl(id, "sack_id", draft.sack_id, "today-sack-editor", 80) : escapeHtml(row.sack_id || "-")}</td>
+        <td>${isEditing ? todayNumberControl(id, "sack_weight_kg", draft.sack_weight_kg, "today-number-editor", 0.01, 0.01) : escapeHtml(formatKg(row.sack_weight_kg))}</td>
+        <td>${isEditing ? todaySelectControl(id, "seaweed_type", draft.seaweed_type, todaySeaweedTypeOptions(row)) : escapeHtml(formatSeaweedType(row.seaweed_type))}</td>
+        <td>${isEditing ? todaySelectControl(id, "grade_code", draft.grade_code, todayGradeOptions(row)) : escapeHtml(row.seaweed_grade || "-")}</td>
+        <td>${isEditing ? todayNumberControl(id, "price_per_kg", draft.price_per_kg, "today-number-editor", 0.01, 0) : escapeHtml(formatMoney(row.price_per_kg))}</td>
+        <td data-today-total="${escapeAttribute(id)}">${escapeHtml(formatMoney(isEditing ? todayDraftTotal(draft) : row.total_price))}</td>
+        <td>${isEditing ? todayTextControl(id, "notes", draft.notes, "today-notes-editor", 1000) : escapeHtml(row.notes || "-")}</td>
       </tr>
     `;
   }).join("") || emptyRow(12, "No intake rows recorded for this date.");
@@ -1331,9 +1312,17 @@ function renderTodayIntake() {
   updateTodaySelectionUi();
 }
 
-function handleTodayIntakeSelectionChange(event) {
+function handleTodayIntakeTableChange(event) {
   const checkbox = event.target.closest("[data-today-id]");
-  if (!checkbox) return;
+  if (checkbox) {
+    handleTodayIntakeSelectionChange(checkbox);
+    return;
+  }
+  handleTodayIntakeDraftInput(event);
+}
+
+function handleTodayIntakeSelectionChange(checkbox) {
+  if (state.editingTodayIntakeIds.size) return;
 
   const id = checkbox.dataset.todayId;
   if (checkbox.checked) {
@@ -1344,8 +1333,41 @@ function handleTodayIntakeSelectionChange(event) {
   updateTodaySelectionUi();
 }
 
+function handleTodayIntakeDraftInput(event) {
+  const control = event.target.closest("[data-today-field]");
+  if (!control) return;
+  const id = control.dataset.todayId;
+  const field = control.dataset.todayField;
+  const draft = state.todayIntakeDrafts.get(id);
+  if (!draft || !state.editingTodayIntakeIds.has(id)) return;
+
+  draft[field] = control.value;
+  if (field === "farmer_id" && control.value) {
+    const member = state.members.find((row) => row.farmer_id === control.value);
+    if (member?.community_id) {
+      draft.community_id = member.community_id;
+      const communityControl = els.todayIntakeRows.querySelector(
+        `[data-today-id="${cssEscape(id)}"][data-today-field="community_id"]`
+      );
+      if (communityControl) communityControl.value = member.community_id;
+    }
+  }
+  if (field === "grade_code") {
+    const grade = state.gradeSettings.find((row) => row.grade === control.value);
+    if (grade) {
+      draft.price_per_kg = valueOrEmpty(grade.price_per_kg);
+      const priceControl = els.todayIntakeRows.querySelector(
+        `[data-today-id="${cssEscape(id)}"][data-today-field="price_per_kg"]`
+      );
+      if (priceControl) priceControl.value = draft.price_per_kg;
+    }
+  }
+
+  updateTodayDraftRow(id);
+}
+
 function toggleAllTodayIntakeRows() {
-  if (!els.todaySelectAll) return;
+  if (!els.todaySelectAll || state.editingTodayIntakeIds.size || !canEditTodayIntake()) return;
 
   state.selectedTodayIntakeIds.clear();
   if (els.todaySelectAll.checked) {
@@ -1362,89 +1384,212 @@ function toggleAllTodayIntakeRows() {
 function updateTodaySelectionUi() {
   if (!els.todaySelectedCount) return;
 
+  const canEdit = canEditTodayIntake();
   const selected = state.selectedTodayIntakeIds.size;
   const total = state.todayIntakeRows.length;
+  const editing = state.editingTodayIntakeIds.size > 0;
+  const dirty = state.dirtyTodayIntakeIds.size;
   els.todaySelectedCount.textContent = `${selected} selected`;
   els.todaySelectedCount.className = selected ? "status-pill" : "status-pill status-muted";
+  if (els.todayEditActions) els.todayEditActions.hidden = !canEdit || selected === 0;
+  if (els.todayStartEdit) {
+    els.todayStartEdit.hidden = editing;
+    els.todayStartEdit.disabled = selected === 0;
+    els.todayStartEdit.textContent = `Edit${selected > 1 ? ` ${selected}` : ""}`;
+  }
+  if (els.todaySaveEdits) {
+    els.todaySaveEdits.hidden = !editing;
+    els.todaySaveEdits.disabled = dirty === 0;
+    els.todaySaveEdits.textContent = dirty ? `Save ${dirty}` : "Save";
+  }
+  if (els.todayCancelEdits) els.todayCancelEdits.hidden = !editing;
+  if (els.todaySelectionHeader) els.todaySelectionHeader.hidden = !canEdit;
+  if (els.todayIntakeDate) els.todayIntakeDate.disabled = editing;
+  if (els.reloadTodayIntake) els.reloadTodayIntake.disabled = editing;
+  document.querySelectorAll("[data-today-sort]").forEach((button) => { button.disabled = editing; });
 
   if (els.todaySelectAll) {
     els.todaySelectAll.checked = total > 0 && selected === total;
     els.todaySelectAll.indeterminate = selected > 0 && selected < total;
+    els.todaySelectAll.disabled = !canEdit || editing || total === 0;
   }
 }
 
-async function applyTodayBatchEdit() {
-  if (!els.todayIntakeRows) return;
+function startTodayIntakeEdit() {
+  if (!canEditTodayIntake() || !state.selectedTodayIntakeIds.size) return;
+  state.editingTodayIntakeIds = new Set(state.selectedTodayIntakeIds);
+  state.dirtyTodayIntakeIds.clear();
+  state.todayIntakeDrafts.clear();
+  state.todayIntakeRows.forEach((row) => {
+    const id = String(row.id || "");
+    if (state.editingTodayIntakeIds.has(id)) state.todayIntakeDrafts.set(id, todayIntakeDraft(row));
+  });
+  renderTodayIntake();
+  setTodayIntakeStatus(`Editing ${state.editingTodayIntakeIds.size} selected row${state.editingTodayIntakeIds.size === 1 ? "" : "s"}.`);
+}
 
-  const payload = buildTodayBatchPayload();
-  if (!payload) return;
+function cancelTodayIntakeEdits() {
+  state.editingTodayIntakeIds.clear();
+  state.dirtyTodayIntakeIds.clear();
+  state.todayIntakeDrafts.clear();
+  renderTodayIntake();
+  setTodayIntakeStatus("Edits discarded.");
+}
 
-  els.applyTodayBatch.disabled = true;
+async function saveTodayIntakeEdits() {
+  const updates = [...state.dirtyTodayIntakeIds]
+    .map((id) => todayIntakeUpdatePayload(id))
+    .filter(Boolean);
+  if (!updates.length) return;
+
+  els.todaySaveEdits.disabled = true;
+  els.todayCancelEdits.disabled = true;
   setTodayIntakeStatus("Saving edits...");
 
   try {
-    const result = await supabaseRpc(RPC.updateTodayIntake, payload);
-    const updatedCount = Number(result[0]?.updated_count || 0);
-    clearTodayBatchForm({ keepSelection: true });
-    state.selectedTodayIntakeIds.clear();
+    const result = await supabaseRpc(RPC.updateTodayIntake, {
+      p_intake_date: nullableText(els.todayIntakeDate.value),
+      p_updates: updates
+    });
+    const updatedCount = Number(result?.updated_count || result?.[0]?.updated_count || 0);
     await loadTodayIntake({ quiet: true });
     setTodayIntakeStatus(`Updated ${updatedCount} row${updatedCount === 1 ? "" : "s"}.`);
   } catch (error) {
     setTodayIntakeStatus(writeErrorMessage(error), "error");
   } finally {
-    els.applyTodayBatch.disabled = false;
+    els.todaySaveEdits.disabled = state.dirtyTodayIntakeIds.size === 0;
+    els.todayCancelEdits.disabled = false;
   }
 }
 
-function buildTodayBatchPayload() {
-  const selectedIds = [...state.selectedTodayIntakeIds].filter(Boolean);
-  if (!selectedIds.length) {
-    setTodayIntakeStatus("Select at least one row.", "error");
-    return null;
-  }
+function todayIntakeUpdatePayload(id) {
+  const row = todayIntakeRow(id);
+  const draft = state.todayIntakeDrafts.get(id);
+  if (!row || !draft) return null;
 
-  const weightAdjustment = optionalNumber(els.todayWeightAdjustment.value);
-  const price = optionalNumber(els.todayBatchPrice.value);
-  const payload = {
-    p_ids: selectedIds,
-    p_intake_date: nullableText(els.todayIntakeDate.value),
-    p_farmer_id: nullableText(els.todayBatchFarmer.value),
-    p_community_id: nullableText(els.todayBatchCommunity.value),
-    p_weight_adjustment_kg: weightAdjustment,
-    p_seaweed_type: nullableText(els.todayBatchSeaweedType.value),
-    p_grade: nullableText(els.todayBatchGrade.value),
-    p_price_per_kg: price,
-    p_notes_append: nullableText(els.todayBatchNotes.value)
+  const original = todayIntakeDraft(row);
+  const payload = { id };
+  Object.keys(original).forEach((field) => {
+    if (normalizeTodayDraftValue(field, draft[field]) === normalizeTodayDraftValue(field, original[field])) return;
+    payload[field] = ["sack_weight_kg", "price_per_kg"].includes(field)
+      ? optionalNumber(draft[field])
+      : nullableText(draft[field]);
+  });
+  return Object.keys(payload).length > 1 ? payload : null;
+}
+
+function updateTodayDraftRow(id) {
+  const row = todayIntakeRow(id);
+  const draft = state.todayIntakeDrafts.get(id);
+  const tableRow = els.todayIntakeRows.querySelector(`[data-today-row="${cssEscape(id)}"]`);
+  if (!row || !draft || !tableRow) return;
+
+  const dirty = todayDraftChanged(row, draft);
+  if (dirty) state.dirtyTodayIntakeIds.add(id);
+  else state.dirtyTodayIntakeIds.delete(id);
+  tableRow.classList.toggle("today-row-dirty", dirty);
+  const totalCell = tableRow.querySelector(`[data-today-total="${cssEscape(id)}"]`);
+  if (totalCell) totalCell.textContent = formatMoney(todayDraftTotal(draft));
+  updateTodaySelectionUi();
+}
+
+function todayDraftChanged(row, draft) {
+  const original = todayIntakeDraft(row);
+  return Object.keys(original).some((field) => normalizeTodayDraftValue(field, draft[field]) !== normalizeTodayDraftValue(field, original[field]));
+}
+
+function normalizeTodayDraftValue(field, value) {
+  if (["sack_weight_kg", "price_per_kg"].includes(field)) return optionalNumber(value);
+  return String(value ?? "").trim();
+}
+
+function todayDraftTotal(draft) {
+  const weight = optionalNumber(draft.sack_weight_kg);
+  const price = optionalNumber(draft.price_per_kg);
+  return weight === null || price === null ? null : weight * price;
+}
+
+function todayIntakeDraft(row) {
+  return {
+    farmer_id: valueOrEmpty(row.farmer_id),
+    community_id: valueOrEmpty(row.community_id),
+    sack_id: valueOrEmpty(row.sack_id),
+    sack_weight_kg: valueOrEmpty(row.sack_weight_kg),
+    seaweed_type: valueOrEmpty(row.seaweed_type),
+    grade_code: valueOrEmpty(row.seaweed_grade),
+    price_per_kg: valueOrEmpty(row.price_per_kg),
+    notes: valueOrEmpty(row.notes)
   };
-
-  const hasChange = Boolean(
-    payload.p_farmer_id ||
-    payload.p_community_id ||
-    payload.p_seaweed_type ||
-    payload.p_grade ||
-    payload.p_price_per_kg !== null ||
-    payload.p_notes_append ||
-    (payload.p_weight_adjustment_kg !== null && payload.p_weight_adjustment_kg !== 0)
-  );
-
-  if (!hasChange) {
-    setTodayIntakeStatus("Choose a field to update.", "error");
-    return null;
-  }
-
-  return payload;
 }
 
-function clearTodayBatchForm(options = {}) {
-  if (els.todayBatchFarmer) els.todayBatchFarmer.value = "";
-  if (els.todayBatchCommunity) els.todayBatchCommunity.value = "";
-  if (els.todayWeightAdjustment) els.todayWeightAdjustment.value = "";
-  if (els.todayBatchSeaweedType) els.todayBatchSeaweedType.value = "";
-  if (els.todayBatchGrade) els.todayBatchGrade.value = "";
-  if (els.todayBatchPrice) els.todayBatchPrice.value = "";
-  if (els.todayBatchNotes) els.todayBatchNotes.value = "";
+function todayIntakeRow(id) {
+  return state.todayIntakeRows.find((row) => String(row.id || "") === String(id)) || null;
+}
 
-  if (!options.keepSelection) setTodayIntakeStatus("");
+function resetTodayIntakeEditState() {
+  state.selectedTodayIntakeIds.clear();
+  state.editingTodayIntakeIds.clear();
+  state.dirtyTodayIntakeIds.clear();
+  state.todayIntakeDrafts.clear();
+}
+
+function canEditTodayIntake() {
+  return Boolean(state.profile && (state.profile.app_role === "system_admin" || state.profile.can_edit_collections));
+}
+
+function todayCommunityOptions(row) {
+  const options = [["", "Unassigned"], ...state.communities.map((community) => [
+    community.community_id,
+    communityLabel(community)
+  ])];
+  return withTodayFallbackOption(options, row.community_id, inlineText([row.community_id, row.community_name_snapshot]));
+}
+
+function todayMemberOptions(row) {
+  const options = [["", "Unassigned"], ...state.members.map((member) => [
+    member.farmer_id || "",
+    inlineText([member.farmer_id, member.name, member.community_name])
+  ])];
+  return withTodayFallbackOption(options, row.farmer_id, inlineText([row.farmer_id, row.farmer_name_snapshot]));
+}
+
+function todaySeaweedTypeOptions(row) {
+  const options = state.seaweedTypeSettings.map((type) => [
+    type.type_key,
+    inlineText([type.label, type.common_name])
+  ]);
+  return withTodayFallbackOption(options, row.seaweed_type, formatSeaweedType(row.seaweed_type));
+}
+
+function todayGradeOptions(row) {
+  const options = [["", "Ungraded"], ...state.gradeSettings.map((grade) => [
+    grade.grade,
+    inlineText([grade.grade, grade.label && grade.label !== grade.grade ? grade.label : "", grade.rejected ? "Rejected" : ""])
+  ])];
+  return withTodayFallbackOption(options, row.seaweed_grade, row.seaweed_grade);
+}
+
+function withTodayFallbackOption(options, value, label) {
+  const text = String(value || "");
+  if (text && !options.some(([optionValue]) => String(optionValue) === text)) options.push([text, label || text]);
+  return options;
+}
+
+function todaySelectControl(id, field, selectedValue, options) {
+  const selected = String(selectedValue || "");
+  return `<select class="today-inline-editor" data-today-id="${escapeAttribute(id)}" data-today-field="${escapeAttribute(field)}">${options.map(([value, label]) => `<option value="${escapeAttribute(value)}"${String(value) === selected ? " selected" : ""}>${escapeHtml(label || value || "-")}</option>`).join("")}</select>`;
+}
+
+function todayTextControl(id, field, value, className, maxLength) {
+  return `<input class="today-inline-editor ${escapeAttribute(className)}" type="text" data-today-id="${escapeAttribute(id)}" data-today-field="${escapeAttribute(field)}" value="${escapeAttribute(value)}" maxlength="${maxLength}">`;
+}
+
+function todayNumberControl(id, field, value, className, step, min) {
+  return `<input class="today-inline-editor ${escapeAttribute(className)}" type="number" inputmode="decimal" data-today-id="${escapeAttribute(id)}" data-today-field="${escapeAttribute(field)}" value="${escapeAttribute(value)}" step="${step}" min="${min}">`;
+}
+
+function inlineText(values) {
+  return values.map((value) => String(value || "").trim()).filter(Boolean).join(" - ");
 }
 
 function setTodayIntakeStatus(message, type = "") {
