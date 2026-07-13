@@ -299,7 +299,5 @@ function applyLanguage() {
 function initialLanguage() {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (packs[saved]) return saved;
-  const browserLanguage = String(navigator.language || "").toLowerCase();
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return browserLanguage.startsWith("sw") || timezone === "Africa/Nairobi" ? "sw" : "en";
+  return "en";
 }
