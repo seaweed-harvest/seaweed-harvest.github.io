@@ -144,14 +144,11 @@
               <option value="C">C - Rejected</option>
             </select>
           </label>
-          <label>
-            <span data-i18n="harvest.productForm">Product form</span>
+          <div hidden aria-hidden="true">
             <select id="productForm">
-              <option value="wet" selected data-i18n="product.wet">Wet</option>
-              <option value="dried" data-i18n="product.dried">Dried</option>
-              <option value="milled" data-i18n="product.milled">Milled</option>
+              <option value="wet" selected>Wet</option>
             </select>
-          </label>
+          </div>
           <label>
             <span data-i18n="harvest.pricePerKg">Price / kg</span>
             <input id="pricePerKg" type="number" min="0" step="0.01">

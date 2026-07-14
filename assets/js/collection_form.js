@@ -86,6 +86,7 @@ async function init() {
   setDefaultDateTime();
   await loadFormData();
   ensureTransactionId();
+  updateEmptyFieldHighlights();
 }
 
 async function initialiseCollectionAccess() {
@@ -284,6 +285,8 @@ function bindEvents() {
   els.collectionForm.addEventListener("submit", submitCollection);
   els.collectionForm.addEventListener("input", updateCustomCalculations);
   els.collectionForm.addEventListener("change", updateCustomCalculations);
+  els.collectionForm.addEventListener("input", updateEmptyFieldHighlights);
+  els.collectionForm.addEventListener("change", updateEmptyFieldHighlights);
   els.collectionPhotos.addEventListener("change", updatePhotoSelectionStatus);
   els.stopQrScanner.addEventListener("click", stopQrScanner);
   els.dismissSavedReceipt.addEventListener("click", () => { els.collectionReceiptResult.hidden = true; });
@@ -322,6 +325,7 @@ async function loadFormData() {
     renderCustomFields();
     updateQuickReference();
     updatePriceForGrade();
+    updateEmptyFieldHighlights();
     setConnectionStatus(translatedDataMode(), dataModeLabel() === "Preview" ? "status-muted" : "");
   } catch (error) {
     setConnectionStatus(t("status.error"), "status-muted");
@@ -445,6 +449,7 @@ function updatePriceForGrade() {
   }
   updateOverrideReasonVisibility();
   updateTotalPrice();
+  updateEmptyFieldHighlights();
 }
 
 function updatePrice() {
@@ -456,8 +461,13 @@ function updateTotalPrice() {
 
   const weight = nullableNumber(els.sackWeightKg.value);
   const price = nullableNumber(els.pricePerKg.value);
-  if (weight === null || price === null) return;
+  if (weight === null || price === null) {
+    els.totalPrice.value = "";
+    updateEmptyFieldHighlights();
+    return;
+  }
   els.totalPrice.value = (weight * price).toFixed(2);
+  updateEmptyFieldHighlights();
 }
 
 function selectedPricingRule() {
@@ -539,10 +549,12 @@ function setDefaultDateTime() {
 function captureGps() {
   if (!navigator.geolocation) {
     els.gpsSummary.value = t("gps.unavailable");
+    updateEmptyFieldHighlights();
     return;
   }
 
   els.gpsSummary.value = t("gps.getting");
+  updateEmptyFieldHighlights();
   navigator.geolocation.getCurrentPosition(
     (position) => {
       state.gps = {
@@ -551,9 +563,11 @@ function captureGps() {
         accuracy: position.coords.accuracy
       };
       els.gpsSummary.value = `${state.gps.latitude.toFixed(5)}, ${state.gps.longitude.toFixed(5)}`;
+      updateEmptyFieldHighlights();
     },
     () => {
       els.gpsSummary.value = t("gps.notCaptured");
+      updateEmptyFieldHighlights();
     },
     {
       enableHighAccuracy: true,
@@ -960,6 +974,7 @@ function clearForm(options = {}) {
   updatePhotoSelectionStatus();
   setFarmerStatus("");
   updatePriceForGrade();
+  updateEmptyFieldHighlights();
   if (!options.keepReceipt) els.collectionReceiptResult.hidden = true;
 }
 
@@ -1178,6 +1193,26 @@ function renderCustomFields() {
   els.customCollectionFields.hidden = state.customFields.length === 0;
   els.customCollectionFields.innerHTML = state.customFields.map(customFieldControl).join("");
   updateCustomCalculations();
+  updateEmptyFieldHighlights();
+}
+
+function updateEmptyFieldHighlights() {
+  if (!els.collectionForm) return;
+  const controls = els.collectionForm.querySelectorAll("input, select, textarea");
+  controls.forEach((control) => {
+    const type = String(control.type || "").toLowerCase();
+    const excluded = ["hidden", "checkbox", "radio", "file", "button", "submit", "reset"].includes(type)
+      || control.closest("[hidden]")
+      || control.closest(".public-form-trap");
+    if (excluded) {
+      control.classList.remove("empty-value-control");
+      return;
+    }
+    const hasValue = control.multiple
+      ? control.selectedOptions.length > 0
+      : String(control.value ?? "").trim().length > 0;
+    control.classList.toggle("empty-value-control", !hasValue);
+  });
 }
 
 function customFieldControl(field) {

@@ -404,6 +404,15 @@ input[readonly] {
   color: var(--text-sec);
 }
 
+.collection-form .empty-value-control {
+  border-color: #e0bd75;
+  background: #fff8e8;
+}
+
+.collection-form .empty-value-control:focus-visible {
+  border-color: var(--accent);
+}
+
 .wide-field {
   grid-column: 1 / -1;
 }
