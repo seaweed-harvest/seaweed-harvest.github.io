@@ -44,6 +44,15 @@ export const APP_CONFIG = {
         gps_longitude: 39.391,
         chair_person: "Sample Chair 2",
         chair_person_contact: "+254700000002"
+      },
+      {
+        id: "preview-community-1223",
+        community_id: "CID1223",
+        community_name: "Trial Farm",
+        gps_latitude: null,
+        gps_longitude: null,
+        chair_person: null,
+        chair_person_contact: null
       }
     ],
     farmers: [
@@ -52,7 +61,7 @@ export const APP_CONFIG = {
         farmer_id: "RID4300",
         name: "Sample Farmer One",
         phone: "+254711000001",
-        community_id: "CID1200",
+        community_id: "CID1223",
         etims_status: "unknown",
         farm_size_value: 24,
         farm_size_unit: "lines",
@@ -63,7 +72,7 @@ export const APP_CONFIG = {
         farmer_id: "RID4301",
         name: "Sample Farmer Two",
         phone: "+254711000002",
-        community_id: "CID1200",
+        community_id: "CID1223",
         etims_status: "no",
         farm_size_value: 36,
         farm_size_unit: "lines",
@@ -74,7 +83,7 @@ export const APP_CONFIG = {
         farmer_id: "RID4302",
         name: "Sample Farmer Three",
         phone: "+254711000003",
-        community_id: "CID1201",
+        community_id: "CID1223",
         etims_status: "yes",
         farm_size_value: 18,
         farm_size_unit: "lines",
