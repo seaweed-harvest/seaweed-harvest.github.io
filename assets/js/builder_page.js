@@ -46,8 +46,7 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   [
     "reloadBuilderSettings", "builderStatus", "builderActiveFieldCount", "builderLedgerFieldCount",
-    "builderTotalFieldCount", "saveGradePrices", "addGrade", "builderGradeRows",
-    "saveSeaweedTypes", "addSeaweedType", "builderSeaweedRows", "builderFieldRows",
+    "builderTotalFieldCount", "builderFieldRows",
     "builderFieldTemplate", "addCustomField", "saveFormFields", "builderCustomFieldRows",
     "builderFormPreview", "builderPreviewStatus"
   ].forEach((id) => { els[id] = document.getElementById(id); });
@@ -59,10 +58,6 @@ async function init() {
 
 function bindEvents() {
   els.reloadBuilderSettings.addEventListener("click", loadSettings);
-  els.saveGradePrices.addEventListener("click", saveGrades);
-  els.addGrade.addEventListener("click", addGrade);
-  els.saveSeaweedTypes.addEventListener("click", saveSeaweedTypes);
-  els.addSeaweedType.addEventListener("click", addSeaweedType);
   els.saveFormFields.addEventListener("click", saveFormFields);
   els.addCustomField.addEventListener("click", addCustomField);
   els.builderCustomFieldRows.addEventListener("input", handleCustomFieldInput);
@@ -70,12 +65,6 @@ function bindEvents() {
   els.builderCustomFieldRows.addEventListener("click", handleCustomFieldClick);
   els.builderFieldRows.addEventListener("input", handleCoreFieldInput);
   els.builderFieldRows.addEventListener("change", handleCoreFieldInput);
-  els.builderGradeRows.addEventListener("input", handleSettingsInput);
-  els.builderGradeRows.addEventListener("change", handleSettingsInput);
-  els.builderGradeRows.addEventListener("click", handleSettingsClick);
-  els.builderSeaweedRows.addEventListener("input", handleSettingsInput);
-  els.builderSeaweedRows.addEventListener("change", handleSettingsInput);
-  els.builderSeaweedRows.addEventListener("click", handleSettingsClick);
 }
 
 async function loadSettings() {
@@ -103,36 +92,6 @@ async function saveSettingsSection(section, rows) {
   state.settings = data;
 }
 
-async function saveGrades() {
-  try {
-    validateTable(els.builderGradeRows);
-    const rows = readGradeRows();
-    ensureUnique(rows, "grade", "grade code");
-    setStatus("Saving grades...");
-    await saveSettingsSection("grade_prices", rows);
-    renderGradeRows();
-    renderPreview();
-    setStatus("Grades saved.");
-  } catch (error) {
-    setStatus(error.message, "error");
-  }
-}
-
-async function saveSeaweedTypes() {
-  try {
-    validateTable(els.builderSeaweedRows);
-    const rows = readSeaweedRows();
-    ensureUnique(rows, "type_key", "seaweed type key");
-    setStatus("Saving seaweed types...");
-    await saveSettingsSection("seaweed_types", rows);
-    renderSeaweedRows();
-    renderPreview();
-    setStatus("Seaweed types saved.");
-  } catch (error) {
-    setStatus(error.message, "error");
-  }
-}
-
 async function saveFormFields() {
   try {
     validateTable(els.builderFieldRows);
@@ -158,8 +117,6 @@ async function saveFormFields() {
 function renderAll() {
   renderFieldRows();
   renderCustomFields();
-  renderGradeRows();
-  renderSeaweedRows();
   renderPreview();
   renderSummary();
 }
@@ -183,85 +140,6 @@ function coreFieldRow(row) {
     <td><input data-key="required" type="checkbox" ${row.required || protectedField ? "checked" : ""} ${protectedField ? "disabled" : ""} aria-label="Require ${attr(row.label)}"></td>
     <td><input data-key="default_value" type="text" value="${attr(row.default_value || "")}" aria-label="Default for ${attr(row.label)}"></td>
   </tr>`;
-}
-
-function renderGradeRows() {
-  els.builderGradeRows.innerHTML = (state.settings.grade_prices || [])
-    .slice()
-    .sort((a, b) => Number(a.display_order) - Number(b.display_order) || String(a.grade).localeCompare(String(b.grade)))
-    .map(gradeRow)
-    .join("");
-}
-
-function gradeRow(row) {
-  return `<tr data-grade-row>
-    <td><input data-key="display_order" class="builder-order-input" type="number" min="0" step="1" value="${attr(row.display_order ?? 100)}" aria-label="Grade order"></td>
-    <td><input data-key="grade" class="builder-code-input" type="text" required maxlength="10" pattern="[A-Za-z][A-Za-z0-9_\\-]{0,9}" value="${attr(row.grade || "")}" aria-label="Grade code"></td>
-    <td><input data-key="label" type="text" required value="${attr(row.label || `Grade ${row.grade || ""}`)}" aria-label="Grade name"></td>
-    <td><input data-key="price_per_kg" type="number" min="0" step="0.01" required value="${attr(row.price_per_kg ?? 0)}" aria-label="Price per kilogram"></td>
-    <td><input data-key="rejected" type="checkbox" ${row.rejected ? "checked" : ""} aria-label="Rejected grade"></td>
-    <td><input data-key="active" type="checkbox" ${row.active !== false ? "checked" : ""} aria-label="Active grade"></td>
-    <td><input data-key="effective_from" type="date" required value="${attr(row.effective_from || todayValue())}" aria-label="Effective from"></td>
-    <td><button type="button" class="builder-remove-field" data-remove-grade>Remove</button></td>
-  </tr>`;
-}
-
-function renderSeaweedRows() {
-  els.builderSeaweedRows.innerHTML = (state.settings.seaweed_types || [])
-    .slice()
-    .sort((a, b) => Number(a.display_order) - Number(b.display_order) || String(a.type_key).localeCompare(String(b.type_key)))
-    .map(seaweedRow)
-    .join("");
-}
-
-function seaweedRow(row) {
-  return `<tr data-seaweed-row data-auto-key="false">
-    <td><input data-key="display_order" class="builder-order-input" type="number" min="0" step="1" value="${attr(row.display_order ?? 100)}" aria-label="Seaweed type order"></td>
-    <td><input data-key="type_key" class="builder-key-input" type="text" required maxlength="40" pattern="[a-z][a-z0-9_]{1,39}" value="${attr(row.type_key || "")}" aria-label="Seaweed type key"></td>
-    <td><input data-key="label" type="text" required value="${attr(row.label || "")}" aria-label="Seaweed type name"></td>
-    <td><input data-key="common_name" type="text" value="${attr(row.common_name || "")}" aria-label="Common name"></td>
-    <td><input data-key="active" type="checkbox" ${row.active !== false ? "checked" : ""} aria-label="Active seaweed type"></td>
-    <td><input data-key="is_default" name="defaultSeaweedType" type="radio" ${row.is_default ? "checked" : ""} aria-label="Default seaweed type"></td>
-    <td><button type="button" class="builder-remove-field" data-remove-seaweed>Remove</button></td>
-  </tr>`;
-}
-
-function addGrade() {
-  const rows = readGradeRows();
-  const used = new Set(rows.map((row) => row.grade));
-  const code = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").find((item) => !used.has(item)) || uniqueKey("GRADE", used).toUpperCase();
-  rows.push({
-    grade: code,
-    label: `Grade ${code}`,
-    price_per_kg: 0,
-    rejected: false,
-    active: true,
-    effective_from: todayValue(),
-    display_order: nextOrder(rows)
-  });
-  state.settings.grade_prices = rows;
-  renderGradeRows();
-  focusLast(els.builderGradeRows, "label");
-  setStatus("Grade added. Save grades to publish it.");
-}
-
-function addSeaweedType() {
-  const rows = readSeaweedRows();
-  const keys = new Set(rows.map((row) => row.type_key));
-  rows.push({
-    type_key: uniqueKey("new_type", keys),
-    label: "New type",
-    common_name: "",
-    active: true,
-    is_default: rows.length === 0,
-    display_order: nextOrder(rows)
-  });
-  state.settings.seaweed_types = rows;
-  renderSeaweedRows();
-  const added = [...els.builderSeaweedRows.querySelectorAll("tr")].at(-1);
-  if (added) added.dataset.autoKey = "true";
-  added?.querySelector('[data-key="label"]')?.focus();
-  setStatus("Seaweed type added. Save types to publish it.");
 }
 
 function addCustomField() {
@@ -291,43 +169,6 @@ function handleCoreFieldInput(event) {
   state.settings.collection_fields = readFieldRows();
   renderPreview();
   renderSummary();
-}
-
-function handleSettingsInput(event) {
-  const row = event.target.closest("tr");
-  if (!row) return;
-  if (event.target.dataset.key === "grade") event.target.value = event.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 10);
-  if (event.target.dataset.key === "type_key") {
-    event.target.value = event.target.value
-      .toLowerCase()
-      .replace(/[^a-z0-9_]/g, "")
-      .replace(/^[^a-z]+/, "")
-      .slice(0, 40);
-    row.dataset.autoKey = "false";
-  }
-  if (event.target.dataset.key === "label" && row.matches("[data-seaweed-row]") && row.dataset.autoKey === "true") {
-    const currentKey = value(row, "type_key");
-    const keys = new Set(readSeaweedRows().filter((item) => item.type_key !== currentKey).map((item) => item.type_key));
-    input(row, "type_key").value = uniqueKey(slugKey(event.target.value), keys);
-  }
-  if (event.target.dataset.key === "is_default" && event.target.checked) input(row, "active").checked = true;
-  if (event.target.dataset.key === "active" && !event.target.checked && checked(row, "is_default")) input(row, "is_default").checked = false;
-  renderPreview();
-}
-
-function handleSettingsClick(event) {
-  const gradeRemove = event.target.closest("[data-remove-grade]");
-  const typeRemove = event.target.closest("[data-remove-seaweed]");
-  if (!gradeRemove && !typeRemove) return;
-  const row = event.target.closest("tr");
-  const wasDefault = typeRemove && checked(row, "is_default");
-  row.remove();
-  if (wasDefault) {
-    const next = [...els.builderSeaweedRows.querySelectorAll("tr")].find((item) => checked(item, "active"));
-    if (next) input(next, "is_default").checked = true;
-  }
-  renderPreview();
-  setStatus(`${gradeRemove ? "Grade" : "Seaweed type"} removed. Save to publish the change.`);
 }
 
 function handleCustomFieldInput(event) {
@@ -415,7 +256,9 @@ function previewCoreField(row) {
   const title = `${html(row.label || humanizeKey(row.field_key))}${row.required ? " *" : ""}`;
   if (row.field_type === "long_text") return `<label>${title}<textarea rows="2" disabled></textarea></label>`;
   if (row.field_type === "single_select") {
-    const rows = row.field_key === "seaweed_grade" ? readGradeRows().filter((item) => item.active) : readSeaweedRows().filter((item) => item.active);
+    const rows = row.field_key === "seaweed_grade"
+      ? (state.settings.grade_prices || []).filter((item) => item.active)
+      : (state.settings.seaweed_types || []).filter((item) => item.active);
     const options = rows.map((item) => `<option>${html(item.label || item.grade || item.type_key)}</option>`).join("");
     return `<label>${title}<select disabled><option>Select</option>${options}</select></label>`;
   }
@@ -465,29 +308,6 @@ function readCustomRow(row) {
     active: checked(row, "active"),
     display_order: numberValue(row, "display_order")
   };
-}
-
-function readGradeRows() {
-  return [...els.builderGradeRows.querySelectorAll("tr[data-grade-row]")].map((row) => ({
-    grade: value(row, "grade").trim().toUpperCase(),
-    label: value(row, "label").trim(),
-    price_per_kg: numberValue(row, "price_per_kg"),
-    rejected: checked(row, "rejected"),
-    active: checked(row, "active"),
-    effective_from: value(row, "effective_from"),
-    display_order: numberValue(row, "display_order")
-  }));
-}
-
-function readSeaweedRows() {
-  return [...els.builderSeaweedRows.querySelectorAll("tr[data-seaweed-row]")].map((row) => ({
-    type_key: value(row, "type_key").trim().toLowerCase(),
-    label: value(row, "label").trim(),
-    common_name: value(row, "common_name").trim(),
-    active: checked(row, "active"),
-    is_default: checked(row, "is_default"),
-    display_order: numberValue(row, "display_order")
-  }));
 }
 
 function readFieldRows() {

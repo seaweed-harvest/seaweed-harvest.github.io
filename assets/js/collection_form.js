@@ -28,6 +28,7 @@ const state = {
   pricingRules: [],
   pricePerKg: { ...APP_CONFIG.pricePerKg },
   seaweedTypes: [],
+  productForms: [],
   customFields: [],
   defaultSeaweedType: "spinosum",
   session: null,
@@ -299,7 +300,7 @@ function bindEvents() {
 async function loadFormData() {
   setConnectionStatus(t("status.loading"), "status-muted");
   try {
-    const [communities, farmers, formSettings, gradePrices, seaweedTypes, customFields, pricingRules] = await Promise.all([
+    const [communities, farmers, formSettings, gradePrices, seaweedTypes, productForms, customFields, pricingRules] = await Promise.all([
       state.publicMode
         ? callPublicRpc("ag_public_mawimbi_communities")
         : selectRows(APP_CONFIG.tables.communities, "select=*&order=community_id.asc"),
@@ -309,6 +310,7 @@ async function loadFormData() {
       selectRows("ag_public_collection_form_settings", "select=*&order=display_order.asc"),
       selectRows("ag_public_grade_price_settings", "select=*&order=display_order.asc"),
       selectRows("ag_public_seaweed_type_settings", "select=*&order=display_order.asc"),
+      selectRows("ag_public_product_form_settings", "select=*&order=display_order.asc"),
       selectRows("ag_public_collection_custom_fields", "select=*&order=display_order.asc"),
       state.publicMode
         ? callPublicRpc("ag_public_mawimbi_pricing", { p_collection_date: collectionDateValue() })
@@ -319,6 +321,7 @@ async function loadFormData() {
     state.formSettings = formSettings;
     state.gradePrices = gradePrices;
     state.seaweedTypes = seaweedTypes;
+    state.productForms = productForms;
     state.customFields = customFields;
     state.pricingRules = pricingRules;
     state.pricePerKg = {};
@@ -1157,6 +1160,7 @@ function nextFarmerId() {
 function applyRuntimeSettings(gradePrices) {
   const selectedType = els.seaweedType.value || state.defaultSeaweedType;
   const selectedGrade = els.seaweedGrade.value;
+  const selectedForm = els.productForm.value || "wet";
   setFixedFormOrder();
   if (state.seaweedTypes.length) {
     els.seaweedType.innerHTML = state.seaweedTypes.map((row) => {
@@ -1180,6 +1184,15 @@ function applyRuntimeSettings(gradePrices) {
   els.seaweedGrade.value = [...els.seaweedGrade.options].some((option) => option.value === selectedGrade)
     ? selectedGrade
     : "";
+
+  if (state.productForms.length) {
+    els.productForm.innerHTML = state.productForms.map((row) => (
+      `<option value="${escapeAttribute(row.form_key)}">${escapeHtml(row.label || row.form_key)}</option>`
+    )).join("");
+    els.productForm.value = [...els.productForm.options].some((option) => option.value === selectedForm)
+      ? selectedForm
+      : state.productForms.find((row) => row.form_key === "wet")?.form_key || state.productForms[0].form_key;
+  }
 
   const controls = {
     farmer_id: els.farmerId,

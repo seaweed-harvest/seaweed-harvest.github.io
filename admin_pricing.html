@@ -8,24 +8,28 @@
     <section class="admin-content admin-page-section">
       <section class="panel">
         <div class="section-head compact"><h2>Pricing Matrix</h2><button id="addPricingRule" type="button">Add price</button></div>
-        <div class="admin-toolbar pricing-filter-bar"><label>Seaweed type<select id="pricingTypeFilter"><option value="">All types</option></select></label><label>Grade<select id="pricingGradeFilter"><option value="">All grades</option></select></label><label>Product form<select id="pricingFormFilter"><option value="">All forms</option><option value="wet">Wet</option><option value="dried">Dried</option><option value="milled">Milled</option></select></label><label>Status<select id="pricingStatusFilter"><option value="active">Active</option><option value="all">All</option><option value="inactive">Inactive</option></select></label></div>
-        <div class="responsive-table-wrap compact-data-table-wrap"><table class="management-table admin-data-table pricing-table"><thead><tr><th>Type</th><th>Grade</th><th>Form</th><th>Price/kg</th><th>Currency</th><th>From</th><th>To</th><th>Status</th><th>Last changed</th><th></th></tr></thead><tbody id="pricingRows"></tbody></table></div>
+        <div class="admin-toolbar pricing-filter-bar"><label>Seaweed type<select id="pricingTypeFilter"><option value="">All types</option></select></label><label>Grade<select id="pricingGradeFilter"><option value="">All grades</option></select></label><label>Product form<select id="pricingFormFilter"><option value="">All forms</option></select></label><label>Status<select id="pricingStatusFilter"><option value="active">Active</option><option value="all">All</option><option value="inactive">Inactive</option></select></label></div>
+        <div class="responsive-table-wrap compact-data-table-wrap"><table class="management-table admin-data-table pricing-table"><thead><tr><th>Type</th><th>Grade</th><th>Form</th><th>Price/kg</th><th>Currency</th><th>Rejected</th><th>From</th><th>To</th><th>Status</th><th>Last changed</th><th></th></tr></thead><tbody id="pricingRows"></tbody></table></div>
         <p id="pricingStatus" class="admin-status" aria-live="polite"></p>
       </section>
       <section id="pricingEditor" class="panel" hidden>
-        <div class="section-head compact"><h2>Price Rule</h2><button id="closePricingEditor" type="button">Close</button></div>
+        <div class="section-head compact"><h2 id="pricingEditorTitle">Add Price</h2><button id="closePricingEditor" type="button">Close</button></div>
         <form id="pricingRuleForm" class="tenant-form-grid">
           <input id="pricingRuleId" type="hidden">
-          <label>Seaweed type<select id="pricingType" required></select></label>
-          <label>Grade<select id="pricingGrade" required></select></label>
-          <label>Product form<select id="pricingProductForm"><option value="wet">Wet</option><option value="dried">Dried</option><option value="milled">Milled</option></select></label>
+          <label>Seaweed type<input id="pricingType" type="text" list="pricingTypeOptions" maxlength="80" autocomplete="off" required></label>
+          <datalist id="pricingTypeOptions"></datalist>
+          <label>Grade<input id="pricingGrade" type="text" list="pricingGradeOptions" maxlength="40" autocomplete="off" required></label>
+          <datalist id="pricingGradeOptions"></datalist>
+          <label>Product form<input id="pricingProductForm" type="text" list="pricingProductFormOptions" maxlength="80" autocomplete="off" required></label>
+          <datalist id="pricingProductFormOptions"></datalist>
           <label>Price / kg<input id="pricingPrice" type="number" min="0" step="0.01" required></label>
           <label>Currency<input id="pricingCurrency" type="text" value="KES" maxlength="3" required></label>
+          <label class="check-row"><input id="pricingRejected" type="checkbox"> Rejected grade</label>
           <label>Effective from<input id="pricingEffectiveFrom" type="date" required></label>
           <label>Effective to<input id="pricingEffectiveTo" type="date"></label>
           <label class="check-row"><input id="pricingActive" type="checkbox" checked> Active</label>
           <label class="wide-field">Notes<input id="pricingNotes" type="text" maxlength="300"></label>
-          <div class="button-row wide-field"><button type="submit">Save price</button><button id="deactivatePricingRule" type="button" class="danger-button" hidden>Deactivate</button><span id="pricingSaveStatus" class="admin-status"></span></div>
+          <div class="button-row wide-field pricing-editor-actions"><button type="submit">Save price</button><button id="deactivatePricingRule" type="button" class="danger-button" hidden>Deactivate</button><span id="pricingSaveStatus" class="admin-status"></span></div>
         </form>
       </section>
     </section>
