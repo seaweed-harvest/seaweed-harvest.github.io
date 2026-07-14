@@ -25,7 +25,7 @@ async function init() {
   if (!access) return;
   state.profile = access.profile || await currentProfile(true);
   state.canManage = state.profile.app_role === "system_admin"
-    || (state.profile.can_view_finance
+    || (state.profile.can_manage_pricing
       && ["aggregator_admin", "finance", "platform_admin"].includes(state.profile.active_membership_role));
   els.addPricingRule.hidden = !state.canManage;
   bindEvents();

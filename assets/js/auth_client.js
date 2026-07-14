@@ -360,6 +360,8 @@ export function routeForProfile(profile) {
   if (profile?.can_view_finance) return "./admin_finance.html";
   if (profile?.can_manage_users) return "./admin_users.html";
   if (profile?.can_manage_settings) return "./admin_builder.html";
+  if (profile?.can_view_notifications) return "./admin_notifications.html";
+  if (profile?.can_manage_sms_settings) return "./admin_seaweedke.html";
   if (profile?.can_submit_collection) return "./index.html";
   return "./access_pending.html";
 }

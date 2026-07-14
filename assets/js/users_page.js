@@ -3,22 +3,33 @@ import { authClient, currentProfile, invokeAdminUsers, requireAdminAccess } from
 import { selectRows } from "./supabase_client.js";
 
 const permissionDefinitions = [
-  ["can_access_admin", "Admin pages"],
-  ["can_submit_collection", "Submit collections"],
-  ["can_view_dashboard", "Dashboard"],
-  ["can_view_registry", "View registry"],
-  ["can_edit_registry", "Edit registry"],
-  ["can_view_map", "Map"],
-  ["can_view_data", "Data pages"],
-  ["can_edit_collections", "Edit collections"],
-  ["can_view_finance", "Finance review"],
-  ["can_export_data", "Export data"],
-  ["can_manage_settings", "Builder settings"],
-  ["can_manage_users", "Invite and edit users"],
-  ["can_manage_admin_users", "Add or edit admin users"],
-  ["can_view_user_activity", "Recent Activity"],
-  ["can_view_notifications", "View notifications"],
-  ["can_manage_notifications", "Manage notifications"]
+  ["can_access_admin", "Admin pages", "Open the administration area."],
+  ["can_submit_collection", "Submit collections", "Record new seaweed collections."],
+  ["can_view_dashboard", "Dashboard", "View summary totals and operational metrics."],
+  ["can_view_registry", "View farmer registry", "Includes farmer names, phone numbers, addresses and dates of birth when recorded."],
+  ["can_edit_registry", "Edit farmer registry", "Change or remove farmer and community records."],
+  ["can_view_map", "Community map", "View community names and mapped coordinates."],
+  ["can_view_data", "View collection data", "Includes collection history, collector details, locations and photo references."],
+  ["can_edit_collections", "Edit collections", "Correct previously recorded collection data."],
+  ["can_view_finance", "View financial data", "View prices, receipts and financial summaries."],
+  ["can_manage_pricing", "Manage pricing", "Add, change or deactivate prices used for collection values and receipts."],
+  ["can_export_data", "Export data", "Download data from the system for use outside it."],
+  ["can_manage_settings", "Form builder settings", "Change collection fields, grades and seaweed types."],
+  ["can_manage_users", "Invite and edit users", "View user emails and manage non-admin accounts."],
+  ["can_manage_admin_users", "Add or edit admin users", "Grant or change administrator access, except the protected owner."],
+  ["can_view_user_activity", "View recent activity", "View login and administrator action history. The page shows the newest 20 events."],
+  ["can_view_notifications", "View notification content", "Includes recipient names, masked phone numbers, message text and delivery history."],
+  ["can_manage_notifications", "Manage notification delivery", "Retry or cancel messages and perform notification operations that may incur costs."],
+  ["can_manage_sms_settings", "Configure SMS settings", "Change SMS provider mode, cost limits, retries and balance settings."]
+];
+
+const permissionDependencies = [
+  ["can_edit_registry", "can_view_registry"],
+  ["can_edit_collections", "can_view_data"],
+  ["can_manage_pricing", "can_view_finance"],
+  ["can_manage_admin_users", "can_manage_users"],
+  ["can_view_user_activity", "can_manage_users"],
+  ["can_manage_notifications", "can_view_notifications"]
 ];
 
 const roleLabels = {
@@ -87,7 +98,7 @@ async function loadPageData() {
   setStatus(els.inviteStatus, "Loading...");
   try {
     const activityRequest = canViewUserActivity()
-      ? authClient.rpc("ag_admin_activity_log", { p_limit: 100 })
+      ? authClient.rpc("ag_admin_activity_log", { p_limit: 20 })
       : Promise.resolve({ data: [], error: null });
     const [usersResponse, registrationsResponse, activityResponse, aggregatorResponse, communities] = await Promise.all([
       authClient.rpc("ag_admin_user_directory"),
@@ -306,9 +317,10 @@ async function handleRegistrationClick(event) {
 }
 
 function buildPermissionInputs(container, prefix) {
-  container.innerHTML = permissionDefinitions.map(([key, label]) => `
-    <label class="permission-option"><input type="checkbox" id="${prefix}-${key}" data-permission-key="${key}"> ${escapeHtml(label)}</label>
+  container.innerHTML = permissionDefinitions.map(([key, label, description]) => `
+    <label class="permission-option" title="${escapeHtml(description)}"><input type="checkbox" id="${prefix}-${key}" data-permission-key="${key}"> ${escapeHtml(label)}</label>
   `).join("");
+  container.addEventListener("change", (event) => enforcePermissionDependencies(prefix, event.target.dataset.permissionKey));
 }
 
 function buildEditRoleOptions() {
@@ -382,9 +394,9 @@ function configureFarmerRoleFields(prefix) {
 
 function rolePreset(role) {
   const values = Object.fromEntries(permissionDefinitions.map(([key]) => [key, false]));
-  if (role === "company_admin") Object.assign(values, { can_access_admin: true, can_submit_collection: true, can_view_dashboard: true, can_view_registry: true, can_edit_registry: true, can_view_map: true, can_view_data: true, can_edit_collections: true, can_view_finance: true, can_export_data: true, can_manage_settings: true, can_manage_users: true, can_view_notifications: true, can_manage_notifications: true });
+  if (role === "company_admin") Object.assign(values, { can_access_admin: true, can_submit_collection: true, can_view_dashboard: true, can_view_registry: true, can_edit_registry: true, can_view_map: true, can_view_data: true, can_edit_collections: true, can_view_finance: true, can_manage_pricing: true, can_export_data: true, can_manage_settings: true, can_manage_users: true, can_view_notifications: true, can_manage_notifications: true });
   if (role === "registry_admin") Object.assign(values, { can_access_admin: true, can_submit_collection: true, can_view_dashboard: true, can_view_registry: true, can_edit_registry: true, can_view_map: true, can_view_data: true });
-  if (role === "finance_admin") Object.assign(values, { can_access_admin: true, can_view_dashboard: true, can_view_map: true, can_view_data: true, can_view_finance: true, can_export_data: true, can_view_notifications: true });
+  if (role === "finance_admin") Object.assign(values, { can_access_admin: true, can_view_dashboard: true, can_view_map: true, can_view_data: true, can_view_finance: true, can_manage_pricing: true, can_export_data: true, can_view_notifications: true });
   if (role === "field_collector") values.can_submit_collection = true;
   if (role === "read_only_auditor") Object.assign(values, { can_access_admin: true, can_view_dashboard: true, can_view_registry: true, can_view_map: true, can_view_data: true, can_view_finance: true, can_view_notifications: true });
   return values;
@@ -408,6 +420,20 @@ function actorCanChangePermission(key) {
   return state.actor?.is_protected_owner
     || state.actor?.app_role === "system_admin"
     || Boolean(state.actor?.[key]);
+}
+
+function enforcePermissionDependencies(prefix, changedKey) {
+  permissionDependencies.forEach(([writeKey, readKey]) => {
+    const writeInput = document.getElementById(`${prefix}-${writeKey}`);
+    const readInput = document.getElementById(`${prefix}-${readKey}`);
+    if (!writeInput || !readInput) return;
+
+    if (changedKey === writeKey && writeInput.checked) {
+      if (readInput.disabled && !readInput.checked) writeInput.checked = false;
+      else readInput.checked = true;
+    }
+    if (changedKey === readKey && !readInput.checked) writeInput.checked = false;
+  });
 }
 
 function readPermissions(prefix) {

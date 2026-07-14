@@ -344,7 +344,7 @@ function addAdminSidebarLinks(sidebar) {
   }
   const pricing = sidebar.querySelector('a[href="./admin_pricing.html"]') || settings;
   if (pricing && !sidebar.querySelector('a[href="./admin_seaweedke.html"]')) {
-    pricing.insertAdjacentHTML("afterend", '<a href="./admin_seaweedke.html" data-permission="can_manage_notifications">SEAWEEDKE</a>');
+    pricing.insertAdjacentHTML("afterend", '<a href="./admin_seaweedke.html" data-permission="can_manage_sms_settings">SMS Settings</a>');
   }
 
   const currentFile = window.location.pathname.split("/").pop() || "admin.html";
@@ -389,7 +389,7 @@ function requiredPermissionForPage() {
     "admin_ledger.html": "can_view_data",
     "admin_receipts.html": "can_view_data",
     "admin_notifications.html": "can_view_notifications",
-    "admin_seaweedke.html": "can_manage_notifications",
+    "admin_seaweedke.html": "can_manage_sms_settings",
     "admin_pricing.html": "can_view_finance",
     "admin_aggregators.html": "can_access_admin",
     "admin_finance.html": "can_view_finance",

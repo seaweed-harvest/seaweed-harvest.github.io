@@ -17,7 +17,7 @@ async function init() {
     "smsClientEvents", "smsClientNotes", "rotateSmsClientToken", "smsClientTokenField",
     "smsClientToken", "smsClientStatus"
   ].forEach((id) => { els[id] = document.getElementById(id); });
-  const access = await requireAdminAccess("can_manage_notifications");
+  const access = await requireAdminAccess("can_manage_sms_settings");
   if (!access) return;
   state.profile = access.profile || await currentProfile(true);
   bindEvents();
@@ -66,14 +66,22 @@ function renderConfiguration() {
   els.smsManualBalance.value = config.manual_balance_kes ?? "";
   els.smsLowBalance.value = config.low_balance_threshold_kes ?? "";
   els.smsBalanceNote.value = config.balance_check_note ?? "";
-  const canSave = state.profile.app_role === "system_admin" || state.profile.can_manage_settings;
+  const canSave = state.profile.app_role === "system_admin" || state.profile.can_manage_sms_settings;
+  const canTest = canManageNotifications();
   els.saveSmsSettings.hidden = !canSave;
   document.querySelectorAll(".seaweedke-settings-grid input, .seaweedke-settings-grid select").forEach((control) => { control.disabled = !canSave; });
+  [...els.smsTestForm.elements].forEach((control) => { control.disabled = !canTest; });
+  if (!canTest) setText(els.smsTestStatus, "Notification delivery permission is required to send a test.");
   const issues = environment.production_issues || [];
   setText(els.smsReadinessStatus, issues.length ? issues.join(" | ") : "Production checks complete.", issues.length ? "" : "ready");
 }
 
 async function previewMessage() {
+  if (!canManageNotifications()) {
+    els.smsTestEstimate.textContent = "Test unavailable";
+    setText(els.smsTestStatus, "Notification delivery permission is required to send a test.");
+    return;
+  }
   const message = els.smsTestMessage.value.trim();
   if (!message || !state.config) { els.smsTestEstimate.textContent = "0 segments"; return; }
   const { data, error } = await authClient.rpc("seaweedke_estimate_sms", {
@@ -84,6 +92,10 @@ async function previewMessage() {
   if (error) { setText(els.smsTestStatus, error.message, "error"); return; }
   els.smsTestEstimate.textContent = `${data.segments} segment${Number(data.segments) === 1 ? "" : "s"} / KES ${money(data.estimated_cost_kes)}`;
   setText(els.smsTestStatus, data.over_limit ? "Message exceeds the configured segment limit." : `${title(data.encoding)} / ${data.units} units`, data.over_limit ? "error" : "");
+}
+
+function canManageNotifications() {
+  return state.profile?.app_role === "system_admin" || Boolean(state.profile?.can_manage_notifications);
 }
 
 async function runTest(event) {
