@@ -1,4 +1,5 @@
 import { APP_CONFIG } from "./config.js";
+import { hasMapCoordinates as hasGps, mapCoordinates } from "./map_coordinates.js";
 import { dataModeLabel, selectRows } from "./supabase_client.js";
 import { currentAccessToken, requireAdminAccess, setupAccountControls } from "./auth_client.js";
 
@@ -1184,7 +1185,7 @@ function renderLeafletMap(mapped, latestHarvestMs) {
   mapped.forEach((community) => {
     const status = harvestRecencyClass(community, latestHarvestMs);
     const marker = window.L.marker(
-      [Number(community.gps_latitude), Number(community.gps_longitude)],
+      mapCoordinates(community),
       { icon: markerIcon(status) }
     )
       .addTo(state.map)
@@ -1222,10 +1223,10 @@ function renderCommunityPopup(community, status) {
 function fitMapToCommunities(rows) {
   if (!state.map || !rows.length) return;
   if (rows.length === 1) {
-    state.map.setView([Number(rows[0].gps_latitude), Number(rows[0].gps_longitude)], 13);
+    state.map.setView(mapCoordinates(rows[0]), 13);
     return;
   }
-  state.map.fitBounds(rows.map((row) => [Number(row.gps_latitude), Number(row.gps_longitude)]), {
+  state.map.fitBounds(rows.map(mapCoordinates), {
     padding: [42, 42],
     maxZoom: 13
   });
@@ -1852,10 +1853,6 @@ function statusLabel(status) {
   if (status === "month-harvest") return "Harvested in last 30 days";
   if (status === "older-harvest") return "Harvested more than 30 days ago";
   return "Never harvested";
-}
-
-function hasGps(row) {
-  return Number.isFinite(Number(row.gps_latitude)) && Number.isFinite(Number(row.gps_longitude));
 }
 
 function setMetric(id, value) {
