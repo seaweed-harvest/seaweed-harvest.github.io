@@ -36,6 +36,7 @@ const state = {
   publicMode: true,
   canOverridePrice: false,
   submissionId: crypto.randomUUID(),
+  pendingPublicPhotoPaths: [],
   selectedFarmer: null,
   gps: null,
   qrScanner: {
@@ -166,9 +167,8 @@ function applyCollectionAccessMode() {
   els.assignFarmerId.hidden = true;
   if (!state.publicMode) return;
 
-  els.collectionPhotosField.hidden = true;
-  els.collectionPhotos.disabled = true;
-  els.collectionPhotos.value = "";
+  els.collectionPhotosField.hidden = false;
+  els.collectionPhotos.disabled = false;
   const gradeField = els.seaweedGrade.closest("label");
   if (gradeField) gradeField.hidden = false;
   els.seaweedGrade.disabled = false;
@@ -287,7 +287,10 @@ function bindEvents() {
   els.collectionForm.addEventListener("change", updateCustomCalculations);
   els.collectionForm.addEventListener("input", updateEmptyFieldHighlights);
   els.collectionForm.addEventListener("change", updateEmptyFieldHighlights);
-  els.collectionPhotos.addEventListener("change", updatePhotoSelectionStatus);
+  els.collectionPhotos.addEventListener("change", () => {
+    state.pendingPublicPhotoPaths = [];
+    updatePhotoSelectionStatus();
+  });
   els.stopQrScanner.addEventListener("click", stopQrScanner);
   els.dismissSavedReceipt.addEventListener("click", () => { els.collectionReceiptResult.hidden = true; });
   document.addEventListener("seaweed-collection-language-change", refreshTranslatedContent);
@@ -765,28 +768,56 @@ async function uploadSelectedCollectionPhotos() {
     throw new Error(t("photos.invalid"));
   }
 
+  if (state.publicMode && state.pendingPublicPhotoPaths.length === files.length) {
+    return { paths: [...state.pendingPublicPhotoPaths] };
+  }
+
   ensureTransactionId();
   const now = new Date();
   const year = String(now.getFullYear());
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const transactionFolder = String(els.transactionId.value || "collection")
     .replace(/[^a-zA-Z0-9_-]/g, "-");
-  const paths = [];
+  const paths = state.publicMode ? [...state.pendingPublicPhotoPaths] : [];
 
-  for (let index = 0; index < files.length; index += 1) {
+  for (let index = paths.length; index < files.length; index += 1) {
     const progress = { current: index + 1, total: files.length };
     els.collectionPhotoStatus.textContent = t("photos.processing", progress);
     const photo = await compressCollectionPhoto(files[index]);
     if (photo.size > PHOTO_MAX_BYTES) throw new Error(t("photos.compressFailed"));
 
-    const objectId = crypto.randomUUID?.() || `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 10)}`;
-    const objectPath = `collections/${year}/${month}/${transactionFolder}/${objectId}.jpg`;
     els.collectionPhotoStatus.textContent = t("photos.uploading", progress);
-    await uploadStorageObject(PHOTO_BUCKET, objectPath, photo);
+    let objectPath;
+    if (state.publicMode) {
+      objectPath = await uploadPublicCollectionPhoto(photo);
+      state.pendingPublicPhotoPaths.push(objectPath);
+    } else {
+      const objectId = crypto.randomUUID?.() || `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 10)}`;
+      objectPath = `collections/${year}/${month}/${transactionFolder}/${objectId}.jpg`;
+      await uploadStorageObject(PHOTO_BUCKET, objectPath, photo);
+    }
     paths.push(objectPath);
   }
 
   return { paths };
+}
+
+async function uploadPublicCollectionPhoto(photo) {
+  const query = new URLSearchParams({ submission_id: state.submissionId });
+  const response = await fetch(`${APP_CONFIG.supabase.url}/functions/v1/public-collection-photo?${query}`, {
+    method: "POST",
+    headers: {
+      apikey: APP_CONFIG.supabase.anonKey,
+      Authorization: `Bearer ${APP_CONFIG.supabase.anonKey}`,
+      "Content-Type": "image/jpeg"
+    },
+    body: photo
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || !body.path) {
+    throw new Error(body.error || `Photo could not be uploaded (${response.status}).`);
+  }
+  return body.path;
 }
 
 export async function compressCollectionPhoto(file) {
@@ -876,7 +907,7 @@ async function submitCollection(event) {
   try {
     rememberCollectorName();
     setStatus(t("status.saving"));
-    const photoUpload = state.publicMode ? { paths: [] } : await uploadSelectedCollectionPhotos();
+    const photoUpload = await uploadSelectedCollectionPhotos();
     const payload = buildPayload(photoUpload.paths);
     const farmSizeUpdate = pendingFarmSizeUpdate();
     if (state.publicMode && farmSizeUpdate) {
@@ -967,6 +998,7 @@ function clearForm(options = {}) {
   els.seaweedType.value = state.defaultSeaweedType;
   els.productForm.value = "wet";
   state.submissionId = crypto.randomUUID();
+  state.pendingPublicPhotoPaths = [];
   ensureTransactionId();
   syncCommunityName();
   updateQuickReference();
