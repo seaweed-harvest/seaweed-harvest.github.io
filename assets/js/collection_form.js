@@ -162,7 +162,7 @@ function rememberCollectorName() {
 }
 
 function applyCollectionAccessMode() {
-  els.assignFarmerId.hidden = state.publicMode;
+  els.assignFarmerId.hidden = true;
   if (!state.publicMode) return;
 
   els.collectionPhotosField.hidden = true;
@@ -904,8 +904,6 @@ async function submitCollection(event) {
 }
 
 function buildPayload(photoPaths = []) {
-  const farmerId = nullableText(normalizedFarmerId());
-  const sackId = nullableText(normalizedSackId());
   const community = selectedCommunity();
   const weight = requiredNumber(els.sackWeightKg.value, t("harvest.weight"));
   const seaweedType = nullableText(els.seaweedType.value) || state.defaultSeaweedType;
@@ -916,13 +914,13 @@ function buildPayload(photoPaths = []) {
   return {
     collector_name: requiredText(els.collectorName.value, t("collector.name")),
     transaction_id: requiredText(els.transactionId.value, t("harvest.transactionId")),
-    farmer_id: farmerId,
-    farmer_record_id: state.selectedFarmer?.id || null,
+    farmer_id: null,
+    farmer_record_id: null,
     farmer_name_snapshot: farmerNameSnapshot,
     community_id: nullableText(els.communityId.value),
     community_record_id: community?.id || null,
     community_name_snapshot: community?.community_name || null,
-    sack_id: sackId,
+    sack_id: null,
     collected_at: collectedAt.toISOString(),
     gps_latitude: state.gps?.latitude ?? null,
     gps_longitude: state.gps?.longitude ?? null,
@@ -1165,10 +1163,9 @@ function applyRuntimeSettings(gradePrices) {
     if (setting.default_value && !control.value) control.value = setting.default_value;
   });
 
-  const farmerVisible = state.formSettings.find((row) => row.field_key === "farmer_id")?.visible !== false;
-  els.farmerLinkStatus.closest(".field-status-block").hidden = !farmerVisible;
-  document.querySelector(".quick-farmer-reference").hidden = !farmerVisible;
-  els.farmerDetails.hidden = !farmerVisible;
+  els.farmerLinkStatus.closest(".field-status-block").hidden = true;
+  document.querySelector(".quick-farmer-reference").hidden = false;
+  els.farmerDetails.hidden = false;
 
   const priceVisible = state.formSettings.find((row) => row.field_key === "price_per_kg")?.visible !== false;
   const totalVisible = state.formSettings.find((row) => row.field_key === "total_price")?.visible !== false;
@@ -1246,6 +1243,11 @@ function customFieldPayload() {
     const text = nullableText(control.value);
     if (text !== null) payload[field.field_key] = text;
   });
+  const farmSizeValue = nullableNumber(els.manualFarmerFarmSize.value);
+  if (farmSizeValue !== null) {
+    payload.farm_size_value = farmSizeValue;
+    payload.farm_size_unit = els.manualFarmerFarmSizeUnit.value || "lines";
+  }
   return payload;
 }
 

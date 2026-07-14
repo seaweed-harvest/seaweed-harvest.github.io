@@ -311,7 +311,7 @@ h1 {
 }
 
 .public-intake-table {
-  min-width: 1080px;
+  min-width: 1320px;
 }
 
 .public-intake-table th,
@@ -323,6 +323,23 @@ h1 {
 
 .compact-actions {
   align-items: center;
+}
+
+.public-intake-editor-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 14px;
+  min-height: 52px;
+  margin-bottom: 8px;
+}
+
+.public-intake-editor-bar > label {
+  width: min(280px, 100%);
+}
+
+.public-intake-editor-bar .today-edit-actions {
+  padding: 0 0 2px;
 }
 
 .collection-form .harvest-fieldset .wide-field {
@@ -1495,6 +1512,12 @@ button:disabled {
 .today-intake-table .today-notes-editor {
   width: 230px;
   min-width: 230px;
+}
+
+.today-intake-table .today-farmer-editor,
+.today-intake-table .today-collector-editor {
+  width: 180px;
+  min-width: 180px;
 }
 
 .today-intake-table .today-row-dirty td {

@@ -51,15 +51,10 @@
         </label>
         <fieldset class="farmer-fieldset">
           <legend data-i18n="farmer.legend">Farmer</legend>
-          <label>
-            <span data-i18n="farmer.id">Farmer ID</span>
-            <span class="input-action-row scan-action-row farmer-id-row">
-              <input id="farmerId" type="text" autocomplete="off" placeholder="RID4300">
-              <button id="lookupFarmer" type="button" data-i18n="action.lookup">Lookup</button>
-              <button id="scanFarmerId" type="button" data-i18n="action.scan">Scan</button>
-            </span>
-          </label>
-          <div class="field-status-block">
+          <div class="field-status-block" hidden aria-hidden="true">
+            <input id="farmerId" type="hidden">
+            <button id="lookupFarmer" type="button" tabindex="-1">Lookup</button>
+            <button id="scanFarmerId" type="button" tabindex="-1">Scan</button>
             <span id="farmerLinkStatus" class="status-pill status-hidden"></span>
           </div>
           <div class="quick-farmer-reference wide-field">
@@ -95,18 +90,11 @@
                   <span data-i18n="farmer.farmSizeUnit">Farm size unit</span>
                   <select id="manualFarmerFarmSizeUnit">
                     <option value="lines" data-i18n="unit.lines">Lines</option>
-                    <option value="ropes" data-i18n="unit.ropes">Ropes</option>
-                    <option value="plots" data-i18n="unit.plots">Plots</option>
-                    <option value="acres" data-i18n="unit.acres">Acres</option>
-                    <option value="hectares" data-i18n="unit.hectares">Hectares</option>
-                    <option value="sqm" data-i18n="unit.sqm">Square metres</option>
-                    <option value="other" data-i18n="unit.other">Other</option>
+                    <option value="blocks" data-i18n="unit.blocks">Blocks (50 lines)</option>
                   </select>
                 </label>
               </div>
-              <div class="manual-detail-actions">
-                <button id="assignFarmerId" type="button" data-i18n="farmer.assignId">Assign ID number</button>
-              </div>
+              <button id="assignFarmerId" type="button" hidden tabindex="-1">Assign ID number</button>
             </div>
             <datalist id="communityOptions"></datalist>
             <input id="communityId" type="hidden">
@@ -116,13 +104,10 @@
 
         <fieldset class="harvest-fieldset">
           <legend data-i18n="harvest.legend">Harvest</legend>
-          <label>
-            <span data-i18n="harvest.sackId">Sack ID</span>
-            <span class="input-action-row scan-action-row sack-id-row">
-              <input id="sackId" type="text" autocomplete="off" placeholder="B-0001">
-              <button id="scanSackId" type="button" data-i18n="action.scan">Scan</button>
-            </span>
-          </label>
+          <div hidden aria-hidden="true">
+            <input id="sackId" type="hidden">
+            <button id="scanSackId" type="button" tabindex="-1">Scan</button>
+          </div>
           <label>
             <span data-i18n="harvest.transactionId">Transaction ID</span>
             <input id="transactionId" type="text" readonly>
