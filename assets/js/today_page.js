@@ -107,7 +107,7 @@ async function loadToday() {
 function renderRows() {
   els.publicTodayCount.textContent = `${state.rows.length} row${state.rows.length === 1 ? "" : "s"}`;
   if (!state.rows.length) {
-    els.publicTodayRows.innerHTML = '<tr><td colspan="10" class="empty-state">No Mawimbi intake has been recorded today.</td></tr>';
+    els.publicTodayRows.innerHTML = '<tr><td colspan="9" class="empty-state">No Mawimbi intake has been recorded today.</td></tr>';
     updateSelectionUi();
     return;
   }
@@ -121,14 +121,13 @@ function renderRows() {
       <tr data-public-today-row="${escapeAttribute(id)}" class="${dirty ? "today-row-dirty" : ""}">
         <td class="selection-cell"><input type="checkbox" data-public-today-select="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(row.transaction_id || "intake row")}"${state.selectedIds.has(id) ? " checked" : ""}${state.editingIds.size ? " disabled" : ""}></td>
         <td>${escapeHtml(formatTime(row.collected_at))}</td>
-        <td><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
-        <td>${editing ? selectControl(id, "community_id", draft.community_id, communityOptions(row)) : escapeHtml(joinValues(row.community_id, row.community_name_snapshot))}</td>
         <td>${editing ? textControl(id, "farmer_name_snapshot", draft.farmer_name_snapshot, "today-farmer-editor", 150) : escapeHtml(row.farmer_name_snapshot || "-")}</td>
         <td>${editing ? numberControl(id, "sack_weight_kg", draft.sack_weight_kg, 0.01, 0.01) : escapeHtml(formatNumber(row.sack_weight_kg))}</td>
         <td>${editing ? selectControl(id, "seaweed_type", draft.seaweed_type, seaweedTypeOptions(row)) : escapeHtml(titleCase(row.seaweed_type))}</td>
-        <td>${editing ? selectControl(id, "product_form", draft.product_form, productFormOptions()) : escapeHtml(titleCase(row.product_form))}</td>
         <td>${editing ? selectControl(id, "grade_code", draft.grade_code, gradeOptions(row)) : escapeHtml(row.grade_code || "-")}</td>
+        <td>${editing ? selectControl(id, "community_id", draft.community_id, communityOptions(row)) : escapeHtml(joinValues(row.community_id, row.community_name_snapshot))}</td>
         <td>${editing ? textControl(id, "recorded_by_name", draft.recorded_by_name, "today-collector-editor", 100) : escapeHtml(row.recorded_by_name || "-")}</td>
+        <td><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
       </tr>
     `;
   }).join("");
@@ -287,7 +286,6 @@ function rowDraft(row) {
     farmer_name_snapshot: valueOrEmpty(row.farmer_name_snapshot),
     sack_weight_kg: valueOrEmpty(row.sack_weight_kg),
     seaweed_type: valueOrEmpty(row.seaweed_type),
-    product_form: valueOrEmpty(row.product_form),
     grade_code: valueOrEmpty(row.grade_code),
     recorded_by_name: valueOrEmpty(row.recorded_by_name)
   };
@@ -312,10 +310,6 @@ function gradeOptions(row) {
     grade.grade,
     joinValues(grade.grade, grade.label && grade.label !== grade.grade ? grade.label : "", grade.rejected ? "Rejected" : "")
   ]), row.grade_code, row.grade_code);
-}
-
-function productFormOptions() {
-  return [["wet", "Wet"], ["dried", "Dried"], ["milled", "Milled"]];
 }
 
 function withFallback(options, value, label) {
