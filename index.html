@@ -4,8 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0f766e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="robots" content="noindex,nofollow">
   <title data-i18n="meta.title">Collection - Seaweed Aggregation</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/images/seaweed-harvest-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./assets/images/seaweed-harvest-icon.svg">
   <link rel="stylesheet" href="./assets/css/ag.css">
 </head>
 <body class="collection-page" data-auth-pending>
@@ -34,6 +40,30 @@
         <button type="button" data-language-option="en" aria-pressed="true">English</button>
         <button type="button" data-language-option="sw" aria-pressed="false">Kiswahili</button>
       </div>
+    </section>
+    <section id="offlineSyncPanel" class="panel offline-sync-panel" aria-labelledby="offlineSyncTitle">
+      <div class="offline-sync-summary">
+        <div>
+          <h2 id="offlineSyncTitle" data-i18n="offline.title">Phone storage</h2>
+          <p id="offlineReadiness" class="field-hint" data-i18n="offline.preparing">Preparing offline collection...</p>
+        </div>
+        <div class="offline-sync-statuses">
+          <span id="offlineNetworkStatus" class="status-pill status-muted">Checking</span>
+          <span id="offlinePendingCount" class="status-pill">0 waiting</span>
+        </div>
+      </div>
+      <div class="offline-sync-actions">
+        <button id="offlineSyncNow" type="button" data-i18n="offline.syncNow">Sync now</button>
+        <button id="offlineInstallApp" type="button" data-i18n="offline.install" hidden>Install app</button>
+        <button id="offlineDownloadBackup" type="button" data-i18n="offline.backup" hidden>Download backup</button>
+        <button id="offlineRestoreBackup" type="button" data-i18n="offline.restore">Restore backup</button>
+        <input id="offlineRestoreInput" class="visually-hidden-file" type="file" accept="application/json,.json" tabindex="-1">
+      </div>
+      <details id="offlineQueueDetails" class="offline-queue-details">
+        <summary><span data-i18n="offline.savedHere">Saved on this phone</span> <span id="offlineQueueSummary"></span></summary>
+        <p class="offline-queue-guidance" data-i18n="offline.guidance">Install this page on the Home Screen before travelling. Do not clear browser data until all records are confirmed.</p>
+        <div id="offlineQueueList" class="offline-queue-list"></div>
+      </details>
     </section>
     <section id="activeAggregatorBar" class="active-aggregator-bar" hidden>
       <span data-i18n="aggregator.label">Aggregator</span>

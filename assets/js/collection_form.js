@@ -14,11 +14,19 @@ import {
   unitLabel
 } from "./collection_language.js";
 import {
-  currentAggregatorContext,
-  currentProfile,
-  currentSession,
-  setupAccountControls
-} from "./auth_client.js";
+  createPendingBackup,
+  initialiseOfflineStore,
+  listOutboxItems,
+  loadReferenceSnapshot,
+  markOutboxSynced,
+  offlineStorageEstimate,
+  offlineStorageSupported,
+  requestPersistentOfflineStorage,
+  restorePendingBackup,
+  saveCollectionToOutbox,
+  saveReferenceSnapshot,
+  updateOutboxItem
+} from "./offline_store.js";
 
 const state = {
   communities: [],
@@ -29,6 +37,7 @@ const state = {
   pricePerKg: { ...APP_CONFIG.pricePerKg },
   seaweedTypes: [],
   productForms: [],
+  authApi: null,
   customFields: [],
   defaultSeaweedType: "spinosum",
   session: null,
@@ -37,9 +46,16 @@ const state = {
   publicMode: true,
   canOverridePrice: false,
   submissionId: crypto.randomUUID(),
-  pendingPublicPhotoPaths: [],
   selectedFarmer: null,
   gps: null,
+  offline: {
+    installPrompt: null,
+    persistent: null,
+    ready: false,
+    referenceSavedAt: null,
+    serviceWorkerReady: false,
+    syncing: false
+  },
   qrScanner: {
     canvas: null,
     context: null,
@@ -57,6 +73,8 @@ const PHOTO_MAX_BYTES = 700 * 1024;
 const PHOTO_TARGET_BYTES = 550 * 1024;
 const PHOTO_MAX_EDGE = 1920;
 const COLLECTOR_NAME_STORAGE_KEY = "seaweed_harvest:collector_name";
+const FORM_REFERENCE_KEY = "mawimbi-collection-form";
+const MAWIMBI_CONTEXT_KEY = "mawimbi-context";
 
 const els = {};
 
@@ -65,6 +83,7 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   initCollectionLanguage();
   cacheElements();
+  await initialiseOfflineCollection();
   try {
     await initialiseCollectionAccess();
   } catch (error) {
@@ -79,7 +98,6 @@ async function init() {
       return;
     }
   }
-  document.body.removeAttribute("data-auth-pending");
   setupCollectionHeader();
   setupCollectorName();
   applyCollectionAccessMode();
@@ -89,13 +107,30 @@ async function init() {
   await loadFormData();
   ensureTransactionId();
   updateEmptyFieldHighlights();
+  try {
+    await refreshOfflineQueue();
+  } finally {
+    document.body.removeAttribute("data-auth-pending");
+  }
+  if (navigator.onLine) void syncOutbox();
 }
 
 async function initialiseCollectionAccess() {
-  state.session = await currentSession();
+  const storedAuth = localStorage.getItem("seaweed-ag-auth");
+  if (!storedAuth || !navigator.onLine) {
+    state.session = null;
+    state.profile = null;
+    state.publicMode = true;
+    state.canOverridePrice = false;
+    await loadPublicMawimbiContext();
+    return;
+  }
+
+  state.authApi = await import("./auth_client.js");
+  state.session = await state.authApi.currentSession();
   if (state.session) {
     try {
-      state.profile = await currentProfile(true);
+      state.profile = await state.authApi.currentProfile(true);
     } catch {
       state.profile = null;
     }
@@ -110,7 +145,7 @@ async function initialiseCollectionAccess() {
 
   state.publicMode = !canUseAuthenticatedRoute;
   if (canUseAuthenticatedRoute) {
-    state.aggregatorContext = await currentAggregatorContext(true);
+    state.aggregatorContext = await state.authApi.currentAggregatorContext(true);
     state.canOverridePrice = profile.app_role === "system_admin"
       || (profile.can_view_finance && ["platform_admin", "aggregator_admin", "finance"].includes(profile.active_membership_role));
     return;
@@ -121,7 +156,23 @@ async function initialiseCollectionAccess() {
 }
 
 async function loadPublicMawimbiContext() {
-  const aggregator = await callPublicRpc("ag_public_mawimbi_context");
+  let aggregator;
+  try {
+    aggregator = await callPublicRpc("ag_public_mawimbi_context");
+    if (aggregator?.id && state.offline.ready) {
+      try {
+        await saveReferenceSnapshot(MAWIMBI_CONTEXT_KEY, aggregator);
+      } catch (storageError) {
+        state.offline.ready = false;
+        setStatus(storageError.message || t("offline.unavailable"), "error");
+      }
+    }
+  } catch (error) {
+    const cached = state.offline.ready ? await loadReferenceSnapshot(MAWIMBI_CONTEXT_KEY) : null;
+    if (!cached?.value?.id) throw error;
+    aggregator = cached.value;
+    state.offline.referenceSavedAt = cached.savedAt;
+  }
   if (!aggregator?.id) throw new Error("Mawimbi collection intake is not available.");
   state.aggregatorContext = {
     active_aggregator_id: aggregator.id,
@@ -139,7 +190,7 @@ function setupCollectionHeader() {
     && (profile.app_role === "system_admin" || profile.can_access_admin));
 
   if (!signedIn) return;
-  setupAccountControls(profile, {
+  state.authApi?.setupAccountControls(profile, {
     returnPage: "index.html",
     signOutReturn: "./index.html",
     showAggregator: !state.publicMode,
@@ -164,6 +215,56 @@ function rememberCollectorName() {
   if (name) localStorage.setItem(COLLECTOR_NAME_STORAGE_KEY, name);
 }
 
+async function initialiseOfflineCollection() {
+  if (!offlineStorageSupported()) {
+    els.offlineReadiness.textContent = t("offline.unavailable");
+    els.offlineReadiness.dataset.status = "error";
+    return;
+  }
+
+  try {
+    await initialiseOfflineStore();
+    state.offline.ready = true;
+    state.offline.persistent = await requestPersistentOfflineStorage();
+    await offlineStorageEstimate();
+  } catch (error) {
+    els.offlineReadiness.textContent = error.message || t("offline.unavailable");
+    els.offlineReadiness.dataset.status = "error";
+  }
+
+  if ("serviceWorker" in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.register("./service-worker.js");
+      state.offline.serviceWorkerReady = Boolean(registration.active || registration.waiting);
+      navigator.serviceWorker.ready.then(() => {
+        state.offline.serviceWorkerReady = true;
+        updateOfflineReadiness();
+      }).catch(() => null);
+    } catch {
+      state.offline.serviceWorkerReady = false;
+    }
+  }
+
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    state.offline.installPrompt = event;
+    els.offlineInstallApp.hidden = false;
+  });
+  window.addEventListener("online", () => {
+    updateOfflineReadiness();
+    void syncOutbox();
+  });
+  window.addEventListener("offline", updateOfflineReadiness);
+  window.addEventListener("focus", () => {
+    updateOfflineReadiness();
+    if (navigator.onLine) void syncOutbox();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && navigator.onLine) void syncOutbox();
+  });
+  updateOfflineReadiness();
+}
+
 function applyCollectionAccessMode() {
   els.assignFarmerId.hidden = true;
   if (!state.publicMode) return;
@@ -178,6 +279,18 @@ function applyCollectionAccessMode() {
 
 function cacheElements() {
   [
+    "offlineSyncPanel",
+    "offlineReadiness",
+    "offlineNetworkStatus",
+    "offlinePendingCount",
+    "offlineSyncNow",
+    "offlineInstallApp",
+    "offlineDownloadBackup",
+    "offlineRestoreBackup",
+    "offlineRestoreInput",
+    "offlineQueueDetails",
+    "offlineQueueSummary",
+    "offlineQueueList",
     "collectionConnectionStatus",
     "collectionAdminLink",
     "collectionSignInLink",
@@ -243,6 +356,11 @@ function cacheElements() {
 }
 
 function bindEvents() {
+  els.offlineSyncNow.addEventListener("click", () => syncOutbox({ announce: true }));
+  els.offlineInstallApp.addEventListener("click", installOfflineApp);
+  els.offlineDownloadBackup.addEventListener("click", downloadPendingBackup);
+  els.offlineRestoreBackup.addEventListener("click", () => els.offlineRestoreInput.click());
+  els.offlineRestoreInput.addEventListener("change", restorePendingBackupFile);
   els.lookupFarmer.addEventListener("click", lookupFarmer);
   els.scanFarmerId.addEventListener("click", () => startQrScanner("farmer"));
   els.farmerId.addEventListener("change", lookupFarmer);
@@ -289,7 +407,6 @@ function bindEvents() {
   els.collectionForm.addEventListener("input", updateEmptyFieldHighlights);
   els.collectionForm.addEventListener("change", updateEmptyFieldHighlights);
   els.collectionPhotos.addEventListener("change", () => {
-    state.pendingPublicPhotoPaths = [];
     updatePhotoSelectionStatus();
   });
   els.stopQrScanner.addEventListener("click", stopQrScanner);
@@ -299,6 +416,8 @@ function bindEvents() {
 
 async function loadFormData() {
   setConnectionStatus(t("status.loading"), "status-muted");
+  let formData;
+  let loadedFromNetwork = false;
   try {
     const [communities, farmers, formSettings, gradePrices, seaweedTypes, productForms, customFields, pricingRules] = await Promise.all([
       state.publicMode
@@ -316,27 +435,52 @@ async function loadFormData() {
         ? callPublicRpc("ag_public_mawimbi_pricing", { p_collection_date: collectionDateValue() })
         : callRpc("ag_my_current_pricing", { p_collection_date: collectionDateValue() })
     ]);
-    state.communities = communities;
-    state.farmers = farmers;
-    state.formSettings = formSettings;
-    state.gradePrices = gradePrices;
-    state.seaweedTypes = seaweedTypes;
-    state.productForms = productForms;
-    state.customFields = customFields;
-    state.pricingRules = pricingRules;
-    state.pricePerKg = {};
-    state.defaultSeaweedType = seaweedTypes.find((row) => row.is_default)?.type_key || "spinosum";
-    renderCommunityOptions();
-    applyRuntimeSettings(gradePrices);
-    renderCustomFields();
-    updateQuickReference();
-    updatePriceForGrade();
-    updateEmptyFieldHighlights();
-    setConnectionStatus(translatedDataMode(), dataModeLabel() === "Preview" ? "status-muted" : "");
+    formData = { communities, farmers, formSettings, gradePrices, seaweedTypes, productForms, customFields, pricingRules };
+    loadedFromNetwork = true;
   } catch (error) {
-    setConnectionStatus(t("status.error"), "status-muted");
-    setStatus(error.message, "error");
+    const snapshot = state.offline.ready ? await loadReferenceSnapshot(FORM_REFERENCE_KEY) : null;
+    if (!snapshot?.value) {
+      setConnectionStatus(t("status.error"), "status-muted");
+      setStatus(error.message, "error");
+      updateOfflineReadiness();
+      return;
+    }
+    formData = snapshot.value;
+    state.offline.referenceSavedAt = snapshot.savedAt;
   }
+
+  if (loadedFromNetwork && state.offline.ready) {
+    try {
+      const snapshot = await saveReferenceSnapshot(FORM_REFERENCE_KEY, formData);
+      state.offline.referenceSavedAt = snapshot.savedAt;
+    } catch (storageError) {
+      state.offline.ready = false;
+      setStatus(storageError.message || t("offline.unavailable"), "error");
+    }
+  }
+
+  applyFormData(formData);
+  setConnectionStatus(navigator.onLine ? translatedDataMode() : t("offline.offline"), navigator.onLine ? "" : "status-muted");
+  updateOfflineReadiness();
+}
+
+function applyFormData(formData) {
+  state.communities = formData.communities || [];
+  state.farmers = formData.farmers || [];
+  state.formSettings = formData.formSettings || [];
+  state.gradePrices = formData.gradePrices || [];
+  state.seaweedTypes = formData.seaweedTypes || [];
+  state.productForms = formData.productForms || [];
+  state.customFields = formData.customFields || [];
+  state.pricingRules = formData.pricingRules || [];
+  state.pricePerKg = {};
+  state.defaultSeaweedType = state.seaweedTypes.find((row) => row.is_default)?.type_key || "spinosum";
+  renderCommunityOptions();
+  applyRuntimeSettings(state.gradePrices);
+  renderCustomFields();
+  updateQuickReference();
+  updatePriceForGrade();
+  updateEmptyFieldHighlights();
 }
 
 function renderCommunityOptions() {
@@ -506,15 +650,37 @@ function collectionDateValue() {
 }
 
 async function refreshPricingForDate() {
+  if (!navigator.onLine) {
+    updatePriceForGrade();
+    return;
+  }
   try {
     state.pricingRules = state.publicMode
       ? await callPublicRpc("ag_public_mawimbi_pricing", { p_collection_date: collectionDateValue() })
       : await callRpc("ag_my_current_pricing", { p_collection_date: collectionDateValue() });
+    if (state.offline.ready) {
+      const snapshot = await saveReferenceSnapshot(FORM_REFERENCE_KEY, currentFormData());
+      state.offline.referenceSavedAt = snapshot.savedAt;
+      updateOfflineReadiness();
+    }
     updatePriceForGrade();
   } catch (error) {
     els.priceSourceStatus.textContent = error.message;
     setStatus(error.message, "error");
   }
+}
+
+function currentFormData() {
+  return {
+    communities: state.communities,
+    farmers: state.farmers,
+    formSettings: state.formSettings,
+    gradePrices: state.gradePrices,
+    seaweedTypes: state.seaweedTypes,
+    productForms: state.productForms,
+    customFields: state.customFields,
+    pricingRules: state.pricingRules
+  };
 }
 
 function renderActiveAggregator() {
@@ -763,50 +929,36 @@ function updatePhotoSelectionStatus() {
     : t("photos.hint");
 }
 
-async function uploadSelectedCollectionPhotos() {
+async function prepareSelectedCollectionPhotos() {
   const files = [...(els.collectionPhotos.files || [])];
-  if (!files.length) return { paths: [] };
+  if (!files.length) return [];
   if (files.length > PHOTO_MAX_COUNT) throw new Error(t("photos.tooMany"));
   if (files.some((file) => !String(file.type || "").startsWith("image/"))) {
     throw new Error(t("photos.invalid"));
   }
 
-  if (state.publicMode && state.pendingPublicPhotoPaths.length === files.length) {
-    return { paths: [...state.pendingPublicPhotoPaths] };
-  }
-
-  ensureTransactionId();
-  const now = new Date();
-  const year = String(now.getFullYear());
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const transactionFolder = String(els.transactionId.value || "collection")
-    .replace(/[^a-zA-Z0-9_-]/g, "-");
-  const paths = state.publicMode ? [...state.pendingPublicPhotoPaths] : [];
-
-  for (let index = paths.length; index < files.length; index += 1) {
+  const photos = [];
+  for (let index = 0; index < files.length; index += 1) {
     const progress = { current: index + 1, total: files.length };
     els.collectionPhotoStatus.textContent = t("photos.processing", progress);
-    const photo = await compressCollectionPhoto(files[index]);
-    if (photo.size > PHOTO_MAX_BYTES) throw new Error(t("photos.compressFailed"));
-
-    els.collectionPhotoStatus.textContent = t("photos.uploading", progress);
-    let objectPath;
-    if (state.publicMode) {
-      objectPath = await uploadPublicCollectionPhoto(photo);
-      state.pendingPublicPhotoPaths.push(objectPath);
-    } else {
-      const objectId = crypto.randomUUID?.() || `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 10)}`;
-      objectPath = `collections/${year}/${month}/${transactionFolder}/${objectId}.jpg`;
-      await uploadStorageObject(PHOTO_BUCKET, objectPath, photo);
-    }
-    paths.push(objectPath);
+    const blob = await compressCollectionPhoto(files[index]);
+    if (blob.size > PHOTO_MAX_BYTES) throw new Error(t("photos.compressFailed"));
+    photos.push({
+      id: crypto.randomUUID(),
+      blob,
+      name: String(files[index].name || `photo-${index + 1}.jpg`),
+      size: blob.size,
+      uploadedPath: null
+    });
   }
-
-  return { paths };
+  return photos;
 }
 
-async function uploadPublicCollectionPhoto(photo) {
-  const query = new URLSearchParams({ submission_id: state.submissionId });
+async function uploadPublicCollectionPhoto(photo, submissionId, photoId) {
+  const query = new URLSearchParams({
+    submission_id: submissionId,
+    photo_id: photoId
+  });
   const response = await fetch(`${APP_CONFIG.supabase.url}/functions/v1/public-collection-photo?${query}`, {
     method: "POST",
     headers: {
@@ -908,10 +1060,11 @@ async function submitCollection(event) {
   submitButton.disabled = true;
 
   try {
+    if (!state.offline.ready) throw new Error(t("offline.unavailable"));
     rememberCollectorName();
     setStatus(t("status.saving"));
-    const photoUpload = await uploadSelectedCollectionPhotos();
-    const payload = buildPayload(photoUpload.paths);
+    const photos = await prepareSelectedCollectionPhotos();
+    const payload = buildPayload([]);
     const farmSizeUpdate = pendingFarmSizeUpdate();
     if (state.publicMode && farmSizeUpdate) {
       payload.farm_size_update = {
@@ -919,31 +1072,37 @@ async function submitCollection(event) {
         unit: farmSizeUpdate.p_farm_size_unit
       };
     }
-    const saved = state.publicMode
-      ? await submitPublicCollection(payload)
-      : await callRpc("ag_submit_collection_v2", {
-        p_submission_id: state.submissionId,
-        p_collection: payload
-      });
-    let farmSizeWarning = "";
-    if (farmSizeUpdate && !state.publicMode) {
-      try {
-        await callRpc("ag_update_farmer_farm_size_from_collection", farmSizeUpdate);
-      } catch (error) {
-        farmSizeWarning = t("status.farmSizeWarning", { message: error.message });
+
+    const submissionId = state.submissionId;
+    await saveCollectionToOutbox({
+      submissionId,
+      mode: state.publicMode ? "public" : "authenticated",
+      collectorName: String(els.collectorName.value || "").trim(),
+      website: els.collectionWebsite.value,
+      payload,
+      farmSizeUpdate: state.publicMode ? null : farmSizeUpdate,
+      photos,
+      summary: {
+        transactionId: payload.transaction_id,
+        collectedAt: payload.collected_at,
+        community: payload.community_name_snapshot || payload.community_id || "No community",
+        farmer: payload.farmer_name_snapshot || payload.farmer_id || "No farmer",
+        weightKg: payload.sack_weight_kg,
+        grade: payload.grade_code || "Ungraded"
+      }
+    });
+
+    clearForm();
+    setStatus(t("offline.localSaved"));
+    await refreshOfflineQueue();
+
+    if (navigator.onLine) {
+      const saved = await syncOutbox({ submissionId });
+      if (saved) {
+        renderReceiptResult(saved);
+        setStatus(t("offline.confirmed", { id: saved.transaction_id || payload.transaction_id }));
       }
     }
-    const savedMessage = saved?.transaction_id
-      ? t("status.savedTransaction", { id: saved.transaction_id })
-      : t("status.saved");
-    const photoMessage = photoUpload.paths.length
-      ? ` ${t("photos.uploaded", { count: photoUpload.paths.length })}`
-      : "";
-    renderReceiptResult(saved);
-    clearForm({ keepReceipt: true });
-    const updateMessage = farmSizeUpdate && !farmSizeWarning ? ` ${t("status.farmSizeUpdated")}` : "";
-    const warningMessage = farmSizeWarning ? ` ${farmSizeWarning}` : "";
-    setStatus(`${savedMessage}${photoMessage}${updateMessage}${warningMessage}`, farmSizeWarning ? "error" : "");
   } catch (error) {
     setStatus(error.message, "error");
   } finally {
@@ -1001,7 +1160,6 @@ function clearForm(options = {}) {
   els.seaweedType.value = state.defaultSeaweedType;
   els.productForm.value = "wet";
   state.submissionId = crypto.randomUUID();
-  state.pendingPublicPhotoPaths = [];
   ensureTransactionId();
   syncCommunityName();
   updateQuickReference();
@@ -1025,7 +1183,7 @@ function renderReceiptResult(saved) {
   els.collectionReceiptResult.hidden = false;
 }
 
-async function submitPublicCollection(payload) {
+async function submitPublicCollection(payload, item) {
   const response = await fetch(`${APP_CONFIG.supabase.url}/functions/v1/public-collection`, {
     method: "POST",
     headers: {
@@ -1034,15 +1192,231 @@ async function submitPublicCollection(payload) {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      submission_id: state.submissionId,
-      collector_name: String(els.collectorName.value || "").trim(),
-      website: els.collectionWebsite.value,
+      submission_id: item.submissionId,
+      collector_name: item.collectorName,
+      website: item.website || "",
       collection: payload
     })
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || `Collection could not be saved (${response.status}).`);
   return body.result;
+}
+
+async function syncOutbox(options = {}) {
+  if (!state.offline.ready || state.offline.syncing) return null;
+  if (!navigator.onLine) {
+    updateOfflineReadiness();
+    if (options.announce) setStatus(t("offline.localSaved"));
+    return null;
+  }
+
+  state.offline.syncing = true;
+  let requestedResult = null;
+  try {
+    await refreshOfflineQueue();
+    const items = (await listOutboxItems())
+      .filter((item) => item.status !== "synced")
+      .filter((item) => !options.submissionId || item.submissionId === options.submissionId)
+      .sort((left, right) => String(left.createdAt).localeCompare(String(right.createdAt)));
+
+    for (const item of items) {
+      try {
+        const result = await syncOutboxItem(item);
+        if (item.submissionId === options.submissionId) requestedResult = result;
+      } catch (error) {
+        await updateOutboxItem(item.submissionId, {
+          status: "failed",
+          lastError: error.message || "Sync could not be completed."
+        });
+        if (item.submissionId === options.submissionId || options.announce) {
+          setStatus(`${t("offline.localSaved")} ${error.message}`, "error");
+        }
+      }
+      await refreshOfflineQueue();
+    }
+
+    if (options.announce && !(await listOutboxItems()).some((item) => item.status !== "synced")) {
+      setStatus(t("offline.syncComplete"));
+    }
+  } finally {
+    state.offline.syncing = false;
+    await refreshOfflineQueue();
+  }
+  return requestedResult;
+}
+
+async function syncOutboxItem(savedItem) {
+  let item = await updateOutboxItem(savedItem.submissionId, {
+    status: "syncing",
+    attempts: Number(savedItem.attempts || 0) + 1,
+    lastError: null
+  });
+
+  const photos = [...(item.photos || [])];
+  for (let index = 0; index < photos.length; index += 1) {
+    if (photos[index].uploadedPath) continue;
+    if (!(photos[index].blob instanceof Blob)) {
+      throw new Error(`Photo ${index + 1} is missing from phone storage. Restore it from a backup before syncing.`);
+    }
+
+    let path;
+    if (item.mode === "public") {
+      path = await uploadPublicCollectionPhoto(photos[index].blob, item.submissionId, photos[index].id);
+    } else {
+      path = authenticatedPhotoPath(item, photos[index]);
+      await uploadStorageObject(PHOTO_BUCKET, path, photos[index].blob);
+    }
+    photos[index] = { ...photos[index], uploadedPath: path };
+    item = await updateOutboxItem(item.submissionId, { photos });
+  }
+
+  const payload = {
+    ...item.payload,
+    photo_urls: photos.map((photo) => photo.uploadedPath).filter(Boolean)
+  };
+  const result = item.mode === "public"
+    ? await submitPublicCollection(payload, item)
+    : await callRpc("ag_submit_collection_v2", {
+      p_submission_id: item.submissionId,
+      p_collection: payload
+    });
+
+  if (item.farmSizeUpdate && item.mode !== "public") {
+    await callRpc("ag_update_farmer_farm_size_from_collection", item.farmSizeUpdate);
+  }
+  await markOutboxSynced(item.submissionId, result);
+  return result;
+}
+
+function authenticatedPhotoPath(item, photo) {
+  const collectedAt = new Date(item.payload?.collected_at || item.createdAt || Date.now());
+  const year = String(collectedAt.getFullYear());
+  const month = String(collectedAt.getMonth() + 1).padStart(2, "0");
+  const transactionFolder = String(item.payload?.transaction_id || "collection")
+    .replace(/[^a-zA-Z0-9_-]/g, "-");
+  return `collections/${year}/${month}/${transactionFolder}/${photo.id}.jpg`;
+}
+
+async function refreshOfflineQueue() {
+  updateOfflineReadiness();
+  if (!state.offline.ready) return;
+
+  const items = await listOutboxItems();
+  const pending = items.filter((item) => item.status !== "synced");
+  const failed = pending.filter((item) => item.status === "failed");
+  els.offlinePendingCount.textContent = t("offline.waiting", { count: pending.length });
+  els.offlinePendingCount.className = `status-pill ${failed.length ? "offline-status-failed" : pending.length ? "offline-status-waiting" : "offline-status-online"}`;
+  els.offlineSyncNow.disabled = state.offline.syncing || !navigator.onLine || pending.length === 0;
+  els.offlineDownloadBackup.hidden = pending.length === 0;
+  els.offlineQueueSummary.textContent = items.length ? `(${items.length})` : "";
+  els.offlineQueueList.innerHTML = items.length
+    ? items.map(offlineQueueItemHtml).join("")
+    : `<p class="field-hint">${escapeHtml(t("offline.empty"))}</p>`;
+  if (failed.length) els.offlineQueueDetails.open = true;
+}
+
+function offlineQueueItemHtml(item) {
+  const statusLabel = t(`offline.${item.status}`);
+  const summary = item.summary || {};
+  const title = [summary.transactionId, `${formatCompactNumber(summary.weightKg || 0)} kg`, summary.grade]
+    .filter(Boolean)
+    .join(" | ");
+  const details = [summary.community, formatOfflineDate(summary.collectedAt || item.createdAt), item.lastError]
+    .filter(Boolean)
+    .join(" | ");
+  const statusClass = item.status === "failed"
+    ? "offline-status-failed"
+    : item.status === "synced"
+      ? "offline-status-online"
+      : "offline-status-waiting";
+  return `
+    <div class="offline-queue-item" data-sync-status="${escapeAttribute(item.status)}">
+      <div class="offline-queue-item-main">
+        <strong>${escapeHtml(title)}</strong>
+        <span title="${escapeAttribute(details)}">${escapeHtml(details)}</span>
+      </div>
+      <span class="status-pill ${statusClass}">${escapeHtml(statusLabel)}</span>
+    </div>`;
+}
+
+function updateOfflineReadiness() {
+  const online = navigator.onLine;
+  els.offlineNetworkStatus.textContent = online ? t("offline.online") : t("offline.offline");
+  els.offlineNetworkStatus.className = `status-pill ${online ? "offline-status-online" : "offline-status-offline"}`;
+  if (!state.offline.ready) {
+    els.offlineReadiness.textContent = t("offline.unavailable");
+    els.offlineReadiness.dataset.status = "error";
+    return;
+  }
+  els.offlineReadiness.dataset.status = "";
+  if (!state.offline.referenceSavedAt) {
+    els.offlineReadiness.textContent = t("offline.readyNoDate");
+  } else if (!state.offline.serviceWorkerReady) {
+    els.offlineReadiness.textContent = t("offline.shellPending");
+  } else {
+    els.offlineReadiness.textContent = t("offline.ready", { date: formatOfflineDate(state.offline.referenceSavedAt) });
+  }
+}
+
+async function installOfflineApp() {
+  if (!state.offline.installPrompt) return;
+  await state.offline.installPrompt.prompt();
+  await state.offline.installPrompt.userChoice;
+  state.offline.installPrompt = null;
+  els.offlineInstallApp.hidden = true;
+}
+
+async function downloadPendingBackup() {
+  try {
+    const backup = await createPendingBackup();
+    if (!backup.pendingCount) {
+      setStatus(t("offline.backupEmpty"));
+      return;
+    }
+    const blob = new Blob([JSON.stringify(backup)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `seaweed-harvest-pending-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setStatus(t("offline.backupSaved"));
+  } catch (error) {
+    setStatus(error.message, "error");
+  }
+}
+
+async function restorePendingBackupFile() {
+  const file = els.offlineRestoreInput.files?.[0];
+  if (!file) return;
+  try {
+    if (file.size > 100 * 1024 * 1024) throw new Error(t("offline.restoreInvalid"));
+    const backup = JSON.parse(await file.text());
+    const result = await restorePendingBackup(backup);
+    await refreshOfflineQueue();
+    const skipped = result.skipped
+      ? t("offline.restoreSkipped", { count: result.skipped })
+      : "";
+    setStatus(`${t("offline.restoreSaved", { count: result.imported })}${skipped}`);
+  } catch (error) {
+    setStatus(error.message || t("offline.restoreInvalid"), "error");
+  } finally {
+    els.offlineRestoreInput.value = "";
+  }
+}
+
+function formatOfflineDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(document.documentElement.lang || "en-KE", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
 }
 
 function splitFarmerName(value) {
@@ -1457,7 +1831,9 @@ function refreshTranslatedContent() {
   applyRuntimeSettings(state.gradePrices);
   updateQuickReference();
   updatePhotoSelectionStatus();
-  setConnectionStatus(translatedDataMode(), dataModeLabel() === "Preview" ? "status-muted" : "");
+  setConnectionStatus(navigator.onLine ? translatedDataMode() : t("offline.offline"), navigator.onLine ? "" : "status-muted");
+  updateOfflineReadiness();
+  void refreshOfflineQueue();
   if (state.selectedFarmer) {
     setFarmerStatus(t("status.linked"));
   } else if (!normalizedFarmerId()) {

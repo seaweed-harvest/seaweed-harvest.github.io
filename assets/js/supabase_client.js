@@ -62,6 +62,9 @@ export async function uploadStorageObject(bucket, objectPath, blob) {
     }
   );
 
+  if (response.status === 409) {
+    return { path: objectPath, duplicate: true };
+  }
   if (!response.ok) {
     throw new Error(`${response.status} ${response.statusText}${await responseDetail(response)}`);
   }

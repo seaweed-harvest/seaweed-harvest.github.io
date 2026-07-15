@@ -1,0 +1,19 @@
+{
+  "name": "Seaweed Harvest Collection",
+  "short_name": "Seaweed Harvest",
+  "description": "Offline seaweed collection intake for Mawimbi.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef8f5",
+  "theme_color": "#0f766e",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./assets/images/seaweed-harvest-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

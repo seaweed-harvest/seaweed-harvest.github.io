@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Seaweed Harvest">
+  <rect width="512" height="512" rx="72" fill="#0f766e"/>
+  <path d="M256 420c-10-66-8-137 6-207 10-50 31-95 62-135" fill="none" stroke="#fff" stroke-width="30" stroke-linecap="round"/>
+  <path d="M266 304c-65-8-105-40-119-95 62 1 105 33 119 95Zm18-76c-18-62-4-111 43-146 20 59 6 108-43 146Zm-31 144c-58 8-102-11-132-57 57-16 101 3 132 57Zm22-10c15-57 49-92 103-104-8 58-42 93-103 104Z" fill="#b9f3cf"/>
+</svg>

@@ -223,6 +223,143 @@ h1 {
   color: #fff;
 }
 
+.offline-sync-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 14px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+}
+
+.offline-sync-summary {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.offline-sync-summary h2 {
+  margin: 0 0 1px;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.offline-sync-summary p {
+  margin: 0;
+}
+
+.offline-sync-statuses,
+.offline-sync-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.offline-sync-actions button {
+  min-height: 32px;
+  padding: 3px 10px;
+  font-size: 0.78rem;
+}
+
+.visually-hidden-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+}
+
+.offline-queue-details {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 7px;
+}
+
+.offline-queue-details summary {
+  width: fit-content;
+  color: var(--text-sec);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.offline-queue-guidance {
+  margin: 8px 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.offline-queue-list {
+  display: grid;
+  gap: 4px;
+}
+
+.offline-queue-item {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: #f8fbfa;
+  font-size: 0.78rem;
+}
+
+.offline-queue-item[data-sync-status="failed"] {
+  border-color: #f3c58c;
+  background: #fff8e8;
+}
+
+.offline-queue-item[data-sync-status="pending"],
+.offline-queue-item[data-sync-status="syncing"] {
+  border-left: 4px solid var(--warn);
+}
+
+.offline-queue-item[data-sync-status="synced"] {
+  border-left: 4px solid var(--accent);
+}
+
+.offline-queue-item-main {
+  min-width: 0;
+}
+
+.offline-queue-item-main strong,
+.offline-queue-item-main span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.offline-queue-item-main span {
+  color: var(--text-muted);
+}
+
+.offline-status-online {
+  border-color: rgba(15, 118, 110, 0.24);
+  background: rgba(15, 118, 110, 0.09);
+  color: var(--accent);
+}
+
+.offline-status-offline,
+.offline-status-waiting {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.1);
+  color: #a16207;
+}
+
+.offline-status-failed {
+  border-color: rgba(239, 68, 68, 0.28);
+  background: rgba(239, 68, 68, 0.08);
+  color: #b91c1c;
+}
+
 .panel,
 .registry-card {
   border: 1px solid var(--border);
@@ -2916,6 +3053,23 @@ button:disabled {
 
   .collection-form-panel {
     padding: 12px;
+  }
+
+  .offline-sync-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .offline-sync-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .offline-sync-actions {
+    width: 100%;
+  }
+
+  .offline-sync-actions button {
+    flex: 1 1 auto;
   }
 
   .collection-form fieldset,
