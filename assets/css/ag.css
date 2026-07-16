@@ -139,6 +139,18 @@ p {
   padding: 16px 0 46px;
 }
 
+.app-footer {
+  width: min(1680px, calc(100% - 28px));
+  margin: -28px auto 24px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.app-footer a {
+  color: inherit;
+}
+
 .eyebrow {
   margin: 0 0 3px;
   color: var(--text-muted);
