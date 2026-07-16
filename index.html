@@ -11,7 +11,7 @@
   <title data-i18n="meta.title">Collection - Seaweed Aggregation</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./assets/images/seaweed-harvest-icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="./assets/images/seaweed-harvest-icon.svg">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
   <link rel="stylesheet" href="./assets/css/ag.css">
 </head>
 <body class="collection-page" data-auth-pending>
@@ -61,7 +61,7 @@
       </div>
       <details id="offlineQueueDetails" class="offline-queue-details">
         <summary><span data-i18n="offline.savedHere">Saved on this phone</span> <span id="offlineQueueSummary"></span></summary>
-        <p class="offline-queue-guidance" data-i18n="offline.guidance">Install this page on the Home Screen before travelling. Do not clear browser data until all records are confirmed.</p>
+        <p id="offlineQueueGuidance" class="offline-queue-guidance" data-i18n="offline.guidance">Install this page on the Home Screen before travelling. Do not clear browser data until all records are confirmed.</p>
         <div id="offlineQueueList" class="offline-queue-list"></div>
       </details>
     </section>

@@ -113,6 +113,28 @@ p {
   gap: 16px;
 }
 
+.app-header-inner > :first-child:not(.header-actions) {
+  min-height: 44px;
+  position: relative;
+  padding-left: 52px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.app-header-inner > :first-child:not(.header-actions)::before {
+  width: 40px;
+  height: 40px;
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  border-radius: 10px;
+  background: url("../images/seaweed-harvest-icon-192.png") center / cover no-repeat;
+  box-shadow: 0 2px 7px rgba(6, 71, 82, 0.16);
+  transform: translateY(-50%);
+}
+
 .app-shell {
   padding: 16px 0 46px;
 }
@@ -131,6 +153,13 @@ h1 {
   font-size: 1.3rem;
   font-weight: 600;
   line-height: 1.14;
+}
+
+.auth-brand-logo {
+  width: min(310px, 82vw);
+  height: auto;
+  display: block;
+  margin: 0 auto 16px;
 }
 
 .header-actions {

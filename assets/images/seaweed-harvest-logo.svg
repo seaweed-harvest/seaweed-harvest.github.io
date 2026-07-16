@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="360" viewBox="0 0 1320 360" role="img" aria-labelledby="title desc">
+  <title id="title">Seaweed Harvest</title>
+  <desc id="desc">Seaweed Harvest logo with coral, leafy seaweed and a harvest chart.</desc>
+  <defs>
+    <linearGradient id="coral" x1="92" y1="55" x2="360" y2="320" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#e66a58"/>
+      <stop offset="1" stop-color="#bd493f"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="430" y1="40" x2="185" y2="330" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#008d89"/>
+      <stop offset="1" stop-color="#064b57"/>
+    </linearGradient>
+    <linearGradient id="word" x1="510" y1="95" x2="1190" y2="290" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#063f4a"/>
+      <stop offset="0.58" stop-color="#075864"/>
+      <stop offset="1" stop-color="#04414c"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(20 12)">
+    <path d="M69 178C71 296 175 342 292 321C344 312 387 288 417 249" fill="none" stroke="#159b98" stroke-width="10" stroke-linecap="round"/>
+    <path d="M169 52C217 28 273 21 328 31" fill="none" stroke="#008e8b" stroke-width="10" stroke-linecap="round"/>
+    <circle cx="355" cy="42" r="7" fill="#1a9c9a"/><circle cx="388" cy="61" r="6" fill="#36a7a5"/><circle cx="413" cy="87" r="5" fill="#61b7b5"/>
+    <g opacity="0.42" fill="#48aaa8">
+      <rect x="192" y="218" width="24" height="58"/><rect x="229" y="196" width="24" height="80"/><rect x="266" y="170" width="24" height="106"/>
+      <path d="M175 276H303M175 242H303M175 208H303M175 174H303M175 140H303M175 140V276M217 140V276M259 140V276M301 140V276" fill="none" stroke="#78c6c4" stroke-width="1"/>
+    </g>
+    <g fill="none" stroke="url(#coral)" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M88 75C120 170 161 234 282 316" stroke-width="18"/>
+      <path d="M113 132L70 105M135 174L86 153M165 219L112 198M202 260L147 242M111 127L121 74M136 172L163 125M166 218L194 168M202 260L231 211" stroke-width="15"/>
+      <path d="M93 95L72 69M119 76L135 50M78 119L53 112M91 157L63 141M111 199L78 190M147 242L115 229M161 124L161 98M194 168L207 142M231 211L249 185" stroke-width="11"/>
+    </g>
+    <g fill="url(#teal)">
+      <path d="M216 313C285 254 321 192 339 117C351 72 374 53 397 43C374 101 393 132 363 183C331 238 288 283 237 316Z"/>
+      <path d="M279 263C307 214 299 172 316 132C348 174 344 218 321 249C305 270 292 274 279 263Z"/>
+      <path d="M324 229C359 200 378 164 399 132C404 179 389 218 355 244C338 256 323 252 314 245Z"/>
+      <path d="M276 285C326 276 368 253 396 226C386 270 354 298 308 306C287 309 273 301 264 293Z"/>
+    </g>
+  </g>
+  <text x="490" y="170" fill="url(#word)" font-family="Arial, Helvetica, sans-serif" font-size="116" font-weight="600" letter-spacing="0">Seaweed</text>
+  <text x="490" y="292" fill="#259f9d" font-family="Arial, Helvetica, sans-serif" font-size="112" font-weight="400" letter-spacing="0">Harvest</text>
+</svg>

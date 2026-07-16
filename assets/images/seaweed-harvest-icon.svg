@@ -1,5 +1,34 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Seaweed Harvest">
-  <rect width="512" height="512" rx="72" fill="#0f766e"/>
-  <path d="M256 420c-10-66-8-137 6-207 10-50 31-95 62-135" fill="none" stroke="#fff" stroke-width="30" stroke-linecap="round"/>
-  <path d="M266 304c-65-8-105-40-119-95 62 1 105 33 119 95Zm18-76c-18-62-4-111 43-146 20 59 6 108-43 146Zm-31 144c-58 8-102-11-132-57 57-16 101 3 132 57Zm22-10c15-57 49-92 103-104-8 58-42 93-103 104Z" fill="#b9f3cf"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Seaweed Harvest</title>
+  <desc id="desc">Crossed coral and leafy seaweed on a teal background.</desc>
+  <defs>
+    <linearGradient id="background" x1="80" y1="70" x2="930" y2="950" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#43b8b8"/>
+      <stop offset="0.48" stop-color="#11777b"/>
+      <stop offset="1" stop-color="#064752"/>
+    </linearGradient>
+    <linearGradient id="coral" x1="210" y1="170" x2="650" y2="860" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff8368"/>
+      <stop offset="1" stop-color="#f05d50"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="830" y1="175" x2="435" y2="880" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#bceeed"/>
+      <stop offset="1" stop-color="#38aeb2"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="190" fill="url(#background)"/>
+  <g fill="none" stroke="url(#coral)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M205 224C284 390 326 569 640 865" stroke-width="42"/>
+    <path d="M274 348L190 287M304 438L204 390M350 527L237 480M407 613L290 568M478 699L361 651" stroke-width="35"/>
+    <path d="M244 310L257 210M291 402L334 312M340 492L395 398M395 578L447 487M468 680L523 589" stroke-width="35"/>
+    <path d="M214 252L170 200M258 218L291 162M192 307L138 291M222 405L159 362M210 478L146 465M271 563L203 537M296 360L285 294M337 322L367 270M395 397L390 331M447 488L475 421M523 589L563 526" stroke-width="27"/>
+  </g>
+  <g fill="url(#leaf)">
+    <path d="M387 865C522 741 620 603 682 439C718 345 748 258 825 172C806 310 833 385 765 494C680 630 575 749 433 865Z"/>
+    <path d="M554 719C624 594 601 481 645 363C721 475 715 575 658 660C626 707 592 730 554 719Z"/>
+    <path d="M653 636C743 552 786 465 834 385C852 506 809 603 719 672C675 705 640 708 615 693Z"/>
+    <path d="M544 784C678 751 765 699 817 641C796 747 725 817 608 840C555 851 518 836 497 813Z"/>
+    <path d="M690 481C714 365 764 266 826 174C825 292 815 386 756 470C728 510 703 520 690 481Z"/>
+  </g>
+  <path d="M389 865C512 768 610 651 682 510" fill="none" stroke="#7bd0d1" stroke-width="17" stroke-linecap="round" opacity="0.7"/>
 </svg>
