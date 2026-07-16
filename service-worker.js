@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v4";
+const CACHE_VERSION = "seaweed-harvest-collection-v5";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -41,6 +41,7 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.hostname.endsWith("supabase.co")) return;
+  if (url.pathname.endsWith(".apk") || url.pathname.endsWith(".aab") || url.pathname.includes("/downloads/")) return;
 
   if (request.mode === "navigate") {
     event.respondWith(networkFirst(request, "./index.html"));
