@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v6";
+const CACHE_VERSION = "seaweed-harvest-collection-v7";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -7,10 +7,12 @@ const APP_SHELL = [
   "./manifest.webmanifest",
   "./assets/css/ag.css",
   "./assets/images/seaweed-harvest-logo.svg",
+  "./assets/images/seaweed-harvest-splash.gif",
   "./assets/images/seaweed-harvest-icon.svg",
   "./assets/images/seaweed-harvest-icon-192.png",
   "./assets/images/seaweed-harvest-icon-512.png",
   "./assets/js/collection_form.js",
+  "./assets/js/app_transition.js",
   "./assets/js/collection_language.js",
   "./assets/js/offline_store.js",
   "./assets/js/offline_sync.js",

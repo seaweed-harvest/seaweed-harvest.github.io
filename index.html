@@ -12,9 +12,29 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./assets/images/seaweed-harvest-icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
+  <script>
+    (() => {
+      const isInstalledApp = Boolean(globalThis.SeaweedNativeBundle)
+        || location.protocol === "capacitor:"
+        || (/Android/i.test(navigator.userAgent) && /; wv\)/i.test(navigator.userAgent))
+        || globalThis.matchMedia?.("(display-mode: standalone)")?.matches;
+      try {
+        if (isInstalledApp && !sessionStorage.getItem("seaweed-harvest:launch-splash-shown")) {
+          sessionStorage.setItem("seaweed-harvest:launch-splash-shown", "1");
+          globalThis.__seaweedHarvestLaunchStartedAt = performance.now();
+          document.documentElement.classList.add("app-launch-pending");
+        }
+      } catch {
+        // Continue directly when storage is unavailable.
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="./assets/css/ag.css">
 </head>
 <body class="collection-page" data-auth-pending>
+  <div id="appLaunchSplash" class="app-launch-splash" role="status" aria-label="Opening Seaweed Harvest">
+    <img src="./assets/images/seaweed-harvest-splash.gif" alt="">
+  </div>
   <header class="app-header">
     <div class="app-header-inner">
       <div>

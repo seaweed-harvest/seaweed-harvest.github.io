@@ -23,6 +23,7 @@ import {
   saveReferenceSnapshot
 } from "./offline_store.js";
 import { syncPendingCollections } from "./offline_sync.js";
+import { completeLaunchSplash } from "./app_transition.js";
 
 const state = {
   communities: [],
@@ -78,37 +79,45 @@ const els = {};
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
-  initCollectionLanguage();
-  cacheElements();
-  await initialiseNativeRuntime();
-  await initialiseOfflineCollection();
   try {
-    await initialiseCollectionAccess();
-  } catch (error) {
-    state.session = null;
-    state.profile = null;
-    state.publicMode = true;
     try {
-      await loadPublicMawimbiContext();
-    } catch (publicError) {
-      document.body.removeAttribute("data-auth-pending");
-      setStatus(publicError.message || error.message, "error");
-      return;
+      initCollectionLanguage();
+      cacheElements();
+      await initialiseNativeRuntime();
+      await initialiseOfflineCollection();
+      try {
+        await initialiseCollectionAccess();
+      } catch (error) {
+        state.session = null;
+        state.profile = null;
+        state.publicMode = true;
+        try {
+          await loadPublicMawimbiContext();
+        } catch (publicError) {
+          setStatus(publicError.message || error.message, "error");
+          return;
+        }
+      }
+      setupCollectionHeader();
+      setupCollectorName();
+      applyCollectionAccessMode();
+      renderActiveAggregator();
+      bindEvents();
+      setDefaultDateTime();
+      await loadFormData();
+      ensureTransactionId();
+      updateEmptyFieldHighlights();
+      await refreshOfflineQueue();
+    } catch (error) {
+      if (els.collectionSaveStatus) {
+        setStatus(error.message || "Unable to open the collection form.", "error");
+      } else {
+        console.error(error);
+      }
     }
-  }
-  setupCollectionHeader();
-  setupCollectorName();
-  applyCollectionAccessMode();
-  renderActiveAggregator();
-  bindEvents();
-  setDefaultDateTime();
-  await loadFormData();
-  ensureTransactionId();
-  updateEmptyFieldHighlights();
-  try {
-    await refreshOfflineQueue();
   } finally {
     document.body.removeAttribute("data-auth-pending");
+    await completeLaunchSplash();
   }
 }
 

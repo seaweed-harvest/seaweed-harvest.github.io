@@ -171,7 +171,82 @@ h1 {
   width: min(310px, 82vw);
   height: auto;
   display: block;
+  margin: 0 auto;
+}
+
+.auth-brand-animation {
+  width: min(350px, 88vw);
+  height: 146px;
+  position: relative;
   margin: 0 auto 16px;
+  overflow: hidden;
+}
+
+.auth-brand-logo-animated {
+  width: 100%;
+  max-width: none;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  mix-blend-mode: multiply;
+  transform: translateY(-50%);
+}
+
+.app-launch-splash,
+.brand-transition {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  place-items: center;
+  overflow: hidden;
+  background: #f4fbf9;
+  opacity: 0;
+  transition: opacity 320ms ease;
+}
+
+.app-launch-splash {
+  display: none;
+}
+
+.app-launch-pending .app-launch-splash,
+.brand-transition.is-visible {
+  display: grid;
+  opacity: 1;
+}
+
+.app-launch-pending body {
+  overflow: hidden;
+}
+
+.app-launch-splash.is-leaving,
+.brand-transition.is-leaving {
+  opacity: 0;
+}
+
+.app-launch-splash img,
+.brand-transition img {
+  width: min(540px, 100vw);
+  height: min(960px, 100vh);
+  display: block;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+
+body.brand-transition-active {
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-launch-splash,
+  .brand-transition {
+    transition: none;
+  }
+
+  .auth-brand-logo-animated,
+  .app-launch-splash img,
+  .brand-transition img {
+    content: url("../images/seaweed-harvest-logo.svg");
+  }
 }
 
 .download-shell {

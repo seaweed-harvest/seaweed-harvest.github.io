@@ -12,6 +12,7 @@ import {
   updateMyDisplayName,
   updatePassword
 } from "./auth_client.js";
+import { transitionTo } from "./app_transition.js";
 
 const els = {};
 
@@ -150,7 +151,7 @@ async function routeSignedInUser() {
     || (requestedFile === "farmer.html" && profile?.app_role === "farmer_viewer")
     || requestedFile === "access_pending.html";
   const destination = requested && canUseRequestedPage ? `./${requestedPage}` : routeForProfile(profile);
-  window.location.replace(destination);
+  await transitionTo(destination);
 }
 
 async function configureSocialButtons() {
