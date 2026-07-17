@@ -1,7 +1,8 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v5";
+const CACHE_VERSION = "seaweed-harvest-collection-v6";
 const APP_SHELL = [
   "./",
   "./index.html",
+  "./today.html",
   "./privacy.html",
   "./manifest.webmanifest",
   "./assets/css/ag.css",
@@ -12,6 +13,8 @@ const APP_SHELL = [
   "./assets/js/collection_form.js",
   "./assets/js/collection_language.js",
   "./assets/js/offline_store.js",
+  "./assets/js/offline_sync.js",
+  "./assets/js/today_page.js",
   "./assets/js/config.js",
   "./assets/js/supabase_client.js",
   "./assets/js/vendor/jsQR.js"

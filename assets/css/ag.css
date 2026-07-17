@@ -392,42 +392,141 @@ h1 {
   color: #fff;
 }
 
-.offline-sync-panel {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px 14px;
-  margin-bottom: 10px;
-  padding: 10px 12px;
-}
-
-.offline-sync-summary {
+.pending-records-band {
   min-width: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border: 1px solid rgba(245, 158, 11, 0.42);
+  border-left: 4px solid var(--warn);
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #65420b;
+  font-size: 0.86rem;
+  box-shadow: 0 3px 10px rgba(120, 75, 8, 0.06);
 }
 
-.offline-sync-summary h2 {
-  margin: 0 0 1px;
-  font-size: 0.9rem;
-  font-weight: 700;
+.app-update-banner {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+  padding: 9px 12px;
+  border: 1px solid rgba(15, 118, 110, 0.28);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  background: #ecf8f5;
+  color: var(--text-sec);
+  box-shadow: 0 3px 10px rgba(15, 118, 110, 0.07);
 }
 
-.offline-sync-summary p {
-  margin: 0;
+.app-update-copy {
+  min-width: 0;
+  flex: 1;
 }
 
-.offline-sync-statuses,
-.offline-sync-actions {
+.app-update-copy strong,
+.app-update-copy span {
+  display: block;
+}
+
+.app-update-copy strong {
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.app-update-copy span {
+  margin-top: 1px;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.app-update-actions {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
 }
 
-.offline-sync-actions button {
+.app-update-actions button {
+  min-height: 32px;
+  padding: 3px 10px;
+  font-size: 0.78rem;
+}
+
+.app-update-actions .app-update-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.pending-records-band strong {
+  color: #92400e;
+  font-weight: 700;
+}
+
+.pending-records-band button {
+  min-height: 30px;
+  margin-left: auto;
+  padding: 3px 10px;
+  border-color: rgba(146, 64, 14, 0.32);
+  background: #fff;
+  color: #92400e;
+  font-size: 0.78rem;
+}
+
+.pending-records-icon {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 20px;
+  border: 1px solid rgba(146, 64, 14, 0.36);
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #92400e;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.offline-sync-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 9px 12px;
+}
+
+.offline-ready-summary {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.offline-ready-summary h2 {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.offline-ready-summary strong {
+  color: var(--accent);
+  font-size: 0.86rem;
+}
+
+.offline-ready-summary strong[data-status="error"] {
+  color: #b91c1c;
+}
+
+#offlineSyncNow {
   min-height: 32px;
   padding: 3px 10px;
   font-size: 0.78rem;
@@ -609,6 +708,41 @@ h1 {
 .public-intake-panel .field-hint,
 .public-intake-panel .admin-status {
   margin: 0;
+}
+
+.today-row-local td {
+  background: #fffbeb;
+}
+
+.today-row-local:hover td {
+  background: #fff7d6;
+}
+
+.today-sync-status-cell {
+  min-width: 118px !important;
+}
+
+.intake-recovery-panel {
+  margin-top: 12px;
+}
+
+.intake-recovery-panel > summary {
+  padding: 12px 16px;
+  color: var(--text-sec);
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.intake-recovery-body {
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.intake-recovery-body p {
+  margin: 10px 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
 }
 
 .public-intake-table-wrap {
@@ -3248,20 +3382,26 @@ button:disabled {
   }
 
   .offline-sync-panel {
-    grid-template-columns: 1fr;
-  }
-
-  .offline-sync-summary {
-    align-items: flex-start;
+    align-items: stretch;
     flex-direction: column;
   }
 
-  .offline-sync-actions {
+  #offlineSyncNow {
     width: 100%;
   }
 
-  .offline-sync-actions button {
-    flex: 1 1 auto;
+  .pending-records-band button {
+    width: 100%;
+    margin: 4px 0 0;
+  }
+
+  .app-update-banner {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .app-update-actions button {
+    flex: 1;
   }
 
   .collection-form fieldset,

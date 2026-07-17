@@ -1,13 +1,27 @@
 import { APP_CONFIG } from "./config.js";
 import { callPublicRpc, selectRows } from "./supabase_client.js";
-import { currentProfile, currentSession, setupAccountControls } from "./auth_client.js";
+import {
+  createPendingBackup,
+  initialiseOfflineStore,
+  listOutboxItems,
+  restorePendingBackup
+} from "./offline_store.js";
+import { syncPendingCollections } from "./offline_sync.js";
 
 const COLLECTOR_NAME_STORAGE_KEY = "seaweed_harvest:collector_name";
 const state = {
   rows: [],
+  serverRows: [],
+  localRows: [],
   communities: [],
   seaweedTypes: [],
   grades: [],
+  localReady: false,
+  online: navigator.onLine,
+  networkVerified: false,
+  syncing: false,
+  pendingCount: 0,
+  showSyncStatus: false,
   selectedIds: new Set(),
   editingIds: new Set(),
   dirtyIds: new Set(),
@@ -24,6 +38,12 @@ async function init() {
     "todayConnectionStatus",
     "todayIntakeDate",
     "todayEditorName",
+    "todayPendingRecordsBand",
+    "todayPendingRecordsLabel",
+    "todayPendingRecordsText",
+    "todayPendingRecordsSync",
+    "todaySyncAll",
+    "publicTodaySyncHeader",
     "publicTodayCount",
     "reloadPublicToday",
     "publicTodayEditActions",
@@ -33,7 +53,11 @@ async function init() {
     "publicTodayDiscardEdits",
     "publicTodaySelectAll",
     "publicTodayRows",
-    "publicTodayStatus"
+    "publicTodayStatus",
+    "todayDownloadBackup",
+    "todayRestoreBackup",
+    "todayRestoreInput",
+    "todayRecoveryStatus"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
   els.todayIntakeDate.textContent = new Intl.DateTimeFormat("en-KE", {
@@ -49,22 +73,71 @@ async function init() {
   els.publicTodayStartEdit.addEventListener("click", startEdit);
   els.publicTodaySaveEdits.addEventListener("click", saveEdits);
   els.publicTodayDiscardEdits.addEventListener("click", discardEdits);
+  els.todayPendingRecordsSync.addEventListener("click", syncAllLocalRecords);
+  els.todaySyncAll.addEventListener("click", syncAllLocalRecords);
+  els.todayDownloadBackup.addEventListener("click", downloadPendingBackup);
+  els.todayRestoreBackup.addEventListener("click", () => els.todayRestoreInput.click());
+  els.todayRestoreInput.addEventListener("change", restorePendingBackupFile);
+
+  await initialiseLocalIntake();
+  await initialiseNativeNetwork();
+  window.addEventListener("online", () => {
+    state.online = true;
+    state.networkVerified = false;
+    void loadToday();
+  });
+  window.addEventListener("offline", () => {
+    state.online = false;
+    state.networkVerified = true;
+    void refreshLocalRows();
+  });
 
   await setupOptionalAccount();
   await loadToday();
 }
 
-async function setupOptionalAccount() {
+async function initialiseLocalIntake() {
   try {
-    const session = await currentSession();
+    await initialiseOfflineStore();
+    state.localReady = true;
+    await refreshLocalRows();
+  } catch (error) {
+    state.localReady = false;
+    setStatus(error.message || "Local records are unavailable on this device.", "error");
+  }
+}
+
+async function initialiseNativeNetwork() {
+  const network = globalThis.SeaweedNative?.Network;
+  if (!globalThis.SeaweedNative?.isNative || !network) return;
+  try {
+    const status = await network.getStatus();
+    state.online = Boolean(status.connected);
+    state.networkVerified = true;
+    await network.addListener("networkStatusChange", (nextStatus) => {
+      state.online = Boolean(nextStatus.connected);
+      state.networkVerified = true;
+      if (state.online) void loadToday();
+      else void refreshLocalRows();
+    });
+  } catch {
+    state.online = navigator.onLine;
+  }
+}
+
+async function setupOptionalAccount() {
+  if (!state.online || !localStorage.getItem("seaweed-ag-auth")) return;
+  try {
+    const authApi = await import("./auth_client.js");
+    const session = await authApi.currentSession();
     if (!session) return;
-    const profile = await currentProfile(true);
+    const profile = await authApi.currentProfile(true);
     if (!profile) return;
 
     els.todaySignInLink.hidden = true;
     els.todayAdminLink.hidden = !(profile.account_status === "active"
       && (profile.app_role === "system_admin" || profile.can_access_admin));
-    setupAccountControls(profile, {
+    authApi.setupAccountControls(profile, {
       returnPage: "today.html",
       signOutReturn: "./today.html",
       showAggregator: false
@@ -74,10 +147,107 @@ async function setupOptionalAccount() {
   }
 }
 
+async function syncAllLocalRecords() {
+  if (!state.localReady || state.syncing) return;
+  if (!state.online) {
+    setStatus("Device offline. Local records will remain on this device until reception returns.");
+    return;
+  }
+
+  state.syncing = true;
+  updateLocalSyncUi();
+  setStatus("Syncing local records...");
+  try {
+    const result = await syncPendingCollections({
+      online: state.online,
+      onProgress: refreshLocalRows
+    });
+    await loadToday();
+    if (result.failedCount) {
+      setStatus(`${result.failedCount} record${result.failedCount === 1 ? "" : "s"} could not be synced.`, "error");
+    } else {
+      setStatus(`Synced ${result.syncedCount} local record${result.syncedCount === 1 ? "" : "s"}.`);
+    }
+  } catch (error) {
+    await refreshLocalRows();
+    setStatus(error.message || "Local records could not be synced.", "error");
+  } finally {
+    state.syncing = false;
+    updateLocalSyncUi();
+  }
+}
+
+async function downloadPendingBackup() {
+  try {
+    const backup = await createPendingBackup();
+    if (!backup.pendingCount) {
+      setRecoveryStatus("There are no unsynced records to back up.");
+      return;
+    }
+    const filename = `seaweed-harvest-pending-${new Date().toISOString().slice(0, 10)}.json`;
+    const contents = JSON.stringify(backup);
+    if (globalThis.SeaweedNative?.isNative && globalThis.SeaweedNative?.saveBackup) {
+      await globalThis.SeaweedNative.saveBackup(filename, contents);
+      setRecoveryStatus("Pending-record backup saved.");
+      return;
+    }
+    const blob = new Blob([contents], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setRecoveryStatus("Pending-record backup downloaded.");
+  } catch (error) {
+    setRecoveryStatus(error.message || "Backup could not be created.", "error");
+  }
+}
+
+async function restorePendingBackupFile() {
+  const file = els.todayRestoreInput.files?.[0];
+  if (!file) return;
+  try {
+    if (file.size > 100 * 1024 * 1024) throw new Error("The backup file is too large.");
+    const backup = JSON.parse(await file.text());
+    const result = await restorePendingBackup(backup);
+    await refreshLocalRows();
+    const skipped = result.skipped ? ` ${result.skipped} already existed on this device.` : "";
+    setRecoveryStatus(`Restored ${result.imported} pending record(s).${skipped}`);
+  } catch (error) {
+    setRecoveryStatus(error.message || "This is not a valid Seaweed Harvest pending-record backup.", "error");
+  } finally {
+    els.todayRestoreInput.value = "";
+  }
+}
+
+function setRecoveryStatus(message, type = "") {
+  els.todayRecoveryStatus.textContent = message || "";
+  els.todayRecoveryStatus.dataset.status = type;
+}
+
 async function loadToday() {
   els.reloadPublicToday.disabled = true;
-  setStatus("Loading...");
   resetEditState();
+  await refreshLocalRows();
+
+  if (!state.online) {
+    state.serverRows = [];
+    combineTodayRows();
+    renderRows();
+    updateLocalSyncUi();
+    els.todayConnectionStatus.textContent = "Offline";
+    els.todayConnectionStatus.className = "status-pill offline-status-offline";
+    setStatus(state.localRows.length
+      ? "Offline. Showing records stored on this device."
+      : "Offline. No local intake records are waiting.");
+    els.reloadPublicToday.disabled = false;
+    return;
+  }
+
+  setStatus("Loading...");
   try {
     const [rows, communities, seaweedTypes, grades] = await Promise.all([
       callPublicRpc("ag_public_mawimbi_today_intake"),
@@ -85,29 +255,129 @@ async function loadToday() {
       selectRows("ag_public_seaweed_type_settings", "select=*&order=display_order.asc"),
       selectRows("ag_public_grade_price_settings", "select=*&order=display_order.asc")
     ]);
-    state.rows = Array.isArray(rows) ? rows : [];
+    state.serverRows = (Array.isArray(rows) ? rows : []).map((row) => ({
+      ...row,
+      _syncStatus: "synced",
+      _localRecord: false
+    }));
     state.communities = Array.isArray(communities) ? communities : [];
     state.seaweedTypes = Array.isArray(seaweedTypes) ? seaweedTypes : [];
     state.grades = Array.isArray(grades) ? grades : [];
+    state.online = true;
+    state.networkVerified = true;
+    combineTodayRows();
     renderRows();
+    updateLocalSyncUi();
     els.todayConnectionStatus.textContent = "Live";
     els.todayConnectionStatus.className = "status-pill";
     setStatus("Loaded.");
   } catch (error) {
-    state.rows = [];
+    state.online = false;
+    state.networkVerified = true;
+    state.serverRows = [];
+    combineTodayRows();
     renderRows();
-    els.todayConnectionStatus.textContent = "Error";
+    updateLocalSyncUi();
+    els.todayConnectionStatus.textContent = state.localRows.length ? "Local" : "Error";
     els.todayConnectionStatus.className = "status-pill status-muted";
-    setStatus(error.message, "error");
+    setStatus(state.localRows.length
+      ? `Live intake could not be loaded. Showing ${state.localRows.length} local record(s).`
+      : error.message, "error");
   } finally {
     els.reloadPublicToday.disabled = false;
   }
 }
 
+async function refreshLocalRows() {
+  if (!state.localReady) return;
+  const items = await listOutboxItems();
+  const pendingItems = items.filter((item) => item.status !== "synced");
+  state.pendingCount = pendingItems.length;
+  state.localRows = pendingItems
+    .filter((item) => isTodayInNairobi(item.payload?.collected_at || item.createdAt))
+    .map(localItemToRow);
+  combineTodayRows();
+  renderRows();
+  updateLocalSyncUi();
+}
+
+function localItemToRow(item) {
+  const payload = item.payload || {};
+  return {
+    id: `local:${item.submissionId}`,
+    collected_at: payload.collected_at || item.createdAt,
+    farmer_name_snapshot: payload.farmer_name_snapshot || item.summary?.farmer || null,
+    sack_weight_kg: payload.sack_weight_kg ?? item.summary?.weightKg ?? null,
+    seaweed_type: payload.seaweed_type || null,
+    grade_code: payload.grade_code || payload.seaweed_grade || item.summary?.grade || null,
+    community_id: payload.community_id || null,
+    community_name_snapshot: payload.community_name_snapshot || item.summary?.community || null,
+    recorded_by_name: payload.collector_name || item.collectorName || null,
+    transaction_id: payload.transaction_id || item.summary?.transactionId || null,
+    updated_at: item.updatedAt,
+    _localRecord: true,
+    _submissionId: item.submissionId,
+    _syncStatus: item.status || "pending",
+    _lastError: item.lastError || null
+  };
+}
+
+function combineTodayRows() {
+  const serverTransactions = new Set(state.serverRows.map((row) => String(row.transaction_id || "")));
+  const localRows = state.localRows.filter((row) => !serverTransactions.has(String(row.transaction_id || "")));
+  state.rows = [...localRows, ...state.serverRows]
+    .sort((left, right) => String(right.collected_at || "").localeCompare(String(left.collected_at || "")));
+  state.showSyncStatus = state.localRows.length > 0;
+}
+
+function updateLocalSyncUi() {
+  const count = state.pendingCount;
+  const offline = !state.online || !state.networkVerified;
+  const syncDisabled = state.syncing || offline || count === 0;
+  els.todayPendingRecordsBand.hidden = count === 0;
+  els.todaySyncAll.hidden = count === 0;
+  els.todaySyncAll.disabled = syncDisabled;
+  els.todayPendingRecordsSync.hidden = offline || count === 0;
+  els.todayPendingRecordsSync.disabled = state.syncing;
+  if (!count) return;
+
+  if (offline && els.todayConnectionStatus.textContent === "Loading") {
+    els.todayConnectionStatus.textContent = "Offline";
+    els.todayConnectionStatus.className = "status-pill offline-status-offline";
+  }
+  els.todayPendingRecordsLabel.textContent = offline ? "Device offline." : "Local records waiting.";
+  els.todayPendingRecordsText.textContent = `${count} record${count === 1 ? "" : "s"} stored locally.`;
+}
+
+function syncStatusHtml(row) {
+  if (!row._localRecord) return '<span class="status-pill offline-status-online">Synced</span>';
+  if (row._syncStatus === "failed") {
+    return `<span class="status-pill offline-status-failed" title="${escapeAttribute(row._lastError || "Sync needs attention")}">Needs attention</span>`;
+  }
+  if (row._syncStatus === "syncing") return '<span class="status-pill status-muted">Syncing</span>';
+  return '<span class="status-pill offline-status-waiting">Stored locally</span>';
+}
+
+function isTodayInNairobi(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  return nairobiDateKey(date) === nairobiDateKey(new Date());
+}
+
+function nairobiDateKey(date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "Africa/Nairobi"
+  }).format(date);
+}
+
 function renderRows() {
   els.publicTodayCount.textContent = `${state.rows.length} row${state.rows.length === 1 ? "" : "s"}`;
+  els.publicTodaySyncHeader.hidden = !state.showSyncStatus;
   if (!state.rows.length) {
-    els.publicTodayRows.innerHTML = '<tr><td colspan="9" class="empty-state">No Mawimbi intake has been recorded today.</td></tr>';
+    els.publicTodayRows.innerHTML = '<tr><td colspan="10" class="empty-state">No Mawimbi intake has been recorded today.</td></tr>';
     updateSelectionUi();
     return;
   }
@@ -117,9 +387,13 @@ function renderRows() {
     const editing = state.editingIds.has(id);
     const dirty = state.dirtyIds.has(id);
     const draft = state.drafts.get(id) || rowDraft(row);
+    const local = Boolean(row._localRecord);
     return `
-      <tr data-public-today-row="${escapeAttribute(id)}" class="${dirty ? "today-row-dirty" : ""}">
-        <td class="selection-cell"><input type="checkbox" data-public-today-select="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(row.transaction_id || "intake row")}"${state.selectedIds.has(id) ? " checked" : ""}${state.editingIds.size ? " disabled" : ""}></td>
+      <tr data-public-today-row="${escapeAttribute(id)}" class="${dirty ? "today-row-dirty" : ""}${local ? " today-row-local" : ""}">
+        <td class="selection-cell">${local
+          ? `<input type="checkbox" aria-label="Sync this local record before editing" disabled>`
+          : `<input type="checkbox" data-public-today-select="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(row.transaction_id || "intake row")}"${state.selectedIds.has(id) ? " checked" : ""}${state.editingIds.size ? " disabled" : ""}>`}</td>
+        <td class="today-sync-status-cell"${state.showSyncStatus ? "" : " hidden"}>${syncStatusHtml(row)}</td>
         <td>${escapeHtml(formatTime(row.collected_at))}</td>
         <td>${editing ? textControl(id, "farmer_name_snapshot", draft.farmer_name_snapshot, "today-farmer-editor", 150) : escapeHtml(row.farmer_name_snapshot || "-")}</td>
         <td>${editing ? numberControl(id, "sack_weight_kg", draft.sack_weight_kg, 0.01, 0.01) : escapeHtml(formatNumber(row.sack_weight_kg))}</td>
@@ -161,7 +435,7 @@ function toggleAllRows() {
   if (state.editingIds.size) return;
   state.selectedIds.clear();
   if (els.publicTodaySelectAll.checked) {
-    state.rows.forEach((row) => state.selectedIds.add(String(row.id)));
+    state.rows.filter((row) => !row._localRecord).forEach((row) => state.selectedIds.add(String(row.id)));
   }
   renderRows();
 }
@@ -258,6 +532,7 @@ function updateSelectionUi() {
   const selected = state.selectedIds.size;
   const editing = state.editingIds.size > 0;
   const dirty = state.dirtyIds.size;
+  const selectableCount = state.rows.filter((row) => !row._localRecord).length;
   els.publicTodayEditActions.hidden = selected === 0;
   els.publicTodaySelectedCount.textContent = `${selected} selected`;
   els.publicTodayStartEdit.hidden = editing;
@@ -268,9 +543,9 @@ function updateSelectionUi() {
   els.publicTodayDiscardEdits.hidden = !editing;
   els.reloadPublicToday.disabled = editing;
   els.todayEditorName.disabled = editing;
-  els.publicTodaySelectAll.checked = state.rows.length > 0 && selected === state.rows.length;
-  els.publicTodaySelectAll.indeterminate = selected > 0 && selected < state.rows.length;
-  els.publicTodaySelectAll.disabled = editing || state.rows.length === 0;
+  els.publicTodaySelectAll.checked = selectableCount > 0 && selected === selectableCount;
+  els.publicTodaySelectAll.indeterminate = selected > 0 && selected < selectableCount;
+  els.publicTodaySelectAll.disabled = editing || selectableCount === 0;
 }
 
 function resetEditState() {

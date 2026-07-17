@@ -1,0 +1,158 @@
+import { APP_CONFIG } from "./config.js";
+import { callRpc, uploadStorageObject } from "./supabase_client.js";
+import {
+  listOutboxItems,
+  markOutboxSynced,
+  updateOutboxItem
+} from "./offline_store.js";
+
+const PHOTO_BUCKET = "collection-photos";
+
+export async function syncPendingCollections(options = {}) {
+  const online = options.online ?? navigator.onLine;
+  if (!online) {
+    return pendingResult({ offline: true });
+  }
+
+  const items = (await listOutboxItems())
+    .filter((item) => item.status !== "synced")
+    .filter((item) => !options.submissionId || item.submissionId === options.submissionId)
+    .sort((left, right) => String(left.createdAt).localeCompare(String(right.createdAt)));
+
+  let requestedResult = null;
+  let requestedError = null;
+  let syncedCount = 0;
+  const errors = [];
+
+  for (const item of items) {
+    try {
+      const result = await syncOutboxItem(item);
+      syncedCount += 1;
+      if (item.submissionId === options.submissionId) requestedResult = result;
+    } catch (error) {
+      const message = error?.message || "Sync could not be completed.";
+      await updateOutboxItem(item.submissionId, {
+        status: "failed",
+        lastError: message
+      });
+      errors.push({ submissionId: item.submissionId, message });
+      if (item.submissionId === options.submissionId) requestedError = error;
+    }
+    if (options.onProgress) await options.onProgress(item.submissionId);
+  }
+
+  return pendingResult({
+    requestedResult,
+    requestedError,
+    syncedCount,
+    failedCount: errors.length,
+    errors
+  });
+}
+
+async function pendingResult(result = {}) {
+  const remaining = (await listOutboxItems()).filter((item) => item.status !== "synced");
+  return {
+    offline: false,
+    requestedResult: null,
+    requestedError: null,
+    syncedCount: 0,
+    failedCount: 0,
+    errors: [],
+    ...result,
+    remainingCount: remaining.length
+  };
+}
+
+async function syncOutboxItem(savedItem) {
+  let item = await updateOutboxItem(savedItem.submissionId, {
+    status: "syncing",
+    attempts: Number(savedItem.attempts || 0) + 1,
+    lastError: null
+  });
+
+  const photos = [...(item.photos || [])];
+  for (let index = 0; index < photos.length; index += 1) {
+    if (photos[index].uploadedPath) continue;
+    if (!(photos[index].blob instanceof Blob)) {
+      throw new Error(`Photo ${index + 1} is missing from phone storage. Restore it from a backup before syncing.`);
+    }
+
+    let path;
+    if (item.mode === "public") {
+      path = await uploadPublicCollectionPhoto(photos[index].blob, item.submissionId, photos[index].id);
+    } else {
+      path = authenticatedPhotoPath(item, photos[index]);
+      await uploadStorageObject(PHOTO_BUCKET, path, photos[index].blob);
+    }
+    photos[index] = { ...photos[index], uploadedPath: path };
+    item = await updateOutboxItem(item.submissionId, { photos });
+  }
+
+  const payload = {
+    ...item.payload,
+    photo_urls: photos.map((photo) => photo.uploadedPath).filter(Boolean)
+  };
+  const result = item.mode === "public"
+    ? await submitPublicCollection(payload, item)
+    : await callRpc("ag_submit_collection_v2", {
+      p_submission_id: item.submissionId,
+      p_collection: payload
+    });
+
+  if (item.farmSizeUpdate && item.mode !== "public") {
+    await callRpc("ag_update_farmer_farm_size_from_collection", item.farmSizeUpdate);
+  }
+  await markOutboxSynced(item.submissionId, result);
+  return result;
+}
+
+async function submitPublicCollection(payload, item) {
+  const response = await fetch(`${APP_CONFIG.supabase.url}/functions/v1/public-collection`, {
+    method: "POST",
+    headers: {
+      apikey: APP_CONFIG.supabase.anonKey,
+      Authorization: `Bearer ${APP_CONFIG.supabase.anonKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      submission_id: item.submissionId,
+      collector_name: item.collectorName,
+      website: item.website || "",
+      collection: payload
+    })
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || `Collection could not be saved (${response.status}).`);
+  return body.result;
+}
+
+async function uploadPublicCollectionPhoto(photo, submissionId, photoId) {
+  const query = new URLSearchParams({
+    submission_id: submissionId,
+    photo_id: photoId
+  });
+  const response = await fetch(`${APP_CONFIG.supabase.url}/functions/v1/public-collection-photo?${query}`, {
+    method: "POST",
+    headers: {
+      apikey: APP_CONFIG.supabase.anonKey,
+      Authorization: `Bearer ${APP_CONFIG.supabase.anonKey}`,
+      "Content-Type": "image/jpeg"
+    },
+    body: photo
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || !body.path) {
+    throw new Error(body.error || `Photo could not be uploaded (${response.status}).`);
+  }
+  return body.path;
+}
+
+function authenticatedPhotoPath(item, photo) {
+  const collectedAt = new Date(item.payload?.collected_at || item.createdAt || Date.now());
+  const year = String(collectedAt.getFullYear());
+  const month = String(collectedAt.getMonth() + 1).padStart(2, "0");
+  const transactionFolder = String(item.payload?.transaction_id || "collection")
+    .replace(/[^a-zA-Z0-9_-]/g, "-");
+  return `collections/${year}/${month}/${transactionFolder}/${photo.id}.jpg`;
+}

@@ -4,8 +4,7 @@ import {
   callRpc,
   dataModeLabel,
   isSupabaseEnabled,
-  selectRows,
-  uploadStorageObject
+  selectRows
 } from "./supabase_client.js";
 import {
   configuredFieldLabel,
@@ -14,19 +13,16 @@ import {
   unitLabel
 } from "./collection_language.js";
 import {
-  createPendingBackup,
   initialiseOfflineStore,
   listOutboxItems,
   loadReferenceSnapshot,
-  markOutboxSynced,
   offlineStorageEstimate,
   offlineStorageSupported,
   requestPersistentOfflineStorage,
-  restorePendingBackup,
   saveCollectionToOutbox,
-  saveReferenceSnapshot,
-  updateOutboxItem
+  saveReferenceSnapshot
 } from "./offline_store.js";
+import { syncPendingCollections } from "./offline_sync.js";
 
 const state = {
   communities: [],
@@ -50,6 +46,8 @@ const state = {
   gps: null,
   offline: {
     installPrompt: null,
+    native: false,
+    online: navigator.onLine,
     persistent: null,
     ready: false,
     referenceSavedAt: null,
@@ -67,7 +65,6 @@ const state = {
   }
 };
 
-const PHOTO_BUCKET = "collection-photos";
 const PHOTO_MAX_COUNT = 5;
 const PHOTO_MAX_BYTES = 700 * 1024;
 const PHOTO_TARGET_BYTES = 550 * 1024;
@@ -83,6 +80,7 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   initCollectionLanguage();
   cacheElements();
+  await initialiseNativeRuntime();
   await initialiseOfflineCollection();
   try {
     await initialiseCollectionAccess();
@@ -112,12 +110,11 @@ async function init() {
   } finally {
     document.body.removeAttribute("data-auth-pending");
   }
-  if (navigator.onLine) void syncOutbox();
 }
 
 async function initialiseCollectionAccess() {
   const storedAuth = localStorage.getItem("seaweed-ag-auth");
-  if (!storedAuth || !navigator.onLine) {
+  if (!storedAuth || !isOnline()) {
     state.session = null;
     state.profile = null;
     state.publicMode = true;
@@ -232,7 +229,9 @@ async function initialiseOfflineCollection() {
     els.offlineReadiness.dataset.status = "error";
   }
 
-  if ("serviceWorker" in navigator) {
+  if (state.offline.native) {
+    state.offline.serviceWorkerReady = true;
+  } else if ("serviceWorker" in navigator) {
     try {
       const registration = await navigator.serviceWorker.register("./service-worker.js");
       state.offline.serviceWorkerReady = Boolean(registration.active || registration.waiting);
@@ -245,24 +244,51 @@ async function initialiseOfflineCollection() {
     }
   }
 
-  window.addEventListener("beforeinstallprompt", (event) => {
-    event.preventDefault();
-    state.offline.installPrompt = event;
-    els.offlineInstallApp.hidden = false;
-  });
   window.addEventListener("online", () => {
+    state.offline.online = true;
     updateOfflineReadiness();
-    void syncOutbox();
+    void refreshOfflineQueue();
   });
-  window.addEventListener("offline", updateOfflineReadiness);
+  window.addEventListener("offline", () => {
+    state.offline.online = false;
+    updateOfflineReadiness();
+  });
   window.addEventListener("focus", () => {
     updateOfflineReadiness();
-    if (navigator.onLine) void syncOutbox();
+    void refreshOfflineQueue();
   });
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && navigator.onLine) void syncOutbox();
+    if (document.visibilityState === "visible") void refreshOfflineQueue();
   });
   updateOfflineReadiness();
+}
+
+async function initialiseNativeRuntime() {
+  const native = globalThis.SeaweedNative;
+  state.offline.native = Boolean(native?.isNative);
+  state.offline.online = navigator.onLine;
+  if (!state.offline.native || !native?.Network) return;
+
+  try {
+    const status = await native.Network.getStatus();
+    state.offline.online = Boolean(status.connected);
+  } catch {
+    state.offline.online = navigator.onLine;
+  }
+
+  try {
+    await native.Network.addListener("networkStatusChange", (status) => {
+      state.offline.online = Boolean(status.connected);
+      updateOfflineReadiness();
+      void refreshOfflineQueue();
+    });
+  } catch {
+    // Browser online/offline events remain available as a fallback.
+  }
+}
+
+function isOnline() {
+  return Boolean(state.offline.online);
 }
 
 function applyCollectionAccessMode() {
@@ -281,16 +307,11 @@ function cacheElements() {
   [
     "offlineSyncPanel",
     "offlineReadiness",
-    "offlineNetworkStatus",
-    "offlinePendingCount",
     "offlineSyncNow",
-    "offlineInstallApp",
-    "offlineDownloadBackup",
-    "offlineRestoreBackup",
-    "offlineRestoreInput",
-    "offlineQueueDetails",
-    "offlineQueueSummary",
-    "offlineQueueList",
+    "pendingRecordsBand",
+    "pendingRecordsBandLabel",
+    "pendingRecordsBandText",
+    "pendingRecordsBandSync",
     "collectionConnectionStatus",
     "collectionAdminLink",
     "collectionSignInLink",
@@ -357,10 +378,11 @@ function cacheElements() {
 
 function bindEvents() {
   els.offlineSyncNow.addEventListener("click", () => syncOutbox({ announce: true }));
-  els.offlineInstallApp.addEventListener("click", installOfflineApp);
-  els.offlineDownloadBackup.addEventListener("click", downloadPendingBackup);
-  els.offlineRestoreBackup.addEventListener("click", () => els.offlineRestoreInput.click());
-  els.offlineRestoreInput.addEventListener("change", restorePendingBackupFile);
+  els.pendingRecordsBandSync.addEventListener("click", () => syncOutbox({ announce: true }));
+  document.addEventListener("seaweed-collection-language-change", () => {
+    updateOfflineReadiness();
+    void refreshOfflineQueue();
+  });
   els.lookupFarmer.addEventListener("click", lookupFarmer);
   els.scanFarmerId.addEventListener("click", () => startQrScanner("farmer"));
   els.farmerId.addEventListener("change", lookupFarmer);
@@ -460,7 +482,7 @@ async function loadFormData() {
   }
 
   applyFormData(formData);
-  setConnectionStatus(navigator.onLine ? translatedDataMode() : t("offline.offline"), navigator.onLine ? "" : "status-muted");
+  setConnectionStatus(isOnline() ? translatedDataMode() : t("offline.offline"), isOnline() ? "" : "status-muted");
   updateOfflineReadiness();
 }
 
@@ -650,7 +672,7 @@ function collectionDateValue() {
 }
 
 async function refreshPricingForDate() {
-  if (!navigator.onLine) {
+  if (!isOnline()) {
     updatePriceForGrade();
     return;
   }
@@ -954,27 +976,6 @@ async function prepareSelectedCollectionPhotos() {
   return photos;
 }
 
-async function uploadPublicCollectionPhoto(photo, submissionId, photoId) {
-  const query = new URLSearchParams({
-    submission_id: submissionId,
-    photo_id: photoId
-  });
-  const response = await fetch(`${APP_CONFIG.supabase.url}/functions/v1/public-collection-photo?${query}`, {
-    method: "POST",
-    headers: {
-      apikey: APP_CONFIG.supabase.anonKey,
-      Authorization: `Bearer ${APP_CONFIG.supabase.anonKey}`,
-      "Content-Type": "image/jpeg"
-    },
-    body: photo
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok || !body.path) {
-    throw new Error(body.error || `Photo could not be uploaded (${response.status}).`);
-  }
-  return body.path;
-}
-
 export async function compressCollectionPhoto(file) {
   const image = await loadCollectionImage(file);
   let width = image.naturalWidth || image.width;
@@ -1096,7 +1097,7 @@ async function submitCollection(event) {
     setStatus(t("offline.localSaved"));
     await refreshOfflineQueue();
 
-    if (navigator.onLine) {
+    if (isOnline()) {
       const saved = await syncOutbox({ submissionId });
       if (saved) {
         renderReceiptResult(saved);
@@ -1183,119 +1184,33 @@ function renderReceiptResult(saved) {
   els.collectionReceiptResult.hidden = false;
 }
 
-async function submitPublicCollection(payload, item) {
-  const response = await fetch(`${APP_CONFIG.supabase.url}/functions/v1/public-collection`, {
-    method: "POST",
-    headers: {
-      apikey: APP_CONFIG.supabase.anonKey,
-      Authorization: `Bearer ${APP_CONFIG.supabase.anonKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      submission_id: item.submissionId,
-      collector_name: item.collectorName,
-      website: item.website || "",
-      collection: payload
-    })
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || `Collection could not be saved (${response.status}).`);
-  return body.result;
-}
-
 async function syncOutbox(options = {}) {
   if (!state.offline.ready || state.offline.syncing) return null;
-  if (!navigator.onLine) {
+  if (!isOnline()) {
     updateOfflineReadiness();
     if (options.announce) setStatus(t("offline.localSaved"));
     return null;
   }
 
   state.offline.syncing = true;
-  let requestedResult = null;
   try {
     await refreshOfflineQueue();
-    const items = (await listOutboxItems())
-      .filter((item) => item.status !== "synced")
-      .filter((item) => !options.submissionId || item.submissionId === options.submissionId)
-      .sort((left, right) => String(left.createdAt).localeCompare(String(right.createdAt)));
-
-    for (const item of items) {
-      try {
-        const result = await syncOutboxItem(item);
-        if (item.submissionId === options.submissionId) requestedResult = result;
-      } catch (error) {
-        await updateOutboxItem(item.submissionId, {
-          status: "failed",
-          lastError: error.message || "Sync could not be completed."
-        });
-        if (item.submissionId === options.submissionId || options.announce) {
-          setStatus(`${t("offline.localSaved")} ${error.message}`, "error");
-        }
-      }
-      await refreshOfflineQueue();
-    }
-
-    if (options.announce && !(await listOutboxItems()).some((item) => item.status !== "synced")) {
+    const result = await syncPendingCollections({
+      submissionId: options.submissionId,
+      online: isOnline(),
+      onProgress: refreshOfflineQueue
+    });
+    if (result.requestedError || (options.announce && result.failedCount)) {
+      const error = result.requestedError || result.errors[0];
+      setStatus(`${t("offline.localSaved")} ${error?.message || "Sync could not be completed."}`, "error");
+    } else if (options.announce && result.remainingCount === 0) {
       setStatus(t("offline.syncComplete"));
     }
+    return result.requestedResult;
   } finally {
     state.offline.syncing = false;
     await refreshOfflineQueue();
   }
-  return requestedResult;
-}
-
-async function syncOutboxItem(savedItem) {
-  let item = await updateOutboxItem(savedItem.submissionId, {
-    status: "syncing",
-    attempts: Number(savedItem.attempts || 0) + 1,
-    lastError: null
-  });
-
-  const photos = [...(item.photos || [])];
-  for (let index = 0; index < photos.length; index += 1) {
-    if (photos[index].uploadedPath) continue;
-    if (!(photos[index].blob instanceof Blob)) {
-      throw new Error(`Photo ${index + 1} is missing from phone storage. Restore it from a backup before syncing.`);
-    }
-
-    let path;
-    if (item.mode === "public") {
-      path = await uploadPublicCollectionPhoto(photos[index].blob, item.submissionId, photos[index].id);
-    } else {
-      path = authenticatedPhotoPath(item, photos[index]);
-      await uploadStorageObject(PHOTO_BUCKET, path, photos[index].blob);
-    }
-    photos[index] = { ...photos[index], uploadedPath: path };
-    item = await updateOutboxItem(item.submissionId, { photos });
-  }
-
-  const payload = {
-    ...item.payload,
-    photo_urls: photos.map((photo) => photo.uploadedPath).filter(Boolean)
-  };
-  const result = item.mode === "public"
-    ? await submitPublicCollection(payload, item)
-    : await callRpc("ag_submit_collection_v2", {
-      p_submission_id: item.submissionId,
-      p_collection: payload
-    });
-
-  if (item.farmSizeUpdate && item.mode !== "public") {
-    await callRpc("ag_update_farmer_farm_size_from_collection", item.farmSizeUpdate);
-  }
-  await markOutboxSynced(item.submissionId, result);
-  return result;
-}
-
-function authenticatedPhotoPath(item, photo) {
-  const collectedAt = new Date(item.payload?.collected_at || item.createdAt || Date.now());
-  const year = String(collectedAt.getFullYear());
-  const month = String(collectedAt.getMonth() + 1).padStart(2, "0");
-  const transactionFolder = String(item.payload?.transaction_id || "collection")
-    .replace(/[^a-zA-Z0-9_-]/g, "-");
-  return `collections/${year}/${month}/${transactionFolder}/${photo.id}.jpg`;
 }
 
 async function refreshOfflineQueue() {
@@ -1304,46 +1219,22 @@ async function refreshOfflineQueue() {
 
   const items = await listOutboxItems();
   const pending = items.filter((item) => item.status !== "synced");
-  const failed = pending.filter((item) => item.status === "failed");
-  els.offlinePendingCount.textContent = t("offline.waiting", { count: pending.length });
-  els.offlinePendingCount.className = `status-pill ${failed.length ? "offline-status-failed" : pending.length ? "offline-status-waiting" : "offline-status-online"}`;
-  els.offlineSyncNow.disabled = state.offline.syncing || !navigator.onLine || pending.length === 0;
-  els.offlineDownloadBackup.hidden = pending.length === 0;
-  els.offlineQueueSummary.textContent = items.length ? `(${items.length})` : "";
-  els.offlineQueueList.innerHTML = items.length
-    ? items.map(offlineQueueItemHtml).join("")
-    : `<p class="field-hint">${escapeHtml(t("offline.empty"))}</p>`;
-  if (failed.length) els.offlineQueueDetails.open = true;
-}
+  els.offlineSyncNow.disabled = state.offline.syncing || !isOnline() || pending.length === 0;
+  els.pendingRecordsBand.hidden = pending.length === 0;
+  if (!pending.length) return;
 
-function offlineQueueItemHtml(item) {
-  const statusLabel = t(`offline.${item.status}`);
-  const summary = item.summary || {};
-  const title = [summary.transactionId, `${formatCompactNumber(summary.weightKg || 0)} kg`, summary.grade]
-    .filter(Boolean)
-    .join(" | ");
-  const details = [summary.community, formatOfflineDate(summary.collectedAt || item.createdAt), item.lastError]
-    .filter(Boolean)
-    .join(" | ");
-  const statusClass = item.status === "failed"
-    ? "offline-status-failed"
-    : item.status === "synced"
-      ? "offline-status-online"
-      : "offline-status-waiting";
-  return `
-    <div class="offline-queue-item" data-sync-status="${escapeAttribute(item.status)}">
-      <div class="offline-queue-item-main">
-        <strong>${escapeHtml(title)}</strong>
-        <span title="${escapeAttribute(details)}">${escapeHtml(details)}</span>
-      </div>
-      <span class="status-pill ${statusClass}">${escapeHtml(statusLabel)}</span>
-    </div>`;
+  const countText = pending.length === 1
+    ? t("offline.localCountOne")
+    : t("offline.localCountMany", { count: pending.length });
+  els.pendingRecordsBandLabel.textContent = isOnline()
+    ? t("offline.localWaiting")
+    : t("offline.deviceOffline");
+  els.pendingRecordsBandText.textContent = countText;
+  els.pendingRecordsBandSync.hidden = !isOnline();
+  els.pendingRecordsBandSync.disabled = state.offline.syncing;
 }
 
 function updateOfflineReadiness() {
-  const online = navigator.onLine;
-  els.offlineNetworkStatus.textContent = online ? t("offline.online") : t("offline.offline");
-  els.offlineNetworkStatus.className = `status-pill ${online ? "offline-status-online" : "offline-status-offline"}`;
   if (!state.offline.ready) {
     els.offlineReadiness.textContent = t("offline.unavailable");
     els.offlineReadiness.dataset.status = "error";
@@ -1351,72 +1242,12 @@ function updateOfflineReadiness() {
   }
   els.offlineReadiness.dataset.status = "";
   if (!state.offline.referenceSavedAt) {
-    els.offlineReadiness.textContent = t("offline.readyNoDate");
+    els.offlineReadiness.textContent = t("offline.readyShort");
   } else if (!state.offline.serviceWorkerReady) {
-    els.offlineReadiness.textContent = t("offline.shellPending");
+    els.offlineReadiness.textContent = t("offline.preparingShort");
   } else {
-    els.offlineReadiness.textContent = t("offline.ready", { date: formatOfflineDate(state.offline.referenceSavedAt) });
+    els.offlineReadiness.textContent = t("offline.readyShort");
   }
-}
-
-async function installOfflineApp() {
-  if (!state.offline.installPrompt) return;
-  await state.offline.installPrompt.prompt();
-  await state.offline.installPrompt.userChoice;
-  state.offline.installPrompt = null;
-  els.offlineInstallApp.hidden = true;
-}
-
-async function downloadPendingBackup() {
-  try {
-    const backup = await createPendingBackup();
-    if (!backup.pendingCount) {
-      setStatus(t("offline.backupEmpty"));
-      return;
-    }
-    const blob = new Blob([JSON.stringify(backup)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `seaweed-harvest-pending-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.append(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setStatus(t("offline.backupSaved"));
-  } catch (error) {
-    setStatus(error.message, "error");
-  }
-}
-
-async function restorePendingBackupFile() {
-  const file = els.offlineRestoreInput.files?.[0];
-  if (!file) return;
-  try {
-    if (file.size > 100 * 1024 * 1024) throw new Error(t("offline.restoreInvalid"));
-    const backup = JSON.parse(await file.text());
-    const result = await restorePendingBackup(backup);
-    await refreshOfflineQueue();
-    const skipped = result.skipped
-      ? t("offline.restoreSkipped", { count: result.skipped })
-      : "";
-    setStatus(`${t("offline.restoreSaved", { count: result.imported })}${skipped}`);
-  } catch (error) {
-    setStatus(error.message || t("offline.restoreInvalid"), "error");
-  } finally {
-    els.offlineRestoreInput.value = "";
-  }
-}
-
-function formatOfflineDate(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat(document.documentElement.lang || "en-KE", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit"
-  }).format(date);
 }
 
 function splitFarmerName(value) {
@@ -1831,7 +1662,7 @@ function refreshTranslatedContent() {
   applyRuntimeSettings(state.gradePrices);
   updateQuickReference();
   updatePhotoSelectionStatus();
-  setConnectionStatus(navigator.onLine ? translatedDataMode() : t("offline.offline"), navigator.onLine ? "" : "status-muted");
+  setConnectionStatus(isOnline() ? translatedDataMode() : t("offline.offline"), isOnline() ? "" : "status-muted");
   updateOfflineReadiness();
   void refreshOfflineQueue();
   if (state.selectedFarmer) {
