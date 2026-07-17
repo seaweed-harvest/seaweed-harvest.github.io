@@ -180,13 +180,6 @@ h1 {
   padding: 28px 0 56px;
 }
 
-.download-brand-logo {
-  width: min(310px, 82vw);
-  height: auto;
-  display: block;
-  margin: 0 auto 16px;
-}
-
 .download-panel {
   padding: 20px;
 }
@@ -278,6 +271,24 @@ h1 {
   border: 1px solid rgba(245, 158, 11, 0.32);
   background: rgba(245, 158, 11, 0.09);
   color: #854d0e;
+}
+
+.download-verify {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.download-verify summary {
+  width: fit-content;
+  color: var(--text-sec);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.download-verify .field-hint {
+  margin: 10px 0 5px;
 }
 
 .download-checksum {
@@ -3229,7 +3240,7 @@ button:disabled {
   }
 
   .download-details {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .collection-form-panel {

@@ -24,43 +24,41 @@
   </header>
 
   <main class="download-shell">
-    <img class="download-brand-logo" src="./assets/images/seaweed-harvest-logo.svg" alt="Seaweed Harvest">
     <section class="panel download-panel">
       <div class="download-release-head">
         <img src="./assets/images/seaweed-harvest-icon-192.png" alt="">
         <div>
-          <h2>Mawimbi Pilot</h2>
-          <p>Signed Android release</p>
+          <h2>Seaweed Harvest for Android</h2>
+          <p>Mawimbi pilot</p>
         </div>
       </div>
 
-      <a class="button-link download-primary-link" href="./downloads/Seaweed-Harvest-1.0.0.apk" download>Download Android APK</a>
+      <a id="androidDownloadLink" class="button-link download-primary-link" href="./downloads/Seaweed-Harvest-1.0.1.apk" download>Download for Android</a>
 
       <dl class="download-details">
-        <div><dt>Version</dt><dd>1.0.0</dd></div>
-        <div><dt>Size</dt><dd>5.8 MB</dd></div>
+        <div><dt>Version</dt><dd id="androidReleaseVersion">1.0.1</dd></div>
+        <div><dt>Size</dt><dd id="androidReleaseSize">5.6 MB</dd></div>
         <div><dt>Android</dt><dd>7.0 or newer</dd></div>
       </dl>
 
       <h3>Install</h3>
       <ol class="download-steps">
-        <li>Open this page on the Android phone and tap Download Android APK.</li>
-        <li>Open the downloaded file and allow installs from the browser or Files app when Android asks.</li>
-        <li>Tap Install, then open Seaweed Harvest.</li>
-        <li>While online, open Collection once and wait until Phone storage says Offline ready.</li>
+        <li>Tap <strong>Download for Android</strong>.</li>
+        <li>Open the file and allow installation if asked.</li>
+        <li>Tap <strong>Install</strong>. Open the app once while online.</li>
       </ol>
 
-      <p class="download-warning"><strong>Keep pending records safe:</strong> do not uninstall the app or clear its storage while collections are waiting to sync. Use Download backup before extended fieldwork.</p>
+      <p class="download-warning"><strong>Updating?</strong> Sync or back up waiting records, then install over the current app. Do not uninstall it.</p>
 
-      <h3>Updates</h3>
-      <p>Download the newer APK from this page and install it over the existing app. Android retains local app data when the package and signing key match. Sync or back up pending records before every update.</p>
-
-      <h3>File check</h3>
-      <p class="field-hint">SHA-256</p>
-      <code class="download-checksum">5fd641402829f55a2e5366f3b93a55d42c0f22b7a0183e16e4df610a1c6a12f0</code>
+      <details class="download-verify">
+        <summary>Verify download</summary>
+        <p class="field-hint">SHA-256</p>
+        <code id="androidReleaseChecksum" class="download-checksum">dcbcb60d6b4ef16e81f67e658baaafc708f343823b99729f511e4feca45ea499</code>
+      </details>
     </section>
   </main>
 
   <footer class="app-footer"><a href="./privacy.html">Privacy</a></footer>
+  <script type="module" src="./assets/js/download_page.js"></script>
 </body>
 </html>
