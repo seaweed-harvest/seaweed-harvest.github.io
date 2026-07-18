@@ -52,7 +52,7 @@ async function init() {
     "publicTodayEditActions",
     "publicTodaySelectedCount",
     "publicTodayStartEdit",
-    "publicTodayDeleteLocal",
+    "publicTodayDeleteSelected",
     "publicTodaySaveEdits",
     "publicTodayDiscardEdits",
     "publicTodaySelectAll",
@@ -77,7 +77,7 @@ async function init() {
   els.publicTodayRows.addEventListener("input", handleDraftInput);
   els.publicTodaySelectAll.addEventListener("change", toggleAllRows);
   els.publicTodayStartEdit.addEventListener("click", startEdit);
-  els.publicTodayDeleteLocal.addEventListener("click", deleteSelectedLocalRecords);
+  els.publicTodayDeleteSelected.addEventListener("click", deleteSelectedRecords);
   els.publicTodaySaveEdits.addEventListener("click", saveEdits);
   els.publicTodayDiscardEdits.addEventListener("click", discardEdits);
   els.todayPendingRecordsSync.addEventListener("click", syncAllLocalRecords);
@@ -512,25 +512,50 @@ function startEdit() {
   setStatus(`Editing ${state.editingIds.size} selected row${state.editingIds.size === 1 ? "" : "s"}.`);
 }
 
-async function deleteSelectedLocalRecords() {
+async function deleteSelectedRecords() {
   if (state.syncing || state.editingIds.size) return;
-  const selectedRows = [...state.selectedIds].map(rowById).filter((row) => row?._localRecord);
+  const selectedRows = [...state.selectedIds].map(rowById).filter(Boolean);
   if (!selectedRows.length) return;
+  const localRows = selectedRows.filter((row) => row._localRecord);
+  const serverRows = selectedRows.filter((row) => !row._localRecord);
+  const editorName = serverRows.length ? rememberEditorName() : "";
+  if (serverRows.length && editorName.length < 2) {
+    setStatus("Enter your name before deleting a synced record.", "error");
+    els.todayEditorName.focus();
+    return;
+  }
+
   const count = selectedRows.length;
-  const confirmed = window.confirm(`Delete ${count} locally stored record${count === 1 ? "" : "s"}? This cannot be undone.`);
+  const locations = [
+    serverRows.length ? `${serverRows.length} synced` : "",
+    localRows.length ? `${localRows.length} stored locally` : ""
+  ].filter(Boolean).join(" and ");
+  const confirmed = window.confirm(
+    `Delete ${count} selected record${count === 1 ? "" : "s"} (${locations})?\n\n`
+      + "This permanently removes the selected intake data and cannot be undone."
+  );
   if (!confirmed) return;
 
-  els.publicTodayDeleteLocal.disabled = true;
-  setStatus(`Deleting ${count} local record${count === 1 ? "" : "s"}...`);
+  els.publicTodayDeleteSelected.disabled = true;
+  setStatus(`Deleting ${count} selected record${count === 1 ? "" : "s"}...`);
   try {
-    for (const row of selectedRows) await deleteOutboxItem(row._submissionId);
+    if (serverRows.length) {
+      const result = await submitPublicIntakeDeletes(editorName, serverRows.map((row) => ({
+        id: row.id,
+        expected_updated_at: row.updated_at
+      })));
+      if (Number(result?.deleted_count || 0) !== serverRows.length) {
+        throw new Error("Supabase did not confirm every selected deletion. Reload before trying again.");
+      }
+    }
+    for (const row of localRows) await deleteOutboxItem(row._submissionId);
     resetEditState();
-    await refreshLocalRows();
-    setStatus(`Deleted ${count} locally stored record${count === 1 ? "" : "s"}.`);
+    await loadToday();
+    setStatus(`Deleted ${count} selected record${count === 1 ? "" : "s"}.`);
   } catch (error) {
-    setStatus(error.message || "The local record could not be deleted.", "error");
+    setStatus(error.message || "The selected records could not be deleted.", "error");
   } finally {
-    els.publicTodayDeleteLocal.disabled = false;
+    els.publicTodayDeleteSelected.disabled = false;
   }
 }
 
@@ -569,6 +594,14 @@ async function saveEdits() {
 }
 
 async function submitPublicIntakeEdits(editorName, updates) {
+  return submitPublicIntakeChange({ editor_name: editorName, updates });
+}
+
+async function submitPublicIntakeDeletes(editorName, deletions) {
+  return submitPublicIntakeChange({ editor_name: editorName, deletions });
+}
+
+async function submitPublicIntakeChange(body) {
   const response = await fetch(`${APP_CONFIG.supabase.url}/functions/v1/public-intake`, {
     method: "POST",
     headers: {
@@ -576,7 +609,7 @@ async function submitPublicIntakeEdits(editorName, updates) {
       Authorization: `Bearer ${APP_CONFIG.supabase.anonKey}`,
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ editor_name: editorName, updates })
+    body: JSON.stringify(body)
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.error || `Could not save changes (${response.status}).`);
@@ -615,14 +648,13 @@ function updateSelectionUi() {
   const dirty = state.dirtyIds.size;
   const selectedRows = [...state.selectedIds].map(rowById).filter(Boolean);
   const editableCount = selectedRows.filter((row) => !row._localRecord).length;
-  const localCount = selectedRows.filter((row) => row._localRecord).length;
   const selectableCount = state.rows.length;
   els.publicTodayEditActions.hidden = selected === 0;
   els.publicTodaySelectedCount.textContent = `${selected} selected`;
   els.publicTodayStartEdit.hidden = editing || editableCount === 0;
   els.publicTodayStartEdit.textContent = editableCount > 1 ? `Edit ${editableCount}` : "Edit";
-  els.publicTodayDeleteLocal.hidden = editing || localCount === 0;
-  els.publicTodayDeleteLocal.textContent = localCount > 1 ? `Delete ${localCount} local` : "Delete local";
+  els.publicTodayDeleteSelected.hidden = editing || selected === 0;
+  els.publicTodayDeleteSelected.textContent = selected > 1 ? `Delete ${selected}` : "Delete selected";
   els.publicTodaySaveEdits.hidden = !editing;
   els.publicTodaySaveEdits.disabled = dirty === 0;
   els.publicTodaySaveEdits.textContent = dirty ? `Save ${dirty}` : "Save";
