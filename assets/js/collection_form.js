@@ -308,14 +308,14 @@ function isOnline() {
 
 function applyCollectionAccessMode() {
   els.assignFarmerId.hidden = true;
-  if (!state.publicMode) return;
-
-  els.collectionPhotosField.hidden = false;
-  els.collectionPhotos.disabled = false;
   const gradeField = els.seaweedGrade.closest("label");
   if (gradeField) gradeField.hidden = false;
   els.seaweedGrade.disabled = false;
   els.seaweedGrade.required = true;
+  if (!state.publicMode) return;
+
+  els.collectionPhotosField.hidden = false;
+  els.collectionPhotos.disabled = false;
 }
 
 function cacheElements() {
@@ -639,6 +639,16 @@ function assignNextFarmerId() {
 }
 
 function updatePriceForGrade() {
+  if (isUngradedSelection()) {
+    els.priceOverridden.checked = false;
+    els.pricePerKg.value = "0.00";
+    els.priceSourceStatus.textContent = t("grade.ungradedPrice");
+    updateOverrideReasonVisibility();
+    updateTotalPrice();
+    updateEmptyFieldHighlights();
+    return;
+  }
+
   const rule = selectedPricingRule();
   if (rule) {
     els.pricePerKg.value = Number(rule.price_per_kg).toFixed(2);
@@ -678,7 +688,7 @@ function selectedPricingRule() {
   const type = String(els.seaweedType.value || "").toLowerCase();
   const grade = String(els.seaweedGrade.value || "").toUpperCase();
   const form = String(els.productForm.value || "wet").toLowerCase();
-  if (!type || !grade) return null;
+  if (!type || !grade || grade === "UNGRADED") return null;
   return state.pricingRules.find((row) => (
     row.seaweed_type === type
     && row.grade_code === grade
@@ -686,12 +696,19 @@ function selectedPricingRule() {
   )) || null;
 }
 
+function isUngradedSelection() {
+  return String(els.seaweedGrade.value || "").toUpperCase() === "UNGRADED";
+}
+
 function updateOverrideReasonVisibility() {
-  const isOverride = Boolean(els.priceOverridden.checked);
+  const ungraded = isUngradedSelection();
+  if (ungraded) els.priceOverridden.checked = false;
+  const isOverride = !ungraded && Boolean(els.priceOverridden.checked);
   els.priceOverrideReasonField.hidden = !isOverride;
   els.priceOverrideReason.required = isOverride;
-  els.pricePerKg.readOnly = !state.canOverridePrice;
-  els.priceOverridden.closest("label").hidden = !state.canOverridePrice;
+  els.pricePerKg.readOnly = ungraded || !state.canOverridePrice;
+  els.priceOverridden.disabled = ungraded || !state.canOverridePrice;
+  els.priceOverridden.closest("label").hidden = ungraded || !state.canOverridePrice;
   if (!isOverride) els.priceOverrideReason.value = "";
   if (isOverride) els.priceSourceStatus.textContent = "Authorised manual price";
 }
@@ -1204,8 +1221,9 @@ async function submitCollection(event) {
     if (els.collectionPhotosField.dataset.photoRequired === "true" && !state.collectionPhotos.length) {
       throw new Error(t("photos.required"));
     }
-    const photos = await prepareSelectedCollectionPhotos();
     const payload = buildPayload([]);
+    validateCollectionPricing(payload);
+    const photos = await prepareSelectedCollectionPhotos();
     const farmSizeUpdate = pendingFarmSizeUpdate();
     if (state.publicMode && farmSizeUpdate) {
       payload.farm_size_update = {
@@ -1258,6 +1276,10 @@ async function submitCollection(event) {
         });
         return;
       }
+      if (syncResult?.requestedError?.serverRejected) {
+        showServerRejectedFeedback(syncResult.requestedError);
+        return;
+      }
     }
     showStoredLocallyFeedback();
   } catch (error) {
@@ -1277,6 +1299,25 @@ async function submitCollection(event) {
   } finally {
     submitButton.disabled = queuedSafely;
   }
+}
+
+function showServerRejectedFeedback(error) {
+  const message = friendlyServerRejection(error?.message);
+  setStatus(t("offline.serverRejected", { message }), "error");
+  operationFeedback.show({
+    state: "error",
+    title: t("operation.rejectedTitle"),
+    message: t("operation.rejectedMessage", { message }),
+    actionLabel: t("action.openToday"),
+    onAction: () => { window.location.href = "./today.html"; }
+  });
+}
+
+function friendlyServerRejection(message) {
+  const text = String(message || "").trim();
+  if (/no active price/i.test(text)) return t("grade.priceMissing");
+  if (/select a grade|grade is required/i.test(text)) return t("grade.required");
+  return text || t("status.error");
 }
 
 function showStoredLocallyFeedback() {
@@ -1301,7 +1342,8 @@ function buildPayload(photoPaths = []) {
   const community = selectedCommunity();
   const weight = requiredNumber(els.sackWeightKg.value, t("harvest.weight"));
   const seaweedType = nullableText(els.seaweedType.value) || state.defaultSeaweedType;
-  const gradeCode = nullableText(els.seaweedGrade.value);
+  const gradeCode = requiredText(els.seaweedGrade.value, t("harvest.grade")).toUpperCase();
+  const ungraded = gradeCode === "UNGRADED";
   const collectedAt = els.collectedAt.value ? new Date(els.collectedAt.value) : new Date();
   const farmerNameSnapshot = combinedManualFarmerName() || state.selectedFarmer?.name || null;
 
@@ -1324,14 +1366,26 @@ function buildPayload(photoPaths = []) {
     product_form: els.productForm.value || "wet",
     grade_code: gradeCode,
     seaweed_grade: ["A", "B", "C"].includes(gradeCode) ? gradeCode : null,
-    price_per_kg: nullableNumber(els.pricePerKg.value),
-    total_price: nullableNumber(els.totalPrice.value),
-    price_overridden: els.priceOverridden.checked,
+    price_per_kg: ungraded ? 0 : nullableNumber(els.pricePerKg.value),
+    total_price: ungraded ? 0 : nullableNumber(els.totalPrice.value),
+    price_overridden: ungraded ? false : els.priceOverridden.checked,
     price_override_reason: nullableText(els.priceOverrideReason.value),
     notes: nullableText(els.collectionNotes.value),
     photo_urls: photoPaths,
     custom_fields: customFieldPayload()
   };
+}
+
+function validateCollectionPricing(payload) {
+  if (!payload.grade_code) throw new Error(t("grade.required"));
+  if (payload.grade_code === "UNGRADED") return;
+  if (selectedPricingRule()) return;
+  const validOverride = state.canOverridePrice
+    && payload.price_overridden
+    && payload.price_per_kg !== null
+    && payload.price_per_kg >= 0
+    && Boolean(payload.price_override_reason);
+  if (!validOverride) throw new Error(t("grade.priceMissing"));
 }
 
 function clearForm(options = {}) {
@@ -1350,6 +1404,7 @@ function clearForm(options = {}) {
   els.gpsSummary.value = "";
   setDefaultDateTime();
   els.seaweedType.value = state.defaultSeaweedType;
+  els.seaweedGrade.value = defaultGradeCode();
   els.productForm.value = "wet";
   state.submissionId = crypto.randomUUID();
   ensureTransactionId();
@@ -1424,18 +1479,26 @@ async function syncOutbox(options = {}) {
     });
     if (result.requestedError || (options.announce && result.failedCount)) {
       const error = result.requestedError || result.errors[0];
-      setStatus(`${t("offline.localSaved")} ${error?.message || "Sync could not be completed."}`, "error");
+      const rejected = error?.serverRejected || error?.type === "server_rejected";
+      const message = rejected ? friendlyServerRejection(error?.message) : (error?.message || t("offline.serverUnavailable"));
+      setStatus(rejected
+        ? t("offline.serverRejected", { message })
+        : t("offline.serverUnavailable"), "error");
       if (options.announce) {
         operationFeedback.show({
           state: "error",
-          title: t("operation.syncPartialTitle"),
-          message: t("operation.syncPartial", {
-            synced: result.syncedCount,
-            total: result.totalCount,
-            failed: result.failedCount
-          }),
-          actionLabel: t("action.close"),
-          onAction: () => operationFeedback.hide()
+          title: rejected ? t("operation.rejectedTitle") : t("operation.syncPartialTitle"),
+          message: rejected
+            ? t("operation.rejectedMessage", { message })
+            : t("operation.syncPartial", {
+              synced: result.syncedCount,
+              total: result.totalCount,
+              failed: result.failedCount
+            }),
+          actionLabel: rejected ? t("action.openToday") : t("action.close"),
+          onAction: rejected
+            ? () => { window.location.href = "./today.html"; }
+            : () => operationFeedback.hide()
         });
       }
     } else if (options.announce && result.remainingCount === 0) {
@@ -1623,17 +1686,18 @@ function applyRuntimeSettings(gradePrices) {
       : state.defaultSeaweedType;
   }
 
+  const configuredGrades = gradePrices.filter((row) => String(row.grade || "").toUpperCase() !== "UNGRADED");
   els.seaweedGrade.innerHTML = [
-    `<option value="">${escapeHtml(t("common.select"))}</option>`,
-    ...gradePrices.map((row) => {
+    ...configuredGrades.map((row) => {
       const name = row.label && row.label !== row.grade ? `${row.grade} - ${row.label}` : row.grade;
       const detail = row.rejected ? ` - ${t("grade.rejected")}` : "";
       return `<option value="${escapeAttribute(row.grade)}">${escapeHtml(name)}${escapeHtml(detail)}</option>`;
-    })
+    }),
+    `<option value="UNGRADED">${escapeHtml(t("grade.ungraded"))}</option>`
   ].join("");
   els.seaweedGrade.value = [...els.seaweedGrade.options].some((option) => option.value === selectedGrade)
     ? selectedGrade
-    : "";
+    : defaultGradeCode();
 
   if (state.productForms.length) {
     els.productForm.innerHTML = state.productForms.map((row) => (
@@ -1686,6 +1750,12 @@ function applyRuntimeSettings(gradePrices) {
   els.priceOverridden.closest("label").hidden = !priceVisible && !totalVisible;
   updateOverrideReasonVisibility();
   applyCollectionAccessMode();
+}
+
+function defaultGradeCode() {
+  const options = [...els.seaweedGrade.options];
+  if (options.some((option) => option.value === "A")) return "A";
+  return options.find((option) => option.value && option.value !== "UNGRADED")?.value || "UNGRADED";
 }
 
 function renderCustomFields() {

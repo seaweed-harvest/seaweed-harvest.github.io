@@ -2,6 +2,7 @@ import { APP_CONFIG } from "./config.js";
 import { callPublicRpc, selectRows } from "./supabase_client.js";
 import {
   createPendingBackup,
+  deleteOutboxItem,
   initialiseOfflineStore,
   listOutboxItems,
   restorePendingBackup
@@ -51,6 +52,7 @@ async function init() {
     "publicTodayEditActions",
     "publicTodaySelectedCount",
     "publicTodayStartEdit",
+    "publicTodayDeleteLocal",
     "publicTodaySaveEdits",
     "publicTodayDiscardEdits",
     "publicTodaySelectAll",
@@ -75,6 +77,7 @@ async function init() {
   els.publicTodayRows.addEventListener("input", handleDraftInput);
   els.publicTodaySelectAll.addEventListener("change", toggleAllRows);
   els.publicTodayStartEdit.addEventListener("click", startEdit);
+  els.publicTodayDeleteLocal.addEventListener("click", deleteSelectedLocalRecords);
   els.publicTodaySaveEdits.addEventListener("click", saveEdits);
   els.publicTodayDiscardEdits.addEventListener("click", discardEdits);
   els.todayPendingRecordsSync.addEventListener("click", syncAllLocalRecords);
@@ -185,11 +188,16 @@ async function syncAllLocalRecords() {
     });
     await loadToday();
     if (result.failedCount) {
-      setStatus(`${result.failedCount} record${result.failedCount === 1 ? "" : "s"} could not be synced.`, "error");
+      const rejected = result.errors.filter((error) => error.type === "server_rejected").length;
+      setStatus(rejected
+        ? `${rejected} record${rejected === 1 ? " was" : "s were"} rejected by Supabase. Select the local row to delete it after checking the reason.`
+        : `${result.failedCount} record${result.failedCount === 1 ? "" : "s"} could not be synced.`, "error");
       operationFeedback.show({
         state: "error",
-        title: "Sync needs attention",
-        message: `${result.syncedCount}/${result.totalCount} synced. ${result.failedCount} could not be synced.`,
+        title: rejected ? "Supabase rejected a record" : "Sync needs attention",
+        message: rejected
+          ? `${result.syncedCount}/${result.totalCount} synced. Select a rejected local row to view its reason or delete it.`
+          : `${result.syncedCount}/${result.totalCount} synced. ${result.failedCount} could not be synced.`,
         actionLabel: "Close",
         onAction: () => operationFeedback.hide()
       });
@@ -314,17 +322,20 @@ async function loadToday() {
     els.todayConnectionStatus.className = "status-pill";
     setStatus("Loaded.");
   } catch (error) {
-    state.online = false;
+    const stillOnline = navigator.onLine;
+    state.online = stillOnline;
     state.networkVerified = true;
     state.serverRows = [];
     combineTodayRows();
     renderRows();
     updateLocalSyncUi();
-    els.todayConnectionStatus.textContent = state.localRows.length ? "Local" : "Error";
+    els.todayConnectionStatus.textContent = stillOnline ? "Server error" : "Offline";
     els.todayConnectionStatus.className = "status-pill status-muted";
-    setStatus(state.localRows.length
-      ? `Live intake could not be loaded. Showing ${state.localRows.length} local record(s).`
-      : error.message, "error");
+    setStatus(stillOnline
+      ? `Internet is available, but live intake could not be loaded. ${error.message || "Try again shortly."}`
+      : (state.localRows.length
+        ? `Offline. Showing ${state.localRows.length} local record(s).`
+        : "Device offline. No local intake records are waiting."), "error");
   } finally {
     els.reloadPublicToday.disabled = false;
   }
@@ -360,7 +371,9 @@ function localItemToRow(item) {
     _localRecord: true,
     _submissionId: item.submissionId,
     _syncStatus: item.status || "pending",
-    _lastError: item.lastError || null
+    _lastError: item.lastError || null,
+    _failureType: item.failureType || null,
+    _lastHttpStatus: item.lastHttpStatus || null
   };
 }
 
@@ -394,7 +407,8 @@ function updateLocalSyncUi() {
 function syncStatusHtml(row) {
   if (!row._localRecord) return '<span class="status-pill offline-status-online">Synced</span>';
   if (row._syncStatus === "failed") {
-    return `<span class="status-pill offline-status-failed" title="${escapeAttribute(row._lastError || "Sync needs attention")}">Needs attention</span>`;
+    const label = row._failureType === "server_rejected" ? "Server rejected" : "Needs attention";
+    return `<span class="status-pill offline-status-failed" title="${escapeAttribute(row._lastError || "Sync needs attention")}">${label}</span>`;
   }
   if (row._syncStatus === "syncing") return '<span class="status-pill status-muted">Syncing</span>';
   return '<span class="status-pill offline-status-waiting">Stored locally</span>';
@@ -432,15 +446,13 @@ function renderRows() {
     const local = Boolean(row._localRecord);
     return `
       <tr data-public-today-row="${escapeAttribute(id)}" class="${dirty ? "today-row-dirty" : ""}${local ? " today-row-local" : ""}">
-        <td class="selection-cell">${local
-          ? `<input type="checkbox" aria-label="Sync this local record before editing" disabled>`
-          : `<input type="checkbox" data-public-today-select="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(row.transaction_id || "intake row")}"${state.selectedIds.has(id) ? " checked" : ""}${state.editingIds.size ? " disabled" : ""}>`}</td>
+        <td class="selection-cell"><input type="checkbox" data-public-today-select="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(row.transaction_id || "intake row")}"${state.selectedIds.has(id) ? " checked" : ""}${state.editingIds.size ? " disabled" : ""}></td>
         <td class="today-sync-status-cell"${state.showSyncStatus ? "" : " hidden"}>${syncStatusHtml(row)}</td>
         <td>${escapeHtml(formatTime(row.collected_at))}</td>
         <td>${editing ? textControl(id, "farmer_name_snapshot", draft.farmer_name_snapshot, "today-farmer-editor", 150) : escapeHtml(row.farmer_name_snapshot || "-")}</td>
         <td>${editing ? numberControl(id, "sack_weight_kg", draft.sack_weight_kg, 0.01, 0.01) : escapeHtml(formatNumber(row.sack_weight_kg))}</td>
         <td>${editing ? selectControl(id, "seaweed_type", draft.seaweed_type, seaweedTypeOptions(row)) : escapeHtml(titleCase(row.seaweed_type))}</td>
-        <td>${editing ? selectControl(id, "grade_code", draft.grade_code, gradeOptions(row)) : escapeHtml(row.grade_code || "-")}</td>
+        <td>${editing ? selectControl(id, "grade_code", draft.grade_code, gradeOptions(row)) : escapeHtml(displayGrade(row.grade_code))}</td>
         <td>${editing ? selectControl(id, "community_id", draft.community_id, communityOptions(row)) : escapeHtml(joinValues(row.community_id, row.community_name_snapshot))}</td>
         <td>${editing ? textControl(id, "recorded_by_name", draft.recorded_by_name, "today-collector-editor", 100) : escapeHtml(row.recorded_by_name || "-")}</td>
         <td><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
@@ -458,6 +470,10 @@ function handleTableChange(event) {
     if (checkbox.checked) state.selectedIds.add(id);
     else state.selectedIds.delete(id);
     updateSelectionUi();
+    const row = rowById(id);
+    if (checkbox.checked && row?._failureType === "server_rejected") {
+      setStatus(`Supabase rejected this local record: ${friendlyLocalError(row._lastError)}`, "error");
+    }
     return;
   }
   handleDraftInput(event);
@@ -477,14 +493,15 @@ function toggleAllRows() {
   if (state.editingIds.size) return;
   state.selectedIds.clear();
   if (els.publicTodaySelectAll.checked) {
-    state.rows.filter((row) => !row._localRecord).forEach((row) => state.selectedIds.add(String(row.id)));
+    state.rows.forEach((row) => state.selectedIds.add(String(row.id)));
   }
   renderRows();
 }
 
 function startEdit() {
-  if (!state.selectedIds.size) return;
-  state.editingIds = new Set(state.selectedIds);
+  const editableIds = [...state.selectedIds].filter((id) => !rowById(id)?._localRecord);
+  if (!editableIds.length) return;
+  state.editingIds = new Set(editableIds);
   state.dirtyIds.clear();
   state.drafts.clear();
   state.rows.forEach((row) => {
@@ -493,6 +510,28 @@ function startEdit() {
   });
   renderRows();
   setStatus(`Editing ${state.editingIds.size} selected row${state.editingIds.size === 1 ? "" : "s"}.`);
+}
+
+async function deleteSelectedLocalRecords() {
+  if (state.syncing || state.editingIds.size) return;
+  const selectedRows = [...state.selectedIds].map(rowById).filter((row) => row?._localRecord);
+  if (!selectedRows.length) return;
+  const count = selectedRows.length;
+  const confirmed = window.confirm(`Delete ${count} locally stored record${count === 1 ? "" : "s"}? This cannot be undone.`);
+  if (!confirmed) return;
+
+  els.publicTodayDeleteLocal.disabled = true;
+  setStatus(`Deleting ${count} local record${count === 1 ? "" : "s"}...`);
+  try {
+    for (const row of selectedRows) await deleteOutboxItem(row._submissionId);
+    resetEditState();
+    await refreshLocalRows();
+    setStatus(`Deleted ${count} locally stored record${count === 1 ? "" : "s"}.`);
+  } catch (error) {
+    setStatus(error.message || "The local record could not be deleted.", "error");
+  } finally {
+    els.publicTodayDeleteLocal.disabled = false;
+  }
 }
 
 function discardEdits() {
@@ -574,11 +613,16 @@ function updateSelectionUi() {
   const selected = state.selectedIds.size;
   const editing = state.editingIds.size > 0;
   const dirty = state.dirtyIds.size;
-  const selectableCount = state.rows.filter((row) => !row._localRecord).length;
+  const selectedRows = [...state.selectedIds].map(rowById).filter(Boolean);
+  const editableCount = selectedRows.filter((row) => !row._localRecord).length;
+  const localCount = selectedRows.filter((row) => row._localRecord).length;
+  const selectableCount = state.rows.length;
   els.publicTodayEditActions.hidden = selected === 0;
   els.publicTodaySelectedCount.textContent = `${selected} selected`;
-  els.publicTodayStartEdit.hidden = editing;
-  els.publicTodayStartEdit.textContent = selected > 1 ? `Edit ${selected}` : "Edit";
+  els.publicTodayStartEdit.hidden = editing || editableCount === 0;
+  els.publicTodayStartEdit.textContent = editableCount > 1 ? `Edit ${editableCount}` : "Edit";
+  els.publicTodayDeleteLocal.hidden = editing || localCount === 0;
+  els.publicTodayDeleteLocal.textContent = localCount > 1 ? `Delete ${localCount} local` : "Delete local";
   els.publicTodaySaveEdits.hidden = !editing;
   els.publicTodaySaveEdits.disabled = dirty === 0;
   els.publicTodaySaveEdits.textContent = dirty ? `Save ${dirty}` : "Save";
@@ -603,7 +647,7 @@ function rowDraft(row) {
     farmer_name_snapshot: valueOrEmpty(row.farmer_name_snapshot),
     sack_weight_kg: valueOrEmpty(row.sack_weight_kg),
     seaweed_type: valueOrEmpty(row.seaweed_type),
-    grade_code: valueOrEmpty(row.grade_code),
+    grade_code: valueOrEmpty(row.grade_code || "UNGRADED"),
     recorded_by_name: valueOrEmpty(row.recorded_by_name)
   };
 }
@@ -623,10 +667,21 @@ function seaweedTypeOptions(row) {
 }
 
 function gradeOptions(row) {
-  return withFallback(state.grades.map((grade) => [
+  return withFallback([...state.grades.map((grade) => [
     grade.grade,
     joinValues(grade.grade, grade.label && grade.label !== grade.grade ? grade.label : "", grade.rejected ? "Rejected" : "")
-  ]), row.grade_code, row.grade_code);
+  ]), ["UNGRADED", "Ungraded - no payment"]], row.grade_code, displayGrade(row.grade_code));
+}
+
+function displayGrade(value) {
+  return String(value || "").toUpperCase() === "UNGRADED" || !value ? "Ungraded" : value;
+}
+
+function friendlyLocalError(message) {
+  const text = String(message || "").trim();
+  if (/no active price/i.test(text)) return "Select a valid grade when entering the collection again.";
+  if (/select a grade|grade is required/i.test(text)) return "No grade was selected.";
+  return text || "The server did not accept this record.";
 }
 
 function withFallback(options, value, label) {

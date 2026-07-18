@@ -176,11 +176,11 @@
           </label>
           <label>
             <span data-i18n="harvest.grade">Grade</span>
-            <select id="seaweedGrade">
-              <option value="">Select</option>
-              <option value="A">A - 12 KSH/kg</option>
+            <select id="seaweedGrade" required>
+              <option value="A" selected>A - 12 KSH/kg</option>
               <option value="B">B - 8 KSH/kg</option>
               <option value="C">C - Rejected</option>
+              <option value="UNGRADED">Ungraded - no payment</option>
             </select>
           </label>
           <div hidden aria-hidden="true">

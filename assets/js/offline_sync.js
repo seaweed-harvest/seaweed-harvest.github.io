@@ -34,11 +34,14 @@ export async function syncPendingCollections(options = {}) {
       if (item.submissionId === options.submissionId) requestedResult = result;
     } catch (error) {
       const message = error?.message || "Sync could not be completed.";
+      const failure = syncFailureDetails(error);
       await updateOutboxItem(item.submissionId, {
         status: "failed",
-        lastError: message
+        lastError: message,
+        failureType: failure.type,
+        lastHttpStatus: failure.httpStatus
       });
-      errors.push({ submissionId: item.submissionId, message });
+      errors.push({ submissionId: item.submissionId, message, ...failure });
       if (item.submissionId === options.submissionId) requestedError = error;
     }
     processedCount += 1;
@@ -83,7 +86,9 @@ async function syncOutboxItem(savedItem) {
   let item = await updateOutboxItem(savedItem.submissionId, {
     status: "syncing",
     attempts: Number(savedItem.attempts || 0) + 1,
-    lastError: null
+    lastError: null,
+    failureType: null,
+    lastHttpStatus: null
   });
 
   const photos = [...(item.photos || [])];
@@ -138,7 +143,9 @@ async function submitPublicCollection(payload, item) {
     })
   }, SUBMISSION_TIMEOUT_MS);
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || `Collection could not be saved (${response.status}).`);
+  if (!response.ok) {
+    throw responseError(body.error || `Collection could not be saved (${response.status}).`, response.status);
+  }
   return body.result;
 }
 
@@ -158,9 +165,27 @@ async function uploadPublicCollectionPhoto(photo, submissionId, photoId) {
   }, PHOTO_UPLOAD_TIMEOUT_MS);
   const body = await response.json().catch(() => ({}));
   if (!response.ok || !body.path) {
-    throw new Error(body.error || `Photo could not be uploaded (${response.status}).`);
+    throw responseError(body.error || `Photo could not be uploaded (${response.status}).`, response.status);
   }
   return body.path;
+}
+
+function responseError(message, status) {
+  const error = new Error(message);
+  error.httpStatus = Number(status) || null;
+  error.serverRejected = error.httpStatus >= 400 && error.httpStatus < 500 && error.httpStatus !== 408 && error.httpStatus !== 429;
+  return error;
+}
+
+function syncFailureDetails(error) {
+  const httpStatus = Number(error?.httpStatus) || null;
+  if (error?.serverRejected || (httpStatus >= 400 && httpStatus < 500 && httpStatus !== 408 && httpStatus !== 429)) {
+    return { type: "server_rejected", httpStatus };
+  }
+  if (!navigator.onLine) {
+    return { type: "offline", httpStatus };
+  }
+  return { type: "temporary", httpStatus };
 }
 
 function authenticatedPhotoPath(item, photo) {

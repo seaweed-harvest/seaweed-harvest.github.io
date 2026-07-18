@@ -80,7 +80,7 @@ export async function uploadStorageObject(bucket, objectPath, blob) {
     return { path: objectPath, duplicate: true };
   }
   if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText}${await responseDetail(response)}`);
+    throw httpResponseError(`${response.status} ${response.statusText}${await responseDetail(response)}`, response.status);
   }
   return response.json();
 }
@@ -106,13 +106,20 @@ async function supabaseRequest(path, options = {}) {
   });
 
   if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText}${await responseDetail(response)}`);
+    throw httpResponseError(`${response.status} ${response.statusText}${await responseDetail(response)}`, response.status);
   }
 
   const text = await response.text();
   if (!text) return [];
   if (response.status === 204) return [];
   return JSON.parse(text);
+}
+
+function httpResponseError(message, status) {
+  const error = new Error(message);
+  error.httpStatus = Number(status) || null;
+  error.serverRejected = error.httpStatus >= 400 && error.httpStatus < 500 && error.httpStatus !== 408 && error.httpStatus !== 429;
+  return error;
 }
 
 async function requestAccessToken() {

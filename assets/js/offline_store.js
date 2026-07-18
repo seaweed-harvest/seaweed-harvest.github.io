@@ -72,6 +72,16 @@ export async function updateOutboxItem(submissionId, updates) {
   return updated;
 }
 
+export async function deleteOutboxItem(submissionId) {
+  const current = await getOutboxItem(submissionId);
+  if (!current) return false;
+  if (current.status === "syncing") {
+    throw new Error("Wait for syncing to finish before deleting this local record.");
+  }
+  await deleteRecord(OUTBOX_STORE, submissionId);
+  return true;
+}
+
 export async function markOutboxSynced(submissionId, result) {
   const current = await getOutboxItem(submissionId);
   if (!current) throw new Error("The saved collection could not be found on this phone.");

@@ -47,6 +47,8 @@ const packs = {
       "offline.failed": "Needs attention",
       "offline.synced": "Confirmed by Supabase",
       "offline.localSaved": "Saved on this phone. It will sync when reception returns.",
+      "offline.serverRejected": "Online, but Supabase rejected this collection: {message}",
+      "offline.serverUnavailable": "Supabase did not confirm this collection. It remains safely stored on this phone.",
       "offline.confirmed": "Confirmed by Supabase: {id}.",
       "offline.syncComplete": "All saved records are confirmed by Supabase.",
       "offline.backupSaved": "Pending-record backup downloaded.",
@@ -110,6 +112,7 @@ const packs = {
       "action.close": "Close",
       "action.done": "Done",
       "action.newCollection": "New collection",
+      "action.openToday": "Open Today's Intake",
       "operation.submittingTitle": "Submitting...",
       "operation.submittingMessage": "Saving this collection and uploading its photos.",
       "operation.submittedTitle": "Submitted",
@@ -122,6 +125,8 @@ const packs = {
       "operation.syncSuccess": "{synced}/{total} synced successfully.",
       "operation.syncPartialTitle": "Sync needs attention",
       "operation.syncPartial": "{synced}/{total} synced. {failed} could not be synced.",
+      "operation.rejectedTitle": "Collection needs correction",
+      "operation.rejectedMessage": "{message} The rejected copy remains on this device and can be deleted in Today's Intake.",
       "receipt.saved": "Collection receipt",
       "receipt.view": "View receipt",
       "product.wet": "Wet",
@@ -167,7 +172,11 @@ const packs = {
       "gps.notCaptured": "GPS not captured",
       "validation.required": "{field} is required.",
       "type.other": "Other type",
-      "grade.rejected": "Rejected"
+      "grade.rejected": "Rejected",
+      "grade.ungraded": "Ungraded - no payment",
+      "grade.ungradedPrice": "Ungraded - no payment recorded",
+      "grade.required": "Select a grade, or choose Ungraded.",
+      "grade.priceMissing": "No active price is configured for this seaweed type and grade. Choose another grade or ask an administrator to add a price."
     }
   },
   sw: {
@@ -216,6 +225,8 @@ const packs = {
       "offline.failed": "Inahitaji kuangaliwa",
       "offline.synced": "Imethibitishwa na Supabase",
       "offline.localSaved": "Imehifadhiwa kwenye simu hii. Itatumwa mtandao ukirudi.",
+      "offline.serverRejected": "Simu iko mtandaoni, lakini Supabase imekataa rekodi hii: {message}",
+      "offline.serverUnavailable": "Supabase haijathibitisha rekodi hii. Imebaki salama kwenye simu hii.",
       "offline.confirmed": "Imethibitishwa na Supabase: {id}.",
       "offline.syncComplete": "Rekodi zote zimethibitishwa na Supabase.",
       "offline.backupSaved": "Nakala ya rekodi zinazosubiri imepakuliwa.",
@@ -279,6 +290,7 @@ const packs = {
       "action.close": "Funga",
       "action.done": "Sawa",
       "action.newCollection": "Mapokezi mapya",
+      "action.openToday": "Fungua Mapokezi ya Leo",
       "operation.submittingTitle": "Inatuma...",
       "operation.submittingMessage": "Inahifadhi mapokezi na kutuma picha.",
       "operation.submittedTitle": "Imetumwa",
@@ -291,6 +303,8 @@ const packs = {
       "operation.syncSuccess": "Rekodi {synced}/{total} zimetumwa vizuri.",
       "operation.syncPartialTitle": "Baadhi hazikutumwa",
       "operation.syncPartial": "Rekodi {synced}/{total} zimetumwa. {failed} hazikutumwa.",
+      "operation.rejectedTitle": "Rekodi inahitaji kusahihishwa",
+      "operation.rejectedMessage": "{message} Rekodi iliyokataliwa imebaki kwenye simu na inaweza kufutwa kwenye Mapokezi ya Leo.",
       "receipt.saved": "Risiti ya mapokezi",
       "receipt.view": "Angalia risiti",
       "product.wet": "Mbichi",
@@ -336,7 +350,11 @@ const packs = {
       "gps.notCaptured": "GPS haijapatikana",
       "validation.required": "Weka {field}.",
       "type.other": "Aina nyingine",
-      "grade.rejected": "Imekataliwa"
+      "grade.rejected": "Imekataliwa",
+      "grade.ungraded": "Haijapangwa daraja - hakuna malipo",
+      "grade.ungradedPrice": "Haijapangwa daraja - hakuna malipo",
+      "grade.required": "Chagua daraja, au chagua Haijapangwa daraja.",
+      "grade.priceMissing": "Hakuna bei inayotumika kwa aina na daraja hili. Chagua daraja lingine au mwombe msimamizi aweke bei."
     }
   }
 };
