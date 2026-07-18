@@ -7,6 +7,7 @@ import {
   restorePendingBackup
 } from "./offline_store.js";
 import { syncPendingCollections } from "./offline_sync.js";
+import { createOperationFeedback } from "./operation_feedback.js";
 
 const COLLECTOR_NAME_STORAGE_KEY = "seaweed_harvest:collector_name";
 const state = {
@@ -28,6 +29,7 @@ const state = {
   drafts: new Map()
 };
 const els = {};
+let operationFeedback = null;
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -57,8 +59,10 @@ async function init() {
     "todayDownloadBackup",
     "todayRestoreBackup",
     "todayRestoreInput",
-    "todayRecoveryStatus"
+    "todayRecoveryStatus",
+    "todayOperationFeedback"
   ].forEach((id) => { els[id] = document.getElementById(id); });
+  operationFeedback = createOperationFeedback(els.todayOperationFeedback);
 
   els.todayIntakeDate.textContent = new Intl.DateTimeFormat("en-KE", {
     dateStyle: "long",
@@ -151,26 +155,64 @@ async function syncAllLocalRecords() {
   if (!state.localReady || state.syncing) return;
   if (!state.online) {
     setStatus("Device offline. Local records will remain on this device until reception returns.");
+    operationFeedback.show({
+      state: "stored",
+      title: "Device offline",
+      message: `${state.pendingCount} record${state.pendingCount === 1 ? " is" : "s are"} safely stored on this device.`,
+      actionLabel: "Done",
+      onAction: () => operationFeedback.hide()
+    });
     return;
   }
 
   state.syncing = true;
   updateLocalSyncUi();
   setStatus("Syncing local records...");
+  operationFeedback.show({
+    state: "progress",
+    title: "Syncing...",
+    message: `0/${state.pendingCount} records checked.`
+  });
   try {
     const result = await syncPendingCollections({
       online: state.online,
-      onProgress: refreshLocalRows
+      onProgress: async (_submissionId, progress) => {
+        operationFeedback.update({
+          message: `${progress.processedCount}/${progress.totalCount} records checked.`
+        });
+        await refreshLocalRows();
+      }
     });
     await loadToday();
     if (result.failedCount) {
       setStatus(`${result.failedCount} record${result.failedCount === 1 ? "" : "s"} could not be synced.`, "error");
+      operationFeedback.show({
+        state: "error",
+        title: "Sync needs attention",
+        message: `${result.syncedCount}/${result.totalCount} synced. ${result.failedCount} could not be synced.`,
+        actionLabel: "Close",
+        onAction: () => operationFeedback.hide()
+      });
     } else {
       setStatus(`Synced ${result.syncedCount} local record${result.syncedCount === 1 ? "" : "s"}.`);
+      operationFeedback.show({
+        state: "success",
+        title: "Sync complete",
+        message: `${result.syncedCount}/${result.totalCount} synced successfully.`,
+        actionLabel: "Done",
+        onAction: () => operationFeedback.hide()
+      });
     }
   } catch (error) {
     await refreshLocalRows();
     setStatus(error.message || "Local records could not be synced.", "error");
+    operationFeedback.show({
+      state: "error",
+      title: "Sync could not finish",
+      message: error.message || "Local records remain safely stored on this device.",
+      actionLabel: "Close",
+      onAction: () => operationFeedback.hide()
+    });
   } finally {
     state.syncing = false;
     updateLocalSyncUi();

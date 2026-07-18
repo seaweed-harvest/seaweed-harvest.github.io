@@ -24,6 +24,7 @@ import {
 } from "./offline_store.js";
 import { syncPendingCollections } from "./offline_sync.js";
 import { completeLaunchSplash } from "./app_transition.js";
+import { createOperationFeedback } from "./operation_feedback.js";
 
 const state = {
   communities: [],
@@ -40,11 +41,16 @@ const state = {
   session: null,
   profile: null,
   aggregatorContext: null,
+  publicContextPromise: null,
   publicMode: true,
   canOverridePrice: false,
   submissionId: crypto.randomUUID(),
   selectedFarmer: null,
   gps: null,
+  collectionPhotos: [],
+  activePhotoIndex: null,
+  activePhotoUrl: null,
+  retakePhotoIndex: null,
   offline: {
     installPrompt: null,
     native: false,
@@ -66,7 +72,7 @@ const state = {
   }
 };
 
-const PHOTO_MAX_COUNT = 5;
+const PHOTO_MAX_COUNT = 2;
 const PHOTO_MAX_BYTES = 700 * 1024;
 const PHOTO_TARGET_BYTES = 550 * 1024;
 const PHOTO_MAX_EDGE = 1920;
@@ -75,6 +81,7 @@ const FORM_REFERENCE_KEY = "mawimbi-collection-form";
 const MAWIMBI_CONTEXT_KEY = "mawimbi-context";
 
 const els = {};
+let operationFeedback = null;
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -83,6 +90,7 @@ async function init() {
     try {
       initCollectionLanguage();
       cacheElements();
+      operationFeedback = createOperationFeedback(els.collectionOperationFeedback);
       await initialiseNativeRuntime();
       await initialiseOfflineCollection();
       try {
@@ -91,20 +99,18 @@ async function init() {
         state.session = null;
         state.profile = null;
         state.publicMode = true;
-        try {
-          await loadPublicMawimbiContext();
-        } catch (publicError) {
-          setStatus(publicError.message || error.message, "error");
-          return;
-        }
+        state.publicContextPromise = loadPublicMawimbiContext();
       }
       setupCollectionHeader();
       setupCollectorName();
       applyCollectionAccessMode();
-      renderActiveAggregator();
       bindEvents();
       setDefaultDateTime();
-      await loadFormData();
+      await Promise.all([
+        state.publicContextPromise || Promise.resolve(),
+        loadFormData()
+      ]);
+      renderActiveAggregator();
       ensureTransactionId();
       updateEmptyFieldHighlights();
       await refreshOfflineQueue();
@@ -128,7 +134,7 @@ async function initialiseCollectionAccess() {
     state.profile = null;
     state.publicMode = true;
     state.canOverridePrice = false;
-    await loadPublicMawimbiContext();
+    state.publicContextPromise = loadPublicMawimbiContext();
     return;
   }
 
@@ -158,7 +164,7 @@ async function initialiseCollectionAccess() {
   }
 
   state.canOverridePrice = false;
-  await loadPublicMawimbiContext();
+  state.publicContextPromise = loadPublicMawimbiContext();
 }
 
 async function loadPublicMawimbiContext() {
@@ -325,6 +331,7 @@ function cacheElements() {
     "collectionAdminLink",
     "collectionSignInLink",
     "collectionForm",
+    "submitCollection",
     "collectorName",
     "collectionWebsite",
     "farmerId",
@@ -366,6 +373,14 @@ function cacheElements() {
     "collectionPhotos",
     "collectionPhotosField",
     "collectionPhotoStatus",
+    "collectionPhotoPreview",
+    "collectionPhotoActions",
+    "collectionPhotoActionPreview",
+    "collectionPhotoActionName",
+    "retakeCollectionPhoto",
+    "deleteCollectionPhoto",
+    "cancelCollectionPhotoAction",
+    "collectionPhotoRetake",
     "clearCollectionForm",
     "collectionSaveStatus",
     "collectionReceiptResult",
@@ -376,6 +391,7 @@ function cacheElements() {
     "savedReceiptTotal",
     "viewSavedReceipt",
     "dismissSavedReceipt",
+    "collectionOperationFeedback",
     "qrScannerModal",
     "qrScannerVideo",
     "qrScannerStatus",
@@ -437,9 +453,16 @@ function bindEvents() {
   els.collectionForm.addEventListener("change", updateCustomCalculations);
   els.collectionForm.addEventListener("input", updateEmptyFieldHighlights);
   els.collectionForm.addEventListener("change", updateEmptyFieldHighlights);
-  els.collectionPhotos.addEventListener("change", () => {
-    updatePhotoSelectionStatus();
+  els.collectionPhotos.addEventListener("change", addCollectionPhotos);
+  els.collectionPhotoRetake.addEventListener("change", replaceCollectionPhoto);
+  els.retakeCollectionPhoto.addEventListener("click", beginCollectionPhotoRetake);
+  els.deleteCollectionPhoto.addEventListener("click", deleteActiveCollectionPhoto);
+  els.cancelCollectionPhotoAction.addEventListener("click", closeCollectionPhotoActions);
+  els.collectionPhotoActions.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeCollectionPhotoActions();
   });
+  els.collectionPhotoActions.addEventListener("close", releaseActivePhotoUrl);
   els.stopQrScanner.addEventListener("click", stopQrScanner);
   els.dismissSavedReceipt.addEventListener("click", () => { els.collectionReceiptResult.hidden = true; });
   document.addEventListener("seaweed-collection-language-change", refreshTranslatedContent);
@@ -571,7 +594,7 @@ function syncManualDetailsFromFarmer(farmer) {
   els.manualFarmerPhone.value = farmer.phone || "";
   els.manualCommunityInput.value = communityLabel(community) || farmer.community_id || "";
   els.manualFarmerFarmSize.value = farmer.farm_size_value ?? "";
-  els.manualFarmerFarmSizeUnit.value = farmer.farm_size_unit || "lines";
+  els.manualFarmerFarmSizeUnit.value = farmer.farm_size_unit || "blocks";
 }
 
 function clearManualFarmerDetails() {
@@ -580,7 +603,7 @@ function clearManualFarmerDetails() {
   els.manualFarmerPhone.value = "";
   els.manualCommunityInput.value = "";
   els.manualFarmerFarmSize.value = "";
-  els.manualFarmerFarmSizeUnit.value = "lines";
+  els.manualFarmerFarmSizeUnit.value = "blocks";
   els.communityId.value = "";
   syncCommunityName();
 }
@@ -954,14 +977,113 @@ function extractQrValue(rawValue, scanTarget) {
 }
 
 function updatePhotoSelectionStatus() {
-  const count = els.collectionPhotos.files?.length || 0;
+  const count = state.collectionPhotos.length;
   els.collectionPhotoStatus.textContent = count
     ? t("photos.selected", { count })
     : t("photos.hint");
+  renderCollectionPhotoPreview();
+}
+
+function addCollectionPhotos() {
+  const available = PHOTO_MAX_COUNT - state.collectionPhotos.length;
+  const files = acceptedCollectionPhotoFiles(els.collectionPhotos.files, available);
+  if (files.length) state.collectionPhotos.push(...files);
+  els.collectionPhotos.value = "";
+  updatePhotoSelectionStatus();
+}
+
+function acceptedCollectionPhotoFiles(fileList, limit) {
+  const candidates = [...(fileList || [])];
+  if (candidates.length > limit) {
+    els.collectionPhotoStatus.textContent = t("photos.tooMany");
+  }
+  return candidates.slice(0, Math.max(0, limit)).filter((file) => {
+    if (String(file.type || "").startsWith("image/")) return true;
+    setStatus(t("photos.invalid"), "error");
+    return false;
+  });
+}
+
+function renderCollectionPhotoPreview() {
+  els.collectionPhotoPreview.replaceChildren();
+  state.collectionPhotos.forEach((file, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "collection-photo-card";
+    button.setAttribute("aria-label", t("photos.openActions", { number: index + 1 }));
+    button.addEventListener("click", () => openCollectionPhotoActions(index));
+
+    const image = document.createElement("img");
+    const objectUrl = URL.createObjectURL(file);
+    image.src = objectUrl;
+    image.alt = t("photos.previewAlt", { number: index + 1 });
+    image.addEventListener("load", () => URL.revokeObjectURL(objectUrl), { once: true });
+
+    const caption = document.createElement("span");
+    caption.textContent = t("photos.photoNumber", { number: index + 1 });
+    button.append(image, caption);
+    els.collectionPhotoPreview.append(button);
+  });
+}
+
+function openCollectionPhotoActions(index) {
+  const file = state.collectionPhotos[index];
+  if (!file) return;
+  releaseActivePhotoUrl();
+  state.activePhotoIndex = index;
+  state.activePhotoUrl = URL.createObjectURL(file);
+  els.collectionPhotoActionPreview.src = state.activePhotoUrl;
+  els.collectionPhotoActionPreview.alt = t("photos.previewAlt", { number: index + 1 });
+  els.collectionPhotoActionName.textContent = `${t("photos.photoNumber", { number: index + 1 })} - ${file.name}`;
+  if (typeof els.collectionPhotoActions.showModal === "function") els.collectionPhotoActions.showModal();
+  else els.collectionPhotoActions.setAttribute("open", "");
+}
+
+function closeCollectionPhotoActions() {
+  if (typeof els.collectionPhotoActions.close === "function" && els.collectionPhotoActions.open) {
+    els.collectionPhotoActions.close();
+  } else {
+    els.collectionPhotoActions.removeAttribute("open");
+    releaseActivePhotoUrl();
+  }
+  state.activePhotoIndex = null;
+}
+
+function releaseActivePhotoUrl() {
+  if (state.activePhotoUrl) URL.revokeObjectURL(state.activePhotoUrl);
+  state.activePhotoUrl = null;
+  els.collectionPhotoActionPreview.removeAttribute("src");
+}
+
+function beginCollectionPhotoRetake() {
+  if (!Number.isInteger(state.activePhotoIndex)) return;
+  state.retakePhotoIndex = state.activePhotoIndex;
+  els.collectionPhotoRetake.value = "";
+  closeCollectionPhotoActions();
+  els.collectionPhotoRetake.click();
+}
+
+function replaceCollectionPhoto() {
+  const [replacement] = acceptedCollectionPhotoFiles(els.collectionPhotoRetake.files, 1);
+  const index = state.retakePhotoIndex;
+  if (replacement && Number.isInteger(index) && state.collectionPhotos[index]) {
+    state.collectionPhotos[index] = replacement;
+  }
+  state.retakePhotoIndex = null;
+  els.collectionPhotoRetake.value = "";
+  updatePhotoSelectionStatus();
+}
+
+function deleteActiveCollectionPhoto() {
+  const index = state.activePhotoIndex;
+  if (!Number.isInteger(index) || !state.collectionPhotos[index]) return;
+  state.collectionPhotos.splice(index, 1);
+  closeCollectionPhotoActions();
+  updatePhotoSelectionStatus();
 }
 
 async function prepareSelectedCollectionPhotos() {
-  const files = [...(els.collectionPhotos.files || [])];
+  const files = [...state.collectionPhotos];
   if (!files.length) return [];
   if (files.length > PHOTO_MAX_COUNT) throw new Error(t("photos.tooMany"));
   if (files.some((file) => !String(file.type || "").startsWith("image/"))) {
@@ -1066,13 +1188,22 @@ function canvasToBlob(canvas, quality) {
 
 async function submitCollection(event) {
   event.preventDefault();
-  const submitButton = event.submitter || document.getElementById("submitCollection");
+  const submitButton = event.submitter || els.submitCollection;
+  let queuedSafely = false;
   submitButton.disabled = true;
+  operationFeedback.show({
+    state: "progress",
+    title: t("operation.submittingTitle"),
+    message: t("operation.submittingMessage")
+  });
 
   try {
     if (!state.offline.ready) throw new Error(t("offline.unavailable"));
     rememberCollectorName();
     setStatus(t("status.saving"));
+    if (els.collectionPhotosField.dataset.photoRequired === "true" && !state.collectionPhotos.length) {
+      throw new Error(t("photos.required"));
+    }
     const photos = await prepareSelectedCollectionPhotos();
     const payload = buildPayload([]);
     const farmSizeUpdate = pendingFarmSizeUpdate();
@@ -1101,23 +1232,69 @@ async function submitCollection(event) {
         grade: payload.grade_code || "Ungraded"
       }
     });
+    queuedSafely = true;
+    if (photos.length) {
+      els.collectionPhotoStatus.textContent = t("photos.stored", { count: photos.length });
+    }
 
-    clearForm();
     setStatus(t("offline.localSaved"));
     await refreshOfflineQueue();
 
     if (isOnline()) {
-      const saved = await syncOutbox({ submissionId });
+      const syncResult = await syncOutbox({ submissionId });
+      const saved = syncResult?.requestedResult;
       if (saved) {
+        if (photos.length) {
+          els.collectionPhotoStatus.textContent = t("photos.uploaded", { count: photos.length });
+        }
         renderReceiptResult(saved);
         setStatus(t("offline.confirmed", { id: saved.transaction_id || payload.transaction_id }));
+        operationFeedback.show({
+          state: "success",
+          title: t("operation.submittedTitle"),
+          message: t("operation.submittedMessage", { id: saved.transaction_id || payload.transaction_id }),
+          actionLabel: t("action.newCollection"),
+          onAction: startNewCollection
+        });
+        return;
       }
     }
+    showStoredLocallyFeedback();
   } catch (error) {
-    setStatus(error.message, "error");
+    if (queuedSafely) {
+      setStatus(`${t("offline.localSaved")} ${error.message || ""}`.trim(), "error");
+      showStoredLocallyFeedback();
+    } else {
+      setStatus(error.message, "error");
+      operationFeedback.show({
+        state: "error",
+        title: t("status.error"),
+        message: error.message || t("status.error"),
+        actionLabel: t("action.close"),
+        onAction: () => operationFeedback.hide()
+      });
+    }
   } finally {
-    submitButton.disabled = false;
+    submitButton.disabled = queuedSafely;
   }
+}
+
+function showStoredLocallyFeedback() {
+  operationFeedback.show({
+    state: "stored",
+    title: t("operation.storedTitle"),
+    message: t("operation.storedMessage"),
+    actionLabel: t("action.newCollection"),
+    onAction: startNewCollection
+  });
+}
+
+function startNewCollection() {
+  clearForm();
+  setStatus("");
+  els.submitCollection.disabled = false;
+  operationFeedback.hide();
+  els.sackWeightKg.focus();
 }
 
 function buildPayload(photoPaths = []) {
@@ -1164,6 +1341,11 @@ function clearForm(options = {}) {
   els.collectionWebsite.value = "";
   state.selectedFarmer = null;
   state.gps = null;
+  state.collectionPhotos = [];
+  state.retakePhotoIndex = null;
+  els.collectionPhotos.value = "";
+  els.collectionPhotoRetake.value = "";
+  closeCollectionPhotoActions();
   els.transactionId.value = "";
   els.gpsSummary.value = "";
   setDefaultDateTime();
@@ -1178,6 +1360,8 @@ function clearForm(options = {}) {
   setFarmerStatus("");
   updatePriceForGrade();
   updateEmptyFieldHighlights();
+  els.submitCollection.disabled = false;
+  operationFeedback?.hide();
   if (!options.keepReceipt) els.collectionReceiptResult.hidden = true;
 }
 
@@ -1197,25 +1381,77 @@ async function syncOutbox(options = {}) {
   if (!state.offline.ready || state.offline.syncing) return null;
   if (!isOnline()) {
     updateOfflineReadiness();
-    if (options.announce) setStatus(t("offline.localSaved"));
+    if (options.announce) {
+      setStatus(t("offline.localSaved"));
+      operationFeedback.show({
+        state: "stored",
+        title: t("operation.storedTitle"),
+        message: t("offline.localSaved"),
+        actionLabel: t("action.done"),
+        onAction: () => operationFeedback.hide()
+      });
+    }
     return null;
   }
 
   state.offline.syncing = true;
   try {
     await refreshOfflineQueue();
+    const waiting = (await listOutboxItems())
+      .filter((item) => item.status !== "synced")
+      .filter((item) => !options.submissionId || item.submissionId === options.submissionId);
+    if (options.announce) {
+      operationFeedback.show({
+        state: "progress",
+        title: t("operation.syncingTitle"),
+        message: t("operation.syncingProgress", { completed: 0, total: waiting.length })
+      });
+    }
     const result = await syncPendingCollections({
       submissionId: options.submissionId,
       online: isOnline(),
-      onProgress: refreshOfflineQueue
+      onProgress: async (_submissionId, progress) => {
+        if (options.announce) {
+          operationFeedback.update({
+            message: t("operation.syncingProgress", {
+              completed: progress.processedCount,
+              total: progress.totalCount
+            })
+          });
+        }
+        await refreshOfflineQueue();
+      }
     });
     if (result.requestedError || (options.announce && result.failedCount)) {
       const error = result.requestedError || result.errors[0];
       setStatus(`${t("offline.localSaved")} ${error?.message || "Sync could not be completed."}`, "error");
+      if (options.announce) {
+        operationFeedback.show({
+          state: "error",
+          title: t("operation.syncPartialTitle"),
+          message: t("operation.syncPartial", {
+            synced: result.syncedCount,
+            total: result.totalCount,
+            failed: result.failedCount
+          }),
+          actionLabel: t("action.close"),
+          onAction: () => operationFeedback.hide()
+        });
+      }
     } else if (options.announce && result.remainingCount === 0) {
       setStatus(t("offline.syncComplete"));
+      operationFeedback.show({
+        state: "success",
+        title: t("operation.syncCompleteTitle"),
+        message: t("operation.syncSuccess", {
+          synced: result.syncedCount,
+          total: result.totalCount
+        }),
+        actionLabel: t("action.done"),
+        onAction: () => operationFeedback.hide()
+      });
     }
-    return result.requestedResult;
+    return result;
   } finally {
     state.offline.syncing = false;
     await refreshOfflineQueue();
@@ -1324,7 +1560,7 @@ function formatFarmSize(farmer) {
 function formatManualFarmSize() {
   const value = nullableNumber(els.manualFarmerFarmSize.value);
   if (value === null) return "-";
-  const unit = String(els.manualFarmerFarmSizeUnit.value || "lines").trim() || "lines";
+  const unit = String(els.manualFarmerFarmSizeUnit.value || "blocks").trim() || "blocks";
   return `${formatCompactNumber(value)} ${unitLabel(unit)}`;
 }
 
@@ -1334,7 +1570,7 @@ function pendingFarmSizeUpdate() {
   const previousValue = nullableNumber(state.selectedFarmer.farm_size_value);
   const nextValue = nullableNumber(els.manualFarmerFarmSize.value);
   const previousUnit = String(state.selectedFarmer.farm_size_unit || "lines").trim() || "lines";
-  const nextUnit = String(els.manualFarmerFarmSizeUnit.value || "lines").trim() || "lines";
+  const nextUnit = String(els.manualFarmerFarmSizeUnit.value || "blocks").trim() || "blocks";
   if (previousValue === nextValue && previousUnit === nextUnit) return null;
 
   return {
@@ -1426,12 +1662,16 @@ function applyRuntimeSettings(gradePrices) {
 
   state.formSettings.forEach((setting) => {
     const control = controls[setting.field_key];
-    const label = control?.closest("label");
+    const label = control === els.collectionPhotos
+      ? els.collectionPhotosField
+      : control?.closest("label");
     if (!control || !label) return;
     const visible = setting.field_key === "sack_weight_kg" || Boolean(setting.visible);
     label.hidden = !visible;
     label.style.order = String(setting.display_order || 0);
-    control.required = visible && Boolean(setting.required);
+    const required = visible && Boolean(setting.required);
+    control.required = control === els.collectionPhotos ? false : required;
+    if (control === els.collectionPhotos) label.dataset.photoRequired = String(required);
     control.disabled = !visible;
     updateLabelText(label, configuredFieldLabel(setting.field_key, setting.label));
     if (setting.default_value && !control.value) control.value = setting.default_value;
@@ -1462,8 +1702,10 @@ function updateEmptyFieldHighlights() {
     const type = String(control.type || "").toLowerCase();
     const excluded = ["hidden", "checkbox", "radio", "file", "button", "submit", "reset"].includes(type)
       || control.closest("[hidden]")
-      || control.closest(".public-form-trap");
-    if (excluded) {
+      || control.closest(".public-form-trap")
+      || control.disabled;
+    const shouldHighlight = !excluded && (control.required || control.dataset.recommended === "true");
+    if (!shouldHighlight) {
       control.classList.remove("empty-value-control");
       return;
     }
@@ -1540,7 +1782,7 @@ function customFieldPayload() {
   const farmSizeValue = nullableNumber(els.manualFarmerFarmSize.value);
   if (farmSizeValue !== null) {
     payload.farm_size_value = farmSizeValue;
-    payload.farm_size_unit = els.manualFarmerFarmSizeUnit.value || "lines";
+    payload.farm_size_unit = els.manualFarmerFarmSizeUnit.value || "blocks";
   }
   return payload;
 }
@@ -1660,7 +1902,7 @@ function setFixedFormOrder() {
     [els.productForm.closest("label"), 85],
     [els.priceOverridden.closest("label"), 95],
     [els.customCollectionFields, 96],
-    [els.collectionPhotos.closest("label"), 110]
+    [els.collectionPhotosField, 110]
   ];
   fixedOrder.forEach(([element, order]) => {
     if (element) element.style.order = String(order);
@@ -1689,6 +1931,11 @@ function translatedDataMode() {
 }
 
 function updateLabelText(label, text) {
+  const configuredLabel = label.querySelector?.("[data-field-label]");
+  if (configuredLabel) {
+    configuredLabel.textContent = text;
+    return;
+  }
   const labelSpan = [...label.children].find((child) => child.tagName === "SPAN" && !child.classList.contains("input-action-row"));
   if (labelSpan) {
     labelSpan.textContent = text;

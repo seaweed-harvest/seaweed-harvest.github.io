@@ -98,6 +98,15 @@
     </details>
   </main>
 
+  <section id="todayOperationFeedback" class="operation-feedback" role="status" aria-live="polite" aria-atomic="true" aria-busy="false" hidden>
+    <span class="operation-feedback-indicator" aria-hidden="true"></span>
+    <div class="operation-feedback-copy">
+      <strong data-operation-title>Syncing...</strong>
+      <span data-operation-message></span>
+    </div>
+    <button type="button" data-operation-action hidden>Done</button>
+  </section>
+
   <script type="module" src="./assets/js/today_page.js"></script>
 </body>
 </html>

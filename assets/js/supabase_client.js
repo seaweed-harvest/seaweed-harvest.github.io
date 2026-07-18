@@ -1,5 +1,11 @@
 import { APP_CONFIG } from "./config.js";
 
+const READ_TIMEOUT_MS = 12000;
+const WRITE_TIMEOUT_MS = 30000;
+const UPLOAD_TIMEOUT_MS = 60000;
+const TRANSIENT_STATUS = new Set([429, 502, 503, 504]);
+let accessTokenPromise = null;
+
 export function isSupabaseEnabled() {
   const config = APP_CONFIG.supabase;
   return Boolean(config.enabled && config.restUrl && config.anonKey);
@@ -11,7 +17,10 @@ export function dataModeLabel() {
 
 export async function selectRows(table, query = "") {
   if (!isSupabaseEnabled()) return previewRows(table);
-  return supabaseRequest(`${table}${query ? `?${query}` : ""}`);
+  return supabaseRequest(`${table}${query ? `?${query}` : ""}`, {
+    retry: true,
+    timeoutMs: READ_TIMEOUT_MS
+  });
 }
 
 export async function insertRow(table, payload) {
@@ -19,7 +28,8 @@ export async function insertRow(table, payload) {
   await supabaseRequest(table, {
     method: "POST",
     body: payload,
-    prefer: "return=minimal"
+    prefer: "return=minimal",
+    timeoutMs: WRITE_TIMEOUT_MS
   });
   return [payload];
 }
@@ -28,7 +38,8 @@ export async function callRpc(functionName, payload = {}) {
   if (!isSupabaseEnabled()) return [];
   return supabaseRequest(`rpc/${functionName}`, {
     method: "POST",
-    body: payload
+    body: payload,
+    timeoutMs: WRITE_TIMEOUT_MS
   });
 }
 
@@ -37,7 +48,9 @@ export async function callPublicRpc(functionName, payload = {}) {
   return supabaseRequest(`rpc/${functionName}`, {
     method: "POST",
     body: payload,
-    accessToken: APP_CONFIG.supabase.anonKey
+    accessToken: APP_CONFIG.supabase.anonKey,
+    retry: true,
+    timeoutMs: READ_TIMEOUT_MS
   });
 }
 
@@ -48,7 +61,7 @@ export async function uploadStorageObject(bucket, objectPath, blob) {
     .split("/")
     .map((segment) => encodeURIComponent(segment))
     .join("/");
-  const response = await fetch(
+  const response = await fetchWithPolicy(
     `${APP_CONFIG.supabase.url}/storage/v1/object/${encodeURIComponent(bucket)}/${encodedPath}`,
     {
       method: "POST",
@@ -59,7 +72,8 @@ export async function uploadStorageObject(bucket, objectPath, blob) {
         "x-upsert": "false"
       },
       body: blob
-    }
+    },
+    { timeoutMs: UPLOAD_TIMEOUT_MS }
   );
 
   if (response.status === 409) {
@@ -81,10 +95,14 @@ async function supabaseRequest(path, options = {}) {
   if (options.body) headers["Content-Type"] = "application/json";
   if (options.prefer) headers.Prefer = options.prefer;
 
-  const response = await fetch(`${APP_CONFIG.supabase.restUrl}/${path}`, {
-    method: options.method || "GET",
+  const method = options.method || "GET";
+  const response = await fetchWithPolicy(`${APP_CONFIG.supabase.restUrl}/${path}`, {
+    method,
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined
+  }, {
+    retry: options.retry ?? method === "GET",
+    timeoutMs: options.timeoutMs || (method === "GET" ? READ_TIMEOUT_MS : WRITE_TIMEOUT_MS)
   });
 
   if (!response.ok) {
@@ -99,12 +117,53 @@ async function supabaseRequest(path, options = {}) {
 
 async function requestAccessToken() {
   if (!localStorage.getItem("seaweed-ag-auth")) return APP_CONFIG.supabase.anonKey;
-  try {
-    const { currentAccessToken } = await import("./auth_client.js");
-    return await currentAccessToken();
-  } catch {
-    return APP_CONFIG.supabase.anonKey;
+  if (!accessTokenPromise) {
+    accessTokenPromise = (async () => {
+      try {
+        const { currentAccessToken } = await import("./auth_client.js");
+        return await currentAccessToken();
+      } catch {
+        return APP_CONFIG.supabase.anonKey;
+      }
+    })().finally(() => {
+      accessTokenPromise = null;
+    });
   }
+  return accessTokenPromise;
+}
+
+async function fetchWithPolicy(url, init, options = {}) {
+  const attempts = options.retry ? 2 : 1;
+  const timeoutMs = Number(options.timeoutMs || READ_TIMEOUT_MS);
+  let lastError = null;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { ...init, signal: controller.signal });
+      if (attempt + 1 < attempts && TRANSIENT_STATUS.has(response.status)) {
+        await waitBeforeRetry(attempt);
+        continue;
+      }
+      return response;
+    } catch (error) {
+      lastError = error?.name === "AbortError"
+        ? new Error(`Supabase request timed out after ${Math.round(timeoutMs / 1000)} seconds.`)
+        : error;
+      if (attempt + 1 >= attempts) throw lastError;
+      await waitBeforeRetry(attempt);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  throw lastError || new Error("Supabase request failed.");
+}
+
+function waitBeforeRetry(attempt) {
+  const delayMs = 250 * (2 ** attempt) + Math.round(Math.random() * 150);
+  return new Promise((resolve) => setTimeout(resolve, delayMs));
 }
 
 function previewRows(table) {
@@ -138,12 +197,13 @@ function storageKey(table) {
 }
 
 async function responseDetail(response) {
+  const text = await response.text().catch(() => "");
+  if (!text) return "";
   try {
-    const errorBody = await response.json();
+    const errorBody = JSON.parse(text);
     const detail = errorBody.message || errorBody.error || errorBody.details || errorBody.hint || "";
     return detail ? ` - ${detail}` : "";
   } catch {
-    const detail = await response.text();
-    return detail ? ` - ${detail}` : "";
+    return ` - ${text.slice(0, 300)}`;
   }
 }

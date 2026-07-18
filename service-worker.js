@@ -1,4 +1,5 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v7";
+const CACHE_VERSION = "seaweed-harvest-collection-v10";
+const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -16,6 +17,7 @@ const APP_SHELL = [
   "./assets/js/collection_language.js",
   "./assets/js/offline_store.js",
   "./assets/js/offline_sync.js",
+  "./assets/js/operation_feedback.js",
   "./assets/js/today_page.js",
   "./assets/js/config.js",
   "./assets/js/supabase_client.js",
@@ -60,8 +62,10 @@ self.addEventListener("fetch", (event) => {
 
 async function networkFirst(request, fallbackUrl = null) {
   const cache = await caches.open(CACHE_VERSION);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), NETWORK_TIMEOUT_MS);
   try {
-    const response = await fetch(request);
+    const response = await fetch(request, { signal: controller.signal });
     if (response && (response.ok || response.type === "opaque")) {
       await cache.put(request, response.clone());
     }
@@ -74,5 +78,7 @@ async function networkFirst(request, fallbackUrl = null) {
       if (fallback) return fallback;
     }
     throw error;
+  } finally {
+    clearTimeout(timeout);
   }
 }

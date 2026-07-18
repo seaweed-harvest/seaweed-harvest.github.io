@@ -7,6 +7,8 @@ import {
 } from "./offline_store.js";
 
 const PHOTO_BUCKET = "collection-photos";
+const SUBMISSION_TIMEOUT_MS = 45000;
+const PHOTO_UPLOAD_TIMEOUT_MS = 60000;
 
 export async function syncPendingCollections(options = {}) {
   const online = options.online ?? navigator.onLine;
@@ -22,6 +24,7 @@ export async function syncPendingCollections(options = {}) {
   let requestedResult = null;
   let requestedError = null;
   let syncedCount = 0;
+  let processedCount = 0;
   const errors = [];
 
   for (const item of items) {
@@ -38,13 +41,23 @@ export async function syncPendingCollections(options = {}) {
       errors.push({ submissionId: item.submissionId, message });
       if (item.submissionId === options.submissionId) requestedError = error;
     }
-    if (options.onProgress) await options.onProgress(item.submissionId);
+    processedCount += 1;
+    if (options.onProgress) {
+      await options.onProgress(item.submissionId, {
+        processedCount,
+        totalCount: items.length,
+        syncedCount,
+        failedCount: errors.length
+      });
+    }
   }
 
   return pendingResult({
     requestedResult,
     requestedError,
     syncedCount,
+    processedCount,
+    totalCount: items.length,
     failedCount: errors.length,
     errors
   });
@@ -57,6 +70,8 @@ async function pendingResult(result = {}) {
     requestedResult: null,
     requestedError: null,
     syncedCount: 0,
+    processedCount: 0,
+    totalCount: 0,
     failedCount: 0,
     errors: [],
     ...result,
@@ -108,7 +123,7 @@ async function syncOutboxItem(savedItem) {
 }
 
 async function submitPublicCollection(payload, item) {
-  const response = await fetch(`${APP_CONFIG.supabase.url}/functions/v1/public-collection`, {
+  const response = await fetchWithTimeout(`${APP_CONFIG.supabase.url}/functions/v1/public-collection`, {
     method: "POST",
     headers: {
       apikey: APP_CONFIG.supabase.anonKey,
@@ -121,7 +136,7 @@ async function submitPublicCollection(payload, item) {
       website: item.website || "",
       collection: payload
     })
-  });
+  }, SUBMISSION_TIMEOUT_MS);
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || `Collection could not be saved (${response.status}).`);
   return body.result;
@@ -132,7 +147,7 @@ async function uploadPublicCollectionPhoto(photo, submissionId, photoId) {
     submission_id: submissionId,
     photo_id: photoId
   });
-  const response = await fetch(`${APP_CONFIG.supabase.url}/functions/v1/public-collection-photo?${query}`, {
+  const response = await fetchWithTimeout(`${APP_CONFIG.supabase.url}/functions/v1/public-collection-photo?${query}`, {
     method: "POST",
     headers: {
       apikey: APP_CONFIG.supabase.anonKey,
@@ -140,7 +155,7 @@ async function uploadPublicCollectionPhoto(photo, submissionId, photoId) {
       "Content-Type": "image/jpeg"
     },
     body: photo
-  });
+  }, PHOTO_UPLOAD_TIMEOUT_MS);
   const body = await response.json().catch(() => ({}));
   if (!response.ok || !body.path) {
     throw new Error(body.error || `Photo could not be uploaded (${response.status}).`);
@@ -155,4 +170,19 @@ function authenticatedPhotoPath(item, photo) {
   const transactionFolder = String(item.payload?.transaction_id || "collection")
     .replace(/[^a-zA-Z0-9_-]/g, "-");
   return `collections/${year}/${month}/${transactionFolder}/${photo.id}.jpg`;
+}
+
+async function fetchWithTimeout(url, init, timeoutMs) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error(`Sync timed out after ${Math.round(timeoutMs / 1000)} seconds. The record is still safely stored on this device.`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }

@@ -426,10 +426,12 @@ async function loadAdminData() {
     renderMemberRegistry();
     renderCommunityRegistry();
     renderMapSection();
-    await loadMonthly({ quiet: true });
-    await loadCommunitySummary({ quiet: true });
-    await loadTodayIntake({ quiet: true });
-    await loadLedger({ quiet: true });
+    await Promise.all([
+      loadMonthly({ quiet: true }),
+      loadCommunitySummary({ quiet: true }),
+      loadTodayIntake({ quiet: true }),
+      loadLedger({ quiet: true })
+    ]);
 
     const mode = dataModeLabel();
     setConnectionStatus(mode, mode === "Preview" ? "status-muted" : "");
