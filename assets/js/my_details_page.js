@@ -6,7 +6,7 @@ import {
   setupAccountControls,
   updateMyDetails,
   updatePassword
-} from "./auth_client.js?v=17";
+} from "./auth_client.js?v=18";
 import {
   dashboardSelection,
   saveDashboardPreferences
@@ -76,7 +76,7 @@ function configureHomeLink() {
   const destination = routeForProfile(profile);
   els.myDetailsHomeLink.href = destination;
   if (destination.includes("farmer.html")) els.myDetailsHomeLink.textContent = "Farmer account";
-  else if (destination.includes("admin")) els.myDetailsHomeLink.textContent = "Admin";
+  else if (destination.includes("home.html")) els.myDetailsHomeLink.textContent = "Home";
   else if (destination.includes("collector_dashboard.html")) els.myDetailsHomeLink.textContent = "Dashboard";
   else if (destination.includes("collection.html")) els.myDetailsHomeLink.textContent = "Collection";
   else els.myDetailsHomeLink.textContent = "Account home";

@@ -11,7 +11,7 @@ import {
   initCollectionLanguage,
   t,
   unitLabel
-} from "./collection_language.js";
+} from "./collection_language.js?v=18";
 import {
   initialiseOfflineStore,
   listOutboxItems,

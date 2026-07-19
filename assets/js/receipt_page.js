@@ -1,4 +1,4 @@
-import { authClient, requireAuthenticatedAccount, routeForProfile, setupAccountControls } from "./auth_client.js";
+import { authClient, requireAuthenticatedAccount, routeForProfile, setupAccountControls } from "./auth_client.js?v=18";
 
 document.addEventListener("DOMContentLoaded", init);
 

@@ -94,6 +94,9 @@ p {
 }
 
 .app-header {
+  position: relative;
+  z-index: 2000;
+  overflow: visible;
   border-bottom: 1px solid rgba(201, 227, 220, 0.72);
   background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(10px);
@@ -134,6 +137,10 @@ p {
   background: url("../images/seaweed-harvest-icon-192.png") center / cover no-repeat;
   box-shadow: 0 2px 7px rgba(6, 71, 82, 0.16);
   transform: translateY(-50%);
+}
+
+#adminConnectionStatus {
+  display: none !important;
 }
 
 .admin-console-page .app-header h1 {
@@ -2215,6 +2222,30 @@ button:disabled {
 
 .map-list-details .map-table-wrap {
   padding: 0 14px 14px;
+}
+
+.map-farm-list-group + .map-farm-list-group {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.map-farm-list-heading {
+  min-height: 38px;
+  padding: 0 14px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.map-farm-list-heading h3 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.map-farm-list-group .empty-state {
+  margin: 0 14px 14px;
 }
 
 .map-table-wrap {

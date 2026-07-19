@@ -389,7 +389,7 @@ export function routeForProfile(profile) {
   if (profile?.app_role === "farmer_viewer") return "./farmer.html";
   if (profile?.app_role === "field_collector") return "./collector_dashboard.html";
   if (profile?.app_role === "community_viewer") return "./my_details.html";
-  if (profile?.app_role === "system_admin" || profile?.can_view_dashboard) return "./admin.html";
+  if (profile?.app_role === "system_admin" || profile?.can_view_dashboard) return "./home.html";
   if (profile?.can_view_registry) return "./admin_member_registry.html";
   if (profile?.can_view_map) return "./admin_map.html";
   if (profile?.can_view_data) return "./admin_today.html";

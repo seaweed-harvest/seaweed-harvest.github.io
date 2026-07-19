@@ -1,4 +1,4 @@
-import { currentProfile, currentSession, routeForProfile, setupAccountControls } from "./auth_client.js";
+import { currentProfile, currentSession, routeForProfile, setupAccountControls } from "./auth_client.js?v=18";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const status = document.getElementById("pendingStatus");

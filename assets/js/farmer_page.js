@@ -1,4 +1,4 @@
-import { authClient, currentProfile, currentSession, setupAccountControls } from "./auth_client.js";
+import { authClient, currentProfile, currentSession, setupAccountControls } from "./auth_client.js?v=18";
 import { applyDashboardPreferences } from "./dashboard_preferences.js";
 
 document.addEventListener("DOMContentLoaded", init);
@@ -14,7 +14,7 @@ async function init() {
   try {
     const profile = await currentProfile(true);
     if (profile?.account_status !== "active" || profile.app_role !== "farmer_viewer") {
-      window.location.replace(profile?.can_access_admin ? "./admin.html" : "./access_pending.html");
+      window.location.replace(profile?.can_access_admin ? "./home.html" : "./access_pending.html");
       return;
     }
     setupAccountControls(profile, {

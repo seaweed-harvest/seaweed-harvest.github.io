@@ -1,7 +1,7 @@
 import { APP_CONFIG } from "./config.js";
 import { hasMapCoordinates as hasGps, mapCoordinates } from "./map_coordinates.js";
 import { dataModeLabel, selectRows } from "./supabase_client.js";
-import { currentAccessToken, requireAdminAccess, setupAccountControls } from "./auth_client.js?v=17";
+import { currentAccessToken, requireAdminAccess, setupAccountControls } from "./auth_client.js?v=18";
 import { applyDashboardPreferences } from "./dashboard_preferences.js";
 
 const TABLES = {
@@ -484,7 +484,7 @@ function setupAdminSidebar(profile) {
 function addAdminSidebarLinks(sidebar) {
   sidebar.querySelectorAll('a[href="./admin_monthly.html"], a[href="./admin_community.html"]').forEach((link) => link.remove());
 
-  const dashboard = sidebar.querySelector('a[href="./admin.html"]');
+  const dashboard = sidebar.querySelector('a[href="./home.html"]');
   if (dashboard && !sidebar.querySelector('a[href="./collection.html"]')) {
     dashboard.insertAdjacentHTML(
       "afterend",
@@ -541,7 +541,7 @@ function addAdminSidebarLinks(sidebar) {
     pricing.insertAdjacentHTML("afterend", '<a href="./admin_seaweedke.html" data-permission="can_manage_sms_settings">SMS Settings</a>');
   }
 
-  const currentFile = window.location.pathname.split("/").pop() || "admin.html";
+  const currentFile = window.location.pathname.split("/").pop() || "home.html";
   sidebar.querySelectorAll("a").forEach((link) => {
     const hrefFile = new URL(link.href).pathname.split("/").pop();
     if (hrefFile === currentFile) link.setAttribute("aria-current", "page");
@@ -551,7 +551,7 @@ function addAdminSidebarLinks(sidebar) {
 
 function groupAdminSidebarLinks(sidebar) {
   const headings = [...sidebar.querySelectorAll(".admin-menu-heading")];
-  const currentFile = window.location.pathname.split("/").pop() || "admin.html";
+  const currentFile = window.location.pathname.split("/").pop() || "home.html";
 
   headings.forEach((heading) => {
     const key = heading.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
@@ -585,7 +585,7 @@ function groupAdminSidebarLinks(sidebar) {
 
 function applySidebarPermissions(sidebar, profile) {
   const permissionByHref = {
-    "./admin.html": "can_view_dashboard",
+    "./home.html": "can_view_dashboard",
     "./admin_member_registry.html": "can_view_registry",
     "./admin_community_registry.html": "can_view_registry",
     "./admin_map.html": "can_view_map",
@@ -604,9 +604,9 @@ function applySidebarPermissions(sidebar, profile) {
 }
 
 function requiredPermissionForPage() {
-  const file = window.location.pathname.split("/").pop() || "admin.html";
+  const file = window.location.pathname.split("/").pop() || "home.html";
   const permissions = {
-    "admin.html": "can_view_dashboard",
+    "home.html": "can_view_dashboard",
     "admin_member_registry.html": "can_view_registry",
     "admin_community_registry.html": "can_view_registry",
     "admin_registry.html": "can_view_registry",
@@ -1688,13 +1688,34 @@ function renderMapSection() {
 }
 
 function renderMapLists(mapped, missing, latestHarvestMs) {
-  els.mappedCommunityList.innerHTML = mapped.length
-    ? renderMapTable(mapped, true, latestHarvestMs)
-    : `<div class="empty-state">No mapped communities found.</div>`;
+  const activeFarms = mapped.filter(hasCollectionRecords);
+  const inactiveFarms = mapped.filter((community) => !hasCollectionRecords(community));
+  els.mappedCommunityList.innerHTML = `
+    ${renderFarmListGroup("Active Farms", activeFarms, true, latestHarvestMs, "No mapped farms have collection records yet.")}
+    ${renderFarmListGroup("Inactive Farms", inactiveFarms, true, latestHarvestMs, "All mapped farms have collection records.")}
+  `;
 
   els.missingGpsList.innerHTML = missing.length
     ? renderMapTable(missing, false, latestHarvestMs)
     : `<div class="empty-state">All active communities have GPS coordinates.</div>`;
+}
+
+function renderFarmListGroup(title, rows, includeMarkerFocus, latestHarvestMs, emptyMessage) {
+  return `
+    <section class="map-farm-list-group">
+      <div class="map-farm-list-heading">
+        <h3>${escapeHtml(title)}</h3>
+        <span class="status-pill status-muted">${rows.length}</span>
+      </div>
+      ${rows.length
+        ? renderMapTable(rows, includeMarkerFocus, latestHarvestMs)
+        : `<div class="empty-state">${escapeHtml(emptyMessage)}</div>`}
+    </section>
+  `;
+}
+
+function hasCollectionRecords(community) {
+  return Number(community?.collection_count || 0) > 0;
 }
 
 function renderMapTable(rows, includeMarkerFocus, latestHarvestMs) {

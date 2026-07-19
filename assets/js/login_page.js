@@ -11,7 +11,7 @@ import {
   signInWithProvider,
   updateMyDisplayName,
   updatePassword
-} from "./auth_client.js";
+} from "./auth_client.js?v=18";
 import { transitionTo } from "./app_transition.js";
 
 const els = {};
@@ -200,7 +200,7 @@ function signInErrorMessage(error) {
 
 function safePage(value) {
   const file = String(value || "").replace(/^\.\//, "");
-  return /^[a-z0-9_.?=&%-]+$/i.test(file) ? file : "admin.html";
+  return /^[a-z0-9_.?=&%-]+$/i.test(file) ? file : "home.html";
 }
 
 function requiresPasswordChange(value) {
