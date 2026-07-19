@@ -4448,11 +4448,6 @@ label input[type="checkbox"] {
     justify-content: flex-start;
   }
 
-  .account-menu-popover {
-    right: auto;
-    left: 0;
-  }
-
   .my-password-form {
     grid-template-columns: 1fr;
   }

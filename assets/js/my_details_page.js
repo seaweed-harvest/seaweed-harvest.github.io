@@ -4,7 +4,8 @@ import {
   currentProfile,
   routeForProfile,
   setupAccountControls,
-  updateMyDetails
+  updateMyDetails,
+  updatePassword
 } from "./auth_client.js";
 import {
   dashboardSelection,
@@ -36,7 +37,12 @@ async function init() {
     "myDashboardPreferenceOptions",
     "saveMyDetails",
     "myDetailsStatus",
-    "myDetailsHomeLink"
+    "myDetailsHomeLink",
+    "myPasswordForm",
+    "myNewPassword",
+    "myConfirmPassword",
+    "saveMyPassword",
+    "myPasswordStatus"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
   try {
@@ -63,6 +69,7 @@ async function init() {
     setStatus(error.message, "error");
   }
   els.myDetailsForm.addEventListener("submit", saveDetails);
+  els.myPasswordForm.addEventListener("submit", savePassword);
 }
 
 function configureHomeLink() {
@@ -115,7 +122,8 @@ async function saveDetails(event) {
     }
     await saveDashboardPreferences(authClient, dashboardWidgets);
     profile = await currentProfile(true);
-    document.querySelector(".account-name").textContent = profile.display_name || profile.email;
+    const accountName = document.querySelector(".account-name");
+    if (accountName) accountName.textContent = profile.display_name || profile.email;
     populateForm();
     populateDashboardPreferences();
     setStatus("Details saved.");
@@ -123,6 +131,31 @@ async function saveDetails(event) {
     setStatus(error.message, "error");
   } finally {
     els.saveMyDetails.disabled = false;
+  }
+}
+
+async function savePassword(event) {
+  event.preventDefault();
+  const password = els.myNewPassword.value;
+  if (password.length < 10) {
+    setPasswordStatus("Use at least 10 characters.", "error");
+    return;
+  }
+  if (password !== els.myConfirmPassword.value) {
+    setPasswordStatus("Passwords do not match.", "error");
+    return;
+  }
+
+  els.saveMyPassword.disabled = true;
+  setPasswordStatus("Updating...");
+  try {
+    await updatePassword(password, profile.display_name || els.myDetailsName.value.trim());
+    els.myPasswordForm.reset();
+    setPasswordStatus("Password updated.");
+  } catch (error) {
+    setPasswordStatus(error.message, "error");
+  } finally {
+    els.saveMyPassword.disabled = false;
   }
 }
 
@@ -162,6 +195,11 @@ async function loadReceiptPreferences() {
 function setStatus(message, type = "") {
   els.myDetailsStatus.textContent = message || "";
   els.myDetailsStatus.dataset.status = type;
+}
+
+function setPasswordStatus(message, type = "") {
+  els.myPasswordStatus.textContent = message || "";
+  els.myPasswordStatus.dataset.status = type;
 }
 
 function escapeHtml(value) {

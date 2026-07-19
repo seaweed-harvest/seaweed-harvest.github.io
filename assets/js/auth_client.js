@@ -134,40 +134,69 @@ export function setupAccountControls(profile, options = {}) {
 
   const account = document.createElement("div");
   account.className = "account-controls";
+
+  const menu = document.createElement("details");
+  menu.className = "account-menu";
+  const trigger = document.createElement("summary");
+  trigger.className = "account-menu-trigger";
+  trigger.setAttribute("aria-label", "Open profile menu");
+  const avatar = document.createElement("span");
+  avatar.className = "account-avatar";
+  avatar.setAttribute("aria-hidden", "true");
+  const menuLabel = document.createElement("span");
+  menuLabel.className = "account-menu-label";
+  const chevron = document.createElement("span");
+  chevron.className = "account-menu-chevron";
+  chevron.setAttribute("aria-hidden", "true");
+  trigger.append(avatar, menuLabel, chevron);
+
+  const popover = document.createElement("div");
+  popover.className = "account-menu-popover";
+  const identity = document.createElement("div");
+  identity.className = "account-menu-identity";
   const name = document.createElement("span");
   name.className = "account-name";
   name.textContent = profile.display_name || profile.email;
-  const detailsButton = document.createElement("button");
-  detailsButton.type = "button";
-  detailsButton.addEventListener("click", () => {
-    window.location.href = "./my_details.html";
-  });
-  const passwordButton = document.createElement("button");
-  passwordButton.type = "button";
-  passwordButton.addEventListener("click", () => {
-    const returnPage = options.returnPage || currentPage();
-    window.location.href = `./login.html?mode=change&return=${encodeURIComponent(returnPage)}`;
-  });
+  const email = document.createElement("span");
+  email.className = "account-email";
+  email.textContent = profile.email || "";
+  identity.append(name, email);
+
+  const detailsLink = document.createElement("a");
+  detailsLink.className = "account-menu-item";
+  detailsLink.href = "./my_details.html";
   const signOutButton = document.createElement("button");
   signOutButton.type = "button";
+  signOutButton.className = "account-menu-item account-menu-signout";
   signOutButton.addEventListener("click", async () => {
+    signOutButton.disabled = true;
     await signOut();
     window.location.replace(options.signOutReturn || "./index.html");
   });
 
   const applyLabels = () => {
     const labels = typeof options.labels === "function" ? options.labels() : options.labels || {};
-    detailsButton.textContent = labels.myDetails || "My details";
-    passwordButton.textContent = labels.changePassword || "Change password";
+    menuLabel.textContent = labels.me || "Me";
+    detailsLink.textContent = labels.myDetails || "Profile settings";
     signOutButton.textContent = labels.signOut || "Sign out";
   };
   applyLabels();
   if (options.languageEvent) document.addEventListener(options.languageEvent, applyLabels);
 
-  account.append(name);
-  if (options.showMyDetails !== false) account.append(detailsButton);
-  account.append(passwordButton, signOutButton);
+  popover.append(identity);
+  if (options.showMyDetails !== false) popover.append(detailsLink);
+  popover.append(signOutButton);
+  menu.append(trigger, popover);
+  account.append(menu);
   controls.append(account);
+  document.addEventListener("click", (event) => {
+    if (menu.open && !menu.contains(event.target)) menu.open = false;
+  });
+  menu.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    menu.open = false;
+    trigger.focus();
+  });
   setupAggregatorControl(account, options).catch(() => {});
   return account;
 }

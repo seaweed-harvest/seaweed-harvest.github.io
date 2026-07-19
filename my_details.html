@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0f766e">
   <meta name="robots" content="noindex,nofollow">
-  <title>My Details - Seaweed Aggregation</title>
+  <title>My Profile - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
 </head>
 <body class="my-details-page" data-auth-pending>
   <header class="app-header">
     <div class="app-header-inner">
-      <div><p class="eyebrow">Seaweed aggregation</p><h1>My Details</h1></div>
+      <div><p class="eyebrow">Seaweed aggregation</p><h1>My Profile</h1></div>
       <div class="header-actions my-details-header-controls">
         <nav class="app-nav" aria-label="Account navigation"><a id="myDetailsHomeLink" href="./access_pending.html">Account home</a></nav>
       </div>
@@ -44,6 +44,18 @@
           <span id="myDetailsStatus" class="form-status" aria-live="polite"></span>
         </div>
       </form>
+
+      <section class="my-password-section" aria-labelledby="myPasswordHeading">
+        <h2 id="myPasswordHeading">Change password</h2>
+        <form id="myPasswordForm" class="my-password-form">
+          <label>New password<input id="myNewPassword" type="password" autocomplete="new-password" minlength="10" required></label>
+          <label>Confirm password<input id="myConfirmPassword" type="password" autocomplete="new-password" minlength="10" required></label>
+          <div class="button-row">
+            <button id="saveMyPassword" type="submit">Update password</button>
+            <span id="myPasswordStatus" class="form-status" aria-live="polite"></span>
+          </div>
+        </form>
+      </section>
     </section>
   </main>
 
