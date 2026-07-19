@@ -100,20 +100,16 @@ function cacheElements() {
     "adminConnectionStatus",
     "reloadAdminDashboard",
     "metricTotalKg",
-    "metricAcceptedKg",
     "metricRejectedKg",
-    "metricEstimatedKsh",
     "metricGradeAKg",
     "metricGradeBKg",
-    "metricGradeCKg",
     "metricUngradedKg",
     "metricCollectionCount",
     "metricCollectionsThisMonth",
+    "metricWeightThisMonth",
     "metricActiveMembers",
     "metricActiveCommunities",
     "metricLastCollection",
-    "metricMissingMemberId",
-    "metricMissingSackId",
     "communityTotalsCount",
     "communityTotalsRows",
     "memberRegistryCount",
@@ -653,39 +649,45 @@ function renderDashboard() {
 
   const row = state.overview || {};
   setMetric("metricTotalKg", formatKg(row.total_weight_kg));
-  setMetric("metricAcceptedKg", formatKg(row.accepted_weight_kg));
   setMetric("metricRejectedKg", formatKg(row.rejected_weight_kg));
-  setMetric("metricEstimatedKsh", formatMoney(row.estimated_value_ksh));
   setMetric("metricGradeAKg", formatKg(row.grade_a_weight_kg));
   setMetric("metricGradeBKg", formatKg(row.grade_b_weight_kg));
-  setMetric("metricGradeCKg", formatKg(row.grade_c_weight_kg));
   setMetric("metricUngradedKg", formatKg(row.ungraded_weight_kg));
   setMetric("metricCollectionCount", formatInteger(row.collection_count));
   setMetric("metricCollectionsThisMonth", formatInteger(row.collections_this_month));
+  setMetric("metricWeightThisMonth", formatKg(row.weight_this_month_kg));
   setMetric("metricActiveMembers", formatInteger(row.active_member_count));
-  setMetric("metricActiveCommunities", formatInteger(row.active_community_count));
+  setMetric("metricActiveCommunities", formatInteger(activeCommunityRows().length));
   setMetric("metricLastCollection", formatDate(row.last_collection_at));
-  setMetric("metricMissingMemberId", formatInteger(row.missing_member_id_count));
-  setMetric("metricMissingSackId", formatInteger(row.missing_sack_id_count));
   renderCommunityTotals();
 }
 
 function renderCommunityTotals() {
   if (!els.communityTotalsRows) return;
 
-  els.communityTotalsCount.textContent = `${state.communities.length} rows`;
-  els.communityTotalsRows.innerHTML = state.communities.map((community) => `
+  const communities = activeCommunityRows();
+  els.communityTotalsCount.textContent = `${communities.length} ${communities.length === 1 ? "community" : "communities"}`;
+  els.communityTotalsRows.innerHTML = communities.map((community) => `
     <tr>
       <td><strong>${escapeHtml(community.community_id)}</strong></td>
       <td><a class="community-record-link" href="${escapeAttribute(communityRecordsUrl(community.community_id))}">${escapeHtml(community.community_name)}</a></td>
       <td>${escapeHtml(formatKg(community.total_weight_kg))}</td>
       <td>${escapeHtml(formatKg(community.grade_a_weight_kg))}</td>
       <td>${escapeHtml(formatKg(community.grade_b_weight_kg))}</td>
-      <td>${escapeHtml(formatKg(community.grade_c_weight_kg))}</td>
+      <td>${escapeHtml(formatKg(community.rejected_weight_kg))}</td>
       <td>${escapeHtml(formatInteger(community.active_member_count))}</td>
       <td>${escapeHtml(formatDate(community.last_collection_at))}</td>
     </tr>
-  `).join("") || emptyRow(8, "No community totals found.");
+  `).join("") || emptyRow(8, "No communities have recorded weight yet.");
+}
+
+function activeCommunityRows() {
+  return state.communities
+    .filter((community) => Number(community.total_weight_kg) > 0)
+    .sort((first, second) => (
+      Number(second.total_weight_kg) - Number(first.total_weight_kg)
+      || String(first.community_name || "").localeCompare(String(second.community_name || ""))
+    ));
 }
 
 function renderMemberRegistry() {

@@ -1,14 +1,9 @@
 export const DASHBOARD_OPTIONS = {
   admin: [
-    { key: "total_kg", label: "Total weight" },
-    { key: "quality_totals", label: "Accepted and rejected weight" },
-    { key: "estimated_ksh", label: "Estimated value" },
-    { key: "grade_breakdown", label: "Grade weights" },
-    { key: "collection_counts", label: "Collection counts" },
-    { key: "active_network", label: "Active members and communities" },
-    { key: "last_collection", label: "Last collection" },
-    { key: "missing_ids", label: "Missing ID checks" },
-    { key: "community_totals", label: "Community totals" }
+    { key: "weights", label: "Weight summary" },
+    { key: "activity", label: "Collection activity" },
+    { key: "recent_summary", label: "Recent summary" },
+    { key: "active_communities", label: "Active communities" }
   ],
   collector: [
     { key: "today", label: "Today's collections" },

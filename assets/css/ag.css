@@ -1834,6 +1834,89 @@ body.has-fixed-table-scrollbar {
   background: #fffaf0;
 }
 
+.admin-dashboard-summary {
+  margin-top: 2px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.admin-dashboard-band {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  background: var(--panel);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.admin-dashboard-band:last-child {
+  border-bottom: 0;
+}
+
+.admin-dashboard-band > h3 {
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  padding: 10px 14px;
+  background: var(--panel-soft);
+  color: var(--text-sec);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.admin-dashboard-band > h3 small {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.admin-dashboard-band-items {
+  min-width: 0;
+  display: grid;
+}
+
+.admin-dashboard-band-items-five {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.admin-dashboard-band-items-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admin-dashboard-metric {
+  min-width: 0;
+  min-height: 68px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 9px 14px;
+  border-left: 1px solid var(--border-soft);
+}
+
+.admin-dashboard-metric > span {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.admin-dashboard-metric strong {
+  min-width: 0;
+  color: var(--text);
+  font-size: 1.16rem;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.admin-dashboard-metric strong small {
+  color: var(--text-muted);
+  font-size: 0.66rem;
+  font-weight: 600;
+}
+
 .admin-management-card {
   margin-top: 12px;
   border: 1px solid var(--border);
@@ -3864,6 +3947,16 @@ label input[type="checkbox"] {
     position: static;
   }
 
+  .admin-dashboard-band {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-dashboard-band > h3 {
+    min-height: 34px;
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
   .admin-map-panel,
   .admin-map {
     min-height: 500px;
@@ -3989,6 +4082,25 @@ label input[type="checkbox"] {
   .admin-page-section,
   .admin-dashboard-panel {
     padding: 12px;
+  }
+
+  .admin-dashboard-band-items-five,
+  .admin-dashboard-band-items-three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-dashboard-metric {
+    min-height: 60px;
+    padding: 8px 10px;
+    border-top: 1px solid var(--border-soft);
+  }
+
+  .admin-dashboard-band-items .admin-dashboard-metric:nth-child(-n + 2) {
+    border-top: 0;
+  }
+
+  .admin-dashboard-metric strong {
+    font-size: 1.05rem;
   }
 
   .admin-card-summary {

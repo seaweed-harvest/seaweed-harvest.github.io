@@ -50,73 +50,41 @@
           <button id="reloadAdminDashboard" type="button">Reload</button>
         </div>
 
-        <div class="admin-metric-grid">
-          <article class="admin-metric-card" data-dashboard-widget="total_kg">
-            <span>Total kg</span>
-            <strong id="metricTotalKg">--</strong>
-          </article>
-          <article class="admin-metric-card" data-dashboard-widget="quality_totals">
-            <span>Accepted kg</span>
-            <strong id="metricAcceptedKg">--</strong>
-          </article>
-          <article class="admin-metric-card warning" data-dashboard-widget="quality_totals">
-            <span>Rejected kg</span>
-            <strong id="metricRejectedKg">--</strong>
-          </article>
-          <article class="admin-metric-card" data-dashboard-widget="estimated_ksh">
-            <span>Estimated KSH</span>
-            <strong id="metricEstimatedKsh">--</strong>
-          </article>
-          <article class="admin-metric-card" data-dashboard-widget="grade_breakdown">
-            <span>Grade A kg</span>
-            <strong id="metricGradeAKg">--</strong>
-          </article>
-          <article class="admin-metric-card" data-dashboard-widget="grade_breakdown">
-            <span>Grade B kg</span>
-            <strong id="metricGradeBKg">--</strong>
-          </article>
-          <article class="admin-metric-card warning" data-dashboard-widget="grade_breakdown">
-            <span>Grade C kg</span>
-            <strong id="metricGradeCKg">--</strong>
-          </article>
-          <article class="admin-metric-card warning" data-dashboard-widget="grade_breakdown">
-            <span>Ungraded kg</span>
-            <strong id="metricUngradedKg">--</strong>
-          </article>
-          <article class="admin-metric-card" data-dashboard-widget="collection_counts">
-            <span>Collection records</span>
-            <strong id="metricCollectionCount">--</strong>
-          </article>
-          <article class="admin-metric-card" data-dashboard-widget="collection_counts">
-            <span>This month</span>
-            <strong id="metricCollectionsThisMonth">--</strong>
-          </article>
-          <article class="admin-metric-card" data-dashboard-widget="active_network">
-            <span>Active members</span>
-            <strong id="metricActiveMembers">--</strong>
-          </article>
-          <article class="admin-metric-card" data-dashboard-widget="active_network">
-            <span>Active communities</span>
-            <strong id="metricActiveCommunities">--</strong>
-          </article>
-          <article class="admin-metric-card" data-dashboard-widget="last_collection">
-            <span>Last collection</span>
-            <strong id="metricLastCollection">--</strong>
-          </article>
-          <article class="admin-metric-card warning" data-dashboard-widget="missing_ids">
-            <span>Missing member ID</span>
-            <strong id="metricMissingMemberId">--</strong>
-          </article>
-          <article class="admin-metric-card warning" data-dashboard-widget="missing_ids">
-            <span>Missing sack ID</span>
-            <strong id="metricMissingSackId">--</strong>
-          </article>
+        <div class="admin-dashboard-summary">
+          <section class="admin-dashboard-band" data-dashboard-widget="weights" aria-labelledby="dashboardWeightsHeading">
+            <h3 id="dashboardWeightsHeading">Weights <small>kg</small></h3>
+            <div class="admin-dashboard-band-items admin-dashboard-band-items-five">
+              <article class="admin-dashboard-metric"><span>Total weight</span><strong><span id="metricTotalKg">--</span> <small>kg</small></strong></article>
+              <article class="admin-dashboard-metric"><span>Grade A</span><strong><span id="metricGradeAKg">--</span> <small>kg</small></strong></article>
+              <article class="admin-dashboard-metric"><span>Grade B</span><strong><span id="metricGradeBKg">--</span> <small>kg</small></strong></article>
+              <article class="admin-dashboard-metric"><span>Rejected</span><strong><span id="metricRejectedKg">--</span> <small>kg</small></strong></article>
+              <article class="admin-dashboard-metric"><span>Ungraded</span><strong><span id="metricUngradedKg">--</span> <small>kg</small></strong></article>
+            </div>
+          </section>
+
+          <section class="admin-dashboard-band" data-dashboard-widget="activity" aria-labelledby="dashboardActivityHeading">
+            <h3 id="dashboardActivityHeading">Activity</h3>
+            <div class="admin-dashboard-band-items admin-dashboard-band-items-three">
+              <article class="admin-dashboard-metric"><span>Collection records</span><strong id="metricCollectionCount">--</strong></article>
+              <article class="admin-dashboard-metric"><span>Communities</span><strong id="metricActiveCommunities">--</strong></article>
+              <article class="admin-dashboard-metric"><span>Farmers</span><strong id="metricActiveMembers">--</strong></article>
+            </div>
+          </section>
+
+          <section class="admin-dashboard-band" data-dashboard-widget="recent_summary" aria-labelledby="dashboardRecentHeading">
+            <h3 id="dashboardRecentHeading">Recent</h3>
+            <div class="admin-dashboard-band-items admin-dashboard-band-items-three">
+              <article class="admin-dashboard-metric"><span>Last collection</span><strong id="metricLastCollection">--</strong></article>
+              <article class="admin-dashboard-metric"><span>Collections this month</span><strong id="metricCollectionsThisMonth">--</strong></article>
+              <article class="admin-dashboard-metric"><span>Weight this month</span><strong><span id="metricWeightThisMonth">--</span> <small>kg</small></strong></article>
+            </div>
+          </section>
         </div>
 
-        <section class="admin-subsection" data-dashboard-widget="community_totals">
+        <section class="admin-subsection" data-dashboard-widget="active_communities">
           <div class="section-head compact">
-            <h3>Community Totals</h3>
-            <span id="communityTotalsCount" class="status-pill">0 rows</span>
+            <h3>Active Communities</h3>
+            <span id="communityTotalsCount" class="status-pill">0 communities</span>
           </div>
           <div class="responsive-table-wrap">
             <table class="management-table admin-data-table">
@@ -127,8 +95,8 @@
                   <th>Total kg</th>
                   <th>A kg</th>
                   <th>B kg</th>
-                  <th>C kg</th>
-                  <th>Active members</th>
+                  <th>Rejected kg</th>
+                  <th>Active farmers</th>
                   <th>Last collection</th>
                 </tr>
               </thead>
