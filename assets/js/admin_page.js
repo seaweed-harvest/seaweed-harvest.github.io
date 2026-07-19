@@ -557,6 +557,7 @@ function groupAdminSidebarLinks(sidebar) {
     const key = heading.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
     const details = document.createElement("details");
     details.className = "admin-menu-group";
+    details.dataset.menuGroup = key;
     const summary = document.createElement("summary");
     summary.textContent = heading.textContent.trim();
     const links = document.createElement("div");
@@ -581,6 +582,10 @@ function groupAdminSidebarLinks(sidebar) {
       localStorage.setItem(`seaweed_ag:admin_menu:${key}`, String(details.open));
     });
   });
+
+  const userRegistry = sidebar.querySelector('[data-menu-group="user-registry"]');
+  const tools = sidebar.querySelector('[data-menu-group="tools"]');
+  if (userRegistry && tools) tools.before(userRegistry);
 }
 
 function applySidebarPermissions(sidebar, profile) {
