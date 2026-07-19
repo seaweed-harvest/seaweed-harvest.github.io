@@ -25,31 +25,41 @@
   <main class="auth-shell auth-shell-wide">
     <img class="auth-brand-logo" src="./assets/images/seaweed-harvest-logo.svg" alt="Seaweed Harvest">
     <section class="panel auth-panel">
-      <h2>Farmer Account</h2>
+      <h2>Make Account</h2>
       <form id="farmerRegistrationForm" class="stack-form">
         <label>Name<input id="registrationName" type="text" autocomplete="name" required></label>
-        <label>Phone<input id="registrationPhone" type="tel" autocomplete="tel"></label>
-        <label>Community
-          <select id="registrationCommunity">
-            <option value="">Select community</option>
+        <label>Email<input id="registrationEmail" type="email" autocomplete="email" required></label>
+        <label>Phone number<input id="registrationPhone" type="tel" autocomplete="tel" required></label>
+        <label>Role
+          <select id="registrationRole" required>
+            <option value="farmer_viewer" selected>Farmer</option>
+            <option value="community_viewer">General account</option>
+            <option value="field_collector">Collector</option>
           </select>
         </label>
-        <label>Farmer ID, if already registered<input id="registrationFarmerId" type="text" inputmode="numeric" placeholder="RID4301 or 4301"></label>
-        <div class="farm-size-registration-fields">
-          <label>Farm size<input id="registrationFarmSize" type="number" min="0" step="0.01"></label>
-          <label>Unit
-            <select id="registrationFarmSizeUnit">
-              <option value="lines">Lines</option>
-              <option value="ropes">Ropes</option>
-              <option value="plots">Plots</option>
-              <option value="acres">Acres</option>
-              <option value="hectares">Hectares</option>
-              <option value="sqm">Square metres</option>
-              <option value="other">Other</option>
+        <fieldset id="farmerRegistrationFields" class="registration-role-fields">
+          <legend>Farmer details</legend>
+          <label>Community
+            <select id="registrationCommunity">
+              <option value="">Select community</option>
             </select>
           </label>
-        </div>
-        <label>Email<input id="registrationEmail" type="email" autocomplete="email" required></label>
+          <label>Farmer ID, if already registered<input id="registrationFarmerId" type="text" inputmode="numeric" placeholder="RID4301 or 4301"></label>
+          <div class="farm-size-registration-fields">
+            <label>Farm size<input id="registrationFarmSize" type="number" min="0" step="0.01"></label>
+            <label>Unit
+              <select id="registrationFarmSizeUnit">
+                <option value="lines">Lines</option>
+                <option value="ropes">Ropes</option>
+                <option value="plots">Plots</option>
+                <option value="acres">Acres</option>
+                <option value="hectares">Hectares</option>
+                <option value="sqm">Square metres</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+          </div>
+        </fieldset>
         <label>Password<input id="registrationPassword" type="password" autocomplete="new-password" minlength="10" required></label>
         <label>Confirm password<input id="registrationConfirmPassword" type="password" autocomplete="new-password" minlength="10" required></label>
         <button type="submit">Make account</button>
@@ -58,7 +68,7 @@
         <button id="registrationGoogle" type="button">Register with Google</button>
         <button id="registrationFacebook" type="button">Register with Facebook</button>
       </div>
-      <p class="compact-note">An administrator checks and links the account before harvest records become visible.</p>
+      <p id="registrationReviewNote" class="compact-note">An administrator checks and links the farmer account before harvest records become visible.</p>
       <p class="auth-account-link">Already have an account? <a href="./login.html">Sign in</a></p>
       <p id="registrationStatus" class="form-status" aria-live="polite"></p>
     </section>

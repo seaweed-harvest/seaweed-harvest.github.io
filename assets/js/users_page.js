@@ -259,18 +259,23 @@ function renderUsers() {
 
 function renderRegistrations() {
   els.farmerRegistrationCount.textContent = `${state.registrations.length} pending`;
-  els.farmerRegistrationRows.innerHTML = state.registrations.length ? state.registrations.map((row) => `
-    <tr>
-      <td>${escapeHtml(row.full_name)}</td>
-      <td>${escapeHtml(row.email)}</td>
-      <td>${escapeHtml(row.phone || "-")}</td>
-      <td>${escapeHtml([row.requested_community_id, row.community_name].filter(Boolean).join(" - ") || "-")}</td>
-      <td>${escapeHtml(row.requested_farmer_id || "-")}</td>
-      <td>${escapeHtml(formatFarmSize(row))}</td>
-      <td><input class="registration-link-id" data-registration-link="${escapeHtml(row.id)}" type="text" placeholder="RID####"></td>
-      <td class="row-actions"><button type="button" data-approve-registration="${escapeHtml(row.id)}">Approve</button><button type="button" data-reject-registration="${escapeHtml(row.id)}">Reject</button></td>
-    </tr>
-  `).join("") : '<tr><td colspan="8">No pending farmer registrations.</td></tr>';
+  els.farmerRegistrationRows.innerHTML = state.registrations.length ? state.registrations.map((row) => {
+    const requestedRole = row.requested_role || "farmer_viewer";
+    const isFarmer = requestedRole === "farmer_viewer";
+    return `
+      <tr>
+        <td>${escapeHtml(row.full_name)}</td>
+        <td>${escapeHtml(row.email)}</td>
+        <td>${escapeHtml(row.phone || "-")}</td>
+        <td>${escapeHtml(roleLabels[requestedRole] || requestedRole)}</td>
+        <td>${escapeHtml(isFarmer ? [row.requested_community_id, row.community_name].filter(Boolean).join(" - ") || "-" : "-")}</td>
+        <td>${escapeHtml(isFarmer ? row.requested_farmer_id || "-" : "-")}</td>
+        <td>${escapeHtml(isFarmer ? formatFarmSize(row) : "-")}</td>
+        <td>${isFarmer ? `<input class="registration-link-id" data-registration-link="${escapeHtml(row.id)}" type="text" placeholder="RID####">` : "-"}</td>
+        <td class="row-actions"><button type="button" data-approve-registration="${escapeHtml(row.id)}">Approve</button><button type="button" data-reject-registration="${escapeHtml(row.id)}">Reject</button></td>
+      </tr>
+    `;
+  }).join("") : '<tr><td colspan="9">No pending account registrations.</td></tr>';
 }
 
 function renderActivity() {
@@ -314,10 +319,10 @@ async function handleRegistrationClick(event) {
   const reject = event.target.closest("[data-reject-registration]");
   if (!approve && !reject) return;
   const requestId = (approve || reject).dataset.approveRegistration || (approve || reject).dataset.rejectRegistration;
-  const action = approve ? "approve_farmer" : "reject_farmer";
+  const action = approve ? "approve_registration" : "reject_registration";
   const linkInput = els.farmerRegistrationRows.querySelector(`[data-registration-link="${CSS.escape(requestId)}"]`);
 
-  if (reject && !window.confirm("Reject this farmer registration?")) return;
+  if (reject && !window.confirm("Reject this account registration?")) return;
   setStatus(els.farmerRegistrationStatus, approve ? "Approving..." : "Rejecting...");
   try {
     await invokeAdminUsers({
@@ -325,7 +330,7 @@ async function handleRegistrationClick(event) {
       request_id: requestId,
       link_farmer_id: nullableText(linkInput?.value)
     });
-    setStatus(els.farmerRegistrationStatus, approve ? "Farmer approved." : "Registration rejected.");
+    setStatus(els.farmerRegistrationStatus, approve ? "Account approved." : "Registration rejected.");
     await loadPageData();
   } catch (error) {
     setStatus(els.farmerRegistrationStatus, error.message, "error");

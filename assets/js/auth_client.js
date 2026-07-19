@@ -231,16 +231,17 @@ export async function recordLogin(loginMethod = "session") {
   return data;
 }
 
-export async function signUpFarmer(email, password, details) {
+export async function signUpAccount(email, password, details) {
   const { data, error } = await authClient.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo: `${siteBaseUrl()}/register.html?confirmed=1`,
       data: {
-        registration_type: "farmer_self",
+        registration_type: "account_self",
         full_name: details.full_name,
         phone: details.phone || null,
+        requested_role: details.requested_role || "farmer_viewer",
         requested_farmer_id: details.requested_farmer_id || null,
         requested_community_id: details.requested_community_id || null,
         farm_size_value: details.farm_size_value ?? null,
@@ -251,6 +252,10 @@ export async function signUpFarmer(email, password, details) {
   if (error) throw error;
   profilePromise = null;
   return data;
+}
+
+export async function signUpFarmer(email, password, details) {
+  return signUpAccount(email, password, { ...details, requested_role: "farmer_viewer" });
 }
 
 export async function signInWithProvider(provider, returnPage = "login.html") {
@@ -354,6 +359,7 @@ export function routeForProfile(profile) {
   if (profile?.account_status !== "active") return "./access_pending.html";
   if (profile?.app_role === "farmer_viewer") return "./farmer.html";
   if (profile?.app_role === "field_collector") return "./collector_dashboard.html";
+  if (profile?.app_role === "community_viewer") return "./my_details.html";
   if (profile?.app_role === "system_admin" || profile?.can_view_dashboard) return "./admin.html";
   if (profile?.can_view_registry) return "./admin_member_registry.html";
   if (profile?.can_view_map) return "./admin_map.html";

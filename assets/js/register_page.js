@@ -1,24 +1,29 @@
 import { APP_CONFIG } from "./config.js";
-import { currentSession, enabledSocialProviders, signInWithProvider, signUpFarmer } from "./auth_client.js";
+import { currentSession, enabledSocialProviders, signInWithProvider, signUpAccount } from "./auth_client.js";
 import { callRpc, selectRows } from "./supabase_client.js";
 
 const els = {};
+const registrationDraftKey = "seaweed-ag:account-registration-draft";
 
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   [
-    "farmerRegistrationForm", "registrationName", "registrationPhone", "registrationCommunity",
+    "farmerRegistrationForm", "registrationName", "registrationEmail", "registrationPhone", "registrationRole",
+    "farmerRegistrationFields", "registrationReviewNote", "registrationCommunity",
     "registrationFarmerId", "registrationFarmSize", "registrationFarmSizeUnit",
-    "registrationEmail", "registrationPassword", "registrationConfirmPassword", "registrationSocialActions",
+    "registrationPassword", "registrationConfirmPassword", "registrationSocialActions",
     "registrationGoogle", "registrationFacebook", "registrationStatus"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
   els.farmerRegistrationForm.addEventListener("submit", handleRegistration);
+  els.registrationRole.addEventListener("change", updateRoleFields);
   els.registrationGoogle.addEventListener("click", () => socialRegistration("google"));
   els.registrationFacebook.addEventListener("click", () => socialRegistration("facebook"));
   await configureSocialButtons();
   await loadCommunities();
+  restoreRegistrationDraft();
+  updateRoleFields();
 
   const session = await currentSession();
   if (session) {
@@ -54,19 +59,21 @@ async function handleRegistration(event) {
   try {
     const session = await currentSession();
     if (session) {
-      await callRpc("ag_submit_farmer_registration", {
+      await callRpc("ag_submit_account_registration", {
         p_full_name: details.full_name,
         p_phone: details.phone,
+        p_requested_role: details.requested_role,
         p_requested_farmer_id: details.requested_farmer_id,
         p_requested_community_id: details.requested_community_id,
         p_farm_size_value: details.farm_size_value,
         p_farm_size_unit: details.farm_size_unit
       });
+      localStorage.removeItem(registrationDraftKey);
       window.location.replace("./access_pending.html");
       return;
     }
 
-    const data = await signUpFarmer(
+    const data = await signUpAccount(
       els.registrationEmail.value.trim(),
       els.registrationPassword.value,
       details
@@ -79,7 +86,11 @@ async function handleRegistration(event) {
 }
 
 async function socialRegistration(provider) {
-  localStorage.setItem("seaweed-ag:farmer-registration-draft", JSON.stringify(registrationDetails()));
+  if (!els.registrationName.value.trim() || !els.registrationPhone.value.trim()) {
+    setStatus("Enter your name and phone number before continuing.", "error");
+    return;
+  }
+  localStorage.setItem(registrationDraftKey, JSON.stringify(registrationDetails()));
   try {
     await signInWithProvider(provider, "register.html?oauth=1");
   } catch (error) {
@@ -88,14 +99,42 @@ async function socialRegistration(provider) {
 }
 
 function registrationDetails() {
+  const isFarmer = els.registrationRole.value === "farmer_viewer";
   return {
     full_name: els.registrationName.value.trim(),
     phone: nullableText(els.registrationPhone.value),
-    requested_community_id: nullableText(els.registrationCommunity.value),
-    requested_farmer_id: normalizedFarmerId(els.registrationFarmerId.value),
-    farm_size_value: nullableNumber(els.registrationFarmSize.value),
-    farm_size_unit: els.registrationFarmSizeUnit.value
+    requested_role: els.registrationRole.value,
+    requested_community_id: isFarmer ? nullableText(els.registrationCommunity.value) : null,
+    requested_farmer_id: isFarmer ? normalizedFarmerId(els.registrationFarmerId.value) : null,
+    farm_size_value: isFarmer ? nullableNumber(els.registrationFarmSize.value) : null,
+    farm_size_unit: isFarmer ? els.registrationFarmSizeUnit.value : "lines"
   };
+}
+
+function updateRoleFields() {
+  const isFarmer = els.registrationRole.value === "farmer_viewer";
+  els.farmerRegistrationFields.hidden = !isFarmer;
+  els.registrationReviewNote.textContent = isFarmer
+    ? "An administrator checks and links the farmer account before harvest records become visible."
+    : "An administrator reviews the account before access is activated.";
+}
+
+function restoreRegistrationDraft() {
+  let draft = null;
+  try {
+    draft = JSON.parse(localStorage.getItem(registrationDraftKey) || "null");
+  } catch {
+    localStorage.removeItem(registrationDraftKey);
+  }
+  if (!draft) return;
+
+  els.registrationName.value = draft.full_name || "";
+  els.registrationPhone.value = draft.phone || "";
+  els.registrationRole.value = draft.requested_role || "farmer_viewer";
+  els.registrationCommunity.value = draft.requested_community_id || "";
+  els.registrationFarmerId.value = draft.requested_farmer_id || "";
+  els.registrationFarmSize.value = draft.farm_size_value ?? "";
+  els.registrationFarmSizeUnit.value = draft.farm_size_unit || "lines";
 }
 
 async function configureSocialButtons() {
