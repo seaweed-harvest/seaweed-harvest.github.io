@@ -6,7 +6,7 @@ import {
   setupAccountControls,
   updateMyDetails,
   updatePassword
-} from "./auth_client.js";
+} from "./auth_client.js?v=17";
 import {
   dashboardSelection,
   saveDashboardPreferences

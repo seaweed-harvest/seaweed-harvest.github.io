@@ -1,7 +1,7 @@
 import { APP_CONFIG } from "./config.js";
 import { hasMapCoordinates as hasGps, mapCoordinates } from "./map_coordinates.js";
 import { dataModeLabel, selectRows } from "./supabase_client.js";
-import { currentAccessToken, requireAdminAccess, setupAccountControls } from "./auth_client.js";
+import { currentAccessToken, requireAdminAccess, setupAccountControls } from "./auth_client.js?v=17";
 import { applyDashboardPreferences } from "./dashboard_preferences.js";
 
 const TABLES = {
