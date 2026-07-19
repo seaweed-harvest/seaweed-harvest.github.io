@@ -86,6 +86,10 @@
                 <details id="ledgerCommunityFilter" class="ledger-community-filter">
                   <summary id="ledgerCommunitySummary">All communities</summary>
                   <div class="ledger-community-filter-menu">
+                    <label class="ledger-community-search-field">
+                      Search communities
+                      <input id="ledgerCommunitySearch" class="ledger-community-search" type="search" autocomplete="off" placeholder="Name or community ID">
+                    </label>
                     <button id="ledgerCommunityClear" class="ledger-community-clear" type="button">Clear selection</button>
                     <div id="ledgerCommunityOptions" class="ledger-community-options" role="group" aria-label="Filter by communities"></div>
                   </div>
@@ -100,14 +104,16 @@
                   <option value="C">C</option>
                 </select>
               </label>
+              <button id="exportLedgerCsv" type="button">Export CSV</button>
+            </div>
+            <div class="ledger-filter-actions">
               <label>
                 Search
                 <input id="ledgerSearch" type="search" autocomplete="off" placeholder="Member, sack, transaction">
               </label>
-              <button id="exportLedgerCsv" type="button">Export CSV</button>
             </div>
 
-            <div class="ledger-pagination">
+            <div class="ledger-pagination ledger-record-pagination">
               <button id="ledgerPrevPage" type="button">Previous</button>
               <span id="ledgerPageStatus" class="admin-status">Page 1</span>
               <button id="ledgerNextPage" type="button">Next</button>
@@ -258,6 +264,6 @@
     </section>
   </main>
 
-  <script type="module" src="./assets/js/admin_page.js?v=17"></script>
+  <script type="module" src="./assets/js/admin_page.js?v=18"></script>
 </body>
 </html>

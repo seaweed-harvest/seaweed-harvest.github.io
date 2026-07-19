@@ -2553,14 +2553,14 @@ button:disabled {
 
 .ledger-filter-grid {
   grid-template-columns:
-    minmax(108px, 0.9fr)
-    minmax(120px, 0.95fr)
-    minmax(120px, 0.95fr)
-    minmax(120px, 0.95fr)
-    minmax(150px, 1.2fr)
-    minmax(105px, 0.8fr)
-    minmax(155px, 1.2fr)
+    minmax(108px, 145px)
+    minmax(120px, 158px)
+    minmax(120px, 158px)
+    minmax(120px, 158px)
+    minmax(150px, 200px)
+    minmax(105px, 130px)
     auto;
+  justify-content: start;
   gap: 8px;
 }
 
@@ -2569,16 +2569,44 @@ button:disabled {
 }
 
 .ledger-filter-grid select,
-.ledger-filter-grid input[type="search"],
 .ledger-filter-grid input[type="date"],
 .ledger-filter-grid input[type="month"],
 .ledger-community-filter > summary,
 .ledger-filter-grid > button {
-  min-height: 38px;
-  height: 38px;
+  min-height: 34px;
+  height: 34px;
   padding-right: 10px;
   padding-left: 10px;
   border-radius: 7px;
+  font-size: 0.78rem;
+}
+
+.ledger-filter-actions {
+  display: grid;
+  grid-template-columns: minmax(220px, 360px);
+  align-items: end;
+  justify-content: start;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ledger-filter-actions label {
+  display: grid;
+  gap: 4px;
+}
+
+.ledger-filter-actions input[type="search"] {
+  min-height: 34px;
+  height: 34px;
+  padding-right: 10px;
+  padding-left: 10px;
+  border-radius: 7px;
+  font-size: 0.78rem;
+}
+
+.ledger-record-pagination {
+  margin-top: 16px;
+  margin-bottom: 10px;
 }
 
 .ledger-community-filter-field {
@@ -2650,6 +2678,23 @@ button:disabled {
   border-radius: 8px;
   background: var(--panel);
   box-shadow: 0 10px 25px rgba(15, 45, 42, 0.16);
+}
+
+.ledger-community-search-field {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 7px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+.ledger-community-search-field .ledger-community-search {
+  min-height: 32px;
+  height: 32px;
+  padding: 0 9px;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  text-transform: none;
 }
 
 .ledger-community-filter-menu .ledger-community-clear {
@@ -4362,7 +4407,8 @@ label input[type="checkbox"] {
   }
 
   .ledger-filter-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-content: stretch;
   }
 
   .user-invite-form,
@@ -4402,6 +4448,10 @@ label input[type="checkbox"] {
 
 @media (max-width: 620px) {
   .ledger-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ledger-filter-actions {
     grid-template-columns: 1fr;
   }
 

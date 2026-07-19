@@ -189,6 +189,7 @@ function cacheElements() {
     "ledgerCommunity",
     "ledgerCommunityFilter",
     "ledgerCommunitySummary",
+    "ledgerCommunitySearch",
     "ledgerCommunityClear",
     "ledgerCommunityOptions",
     "ledgerGrade",
@@ -276,6 +277,7 @@ function bindEvents() {
     els.ledgerGrade
   ].forEach((control) => control?.addEventListener("change", () => scheduleLedgerReload()));
   els.ledgerSearch?.addEventListener("input", () => scheduleLedgerReload(350));
+  els.ledgerCommunitySearch?.addEventListener("input", renderLedgerCommunityOptions);
   els.ledgerCommunityOptions?.addEventListener("change", handleLedgerCommunityFilterChange);
   els.ledgerCommunityClear?.addEventListener("click", clearLedgerCommunityFilter);
   els.reloadCommunitySummary?.addEventListener("click", () => {
@@ -1336,12 +1338,21 @@ function setLedgerCommunities(communityIds) {
 
 function renderLedgerCommunityFilter() {
   if (!els.ledgerCommunityOptions || !els.ledgerCommunitySummary) return;
-  els.ledgerCommunityOptions.innerHTML = state.communities.map((community) => {
+  renderLedgerCommunityOptions();
+  syncLedgerCommunityControl();
+}
+
+function renderLedgerCommunityOptions() {
+  if (!els.ledgerCommunityOptions) return;
+  const query = String(els.ledgerCommunitySearch?.value || "").trim().toLowerCase();
+  const communities = state.communities.filter((community) => (
+    !query || communityLabel(community).toLowerCase().includes(query)
+  ));
+  els.ledgerCommunityOptions.innerHTML = communities.map((community) => {
     const communityId = String(community.community_id || "");
     const checked = state.selectedLedgerCommunityIds.has(communityId) ? " checked" : "";
     return `<label><input type="checkbox" value="${escapeAttribute(communityId)}" data-ledger-community-option${checked}> <span>${escapeHtml(communityLabel(community))}</span></label>`;
-  }).join("") || '<p class="field-hint">No communities available.</p>';
-  syncLedgerCommunityControl();
+  }).join("") || `<p class="field-hint">${query ? "No communities match this search." : "No communities available."}</p>`;
 }
 
 function syncLedgerCommunityControl() {
@@ -1377,9 +1388,7 @@ function handleLedgerCommunityFilterChange(event) {
 function clearLedgerCommunityFilter() {
   if (state.editingLedgerIds.size || state.selectedLedgerCommunityIds.size === 0) return;
   state.selectedLedgerCommunityIds.clear();
-  els.ledgerCommunityOptions.querySelectorAll("[data-ledger-community-option]").forEach((checkbox) => {
-    checkbox.checked = false;
-  });
+  renderLedgerCommunityOptions();
   syncLedgerCommunityControl();
   scheduleLedgerReload();
 }
