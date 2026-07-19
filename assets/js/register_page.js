@@ -11,7 +11,7 @@ async function init() {
   [
     "farmerRegistrationForm", "registrationName", "registrationEmail", "registrationPhone", "registrationRole",
     "farmerRegistrationFields", "registrationReviewNote", "registrationCommunity",
-    "registrationFarmerId", "registrationFarmSize", "registrationFarmSizeUnit",
+    "registrationFarmerId",
     "registrationPassword", "registrationConfirmPassword", "registrationSocialActions",
     "registrationGoogle", "registrationFacebook", "registrationStatus"
   ].forEach((id) => { els[id] = document.getElementById(id); });
@@ -106,8 +106,8 @@ function registrationDetails() {
     requested_role: els.registrationRole.value,
     requested_community_id: isFarmer ? nullableText(els.registrationCommunity.value) : null,
     requested_farmer_id: isFarmer ? normalizedFarmerId(els.registrationFarmerId.value) : null,
-    farm_size_value: isFarmer ? nullableNumber(els.registrationFarmSize.value) : null,
-    farm_size_unit: isFarmer ? els.registrationFarmSizeUnit.value : "lines"
+    farm_size_value: null,
+    farm_size_unit: "lines"
   };
 }
 
@@ -133,8 +133,6 @@ function restoreRegistrationDraft() {
   els.registrationRole.value = draft.requested_role || "farmer_viewer";
   els.registrationCommunity.value = draft.requested_community_id || "";
   els.registrationFarmerId.value = draft.requested_farmer_id || "";
-  els.registrationFarmSize.value = draft.farm_size_value ?? "";
-  els.registrationFarmSizeUnit.value = draft.farm_size_unit || "lines";
 }
 
 async function configureSocialButtons() {
@@ -155,12 +153,6 @@ function normalizedFarmerId(value) {
 function nullableText(value) {
   const text = String(value || "").trim();
   return text || null;
-}
-
-function nullableNumber(value) {
-  if (String(value || "").trim() === "") return null;
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
 }
 
 function escapeHtml(value) {
