@@ -453,15 +453,25 @@ function addAdminSidebarLinks(sidebar) {
     );
   }
 
-  const toolsHeading = [...sidebar.querySelectorAll(".admin-menu-heading")]
-    .find((heading) => heading.textContent.trim().toLowerCase() === "tools");
-  const firstTool = toolsHeading?.nextElementSibling;
-  if (toolsHeading && !sidebar.querySelector('a[href="./admin_users.html"]')) {
-    toolsHeading.insertAdjacentHTML("afterend", '<a href="./admin_users.html" data-permission="can_manage_users">Users</a>');
-  }
-  const users = sidebar.querySelector('a[href="./admin_users.html"]');
-  if (users && !sidebar.querySelector('a[href="./admin_aggregators.html"]')) {
-    users.insertAdjacentHTML("afterend", '<a href="./admin_aggregators.html" data-permission="can_access_admin">Aggregators</a>');
+  const registryHeading = [...sidebar.querySelectorAll(".admin-menu-heading")]
+    .find((heading) => heading.textContent.trim().toLowerCase() === "registry");
+  if (registryHeading) {
+    registryHeading.textContent = "User Registry";
+    if (!sidebar.querySelector('a[href="./admin_aggregators.html"]')) {
+      registryHeading.insertAdjacentHTML("afterend", '<a href="./admin_aggregators.html" data-permission="can_access_admin">Aggregators</a>');
+    }
+    if (!sidebar.querySelector('a[href="./admin_users.html"]')) {
+      registryHeading.insertAdjacentHTML("afterend", '<a href="./admin_users.html" data-permission="can_manage_users">Admin Users</a>');
+    }
+
+    const aggregators = sidebar.querySelector('a[href="./admin_aggregators.html"]');
+    const communities = sidebar.querySelector('a[href="./admin_community_registry.html"]');
+    const farmers = sidebar.querySelector('a[href="./admin_member_registry.html"]');
+    const adminUsers = sidebar.querySelector('a[href="./admin_users.html"]');
+    if (communities) communities.textContent = "Communities";
+    if (farmers) farmers.textContent = "Farmers";
+    if (adminUsers) adminUsers.textContent = "Admin Users";
+    registryHeading.after(...[aggregators, communities, farmers, adminUsers].filter(Boolean));
   }
 
   const ledger = sidebar.querySelector('a[href="./admin_ledger.html"]');
@@ -479,7 +489,7 @@ function addAdminSidebarLinks(sidebar) {
     receipts.insertAdjacentHTML("afterend", '<a href="./admin_notifications.html" data-permission="can_view_notifications">Notifications</a>');
   }
 
-  const tags = sidebar.querySelector('a[href="./tags.html"]') || firstTool;
+  const tags = sidebar.querySelector('a[href="./tags.html"]');
   if (tags && !sidebar.querySelector('a[href="./admin_builder.html"]')) {
     tags.insertAdjacentHTML("afterend", '<a href="./admin_builder.html" data-permission="can_manage_settings">Settings</a>');
   }
