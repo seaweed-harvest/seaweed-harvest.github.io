@@ -1,6 +1,7 @@
 import { APP_CONFIG } from "./config.js";
 import { authClient, currentProfile, invokeAdminUsers, requireAdminAccess } from "./auth_client.js";
 import { selectRows } from "./supabase_client.js";
+import { DASHBOARD_OPTIONS } from "./dashboard_preferences.js";
 
 const permissionDefinitions = [
   ["can_access_admin", "Admin pages", "Open the administration area."],
@@ -51,9 +52,9 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   [
     "reloadUsers", "inviteUserForm", "inviteEmail", "inviteName", "inviteRole",
-    "inviteCommunity", "inviteFarmerIdField", "inviteFarmerId", "inviteAggregators", "invitePermissions", "inviteStatus", "userDirectoryRows",
+    "inviteCommunity", "inviteFarmerIdField", "inviteFarmerId", "inviteAggregators", "invitePermissions", "inviteDashboardPreferences", "inviteStatus", "userDirectoryRows",
     "userEditorPanel", "closeUserEditor", "editUserForm", "editUserId", "editUserEmail",
-    "editUserName", "editUserRole", "editUserStatus", "editUserCommunity", "editFarmerIdField", "editFarmerId", "editAggregators", "editPermissions",
+    "editUserName", "editUserRole", "editUserStatus", "editUserCommunity", "editFarmerIdField", "editFarmerId", "editAggregators", "editPermissions", "editDashboardPreferences",
     "editUserMessage", "deleteUser", "farmerRegistrationCount", "farmerRegistrationRows", "farmerRegistrationStatus",
     "userActivityPanel", "userActivityCount", "userActivityRows"
   ].forEach((id) => { els[id] = document.getElementById(id); });
@@ -68,6 +69,7 @@ async function init() {
   buildEditRoleOptions();
   bindEvents();
   applyRolePreset("invite", els.inviteRole.value);
+  renderDashboardInputs("invite", els.inviteRole.value);
   configureFarmerRoleFields("invite");
   await loadPageData();
 }
@@ -76,10 +78,12 @@ function bindEvents() {
   els.reloadUsers.addEventListener("click", loadPageData);
   els.inviteRole.addEventListener("change", () => {
     applyRolePreset("invite", els.inviteRole.value);
+    renderDashboardInputs("invite", els.inviteRole.value);
     configureFarmerRoleFields("invite");
   });
   els.editUserRole.addEventListener("change", () => {
     applyRolePreset("edit", els.editUserRole.value);
+    renderDashboardInputs("edit", els.editUserRole.value);
     configureFarmerRoleFields("edit");
     renderAggregatorInputs("edit", selectedAggregatorIds("edit"), els.editUserRole.value === "system_admin");
   });
@@ -139,6 +143,10 @@ async function inviteUser(event) {
     setStatus(els.inviteStatus, "Select at least one aggregator.", "error");
     return;
   }
+  if (!readDashboardWidgets("invite").length) {
+    setStatus(els.inviteStatus, "Keep at least one dashboard item visible.", "error");
+    return;
+  }
   setStatus(els.inviteStatus, "Sending invite...");
   try {
     await invokeAdminUsers({
@@ -149,12 +157,14 @@ async function inviteUser(event) {
       community_id: nullableText(els.inviteCommunity.value),
       farmer_id: nullableText(els.inviteFarmerId.value),
       aggregator_ids: aggregatorIds,
-      permissions: readPermissions("invite")
+      permissions: readPermissions("invite"),
+      dashboard_widgets: readDashboardWidgets("invite")
     });
     els.inviteUserForm.reset();
     els.inviteRole.value = "company_admin";
     configureFarmerRoleFields("invite");
     applyRolePreset("invite", "company_admin");
+    renderDashboardInputs("invite", "company_admin");
     renderAggregatorInputs("invite", defaultInviteAggregatorIds());
     setStatus(els.inviteStatus, "Invite sent.");
     await loadPageData();
@@ -170,6 +180,10 @@ async function saveUser(event) {
     setStatus(els.editUserMessage, "Select at least one aggregator.", "error");
     return;
   }
+  if (!readDashboardWidgets("edit").length) {
+    setStatus(els.editUserMessage, "Keep at least one dashboard item visible.", "error");
+    return;
+  }
   setStatus(els.editUserMessage, "Saving...");
   try {
     await invokeAdminUsers({
@@ -181,7 +195,8 @@ async function saveUser(event) {
       community_id: nullableText(els.editUserCommunity.value),
       farmer_id: nullableText(els.editFarmerId.value),
       aggregator_ids: aggregatorIds,
-      permissions: readPermissions("edit")
+      permissions: readPermissions("edit"),
+      dashboard_widgets: readDashboardWidgets("edit")
     });
     setStatus(els.editUserMessage, "Saved.");
     state.editingUser = null;
@@ -289,6 +304,7 @@ function handleUserTableClick(event) {
   els.deleteUser.disabled = user.id === state.actor?.id;
   els.deleteUser.title = user.id === state.actor?.id ? "You cannot delete your own account" : "Delete this user account";
   writePermissions("edit", user);
+  renderDashboardInputs("edit", user.app_role, user.dashboard_preferences);
   els.userEditorPanel.hidden = false;
   els.userEditorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -326,6 +342,31 @@ function buildPermissionInputs(container, prefix) {
 function buildEditRoleOptions() {
   const roles = Object.entries(roleLabels).filter(([role]) => role !== "system_admin" || state.actor?.app_role === "system_admin");
   els.editUserRole.innerHTML = roles.map(([value, label]) => `<option value="${value}">${escapeHtml(label)}</option>`).join("");
+}
+
+function renderDashboardInputs(prefix, role, preferences = null) {
+  const container = prefix === "invite" ? els.inviteDashboardPreferences : els.editDashboardPreferences;
+  const kind = dashboardKindForRole(role);
+  const options = DASHBOARD_OPTIONS[kind] || [];
+  const stored = preferences?.[kind];
+  const selected = new Set(Array.isArray(stored) && stored.length ? stored : options.map((option) => option.key));
+  container.innerHTML = options.map((option) => `
+    <label class="check-row">
+      <input type="checkbox" data-dashboard-option="${prefix}" value="${escapeHtml(option.key)}"${selected.has(option.key) ? " checked" : ""}>
+      ${escapeHtml(option.label)}
+    </label>
+  `).join("");
+}
+
+function readDashboardWidgets(prefix) {
+  const container = prefix === "invite" ? els.inviteDashboardPreferences : els.editDashboardPreferences;
+  return [...container.querySelectorAll(`[data-dashboard-option="${prefix}"]:checked`)].map((input) => input.value);
+}
+
+function dashboardKindForRole(role) {
+  if (role === "farmer_viewer") return "farmer";
+  if (role === "field_collector") return "collector";
+  return "admin";
 }
 
 function renderCommunityOptions() {

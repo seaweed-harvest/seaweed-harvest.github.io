@@ -203,7 +203,7 @@ function setupCollectionHeader() {
 
   if (!signedIn) return;
   state.authApi?.setupAccountControls(profile, {
-    returnPage: "index.html",
+    returnPage: "collection.html",
     signOutReturn: "./index.html",
     showAggregator: !state.publicMode,
     languageEvent: "seaweed-collection-language-change",

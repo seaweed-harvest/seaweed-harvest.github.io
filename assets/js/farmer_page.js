@@ -1,4 +1,5 @@
 import { authClient, currentProfile, currentSession, setupAccountControls } from "./auth_client.js";
+import { applyDashboardPreferences } from "./dashboard_preferences.js";
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -20,6 +21,7 @@ async function init() {
       container: document.querySelector(".farmer-header-controls"),
       returnPage: "farmer.html"
     });
+    applyDashboardPreferences(profile);
     const collectionLink = document.getElementById("farmerCollectionLink");
     if (collectionLink) collectionLink.hidden = !profile.can_submit_collection;
 

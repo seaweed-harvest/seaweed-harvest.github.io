@@ -84,14 +84,14 @@ export async function requireAdminAccess(permission = "can_access_admin") {
 export async function requireCollectionAccess() {
   const session = await currentSession();
   if (!session) {
-    window.location.replace("./login.html?return=index.html");
+    window.location.replace("./login.html?return=collection.html");
     return null;
   }
 
   const { data: userData, error: userError } = await authClient.auth.getUser();
   if (userError) throw userError;
   if (userData.user?.user_metadata?.must_change_password) {
-    window.location.replace("./login.html?mode=change&return=index.html");
+    window.location.replace("./login.html?mode=change&return=collection.html");
     return null;
   }
 
@@ -152,7 +152,7 @@ export function setupAccountControls(profile, options = {}) {
   signOutButton.type = "button";
   signOutButton.addEventListener("click", async () => {
     await signOut();
-    window.location.replace(options.signOutReturn || "./login.html");
+    window.location.replace(options.signOutReturn || "./index.html");
   });
 
   const applyLabels = () => {
@@ -353,6 +353,7 @@ export function siteBaseUrl() {
 export function routeForProfile(profile) {
   if (profile?.account_status !== "active") return "./access_pending.html";
   if (profile?.app_role === "farmer_viewer") return "./farmer.html";
+  if (profile?.app_role === "field_collector") return "./collector_dashboard.html";
   if (profile?.app_role === "system_admin" || profile?.can_view_dashboard) return "./admin.html";
   if (profile?.can_view_registry) return "./admin_member_registry.html";
   if (profile?.can_view_map) return "./admin_map.html";
@@ -362,7 +363,7 @@ export function routeForProfile(profile) {
   if (profile?.can_manage_settings) return "./admin_builder.html";
   if (profile?.can_view_notifications) return "./admin_notifications.html";
   if (profile?.can_manage_sms_settings) return "./admin_seaweedke.html";
-  if (profile?.can_submit_collection) return "./index.html";
+  if (profile?.can_submit_collection) return "./collector_dashboard.html";
   return "./access_pending.html";
 }
 

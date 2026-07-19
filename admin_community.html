@@ -17,7 +17,7 @@
       </div>
       <div class="header-actions admin-header-controls">
         <nav class="app-nav" aria-label="Main navigation">
-          <a href="./index.html">Collection</a>
+          <a href="./collection.html">Collection</a>
           <a href="./admin.html" aria-current="page">Admin</a>
         </nav>
         <span id="adminConnectionStatus" class="status-pill status-muted">Loading</span>
@@ -122,6 +122,38 @@
               </div>
             </section>
           </div>
+          <section class="admin-subsection community-records-section">
+            <div class="section-head compact">
+              <h3>Collection Records</h3>
+              <span id="communityRecordCount" class="status-pill">0 rows</span>
+            </div>
+            <div class="ledger-pagination community-record-pagination">
+              <button id="communityRecordPrevPage" type="button">Previous</button>
+              <span id="communityRecordPageStatus" class="admin-status">No rows</span>
+              <button id="communityRecordNextPage" type="button">Next</button>
+            </div>
+            <div class="responsive-table-wrap">
+              <table class="management-table admin-data-table community-records-table">
+                <thead>
+                  <tr>
+                    <th>Collected</th>
+                    <th>Transaction</th>
+                    <th>Receipt</th>
+                    <th>Member</th>
+                    <th>Sack ID</th>
+                    <th>Weight kg</th>
+                    <th>Type</th>
+                    <th>Form</th>
+                    <th>Grade</th>
+                    <th>Price/kg</th>
+                    <th>Total KSH</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody id="communityRecordRows"></tbody>
+              </table>
+            </div>
+          </section>
         </div>
       </section>
     </section>

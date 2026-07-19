@@ -2,7 +2,7 @@
   "name": "Seaweed Harvest Collection",
   "short_name": "Seaweed Harvest",
   "description": "Offline seaweed collection intake for Mawimbi.",
-  "start_url": "./index.html",
+  "start_url": "./collection.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#eef8f5",

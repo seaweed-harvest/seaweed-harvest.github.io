@@ -28,11 +28,11 @@ async function init() {
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
   bindEvents();
-  await configureSocialButtons();
 
   const mode = new URLSearchParams(window.location.search).get("mode");
   const session = await currentSession();
   if ((mode === "invite" || mode === "recovery" || mode === "change") && session) {
+    document.body.removeAttribute("data-auth-pending");
     await recordLogin(mode).catch(() => {});
     await preparePasswordPanel(session, passwordModeTitle(mode), mode === "invite"
       ? "Create your password to finish setting up the account."
@@ -44,6 +44,7 @@ async function init() {
     const email = session.user.email || "";
     await signOut();
     els.loginEmail.value = email;
+    document.body.removeAttribute("data-auth-pending");
     showPanel("login");
     setStatus("Sign in with your temporary password to continue.");
     return;
@@ -52,7 +53,11 @@ async function init() {
   if (session) {
     await recordLogin(session.user?.app_metadata?.provider || "session").catch(() => {});
     await routeSignedInUser();
+    return;
   }
+
+  document.body.removeAttribute("data-auth-pending");
+  await configureSocialButtons();
   showQueryMessage();
 
   authClient.auth.onAuthStateChange((event) => {
@@ -147,7 +152,8 @@ async function routeSignedInUser() {
   const canUseRequestedPage = requestedFile === "my_details.html"
     || profile?.app_role === "system_admin"
     || profile?.can_access_admin
-    || (requestedFile === "index.html" && profile?.can_submit_collection)
+    || (requestedFile === "collection.html" && profile?.can_submit_collection)
+    || (requestedFile === "collector_dashboard.html" && profile?.can_submit_collection)
     || (requestedFile === "farmer.html" && profile?.app_role === "farmer_viewer")
     || requestedFile === "access_pending.html";
   const destination = requested && canUseRequestedPage ? `./${requestedPage}` : routeForProfile(profile);

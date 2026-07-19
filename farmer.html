@@ -12,25 +12,25 @@
   <header class="app-header">
     <div class="app-header-inner">
       <div><p class="eyebrow">Seaweed aggregation</p><h1>My Seaweed</h1></div>
-      <div class="header-actions farmer-header-controls"><nav class="app-nav" aria-label="Main navigation"><a href="./my_transactions.html">My Transactions</a><a id="farmerCollectionLink" href="./index.html">Collection</a></nav></div>
+      <div class="header-actions farmer-header-controls"><nav class="app-nav" aria-label="Main navigation"><a href="./my_transactions.html">My Transactions</a><a id="farmerCollectionLink" href="./collection.html">Collection</a></nav></div>
     </div>
   </header>
   <main class="app-shell farmer-account-shell">
     <section class="panel">
       <div class="section-head compact"><h2 id="farmerAccountName">Account</h2><span id="farmerAccountId" class="status-pill">-</span></div>
       <dl class="farmer-profile-grid">
-        <div><dt>Community</dt><dd id="farmerAccountCommunity">-</dd></div>
-        <div><dt>Farm size</dt><dd id="farmerAccountFarmSize">-</dd></div>
-        <div><dt>Total kg</dt><dd id="farmerAccountTotalKg">-</dd></div>
-        <div><dt>Grade A kg</dt><dd id="farmerAccountGradeAKg">-</dd></div>
-        <div><dt>Grade B kg</dt><dd id="farmerAccountGradeBKg">-</dd></div>
-        <div><dt>Grade C kg</dt><dd id="farmerAccountGradeCKg">-</dd></div>
-        <div><dt>Estimated KSH</dt><dd id="farmerAccountEstimatedKsh">-</dd></div>
-        <div><dt>Collections</dt><dd id="farmerAccountCollectionCount">-</dd></div>
-        <div><dt>Last collection</dt><dd id="farmerAccountLastCollection">-</dd></div>
+        <div data-dashboard-widget="farm_profile"><dt>Community</dt><dd id="farmerAccountCommunity">-</dd></div>
+        <div data-dashboard-widget="farm_profile"><dt>Farm size</dt><dd id="farmerAccountFarmSize">-</dd></div>
+        <div data-dashboard-widget="total_kg"><dt>Total kg</dt><dd id="farmerAccountTotalKg">-</dd></div>
+        <div data-dashboard-widget="grade_breakdown"><dt>Grade A kg</dt><dd id="farmerAccountGradeAKg">-</dd></div>
+        <div data-dashboard-widget="grade_breakdown"><dt>Grade B kg</dt><dd id="farmerAccountGradeBKg">-</dd></div>
+        <div data-dashboard-widget="grade_breakdown"><dt>Grade C kg</dt><dd id="farmerAccountGradeCKg">-</dd></div>
+        <div data-dashboard-widget="estimated_ksh"><dt>Estimated KSH</dt><dd id="farmerAccountEstimatedKsh">-</dd></div>
+        <div data-dashboard-widget="collection_count"><dt>Collections</dt><dd id="farmerAccountCollectionCount">-</dd></div>
+        <div data-dashboard-widget="last_collection"><dt>Last collection</dt><dd id="farmerAccountLastCollection">-</dd></div>
       </dl>
     </section>
-    <section class="panel">
+    <section class="panel" data-dashboard-widget="recent_records">
       <div class="section-head compact"><h2>My Harvest Records</h2></div>
       <div class="responsive-table-wrap compact-data-table-wrap">
         <table class="management-table admin-data-table">

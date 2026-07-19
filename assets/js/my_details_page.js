@@ -6,6 +6,10 @@ import {
   setupAccountControls,
   updateMyDetails
 } from "./auth_client.js";
+import {
+  dashboardSelection,
+  saveDashboardPreferences
+} from "./dashboard_preferences.js";
 
 const els = {};
 let profile = null;
@@ -28,6 +32,8 @@ async function init() {
     "myReceiptPhone",
     "myReceiptLanguage",
     "myReceiptNotifications",
+    "myDashboardPreferences",
+    "myDashboardPreferenceOptions",
     "saveMyDetails",
     "myDetailsStatus",
     "myDetailsHomeLink"
@@ -50,6 +56,7 @@ async function init() {
   });
   configureHomeLink();
   populateForm();
+  populateDashboardPreferences();
   try {
     await loadReceiptPreferences();
   } catch (error) {
@@ -63,7 +70,8 @@ function configureHomeLink() {
   els.myDetailsHomeLink.href = destination;
   if (destination.includes("farmer.html")) els.myDetailsHomeLink.textContent = "Farmer account";
   else if (destination.includes("admin")) els.myDetailsHomeLink.textContent = "Admin";
-  else if (destination.includes("index.html")) els.myDetailsHomeLink.textContent = "Collection";
+  else if (destination.includes("collector_dashboard.html")) els.myDetailsHomeLink.textContent = "Dashboard";
+  else if (destination.includes("collection.html")) els.myDetailsHomeLink.textContent = "Collection";
   else els.myDetailsHomeLink.textContent = "Account home";
 }
 
@@ -80,6 +88,11 @@ function populateForm() {
 
 async function saveDetails(event) {
   event.preventDefault();
+  const dashboardWidgets = selectedDashboardWidgets();
+  if (!dashboardWidgets.length) {
+    setStatus("Keep at least one dashboard item visible.", "error");
+    return;
+  }
   els.saveMyDetails.disabled = true;
   setStatus("Saving...");
   try {
@@ -100,14 +113,38 @@ async function saveDetails(event) {
       });
       if (preferenceError) throw preferenceError;
     }
+    await saveDashboardPreferences(authClient, dashboardWidgets);
+    profile = await currentProfile(true);
     document.querySelector(".account-name").textContent = profile.display_name || profile.email;
     populateForm();
+    populateDashboardPreferences();
     setStatus("Details saved.");
   } catch (error) {
     setStatus(error.message, "error");
   } finally {
     els.saveMyDetails.disabled = false;
   }
+}
+
+function populateDashboardPreferences() {
+  const selection = dashboardSelection(profile);
+  els.myDashboardPreferences.hidden = !selection.kind;
+  if (!selection.kind) {
+    els.myDashboardPreferenceOptions.innerHTML = "";
+    return;
+  }
+  const selected = new Set(selection.selected);
+  els.myDashboardPreferenceOptions.innerHTML = selection.options.map((option) => `
+    <label class="check-row">
+      <input type="checkbox" name="dashboardWidget" value="${escapeHtml(option.key)}"${selected.has(option.key) ? " checked" : ""}>
+      ${escapeHtml(option.label)}
+    </label>
+  `).join("");
+}
+
+function selectedDashboardWidgets() {
+  return [...els.myDashboardPreferenceOptions.querySelectorAll('input[name="dashboardWidget"]:checked')]
+    .map((input) => input.value);
 }
 
 async function loadReceiptPreferences() {
@@ -125,4 +162,13 @@ async function loadReceiptPreferences() {
 function setStatus(message, type = "") {
   els.myDetailsStatus.textContent = message || "";
   els.myDetailsStatus.dataset.status = type;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }

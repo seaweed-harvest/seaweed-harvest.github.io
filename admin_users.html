@@ -13,7 +13,7 @@
     <div class="app-header-inner">
       <div><p class="eyebrow">Seaweed aggregation</p><h1>Admin</h1></div>
       <div class="header-actions admin-header-controls">
-        <nav class="app-nav" aria-label="Main navigation"><a href="./index.html">Collection</a><a href="./admin.html" aria-current="page">Admin</a></nav>
+        <nav class="app-nav" aria-label="Main navigation"><a href="./collection.html">Collection</a><a href="./admin.html" aria-current="page">Admin</a></nav>
       </div>
     </div>
   </header>
@@ -57,6 +57,10 @@
             <legend>Permissions</legend>
             <div id="invitePermissions" class="permission-grid"></div>
           </fieldset>
+          <fieldset class="permission-fieldset wide-field">
+            <legend>Dashboard display</legend>
+            <div id="inviteDashboardPreferences" class="dashboard-preference-options"></div>
+          </fieldset>
           <div class="button-row wide-field"><button type="submit">Send invite</button><span id="inviteStatus" class="admin-status" aria-live="polite"></span></div>
         </form>
 
@@ -83,6 +87,7 @@
             <div id="editAggregators" class="aggregator-access-options"></div>
           </fieldset>
           <fieldset class="permission-fieldset wide-field"><legend>Permissions</legend><div id="editPermissions" class="permission-grid"></div></fieldset>
+          <fieldset class="permission-fieldset wide-field"><legend>Dashboard display</legend><div id="editDashboardPreferences" class="dashboard-preference-options"></div></fieldset>
           <div class="button-row wide-field">
             <button type="submit">Save user</button>
             <button id="deleteUser" class="danger-button" type="button">Delete user</button>

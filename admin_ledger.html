@@ -17,7 +17,7 @@
       </div>
       <div class="header-actions admin-header-controls">
         <nav class="app-nav" aria-label="Main navigation">
-          <a href="./index.html">Collection</a>
+          <a href="./collection.html">Collection</a>
           <a href="./admin.html" aria-current="page">Admin</a>
         </nav>
         <span id="adminConnectionStatus" class="status-pill status-muted">Loading</span>
@@ -101,10 +101,20 @@
             <button id="ledgerNextPage" type="button">Next</button>
           </div>
 
+          <div id="ledgerEditActions" class="today-edit-actions" hidden>
+            <span id="ledgerSelectedCount" class="status-pill">0 selected</span>
+            <button id="ledgerStartEdit" type="button">Edit</button>
+            <button id="ledgerSaveEdits" type="button" hidden disabled>Save</button>
+            <button id="ledgerDiscardEdits" type="button" hidden>Discard changes</button>
+            <button id="ledgerDeleteSelected" class="danger-button" type="button">Delete</button>
+          </div>
+          <span id="ledgerActionStatus" class="admin-status ledger-action-status" aria-live="polite"></span>
+
           <div class="responsive-table-wrap">
             <table class="management-table admin-data-table ledger-table">
               <thead>
                 <tr>
+                  <th id="ledgerSelectionHeader" class="selection-cell"><input id="ledgerSelectAll" type="checkbox" aria-label="Select all visible ledger rows"></th>
                   <th><button type="button" data-ledger-sort="collected_at">Collected</button></th>
                   <th><button type="button" data-ledger-sort="transaction_id">Transaction</button></th>
                   <th>Receipt</th>

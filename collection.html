@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="robots" content="noindex,nofollow">
+  <title data-i18n="meta.title">Collection - Seaweed Aggregation</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/images/seaweed-harvest-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
+  <script>
+    (() => {
+      const isInstalledApp = Boolean(globalThis.SeaweedNativeBundle)
+        || location.protocol === "capacitor:"
+        || (/Android/i.test(navigator.userAgent) && /; wv\)/i.test(navigator.userAgent))
+        || globalThis.matchMedia?.("(display-mode: standalone)")?.matches;
+      try {
+        if (isInstalledApp && !sessionStorage.getItem("seaweed-harvest:launch-splash-shown")) {
+          sessionStorage.setItem("seaweed-harvest:launch-splash-shown", "1");
+          globalThis.__seaweedHarvestLaunchStartedAt = performance.now();
+          document.documentElement.classList.add("app-launch-pending");
+        }
+      } catch {
+        // Continue directly when storage is unavailable.
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+</head>
+<body class="collection-page" data-auth-pending>
+  <div id="appLaunchSplash" class="app-launch-splash" role="status" aria-label="Opening Seaweed Harvest">
+    <img src="./assets/images/seaweed-harvest-splash.gif" alt="">
+  </div>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <p class="eyebrow" data-i18n="app.eyebrow">Seaweed aggregation</p>
+        <h1 data-i18n="page.title">Collection</h1>
+      </div>
+      <div class="header-actions">
+        <nav class="app-nav" aria-label="Main navigation" data-i18n-aria-label="nav.ariaLabel">
+          <a href="./collection.html" aria-current="page" data-i18n="nav.collection">Collection</a>
+          <a href="./today.html" data-i18n="nav.today">Today's Intake</a>
+          <a id="collectionAdminLink" href="./admin.html" data-i18n="nav.admin" hidden>Admin</a>
+          <a id="collectionSignInLink" href="./login.html?return=collection.html" data-i18n="nav.signIn">Sign in</a>
+        </nav>
+        <span id="collectionConnectionStatus" class="status-pill status-muted" hidden>Loading</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell">
+    <section class="language-card" aria-label="Language" data-i18n-aria-label="language.ariaLabel">
+      <span class="language-card-label" data-i18n="language.label">Language:</span>
+      <div class="language-card-actions" role="group" aria-label="Choose language" data-i18n-aria-label="language.choose">
+        <button type="button" data-language-option="en" aria-pressed="true">English</button>
+        <button type="button" data-language-option="sw" aria-pressed="false">Kiswahili</button>
+      </div>
+    </section>
+    <section id="pendingRecordsBand" class="pending-records-band" role="status" aria-live="polite" hidden>
+      <span class="pending-records-icon" aria-hidden="true">!</span>
+      <strong id="pendingRecordsBandLabel">Device offline.</strong>
+      <span id="pendingRecordsBandText">1 record stored locally.</span>
+      <button id="pendingRecordsBandSync" type="button" hidden>Sync all local records</button>
+    </section>
+    <section id="offlineSyncPanel" class="panel offline-sync-panel" aria-labelledby="offlineSyncTitle">
+      <div class="offline-ready-summary">
+        <h2 id="offlineSyncTitle" data-i18n="offline.title">Phone storage</h2>
+        <strong id="offlineReadiness" data-i18n="offline.preparing">Preparing...</strong>
+      </div>
+      <button id="offlineSyncNow" type="button" data-i18n="offline.syncAll">Sync all local records</button>
+    </section>
+    <section id="activeAggregatorBar" class="active-aggregator-bar" hidden>
+      <span data-i18n="aggregator.label">Aggregator</span>
+      <strong id="activeAggregatorName">-</strong>
+    </section>
+    <section class="panel collection-form-panel">
+      <form id="collectionForm" class="collection-form">
+        <label class="collector-name-field">
+          <span data-i18n="collector.name">Collector name</span>
+          <input id="collectorName" type="text" autocomplete="name" maxlength="100" required>
+        </label>
+        <label class="public-form-trap" aria-hidden="true">
+          Website
+          <input id="collectionWebsite" type="text" tabindex="-1" autocomplete="off">
+        </label>
+        <fieldset class="farmer-fieldset">
+          <legend data-i18n="farmer.legend">Farmer</legend>
+          <div class="field-status-block" hidden aria-hidden="true">
+            <input id="farmerId" type="hidden">
+            <button id="lookupFarmer" type="button" tabindex="-1">Lookup</button>
+            <button id="scanFarmerId" type="button" tabindex="-1">Scan</button>
+            <span id="farmerLinkStatus" class="status-pill status-hidden"></span>
+          </div>
+          <div class="quick-farmer-reference wide-field">
+            <p><span data-i18n="quick.name">Name:</span> <strong id="quickFarmerName">-</strong></p>
+            <p><span data-i18n="quick.community">Community:</span> <strong id="quickFarmerCommunity">-</strong></p>
+            <p><span data-i18n="quick.farmSize">Farm size:</span> <strong id="quickFarmerFarmSize">-</strong></p>
+          </div>
+          <details id="farmerDetails" class="form-details wide-field">
+            <summary data-i18n="farmer.detailsSummary">Farmer Detail - Enter Details:</summary>
+            <div class="manual-farmer-fields">
+              <label>
+                <span data-i18n="farmer.firstName">First name</span>
+                <input id="manualFarmerFirstName" type="text" autocomplete="given-name">
+              </label>
+              <label>
+                <span data-i18n="farmer.lastNames">Last / other names</span>
+                <input id="manualFarmerLastNames" type="text" autocomplete="family-name">
+              </label>
+              <label>
+                <span data-i18n="farmer.phone">Phone</span>
+                <input id="manualFarmerPhone" type="text" autocomplete="tel">
+              </label>
+              <label>
+                <span data-i18n="farmer.community">Community</span>
+                <input id="manualCommunityInput" type="text" list="communityOptions" autocomplete="off" placeholder="Type community" data-i18n-placeholder="farmer.communityPlaceholder">
+              </label>
+              <div class="manual-farm-size-fields">
+                <label>
+                  <span data-i18n="farmer.farmSize">Farm size</span>
+                  <input id="manualFarmerFarmSize" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Optional" data-i18n-placeholder="common.optional">
+                </label>
+                <label>
+                  <span data-i18n="farmer.farmSizeUnit">Farm size unit</span>
+                  <select id="manualFarmerFarmSizeUnit">
+                    <option value="blocks" selected data-i18n="unit.blocks">Blocks (50 lines)</option>
+                    <option value="lines" data-i18n="unit.lines">Lines</option>
+                  </select>
+                </label>
+              </div>
+              <button id="assignFarmerId" type="button" hidden tabindex="-1">Assign ID number</button>
+            </div>
+            <datalist id="communityOptions"></datalist>
+            <input id="communityId" type="hidden">
+            <input id="communityName" type="hidden">
+          </details>
+        </fieldset>
+
+        <fieldset class="harvest-fieldset">
+          <legend data-i18n="harvest.legend">Harvest</legend>
+          <div hidden aria-hidden="true">
+            <input id="sackId" type="hidden">
+            <button id="scanSackId" type="button" tabindex="-1">Scan</button>
+          </div>
+          <label>
+            <span data-i18n="harvest.transactionId">Transaction ID</span>
+            <input id="transactionId" type="text" readonly>
+          </label>
+          <label>
+            <span data-i18n="harvest.dateTime">Date / time</span>
+            <input id="collectedAt" type="datetime-local" required>
+          </label>
+          <label>
+            <span data-i18n="harvest.gps">GPS</span>
+            <span class="input-action-row">
+              <input id="gpsSummary" type="text" data-recommended="true" readonly>
+              <button id="captureGps" type="button">GPS</button>
+            </span>
+          </label>
+          <label>
+            <span data-i18n="harvest.weight">Weight kg</span>
+            <input id="sackWeightKg" type="number" min="0" step="0.01" required>
+          </label>
+          <label>
+            <span data-i18n="harvest.seaweedType">Seaweed type (common name)</span>
+            <select id="seaweedType">
+              <option value="spinosum" selected>Spinosum - spiny seaweed</option>
+              <option value="cottonii">Cottonii - cottonii seaweed</option>
+              <option value="other">Other type</option>
+            </select>
+          </label>
+          <label>
+            <span data-i18n="harvest.grade">Grade</span>
+            <select id="seaweedGrade" required>
+              <option value="A" selected>A - 12 KSH/kg</option>
+              <option value="B">B - 8 KSH/kg</option>
+              <option value="C">C - Rejected</option>
+              <option value="UNGRADED">Ungraded - no payment</option>
+            </select>
+          </label>
+          <div hidden aria-hidden="true">
+            <select id="productForm">
+              <option value="wet" selected>Wet</option>
+            </select>
+          </div>
+          <label>
+            <span data-i18n="harvest.pricePerKg">Price / kg</span>
+            <input id="pricePerKg" type="number" min="0" step="0.01">
+            <span id="priceSourceStatus" class="field-hint"></span>
+          </label>
+          <label>
+            <span data-i18n="harvest.totalPrice">Total price</span>
+            <input id="totalPrice" type="number" min="0" step="0.01" readonly>
+          </label>
+          <label class="check-row">
+            <input id="priceOverridden" type="checkbox">
+            <span data-i18n="harvest.manualPrice">Manual price</span>
+          </label>
+          <label id="priceOverrideReasonField" class="wide-field" hidden>
+            <span data-i18n="harvest.overrideReason">Price override reason</span>
+            <input id="priceOverrideReason" type="text" maxlength="300">
+          </label>
+          <div id="customCollectionFields" class="custom-collection-fields" hidden></div>
+          <label class="wide-field">
+            <span data-i18n="harvest.notes">Notes</span>
+            <textarea id="collectionNotes" rows="3"></textarea>
+          </label>
+          <div id="collectionPhotosField" class="wide-field collection-photo-field">
+            <label for="collectionPhotos"><span data-field-label data-i18n="harvest.photos">Collection photos</span></label>
+            <input id="collectionPhotos" type="file" accept="image/*" capture="environment" multiple aria-describedby="collectionPhotoStatus">
+            <span id="collectionPhotoStatus" class="field-hint" data-i18n="photos.hint">Up to 2 photos. Compressed before upload.</span>
+            <span id="collectionPhotoPreview" class="collection-photo-preview" aria-live="polite"></span>
+          </div>
+        </fieldset>
+
+        <div class="button-row">
+          <button id="submitCollection" type="submit" data-i18n="action.submit">Submit collection</button>
+          <button id="clearCollectionForm" type="button" data-i18n="action.clear">Clear</button>
+          <span id="collectionSaveStatus" class="admin-status" aria-live="polite"></span>
+        </div>
+      </form>
+    </section>
+    <section id="collectionReceiptResult" class="panel collection-receipt-result" hidden>
+      <div class="section-head compact">
+        <h2 data-i18n="receipt.saved">Collection receipt</h2>
+        <span id="savedReceiptNumber" class="status-pill"></span>
+      </div>
+      <dl class="receipt-result-grid">
+        <div><dt data-i18n="aggregator.label">Aggregator</dt><dd id="savedReceiptAggregator">-</dd></div>
+        <div><dt data-i18n="harvest.weight">Weight kg</dt><dd id="savedReceiptWeight">-</dd></div>
+        <div><dt data-i18n="harvest.pricePerKg">Price / kg</dt><dd id="savedReceiptPrice">-</dd></div>
+        <div><dt data-i18n="harvest.totalPrice">Total price</dt><dd id="savedReceiptTotal">-</dd></div>
+      </dl>
+      <div class="button-row">
+        <a id="viewSavedReceipt" class="button-link" href="./receipt.html" data-i18n="receipt.view">View receipt</a>
+        <button id="dismissSavedReceipt" type="button" data-i18n="action.close">Close</button>
+      </div>
+    </section>
+  </main>
+
+  <section id="collectionOperationFeedback" class="operation-feedback" role="status" aria-live="polite" aria-atomic="true" aria-busy="false" hidden>
+    <span class="operation-feedback-indicator" aria-hidden="true"></span>
+    <div class="operation-feedback-copy">
+      <strong data-operation-title>Submitting...</strong>
+      <span data-operation-message></span>
+    </div>
+    <button type="button" data-operation-action hidden>New collection</button>
+  </section>
+
+  <footer class="app-footer">
+    <a href="./privacy.html">Privacy</a>
+  </footer>
+
+  <section id="qrScannerModal" class="qr-scanner-modal" role="dialog" aria-modal="true" aria-labelledby="qrScannerTitle" hidden>
+    <div class="qr-scanner-panel">
+      <div class="qr-scanner-head">
+        <h2 id="qrScannerTitle" data-i18n="scanner.title">Scan QR Code</h2>
+        <button id="stopQrScanner" type="button" data-i18n="action.cancel">Cancel</button>
+      </div>
+      <div class="qr-video-frame">
+        <video id="qrScannerVideo" playsinline muted></video>
+        <div class="qr-target-box" aria-hidden="true"></div>
+      </div>
+      <p id="qrScannerStatus" class="qr-scanner-status" data-i18n="scanner.pointCamera">Point camera at QR code.</p>
+    </div>
+  </section>
+
+  <dialog id="collectionPhotoActions" class="photo-actions-dialog" aria-labelledby="collectionPhotoActionsTitle">
+    <div class="photo-actions-panel">
+      <h2 id="collectionPhotoActionsTitle" data-i18n="photos.actionsTitle">Photo options</h2>
+      <img id="collectionPhotoActionPreview" alt="" data-i18n-alt="photos.previewAlt">
+      <p id="collectionPhotoActionName"></p>
+      <div class="button-row photo-actions-buttons">
+        <button id="retakeCollectionPhoto" type="button" data-i18n="photos.retake">Take again</button>
+        <button id="deleteCollectionPhoto" type="button" class="danger-button" data-i18n="photos.delete">Delete photo</button>
+        <button id="cancelCollectionPhotoAction" type="button" data-i18n="action.cancel">Cancel</button>
+      </div>
+    </div>
+  </dialog>
+  <input id="collectionPhotoRetake" class="visually-hidden-file" type="file" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
+
+  <script src="./assets/js/vendor/jsQR.js"></script>
+  <script type="module" src="./assets/js/collection_form.js"></script>
+</body>
+</html>

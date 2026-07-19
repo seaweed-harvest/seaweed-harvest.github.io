@@ -35,6 +35,10 @@
           <label>Receipt language<select id="myReceiptLanguage"><option value="en">English</option><option value="sw">Kiswahili</option></select></label>
           <label class="check-row"><input id="myReceiptNotifications" type="checkbox" checked> Allow transaction notifications</label>
         </fieldset>
+        <fieldset id="myDashboardPreferences" class="my-details-preferences" hidden>
+          <legend>Dashboard display</legend>
+          <div id="myDashboardPreferenceOptions" class="dashboard-preference-options"></div>
+        </fieldset>
         <div class="button-row">
           <button id="saveMyDetails" type="submit">Save details</button>
           <span id="myDetailsStatus" class="form-status" aria-live="polite"></span>

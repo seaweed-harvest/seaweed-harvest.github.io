@@ -17,7 +17,7 @@
       </div>
       <div class="header-actions admin-header-controls">
         <nav class="app-nav" aria-label="Main navigation">
-          <a href="./index.html">Collection</a>
+          <a href="./collection.html">Collection</a>
           <a href="./admin.html" aria-current="page">Admin</a>
         </nav>
         <span id="adminConnectionStatus" class="status-pill status-muted">Loading</span>
@@ -51,69 +51,69 @@
         </div>
 
         <div class="admin-metric-grid">
-          <article class="admin-metric-card">
+          <article class="admin-metric-card" data-dashboard-widget="total_kg">
             <span>Total kg</span>
             <strong id="metricTotalKg">--</strong>
           </article>
-          <article class="admin-metric-card">
+          <article class="admin-metric-card" data-dashboard-widget="quality_totals">
             <span>Accepted kg</span>
             <strong id="metricAcceptedKg">--</strong>
           </article>
-          <article class="admin-metric-card warning">
+          <article class="admin-metric-card warning" data-dashboard-widget="quality_totals">
             <span>Rejected kg</span>
             <strong id="metricRejectedKg">--</strong>
           </article>
-          <article class="admin-metric-card">
+          <article class="admin-metric-card" data-dashboard-widget="estimated_ksh">
             <span>Estimated KSH</span>
             <strong id="metricEstimatedKsh">--</strong>
           </article>
-          <article class="admin-metric-card">
+          <article class="admin-metric-card" data-dashboard-widget="grade_breakdown">
             <span>Grade A kg</span>
             <strong id="metricGradeAKg">--</strong>
           </article>
-          <article class="admin-metric-card">
+          <article class="admin-metric-card" data-dashboard-widget="grade_breakdown">
             <span>Grade B kg</span>
             <strong id="metricGradeBKg">--</strong>
           </article>
-          <article class="admin-metric-card warning">
+          <article class="admin-metric-card warning" data-dashboard-widget="grade_breakdown">
             <span>Grade C kg</span>
             <strong id="metricGradeCKg">--</strong>
           </article>
-          <article class="admin-metric-card warning">
+          <article class="admin-metric-card warning" data-dashboard-widget="grade_breakdown">
             <span>Ungraded kg</span>
             <strong id="metricUngradedKg">--</strong>
           </article>
-          <article class="admin-metric-card">
+          <article class="admin-metric-card" data-dashboard-widget="collection_counts">
             <span>Collection records</span>
             <strong id="metricCollectionCount">--</strong>
           </article>
-          <article class="admin-metric-card">
+          <article class="admin-metric-card" data-dashboard-widget="collection_counts">
             <span>This month</span>
             <strong id="metricCollectionsThisMonth">--</strong>
           </article>
-          <article class="admin-metric-card">
+          <article class="admin-metric-card" data-dashboard-widget="active_network">
             <span>Active members</span>
             <strong id="metricActiveMembers">--</strong>
           </article>
-          <article class="admin-metric-card">
+          <article class="admin-metric-card" data-dashboard-widget="active_network">
             <span>Active communities</span>
             <strong id="metricActiveCommunities">--</strong>
           </article>
-          <article class="admin-metric-card">
+          <article class="admin-metric-card" data-dashboard-widget="last_collection">
             <span>Last collection</span>
             <strong id="metricLastCollection">--</strong>
           </article>
-          <article class="admin-metric-card warning">
+          <article class="admin-metric-card warning" data-dashboard-widget="missing_ids">
             <span>Missing member ID</span>
             <strong id="metricMissingMemberId">--</strong>
           </article>
-          <article class="admin-metric-card warning">
+          <article class="admin-metric-card warning" data-dashboard-widget="missing_ids">
             <span>Missing sack ID</span>
             <strong id="metricMissingSackId">--</strong>
           </article>
         </div>
 
-        <section class="admin-subsection">
+        <section class="admin-subsection" data-dashboard-widget="community_totals">
           <div class="section-head compact">
             <h3>Community Totals</h3>
             <span id="communityTotalsCount" class="status-pill">0 rows</span>

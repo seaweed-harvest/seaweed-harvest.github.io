@@ -1,8 +1,9 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v12";
+const CACHE_VERSION = "seaweed-harvest-collection-v14";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
   "./index.html",
+  "./collection.html",
   "./today.html",
   "./privacy.html",
   "./manifest.webmanifest",
@@ -51,7 +52,7 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.endsWith(".apk") || url.pathname.endsWith(".aab") || url.pathname.includes("/downloads/")) return;
 
   if (request.mode === "navigate") {
-    event.respondWith(networkFirst(request, "./index.html"));
+    event.respondWith(networkFirst(request, "./collection.html"));
     return;
   }
 

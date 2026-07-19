@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Collector Dashboard - Seaweed Harvest</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+</head>
+<body class="collector-dashboard-page" data-auth-pending>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div><p class="eyebrow">Seaweed aggregation</p><h1>Dashboard</h1></div>
+      <div class="header-actions collector-header-controls">
+        <nav class="app-nav" aria-label="Main navigation">
+          <a id="collectorCollectionLink" href="./collection.html">Collection form</a>
+          <a href="./today.html">Today's Intake</a>
+          <a id="collectorAdminLink" href="./admin.html" hidden>Admin</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell collector-dashboard-shell">
+    <section class="panel">
+      <div class="section-head compact">
+        <h2>My Collections</h2>
+        <button id="reloadCollectorDashboard" type="button">Reload</button>
+      </div>
+      <div class="admin-metric-grid collector-metric-grid">
+        <article class="admin-metric-card" data-dashboard-widget="today">
+          <span>Today</span><strong id="collectorTodayCount">--</strong><small id="collectorTodayKg">-- kg</small>
+        </article>
+        <article class="admin-metric-card" data-dashboard-widget="month">
+          <span>This month</span><strong id="collectorMonthCount">--</strong><small id="collectorMonthKg">-- kg</small>
+        </article>
+        <article class="admin-metric-card" data-dashboard-widget="all_time">
+          <span>All time</span><strong id="collectorAllTimeCount">--</strong><small id="collectorAllTimeKg">-- kg</small>
+        </article>
+        <article class="admin-metric-card" data-dashboard-widget="last_collection">
+          <span>Last collection</span><strong id="collectorLastCollection">--</strong>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel" data-dashboard-widget="recent_records">
+      <div class="section-head compact"><h2>Recent Records</h2><span id="collectorDashboardStatus" class="status-pill">Loading</span></div>
+      <div class="responsive-table-wrap compact-data-table-wrap">
+        <table class="management-table admin-data-table">
+          <thead><tr><th>Date</th><th>Farmer</th><th>Community</th><th>Weight kg</th><th>Type</th><th>Grade</th><th>Total KSH</th><th>Transaction</th></tr></thead>
+          <tbody id="collectorRecentRows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./assets/js/collector_dashboard_page.js"></script>
+</body>
+</html>

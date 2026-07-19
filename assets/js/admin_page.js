@@ -2,6 +2,7 @@ import { APP_CONFIG } from "./config.js";
 import { hasMapCoordinates as hasGps, mapCoordinates } from "./map_coordinates.js";
 import { dataModeLabel, selectRows } from "./supabase_client.js";
 import { currentAccessToken, requireAdminAccess, setupAccountControls } from "./auth_client.js";
+import { applyDashboardPreferences } from "./dashboard_preferences.js";
 
 const TABLES = {
   overview: "ag_secure_admin_overview",
@@ -16,7 +17,7 @@ const RPC = {
   ledger: "ag_sec_admin_collection_ledger_page",
   ledgerExport: "ag_sec_admin_collection_ledger_export",
   todayIntake: "ag_sec_admin_today_intake",
-  updateTodayIntake: "ag_sec_admin_update_intake_rows",
+  updateCollectionRows: "ag_sec_admin_update_collection_rows",
   updateMemberRegistry: "ag_sec_admin_update_member_registry",
   updateCommunityRegistry: "ag_sec_admin_update_community_registry",
   deleteMemberRegistry: "ag_sec_admin_delete_member_registry",
@@ -24,6 +25,7 @@ const RPC = {
 };
 
 const LEDGER_PAGE_SIZE = 50;
+const COMMUNITY_RECORD_PAGE_SIZE = 50;
 const EXPORT_MAX_ROWS = 5000;
 const KENYA_COAST_VIEW = {
   center: [-4.55, 39.42],
@@ -40,12 +42,19 @@ const state = {
   communitySummary: null,
   communityGradeRows: [],
   communityMonthlyRows: [],
+  communityRecordRows: [],
+  communityRecordTotal: 0,
+  communityRecordPage: 0,
   ledgerRows: [],
   customLedgerFields: [],
   ledgerTotal: 0,
   ledgerPage: 0,
   ledgerSort: "collected_at",
   ledgerDirection: "desc",
+  selectedLedgerIds: new Set(),
+  editingLedgerIds: new Set(),
+  dirtyLedgerIds: new Set(),
+  ledgerDrafts: new Map(),
   todayIntakeRows: [],
   todaySort: "collected_at",
   todayDirection: "desc",
@@ -78,9 +87,11 @@ async function init() {
   }
   setupAdminSidebar(state.profile);
   setupAccountControls(state.profile);
+  applyDashboardPreferences(state.profile);
   if (!hasAdminDataView()) return;
   setDefaultControls();
   bindEvents();
+  setupFixedTableScrollbar();
   await loadAdminData();
 }
 
@@ -142,6 +153,11 @@ function cacheElements() {
     "communitySummaryMetrics",
     "communityGradeRows",
     "communityMonthlyRows",
+    "communityRecordCount",
+    "communityRecordRows",
+    "communityRecordPrevPage",
+    "communityRecordNextPage",
+    "communityRecordPageStatus",
     "todayIntakeCount",
     "todayIntakeDate",
     "reloadTodayIntake",
@@ -151,6 +167,7 @@ function cacheElements() {
     "todayStartEdit",
     "todaySaveEdits",
     "todayDiscardEdits",
+    "todayDeleteSelected",
     "todaySelectionHeader",
     "todaySelectAll",
     "todayIntakeRows",
@@ -167,6 +184,15 @@ function cacheElements() {
     "ledgerPrevPage",
     "ledgerNextPage",
     "ledgerPageStatus",
+    "ledgerActionStatus",
+    "ledgerEditActions",
+    "ledgerSelectedCount",
+    "ledgerStartEdit",
+    "ledgerSaveEdits",
+    "ledgerDiscardEdits",
+    "ledgerDeleteSelected",
+    "ledgerSelectionHeader",
+    "ledgerSelectAll",
     "ledgerRows"
   ].forEach((id) => {
     els[id] = document.getElementById(id);
@@ -186,6 +212,10 @@ function setDefaultControls() {
   if (els.ledgerMonth) els.ledgerMonth.value = "";
   if (els.communityStartDate) els.communityStartDate.value = "";
   if (els.communityEndDate) els.communityEndDate.value = "";
+  const requestedCommunityPeriod = new URLSearchParams(window.location.search).get("period");
+  if (els.communityPeriodPreset && ["7", "30", "this_month", "month", "custom", "all"].includes(requestedCommunityPeriod)) {
+    els.communityPeriodPreset.value = requestedCommunityPeriod;
+  }
   if (els.ledgerStartDate) els.ledgerStartDate.value = "";
   if (els.ledgerEndDate) els.ledgerEndDate.value = "";
   if (els.todayIntakeDate) els.todayIntakeDate.value = kenyaDateInputValue(now);
@@ -208,8 +238,26 @@ function bindEvents() {
   els.mappedCommunityList?.addEventListener("click", focusMapMarkerFromEvent);
   els.mappedCommunityList?.addEventListener("keydown", focusMapMarkerFromEvent);
   els.reloadMonthly?.addEventListener("click", () => loadMonthly());
-  els.reloadCommunitySummary?.addEventListener("click", () => loadCommunitySummary());
-  els.communitySummarySelect?.addEventListener("change", () => loadCommunitySummary());
+  els.reloadCommunitySummary?.addEventListener("click", () => {
+    state.communityRecordPage = 0;
+    syncCommunitySummaryUrl();
+    loadCommunitySummary();
+  });
+  els.communitySummarySelect?.addEventListener("change", () => {
+    state.communityRecordPage = 0;
+    syncCommunitySummaryUrl();
+    loadCommunitySummary();
+  });
+  els.communityRecordPrevPage?.addEventListener("click", () => {
+    if (state.communityRecordPage <= 0) return;
+    state.communityRecordPage -= 1;
+    loadCommunityRecordPage();
+  });
+  els.communityRecordNextPage?.addEventListener("click", () => {
+    if ((state.communityRecordPage + 1) * COMMUNITY_RECORD_PAGE_SIZE >= state.communityRecordTotal) return;
+    state.communityRecordPage += 1;
+    loadCommunityRecordPage();
+  });
   els.reloadTodayIntake?.addEventListener("click", () => loadTodayIntake());
   els.todayIntakeDate?.addEventListener("change", () => loadTodayIntake());
   els.todayIntakeRows?.addEventListener("change", handleTodayIntakeTableChange);
@@ -218,17 +266,26 @@ function bindEvents() {
   els.todayStartEdit?.addEventListener("click", startTodayIntakeEdit);
   els.todaySaveEdits?.addEventListener("click", saveTodayIntakeEdits);
   els.todayDiscardEdits?.addEventListener("click", discardTodayIntakeEdits);
+  els.todayDeleteSelected?.addEventListener("click", deleteTodayIntakeSelection);
+  els.ledgerRows?.addEventListener("change", handleLedgerTableChange);
+  els.ledgerRows?.addEventListener("input", handleLedgerDraftInput);
+  els.ledgerSelectAll?.addEventListener("change", toggleAllLedgerRows);
+  els.ledgerStartEdit?.addEventListener("click", startLedgerEdit);
+  els.ledgerSaveEdits?.addEventListener("click", saveLedgerEdits);
+  els.ledgerDiscardEdits?.addEventListener("click", discardLedgerEdits);
+  els.ledgerDeleteSelected?.addEventListener("click", deleteLedgerSelection);
   els.reloadLedger?.addEventListener("click", () => {
+    if (state.editingLedgerIds.size) return;
     state.ledgerPage = 0;
     loadLedger();
   });
   els.ledgerPrevPage?.addEventListener("click", () => {
-    if (state.ledgerPage <= 0) return;
+    if (state.editingLedgerIds.size || state.ledgerPage <= 0) return;
     state.ledgerPage -= 1;
     loadLedger();
   });
   els.ledgerNextPage?.addEventListener("click", () => {
-    if ((state.ledgerPage + 1) * LEDGER_PAGE_SIZE >= state.ledgerTotal) return;
+    if (state.editingLedgerIds.size || (state.ledgerPage + 1) * LEDGER_PAGE_SIZE >= state.ledgerTotal) return;
     state.ledgerPage += 1;
     loadLedger();
   });
@@ -236,6 +293,7 @@ function bindEvents() {
 
   document.querySelectorAll("[data-ledger-sort]").forEach((button) => {
     button.addEventListener("click", () => {
+      if (state.editingLedgerIds.size) return;
       const nextSort = button.dataset.ledgerSort;
       if (state.ledgerSort === nextSort) {
         state.ledgerDirection = state.ledgerDirection === "asc" ? "desc" : "asc";
@@ -263,6 +321,87 @@ function bindEvents() {
   });
 }
 
+function setupFixedTableScrollbar() {
+  const dock = document.createElement("div");
+  const dockContent = document.createElement("div");
+  dock.className = "fixed-table-scrollbar";
+  dock.setAttribute("role", "region");
+  dock.setAttribute("aria-label", "Horizontal table scroll control");
+  dock.hidden = true;
+  dockContent.className = "fixed-table-scrollbar-content";
+  dock.append(dockContent);
+  document.body.append(dock);
+
+  let activeWrap = null;
+  let frame = 0;
+  let syncing = false;
+
+  const refresh = () => {
+    frame = 0;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    const candidates = [...document.querySelectorAll(".responsive-table-wrap")]
+      .filter((wrap) => wrap.scrollWidth > wrap.clientWidth + 2)
+      .map((wrap) => {
+        const rect = wrap.getBoundingClientRect();
+        const visibleHeight = Math.max(0, Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0));
+        return { wrap, rect, visibleHeight };
+      })
+      .filter(({ rect, visibleHeight }) => (
+        visibleHeight > 0
+        && rect.bottom > viewportHeight + 48
+        && rect.right > 0
+        && rect.left < viewportWidth
+      ))
+      .sort((first, second) => second.visibleHeight - first.visibleHeight);
+
+    const candidate = candidates[0];
+    if (!candidate) {
+      activeWrap = null;
+      dock.hidden = true;
+      document.body.classList.remove("has-fixed-table-scrollbar");
+      return;
+    }
+
+    activeWrap = candidate.wrap;
+    const left = Math.max(0, candidate.rect.left);
+    const right = Math.min(viewportWidth, candidate.rect.right);
+    dock.style.left = `${left}px`;
+    dock.style.width = `${Math.max(0, right - left)}px`;
+    dockContent.style.width = `${activeWrap.scrollWidth}px`;
+    dock.hidden = false;
+    document.body.classList.add("has-fixed-table-scrollbar");
+    if (!syncing && Math.abs(dock.scrollLeft - activeWrap.scrollLeft) > 1) {
+      dock.scrollLeft = activeWrap.scrollLeft;
+    }
+  };
+
+  const scheduleRefresh = () => {
+    if (!frame) frame = window.requestAnimationFrame(refresh);
+  };
+
+  dock.addEventListener("scroll", () => {
+    if (!activeWrap || syncing) return;
+    syncing = true;
+    activeWrap.scrollLeft = dock.scrollLeft;
+    syncing = false;
+  });
+  document.addEventListener("scroll", (event) => {
+    if (event.target === activeWrap && !syncing) {
+      syncing = true;
+      dock.scrollLeft = activeWrap.scrollLeft;
+      syncing = false;
+    }
+    scheduleRefresh();
+  }, true);
+  window.addEventListener("resize", scheduleRefresh);
+  if (window.ResizeObserver) new ResizeObserver(scheduleRefresh).observe(document.body);
+  if (window.MutationObserver) {
+    new MutationObserver(scheduleRefresh).observe(document.body, { childList: true, subtree: true });
+  }
+  scheduleRefresh();
+}
+
 function setupAdminSidebar(profile) {
   const sidebar = document.querySelector(".admin-sidebar");
   const layout = document.querySelector(".admin-layout");
@@ -270,6 +409,7 @@ function setupAdminSidebar(profile) {
 
   addAdminSidebarLinks(sidebar);
   applySidebarPermissions(sidebar, profile);
+  groupAdminSidebarLinks(sidebar);
 
   const title = sidebar.querySelector("h2");
   const sidebarHeader = document.createElement("div");
@@ -279,18 +419,14 @@ function setupAdminSidebar(profile) {
   toggle.type = "button";
   toggle.className = "admin-sidebar-toggle";
 
-  if (title) {
-    title.replaceWith(sidebarHeader);
-    sidebarHeader.append(title, toggle);
-  } else {
-    sidebar.prepend(sidebarHeader);
-    sidebarHeader.append(toggle);
-  }
+  title?.remove();
+  sidebar.prepend(sidebarHeader);
+  sidebarHeader.append(toggle);
 
   const reveal = document.createElement("button");
   reveal.type = "button";
   reveal.className = "admin-sidebar-reveal";
-  reveal.textContent = "Admin menu";
+  reveal.textContent = "Menu";
   layout.insertBefore(reveal, sidebar);
 
   const applyPinnedState = (isPinned) => {
@@ -310,11 +446,20 @@ function setupAdminSidebar(profile) {
 
 function addAdminSidebarLinks(sidebar) {
   const dashboard = sidebar.querySelector('a[href="./admin.html"]');
-  if (dashboard && !sidebar.querySelector('a[href="./admin_users.html"]')) {
-    dashboard.insertAdjacentHTML("afterend", '<a href="./admin_users.html" data-permission="can_manage_users">Users</a>');
+  if (dashboard && !sidebar.querySelector('a[href="./collection.html"]')) {
+    dashboard.insertAdjacentHTML(
+      "afterend",
+      '<p class="admin-menu-heading">Forms</p><a href="./collection.html" data-permission="can_submit_collection">Collection Form</a>'
+    );
   }
 
-  const users = sidebar.querySelector('a[href="./admin_users.html"]') || dashboard;
+  const toolsHeading = [...sidebar.querySelectorAll(".admin-menu-heading")]
+    .find((heading) => heading.textContent.trim().toLowerCase() === "tools");
+  const firstTool = toolsHeading?.nextElementSibling;
+  if (toolsHeading && !sidebar.querySelector('a[href="./admin_users.html"]')) {
+    toolsHeading.insertAdjacentHTML("afterend", '<a href="./admin_users.html" data-permission="can_manage_users">Users</a>');
+  }
+  const users = sidebar.querySelector('a[href="./admin_users.html"]');
   if (users && !sidebar.querySelector('a[href="./admin_aggregators.html"]')) {
     users.insertAdjacentHTML("afterend", '<a href="./admin_aggregators.html" data-permission="can_access_admin">Aggregators</a>');
   }
@@ -334,7 +479,7 @@ function addAdminSidebarLinks(sidebar) {
     receipts.insertAdjacentHTML("afterend", '<a href="./admin_notifications.html" data-permission="can_view_notifications">Notifications</a>');
   }
 
-  const tags = sidebar.querySelector('a[href="./tags.html"]');
+  const tags = sidebar.querySelector('a[href="./tags.html"]') || firstTool;
   if (tags && !sidebar.querySelector('a[href="./admin_builder.html"]')) {
     tags.insertAdjacentHTML("afterend", '<a href="./admin_builder.html" data-permission="can_manage_settings">Settings</a>');
   }
@@ -352,6 +497,40 @@ function addAdminSidebarLinks(sidebar) {
     const hrefFile = new URL(link.href).pathname.split("/").pop();
     if (hrefFile === currentFile) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
+  });
+}
+
+function groupAdminSidebarLinks(sidebar) {
+  const headings = [...sidebar.querySelectorAll(".admin-menu-heading")];
+  const currentFile = window.location.pathname.split("/").pop() || "admin.html";
+
+  headings.forEach((heading) => {
+    const key = heading.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const details = document.createElement("details");
+    details.className = "admin-menu-group";
+    const summary = document.createElement("summary");
+    summary.textContent = heading.textContent.trim();
+    const links = document.createElement("div");
+    links.className = "admin-menu-group-links";
+
+    let sibling = heading.nextElementSibling;
+    while (sibling && !sibling.classList.contains("admin-menu-heading")) {
+      const next = sibling.nextElementSibling;
+      links.append(sibling);
+      sibling = next;
+    }
+
+    heading.replaceWith(details);
+    details.append(summary, links);
+    const hasCurrentPage = [...links.querySelectorAll("a")].some((link) => (
+      new URL(link.href).pathname.split("/").pop() === currentFile
+    ));
+    const saved = localStorage.getItem(`seaweed_ag:admin_menu:${key}`);
+    details.open = hasCurrentPage || saved === "true";
+    details.hidden = [...links.querySelectorAll("a")].every((link) => link.hidden);
+    details.addEventListener("toggle", () => {
+      localStorage.setItem(`seaweed_ag:admin_menu:${key}`, String(details.open));
+    });
   });
 }
 
@@ -449,8 +628,9 @@ function renderSetupError(error) {
   if (els.monthlyRows) els.monthlyRows.innerHTML = emptyRow(13, message);
   if (els.communityGradeRows) els.communityGradeRows.innerHTML = emptyRow(5, message);
   if (els.communityMonthlyRows) els.communityMonthlyRows.innerHTML = emptyRow(6, message);
+  if (els.communityRecordRows) els.communityRecordRows.innerHTML = emptyRow(12, message);
   if (els.todayIntakeRows) els.todayIntakeRows.innerHTML = emptyRow(12, message);
-  if (els.ledgerRows) els.ledgerRows.innerHTML = emptyRow(17 + state.customLedgerFields.length, message);
+  if (els.ledgerRows) els.ledgerRows.innerHTML = emptyRow(18 + state.customLedgerFields.length, message);
   if (els.mapStatus) {
     els.mapStatus.textContent = "Setup needed";
     els.mapStatus.className = "status-pill status-muted";
@@ -487,7 +667,7 @@ function renderCommunityTotals() {
   els.communityTotalsRows.innerHTML = state.communities.map((community) => `
     <tr>
       <td><strong>${escapeHtml(community.community_id)}</strong></td>
-      <td>${escapeHtml(community.community_name)}</td>
+      <td><a class="community-record-link" href="${escapeAttribute(communityRecordsUrl(community.community_id))}">${escapeHtml(community.community_name)}</a></td>
       <td>${escapeHtml(formatKg(community.total_weight_kg))}</td>
       <td>${escapeHtml(formatKg(community.grade_a_weight_kg))}</td>
       <td>${escapeHtml(formatKg(community.grade_b_weight_kg))}</td>
@@ -952,7 +1132,27 @@ function renderSelectors() {
 
 function selectedCommunityValue() {
   if (els.communitySummarySelect?.value) return els.communitySummarySelect.value;
+  const requested = new URLSearchParams(window.location.search).get("community");
+  const matched = state.communities.find((community) => (
+    String(community.community_id || "").toLowerCase() === String(requested || "").trim().toLowerCase()
+  ));
+  if (matched?.community_id) return matched.community_id;
   return state.communities[0]?.community_id || "";
+}
+
+function syncCommunitySummaryUrl() {
+  if (!els.communitySummarySelect) return;
+  const url = new URL(window.location.href);
+  const communityId = nullableText(els.communitySummarySelect.value);
+  if (communityId) url.searchParams.set("community", communityId);
+  else url.searchParams.delete("community");
+  if (els.communityPeriodPreset?.value) url.searchParams.set("period", els.communityPeriodPreset.value);
+  window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+function communityRecordsUrl(communityId) {
+  const params = new URLSearchParams({ community: String(communityId || ""), period: "all" });
+  return `./admin_community.html?${params.toString()}`;
 }
 
 async function loadMonthly(options = {}) {
@@ -1009,7 +1209,7 @@ async function loadCommunitySummary(options = {}) {
   const communityId = nullableText(els.communitySummarySelect.value);
 
   try {
-    const [summaryRows, gradeRows, monthlyRows] = await Promise.all([
+    const [summaryRows, gradeRows, monthlyRows, recordPageRows] = await Promise.all([
       supabaseRpc(RPC.communityPeriod, {
         p_community_id: communityId,
         p_start_at: range.start,
@@ -1024,12 +1224,14 @@ async function loadCommunitySummary(options = {}) {
         p_year: monthlyYearForRange(range),
         p_community_id: communityId,
         p_grade: null
-      })
+      }),
+      supabaseRpc(RPC.ledger, communityRecordPayload(range, communityId))
     ]);
 
     state.communitySummary = summaryRows[0] || null;
     state.communityGradeRows = gradeRows;
     state.communityMonthlyRows = monthlyRows;
+    applyCommunityRecordResult(recordPageRows);
     renderCommunitySummary(range);
     els.communitySummaryStatus.textContent = range.label;
     els.communitySummaryStatus.className = "status-pill";
@@ -1039,6 +1241,11 @@ async function loadCommunitySummary(options = {}) {
     els.communitySummaryMetrics.innerHTML = "";
     els.communityGradeRows.innerHTML = emptyRow(5, error.message);
     els.communityMonthlyRows.innerHTML = emptyRow(6, error.message);
+    state.communityRecordRows = [];
+    state.communityRecordTotal = 0;
+    if (els.communityRecordRows) els.communityRecordRows.innerHTML = emptyRow(12, error.message);
+    if (els.communityRecordCount) els.communityRecordCount.textContent = "Error";
+    if (els.communityRecordPageStatus) els.communityRecordPageStatus.textContent = "Could not load records.";
   }
 }
 
@@ -1090,6 +1297,89 @@ function renderCommunitySummary(range) {
       <td>${escapeHtml(formatKg(row.grade_c_weight_kg))}</td>
     </tr>
   `).join("") || emptyRow(6, "No monthly breakdown rows for this community.");
+
+  renderCommunityRecords();
+}
+
+function communityRecordPayload(range, communityId) {
+  return {
+    p_start_at: range.start,
+    p_end_at: range.end,
+    p_community_id: communityId,
+    p_grade: null,
+    p_search: null,
+    p_sort_key: "collected_at",
+    p_sort_direction: "desc",
+    p_page_limit: COMMUNITY_RECORD_PAGE_SIZE,
+    p_page_offset: state.communityRecordPage * COMMUNITY_RECORD_PAGE_SIZE
+  };
+}
+
+function applyCommunityRecordResult(resultRows) {
+  const result = resultRows?.[0] || {};
+  state.communityRecordRows = Array.isArray(result.rows) ? result.rows : [];
+  state.communityRecordTotal = Number(result.total_count || 0);
+}
+
+async function loadCommunityRecordPage() {
+  if (!els.communityRecordRows) return;
+  const range = dateRangeFromControls(
+    els.communityPeriodPreset.value,
+    els.communityMonth.value,
+    els.communityStartDate.value,
+    els.communityEndDate.value
+  );
+  const communityId = nullableText(els.communitySummarySelect.value);
+  els.communityRecordPageStatus.textContent = "Loading records...";
+  els.communityRecordPrevPage.disabled = true;
+  els.communityRecordNextPage.disabled = true;
+  try {
+    const resultRows = await supabaseRpc(RPC.ledger, communityRecordPayload(range, communityId));
+    applyCommunityRecordResult(resultRows);
+    renderCommunityRecords();
+  } catch (error) {
+    state.communityRecordRows = [];
+    state.communityRecordTotal = 0;
+    els.communityRecordRows.innerHTML = emptyRow(12, writeErrorMessage(error));
+    els.communityRecordCount.textContent = "Error";
+    els.communityRecordPageStatus.textContent = "Could not load records.";
+  }
+}
+
+function renderCommunityRecords() {
+  if (!els.communityRecordRows) return;
+  els.communityRecordCount.textContent = `${state.communityRecordTotal} rows`;
+  els.communityRecordRows.innerHTML = state.communityRecordRows.map((row) => `
+    <tr>
+      <td>${escapeHtml(formatDateTime(row.collected_at))}</td>
+      <td><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
+      <td>${row.receipt_id ? `<a class="table-action-link" href="./receipt.html?id=${encodeURIComponent(row.receipt_id)}">${escapeHtml(row.receipt_number || "View")}</a>` : "-"}</td>
+      <td>${inlineCell([row.farmer_id, row.farmer_name_snapshot])}</td>
+      <td>${escapeHtml(row.sack_id || "-")}</td>
+      <td>${escapeHtml(formatKg(row.sack_weight_kg))}</td>
+      <td>${escapeHtml(formatSeaweedType(row.seaweed_type))}</td>
+      <td>${escapeHtml(formatDataLabel(row.product_form || "wet"))}</td>
+      <td>${escapeHtml(row.seaweed_grade || "-")}</td>
+      <td>${escapeHtml(formatMoney(row.price_per_kg))}</td>
+      <td>${escapeHtml(formatMoney(row.total_price))}</td>
+      <td>${escapeHtml(row.notes || "-")}</td>
+    </tr>
+  `).join("") || emptyRow(12, "No collection records match this community and period.");
+
+  const first = state.communityRecordTotal
+    ? state.communityRecordPage * COMMUNITY_RECORD_PAGE_SIZE + 1
+    : 0;
+  const last = Math.min(
+    (state.communityRecordPage + 1) * COMMUNITY_RECORD_PAGE_SIZE,
+    state.communityRecordTotal
+  );
+  els.communityRecordPageStatus.textContent = state.communityRecordTotal
+    ? `Rows ${first}-${last} of ${state.communityRecordTotal}`
+    : "No rows";
+  els.communityRecordPrevPage.disabled = state.communityRecordPage <= 0;
+  els.communityRecordNextPage.disabled = (
+    (state.communityRecordPage + 1) * COMMUNITY_RECORD_PAGE_SIZE >= state.communityRecordTotal
+  );
 }
 
 function renderMapSection() {
@@ -1143,7 +1433,7 @@ function renderMapTable(rows, includeMarkerFocus, latestHarvestMs) {
           const rowClass = includeMarkerFocus ? harvestRecencyClass(community, latestHarvestMs) : "muted";
           return `
             <tr class="map-location-row ${escapeAttribute(rowClass)}"${focusAttr}>
-              <td><strong>${escapeHtml(community.community_name || "-")}</strong></td>
+              <td><a class="community-record-link" data-community-records-link href="${escapeAttribute(communityRecordsUrl(community.community_id))}"><strong>${escapeHtml(community.community_name || "-")}</strong></a></td>
               <td>${escapeHtml(community.community_id || "-")}</td>
               <td>${escapeHtml(formatCoordinatePair(community.gps_latitude, community.gps_longitude))}</td>
               <td>${escapeHtml(formatKg(community.total_weight_kg))}</td>
@@ -1213,7 +1503,7 @@ function markerIcon(status) {
 function renderCommunityPopup(community, status) {
   return `
     <div class="map-popup">
-      <strong>${escapeHtml(community.community_name || "-")}</strong>
+      <a class="community-record-link" href="${escapeAttribute(communityRecordsUrl(community.community_id))}"><strong>${escapeHtml(community.community_name || "-")}</strong></a>
       <span>${escapeHtml(community.community_id || "-")}</span>
       <small>${escapeHtml(statusLabel(status))}</small>
       <small>${escapeHtml(formatKg(community.total_weight_kg))} total kg</small>
@@ -1235,6 +1525,7 @@ function fitMapToCommunities(rows) {
 }
 
 function focusMapMarkerFromEvent(event) {
+  if (event.target.closest("[data-community-records-link]")) return;
   if (event.type === "keydown" && !["Enter", " "].includes(event.key)) return;
   const item = event.target.closest("[data-focus-marker]");
   if (!item) return;
@@ -1306,7 +1597,7 @@ function renderTodayIntake() {
         <td>${isEditing ? todaySelectControl(id, "seaweed_type", draft.seaweed_type, todaySeaweedTypeOptions(row)) : escapeHtml(formatSeaweedType(row.seaweed_type))}</td>
         <td>${isEditing ? todaySelectControl(id, "grade_code", draft.grade_code, todayGradeOptions(row)) : escapeHtml(row.seaweed_grade || "-")}</td>
         <td>${isEditing ? todayNumberControl(id, "price_per_kg", draft.price_per_kg, "today-number-editor", 0.01, 0) : escapeHtml(formatMoney(row.price_per_kg))}</td>
-        <td data-today-total="${escapeAttribute(id)}">${escapeHtml(formatMoney(isEditing ? todayDraftTotal(draft) : row.total_price))}</td>
+        <td data-today-total="${escapeAttribute(id)}">${escapeHtml(formatMoney(isEditing ? todayDraftTotal(draft, row.total_price) : row.total_price))}</td>
         <td>${isEditing ? todayTextControl(id, "notes", draft.notes, "today-notes-editor", 1000) : escapeHtml(row.notes || "-")}</td>
       </tr>
     `;
@@ -1406,6 +1697,11 @@ function updateTodaySelectionUi() {
     els.todaySaveEdits.textContent = dirty ? `Save ${dirty}` : "Save";
   }
   if (els.todayDiscardEdits) els.todayDiscardEdits.hidden = !editing;
+  if (els.todayDeleteSelected) {
+    els.todayDeleteSelected.hidden = editing;
+    els.todayDeleteSelected.disabled = selected === 0;
+    els.todayDeleteSelected.textContent = selected > 1 ? `Delete ${selected}` : "Delete";
+  }
   if (els.todaySelectionHeader) els.todaySelectionHeader.hidden = !canEdit;
   if (els.todayIntakeDate) els.todayIntakeDate.disabled = editing;
   if (els.reloadTodayIntake) els.reloadTodayIntake.disabled = editing;
@@ -1450,8 +1746,7 @@ async function saveTodayIntakeEdits() {
   setTodayIntakeStatus("Saving edits...");
 
   try {
-    const result = await supabaseRpc(RPC.updateTodayIntake, {
-      p_intake_date: nullableText(els.todayIntakeDate.value),
+    const result = await supabaseRpc(RPC.updateCollectionRows, {
       p_updates: updates
     });
     const updatedCount = Number(result?.updated_count || result?.[0]?.updated_count || 0);
@@ -1472,6 +1767,7 @@ function todayIntakeUpdatePayload(id) {
 
   const original = todayIntakeDraft(row);
   const payload = { id };
+  if (row.updated_at) payload.expected_updated_at = row.updated_at;
   Object.keys(original).forEach((field) => {
     if (normalizeTodayDraftValue(field, draft[field]) === normalizeTodayDraftValue(field, original[field])) return;
     payload[field] = ["sack_weight_kg", "price_per_kg"].includes(field)
@@ -1492,7 +1788,7 @@ function updateTodayDraftRow(id) {
   else state.dirtyTodayIntakeIds.delete(id);
   tableRow.classList.toggle("today-row-dirty", dirty);
   const totalCell = tableRow.querySelector(`[data-today-total="${cssEscape(id)}"]`);
-  if (totalCell) totalCell.textContent = formatMoney(todayDraftTotal(draft));
+  if (totalCell) totalCell.textContent = formatMoney(todayDraftTotal(draft, row.total_price));
   updateTodaySelectionUi();
 }
 
@@ -1506,10 +1802,10 @@ function normalizeTodayDraftValue(field, value) {
   return String(value ?? "").trim();
 }
 
-function todayDraftTotal(draft) {
+function todayDraftTotal(draft, fallbackTotal = null) {
   const weight = optionalNumber(draft.sack_weight_kg);
   const price = optionalNumber(draft.price_per_kg);
-  return weight === null || price === null ? null : weight * price;
+  return weight === null || price === null ? fallbackTotal : weight * price;
 }
 
 function todayIntakeDraft(row) {
@@ -1601,8 +1897,47 @@ function setTodayIntakeStatus(message, type = "") {
   els.todayIntakeStatus.dataset.status = type;
 }
 
+async function deleteTodayIntakeSelection() {
+  if (!canEditTodayIntake() || state.editingTodayIntakeIds.size || !state.selectedTodayIntakeIds.size) return;
+  const rows = state.todayIntakeRows.filter((row) => state.selectedTodayIntakeIds.has(String(row.id || "")));
+  if (!rows.length) return;
+  const label = `${rows.length} selected intake row${rows.length === 1 ? "" : "s"}`;
+  if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
+
+  els.todayDeleteSelected.disabled = true;
+  setTodayIntakeStatus(`Deleting ${label}...`);
+  try {
+    const result = await deleteCollectionRows(rows);
+    const deletedCount = Number(result.deleted_count || rows.length);
+    await loadTodayIntake({ quiet: true });
+    const cleanupNote = result.photo_cleanup_pending ? " Photo cleanup will be retried." : "";
+    setTodayIntakeStatus(`Deleted ${deletedCount} row${deletedCount === 1 ? "" : "s"}.${cleanupNote}`);
+  } catch (error) {
+    setTodayIntakeStatus(writeErrorMessage(error), "error");
+    updateTodaySelectionUi();
+  }
+}
+
+async function deleteCollectionRows(rows) {
+  const deletions = rows.map((row) => ({
+    id: row.id,
+    ...(row.updated_at ? { expected_updated_at: row.updated_at } : {})
+  }));
+  const response = await fetch(`${APP_CONFIG.supabase.url}/functions/v1/admin-collections`, {
+    method: "POST",
+    headers: await baseHeaders(),
+    body: JSON.stringify({ deletions })
+  });
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText}${await responseDetail(response)}`);
+  }
+  return response.json();
+}
+
 async function loadLedger(options = {}) {
   if (!els.ledgerRows) return;
+  resetLedgerEditState();
+  updateLedgerSelectionUi();
   if (!options.quiet) {
     els.ledgerCount.textContent = "Loading";
     els.ledgerCount.className = "status-pill status-muted";
@@ -1616,48 +1951,285 @@ async function loadLedger(options = {}) {
     state.ledgerTotal = Number(result.total_count || 0);
     renderLedger();
   } catch (error) {
-    els.ledgerRows.innerHTML = emptyRow(17 + state.customLedgerFields.length, writeErrorMessage(error));
+    state.ledgerRows = [];
+    els.ledgerRows.innerHTML = emptyRow(18 + state.customLedgerFields.length, writeErrorMessage(error));
     els.ledgerCount.textContent = "Error";
     els.ledgerCount.className = "status-pill status-muted";
     els.ledgerPageStatus.textContent = "Could not load ledger.";
+    setLedgerActionStatus(writeErrorMessage(error), "error");
   }
 }
 
 function renderLedger() {
   if (!els.ledgerRows) return;
 
+  const canEdit = canEditTodayIntake();
+  const editing = state.editingLedgerIds.size > 0;
   els.ledgerCount.textContent = `${state.ledgerTotal} rows`;
   els.ledgerCount.className = "status-pill";
-  els.ledgerRows.innerHTML = state.ledgerRows.map((row) => `
-    <tr>
-      <td>${escapeHtml(formatDateTime(row.collected_at))}</td>
-      <td><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
-      <td>${row.receipt_id ? `<a class="table-action-link" href="./receipt.html?id=${encodeURIComponent(row.receipt_id)}">${escapeHtml(row.receipt_number || "View")}</a>` : "-"}</td>
-      <td>${inlineCell([row.community_id, row.community_name_snapshot])}</td>
-      <td>${inlineCell([row.farmer_id, row.farmer_name_snapshot])}</td>
-      <td>${escapeHtml(row.sack_id || "-")}</td>
-      <td>${escapeHtml(formatKg(row.sack_weight_kg))}</td>
-      <td>${escapeHtml(formatSeaweedType(row.seaweed_type))}</td>
-      <td>${escapeHtml(formatDataLabel(row.product_form || "wet"))}</td>
-      <td>${escapeHtml(row.seaweed_grade || "-")}</td>
-      <td>${escapeHtml(formatMoney(row.price_per_kg))}</td>
-      <td>${escapeHtml(formatMoney(row.total_price))}</td>
-      <td>${escapeHtml(formatCoordinatePair(row.gps_latitude, row.gps_longitude))}</td>
-      <td>${escapeHtml(photoCount(row.photo_urls))}</td>
-      <td>${escapeHtml(row.notes || "-")}</td>
-      ${state.customLedgerFields.map((field) => `<td>${escapeHtml(formatCustomFieldValue(row.custom_fields?.[field.field_key], field))}</td>`).join("")}
-      <td>${inlineCell([collectorName(row), row.recorded_by_email])}</td>
-      <td>${escapeHtml(formatDateTime(row.created_at))}</td>
-    </tr>
-  `).join("") || emptyRow(17 + state.customLedgerFields.length, "No ledger rows match the current filters.");
+  els.ledgerRows.innerHTML = state.ledgerRows.map((row) => {
+    const id = String(row.id || "");
+    const checked = state.selectedLedgerIds.has(id) ? " checked" : "";
+    const isEditing = state.editingLedgerIds.has(id);
+    const isDirty = state.dirtyLedgerIds.has(id);
+    const draft = state.ledgerDrafts.get(id) || todayIntakeDraft(row);
+    const rowClasses = [isEditing ? "today-row-editing" : "", isDirty ? "today-row-dirty" : ""]
+      .filter(Boolean)
+      .join(" ");
+    return `
+      <tr data-ledger-row="${escapeAttribute(id)}" class="${rowClasses}">
+        <td class="selection-cell"${canEdit ? "" : " hidden"}><input type="checkbox" data-ledger-select-id="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(row.transaction_id || "ledger row")}"${checked}${editing ? " disabled" : ""}></td>
+        <td>${escapeHtml(formatDateTime(row.collected_at))}</td>
+        <td><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
+        <td>${row.receipt_id ? `<a class="table-action-link" href="./receipt.html?id=${encodeURIComponent(row.receipt_id)}">${escapeHtml(row.receipt_number || "View")}</a>` : "-"}</td>
+        <td>${isEditing ? ledgerSelectControl(id, "community_id", draft.community_id, todayCommunityOptions(row)) : inlineCell([row.community_id, row.community_name_snapshot])}</td>
+        <td>${isEditing ? ledgerSelectControl(id, "farmer_id", draft.farmer_id, todayMemberOptions(row)) : inlineCell([row.farmer_id, row.farmer_name_snapshot])}</td>
+        <td>${isEditing ? ledgerTextControl(id, "sack_id", draft.sack_id, "today-sack-editor", 80) : escapeHtml(row.sack_id || "-")}</td>
+        <td>${isEditing ? ledgerNumberControl(id, "sack_weight_kg", draft.sack_weight_kg, "today-number-editor", 0.01, 0.01) : escapeHtml(formatKg(row.sack_weight_kg))}</td>
+        <td>${isEditing ? ledgerSelectControl(id, "seaweed_type", draft.seaweed_type, todaySeaweedTypeOptions(row)) : escapeHtml(formatSeaweedType(row.seaweed_type))}</td>
+        <td>${escapeHtml(formatDataLabel(row.product_form || "wet"))}</td>
+        <td>${isEditing ? ledgerSelectControl(id, "grade_code", draft.grade_code, todayGradeOptions(row)) : escapeHtml(row.seaweed_grade || "-")}</td>
+        <td>${isEditing ? ledgerNumberControl(id, "price_per_kg", draft.price_per_kg, "today-number-editor", 0.01, 0) : escapeHtml(formatMoney(row.price_per_kg))}</td>
+        <td data-ledger-total="${escapeAttribute(id)}">${escapeHtml(formatMoney(isEditing ? todayDraftTotal(draft, row.total_price) : row.total_price))}</td>
+        <td>${escapeHtml(formatCoordinatePair(row.gps_latitude, row.gps_longitude))}</td>
+        <td>${escapeHtml(photoCount(row.photo_urls))}</td>
+        <td>${isEditing ? ledgerTextControl(id, "notes", draft.notes, "today-notes-editor", 1000) : escapeHtml(row.notes || "-")}</td>
+        ${state.customLedgerFields.map((field) => `<td>${escapeHtml(formatCustomFieldValue(row.custom_fields?.[field.field_key], field))}</td>`).join("")}
+        <td>${inlineCell([collectorName(row), row.recorded_by_email])}</td>
+        <td>${escapeHtml(formatDateTime(row.created_at))}</td>
+      </tr>
+    `;
+  }).join("") || emptyRow(18 + state.customLedgerFields.length, "No ledger rows match the current filters.");
 
   const first = state.ledgerTotal ? state.ledgerPage * LEDGER_PAGE_SIZE + 1 : 0;
   const last = Math.min((state.ledgerPage + 1) * LEDGER_PAGE_SIZE, state.ledgerTotal);
   els.ledgerPageStatus.textContent = state.ledgerTotal
     ? `Rows ${first}-${last} of ${state.ledgerTotal}`
     : "No rows";
-  els.ledgerPrevPage.disabled = state.ledgerPage <= 0;
-  els.ledgerNextPage.disabled = (state.ledgerPage + 1) * LEDGER_PAGE_SIZE >= state.ledgerTotal;
+  els.ledgerPrevPage.disabled = editing || state.ledgerPage <= 0;
+  els.ledgerNextPage.disabled = editing || (state.ledgerPage + 1) * LEDGER_PAGE_SIZE >= state.ledgerTotal;
+  updateLedgerSelectionUi();
+}
+
+function handleLedgerTableChange(event) {
+  const checkbox = event.target.closest("[data-ledger-select-id]");
+  if (checkbox) {
+    if (state.editingLedgerIds.size) return;
+    if (checkbox.checked) state.selectedLedgerIds.add(checkbox.dataset.ledgerSelectId);
+    else state.selectedLedgerIds.delete(checkbox.dataset.ledgerSelectId);
+    updateLedgerSelectionUi();
+    return;
+  }
+  handleLedgerDraftInput(event);
+}
+
+function handleLedgerDraftInput(event) {
+  const control = event.target.closest("[data-ledger-field]");
+  if (!control) return;
+  const id = control.dataset.ledgerId;
+  const field = control.dataset.ledgerField;
+  const draft = state.ledgerDrafts.get(id);
+  if (!draft || !state.editingLedgerIds.has(id)) return;
+
+  draft[field] = control.value;
+  if (field === "farmer_id" && control.value) {
+    const member = state.members.find((row) => row.farmer_id === control.value);
+    if (member?.community_id) {
+      draft.community_id = member.community_id;
+      const communityControl = els.ledgerRows.querySelector(
+        `[data-ledger-id="${cssEscape(id)}"][data-ledger-field="community_id"]`
+      );
+      if (communityControl) communityControl.value = member.community_id;
+    }
+  }
+  if (field === "grade_code") {
+    const grade = state.gradeSettings.find((row) => row.grade === control.value);
+    if (grade) {
+      draft.price_per_kg = valueOrEmpty(grade.price_per_kg);
+      const priceControl = els.ledgerRows.querySelector(
+        `[data-ledger-id="${cssEscape(id)}"][data-ledger-field="price_per_kg"]`
+      );
+      if (priceControl) priceControl.value = draft.price_per_kg;
+    }
+  }
+  updateLedgerDraftRow(id);
+}
+
+function toggleAllLedgerRows() {
+  if (!els.ledgerSelectAll || state.editingLedgerIds.size || !canEditTodayIntake()) return;
+  state.selectedLedgerIds.clear();
+  if (els.ledgerSelectAll.checked) {
+    state.ledgerRows.forEach((row) => {
+      if (row.id) state.selectedLedgerIds.add(String(row.id));
+    });
+  }
+  document.querySelectorAll("[data-ledger-select-id]").forEach((checkbox) => {
+    checkbox.checked = els.ledgerSelectAll.checked;
+  });
+  updateLedgerSelectionUi();
+}
+
+function updateLedgerSelectionUi() {
+  if (!els.ledgerSelectedCount) return;
+  const canEdit = canEditTodayIntake();
+  const selected = state.selectedLedgerIds.size;
+  const total = state.ledgerRows.length;
+  const editing = state.editingLedgerIds.size > 0;
+  const dirty = state.dirtyLedgerIds.size;
+  els.ledgerSelectedCount.textContent = `${selected} selected`;
+  els.ledgerSelectedCount.className = selected ? "status-pill" : "status-pill status-muted";
+  if (els.ledgerEditActions) els.ledgerEditActions.hidden = !canEdit || selected === 0;
+  if (els.ledgerStartEdit) {
+    els.ledgerStartEdit.hidden = editing;
+    els.ledgerStartEdit.disabled = selected === 0;
+    els.ledgerStartEdit.textContent = `Edit${selected > 1 ? ` ${selected}` : ""}`;
+  }
+  if (els.ledgerSaveEdits) {
+    els.ledgerSaveEdits.hidden = !editing;
+    els.ledgerSaveEdits.disabled = dirty === 0;
+    els.ledgerSaveEdits.textContent = dirty ? `Save ${dirty}` : "Save";
+  }
+  if (els.ledgerDiscardEdits) els.ledgerDiscardEdits.hidden = !editing;
+  if (els.ledgerDeleteSelected) {
+    els.ledgerDeleteSelected.hidden = editing;
+    els.ledgerDeleteSelected.disabled = selected === 0;
+    els.ledgerDeleteSelected.textContent = selected > 1 ? `Delete ${selected}` : "Delete";
+  }
+  if (els.ledgerSelectionHeader) els.ledgerSelectionHeader.hidden = !canEdit;
+  if (els.ledgerSelectAll) {
+    els.ledgerSelectAll.checked = total > 0 && selected === total;
+    els.ledgerSelectAll.indeterminate = selected > 0 && selected < total;
+    els.ledgerSelectAll.disabled = !canEdit || editing || total === 0;
+  }
+  [
+    els.ledgerPeriodPreset, els.ledgerMonth, els.ledgerStartDate, els.ledgerEndDate,
+    els.ledgerCommunity, els.ledgerGrade, els.ledgerSearch, els.reloadLedger,
+    els.exportLedgerCsv
+  ].forEach((control) => { if (control) control.disabled = editing; });
+  document.querySelectorAll("[data-ledger-sort]").forEach((button) => { button.disabled = editing; });
+  if (els.ledgerPrevPage) els.ledgerPrevPage.disabled = editing || state.ledgerPage <= 0;
+  if (els.ledgerNextPage) els.ledgerNextPage.disabled = editing || (state.ledgerPage + 1) * LEDGER_PAGE_SIZE >= state.ledgerTotal;
+}
+
+function startLedgerEdit() {
+  if (!canEditTodayIntake() || !state.selectedLedgerIds.size) return;
+  state.editingLedgerIds = new Set(state.selectedLedgerIds);
+  state.dirtyLedgerIds.clear();
+  state.ledgerDrafts.clear();
+  state.ledgerRows.forEach((row) => {
+    const id = String(row.id || "");
+    if (state.editingLedgerIds.has(id)) state.ledgerDrafts.set(id, todayIntakeDraft(row));
+  });
+  renderLedger();
+  setLedgerActionStatus(`Editing ${state.editingLedgerIds.size} selected row${state.editingLedgerIds.size === 1 ? "" : "s"}.`);
+}
+
+function discardLedgerEdits() {
+  state.editingLedgerIds.clear();
+  state.dirtyLedgerIds.clear();
+  state.ledgerDrafts.clear();
+  renderLedger();
+  setLedgerActionStatus("Changes discarded. Nothing was saved.");
+}
+
+async function saveLedgerEdits() {
+  const updates = [...state.dirtyLedgerIds].map(ledgerUpdatePayload).filter(Boolean);
+  if (!updates.length) return;
+  els.ledgerSaveEdits.disabled = true;
+  els.ledgerDiscardEdits.disabled = true;
+  setLedgerActionStatus("Saving edits...");
+  try {
+    const result = await supabaseRpc(RPC.updateCollectionRows, { p_updates: updates });
+    const updatedCount = Number(result?.updated_count || result?.[0]?.updated_count || 0);
+    await loadLedger({ quiet: true });
+    setLedgerActionStatus(`Updated ${updatedCount} row${updatedCount === 1 ? "" : "s"}.`);
+  } catch (error) {
+    setLedgerActionStatus(writeErrorMessage(error), "error");
+  } finally {
+    els.ledgerSaveEdits.disabled = state.dirtyLedgerIds.size === 0;
+    els.ledgerDiscardEdits.disabled = false;
+  }
+}
+
+function ledgerUpdatePayload(id) {
+  const row = ledgerRow(id);
+  const draft = state.ledgerDrafts.get(id);
+  if (!row || !draft) return null;
+  const original = todayIntakeDraft(row);
+  const payload = { id };
+  if (row.updated_at) payload.expected_updated_at = row.updated_at;
+  Object.keys(original).forEach((field) => {
+    if (normalizeTodayDraftValue(field, draft[field]) === normalizeTodayDraftValue(field, original[field])) return;
+    payload[field] = ["sack_weight_kg", "price_per_kg"].includes(field)
+      ? optionalNumber(draft[field])
+      : nullableText(draft[field]);
+  });
+  return Object.keys(payload).some((field) => !["id", "expected_updated_at"].includes(field)) ? payload : null;
+}
+
+function updateLedgerDraftRow(id) {
+  const row = ledgerRow(id);
+  const draft = state.ledgerDrafts.get(id);
+  const tableRow = els.ledgerRows.querySelector(`[data-ledger-row="${cssEscape(id)}"]`);
+  if (!row || !draft || !tableRow) return;
+  const dirty = todayDraftChanged(row, draft);
+  if (dirty) state.dirtyLedgerIds.add(id);
+  else state.dirtyLedgerIds.delete(id);
+  tableRow.classList.toggle("today-row-dirty", dirty);
+  const totalCell = tableRow.querySelector(`[data-ledger-total="${cssEscape(id)}"]`);
+  if (totalCell) totalCell.textContent = formatMoney(todayDraftTotal(draft, row.total_price));
+  updateLedgerSelectionUi();
+}
+
+async function deleteLedgerSelection() {
+  if (!canEditTodayIntake() || state.editingLedgerIds.size || !state.selectedLedgerIds.size) return;
+  const rows = state.ledgerRows.filter((row) => state.selectedLedgerIds.has(String(row.id || "")));
+  if (!rows.length) return;
+  const label = `${rows.length} selected ledger row${rows.length === 1 ? "" : "s"}`;
+  if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
+  els.ledgerDeleteSelected.disabled = true;
+  setLedgerActionStatus(`Deleting ${label}...`);
+  try {
+    const result = await deleteCollectionRows(rows);
+    const deletedCount = Number(result.deleted_count || rows.length);
+    if (state.ledgerPage > 0 && state.ledgerRows.length === deletedCount) state.ledgerPage -= 1;
+    await loadLedger({ quiet: true });
+    const cleanupNote = result.photo_cleanup_pending ? " Photo cleanup will be retried." : "";
+    setLedgerActionStatus(`Deleted ${deletedCount} row${deletedCount === 1 ? "" : "s"}.${cleanupNote}`);
+  } catch (error) {
+    setLedgerActionStatus(writeErrorMessage(error), "error");
+    updateLedgerSelectionUi();
+  }
+}
+
+function ledgerRow(id) {
+  return state.ledgerRows.find((row) => String(row.id || "") === String(id)) || null;
+}
+
+function resetLedgerEditState() {
+  state.selectedLedgerIds.clear();
+  state.editingLedgerIds.clear();
+  state.dirtyLedgerIds.clear();
+  state.ledgerDrafts.clear();
+}
+
+function ledgerSelectControl(id, field, selectedValue, options) {
+  const selected = String(selectedValue || "");
+  return `<select class="today-inline-editor" data-ledger-id="${escapeAttribute(id)}" data-ledger-field="${escapeAttribute(field)}">${options.map(([value, label]) => `<option value="${escapeAttribute(value)}"${String(value) === selected ? " selected" : ""}>${escapeHtml(label || value || "-")}</option>`).join("")}</select>`;
+}
+
+function ledgerTextControl(id, field, value, className, maxLength) {
+  return `<input class="today-inline-editor ${escapeAttribute(className)}" type="text" data-ledger-id="${escapeAttribute(id)}" data-ledger-field="${escapeAttribute(field)}" value="${escapeAttribute(value)}" maxlength="${maxLength}">`;
+}
+
+function ledgerNumberControl(id, field, value, className, step, min) {
+  return `<input class="today-inline-editor ${escapeAttribute(className)}" type="number" inputmode="decimal" data-ledger-id="${escapeAttribute(id)}" data-ledger-field="${escapeAttribute(field)}" value="${escapeAttribute(value)}" step="${step}" min="${min}">`;
+}
+
+function setLedgerActionStatus(message, type = "") {
+  if (!els.ledgerActionStatus) return;
+  els.ledgerActionStatus.textContent = message || "";
+  els.ledgerActionStatus.dataset.status = type;
 }
 
 function renderLedgerCustomHeaders() {
