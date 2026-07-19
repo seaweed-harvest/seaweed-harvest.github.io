@@ -51,6 +51,10 @@ const state = {
   ledgerPage: 0,
   ledgerSort: "collected_at",
   ledgerDirection: "desc",
+  ledgerView: "all",
+  selectedLedgerCommunityIds: new Set(),
+  ledgerReloadTimer: null,
+  ledgerLoadSequence: 0,
   selectedLedgerIds: new Set(),
   editingLedgerIds: new Set(),
   dirtyLedgerIds: new Set(),
@@ -168,14 +172,27 @@ function cacheElements() {
     "todaySelectAll",
     "todayIntakeRows",
     "ledgerCount",
+    "ledgerViewTabs",
+    "ledgerAllView",
+    "ledgerMonthlyView",
+    "ledgerCommunityView",
+    "ledgerCommunityCount",
+    "ledgerActiveCommunityCount",
+    "ledgerActiveCommunityRows",
+    "ledgerInactiveCommunities",
+    "ledgerInactiveCommunityCount",
+    "ledgerInactiveCommunityRows",
     "ledgerPeriodPreset",
     "ledgerMonth",
     "ledgerStartDate",
     "ledgerEndDate",
     "ledgerCommunity",
+    "ledgerCommunityFilter",
+    "ledgerCommunitySummary",
+    "ledgerCommunityClear",
+    "ledgerCommunityOptions",
     "ledgerGrade",
     "ledgerSearch",
-    "reloadLedger",
     "exportLedgerCsv",
     "ledgerPrevPage",
     "ledgerNextPage",
@@ -202,6 +219,7 @@ function hasAdminDataView() {
 function setDefaultControls() {
   const now = new Date();
   const currentYear = now.getFullYear();
+  const params = new URLSearchParams(window.location.search);
 
   if (els.monthlyYear) els.monthlyYear.value = String(currentYear);
   if (els.communityMonth) els.communityMonth.value = "";
@@ -214,6 +232,14 @@ function setDefaultControls() {
   }
   if (els.ledgerStartDate) els.ledgerStartDate.value = "";
   if (els.ledgerEndDate) els.ledgerEndDate.value = "";
+  if (els.ledgerPeriodPreset && ["7", "30", "this_month", "month", "custom", "all"].includes(params.get("period"))) {
+    els.ledgerPeriodPreset.value = params.get("period");
+  }
+  if (els.ledgerMonth && /^\d{4}-\d{2}$/.test(params.get("month") || "")) els.ledgerMonth.value = params.get("month");
+  if (els.ledgerStartDate && /^\d{4}-\d{2}-\d{2}$/.test(params.get("from") || "")) els.ledgerStartDate.value = params.get("from");
+  if (els.ledgerEndDate && /^\d{4}-\d{2}-\d{2}$/.test(params.get("to") || "")) els.ledgerEndDate.value = params.get("to");
+  if (els.ledgerSearch && params.get("search")) els.ledgerSearch.value = params.get("search");
+  if (els.ledgerViewTabs) setLedgerView(params.get("view") || "all", { syncUrl: false });
   if (els.todayIntakeDate) els.todayIntakeDate.value = kenyaDateInputValue(now);
 }
 
@@ -234,6 +260,24 @@ function bindEvents() {
   els.mappedCommunityList?.addEventListener("click", focusMapMarkerFromEvent);
   els.mappedCommunityList?.addEventListener("keydown", focusMapMarkerFromEvent);
   els.reloadMonthly?.addEventListener("click", () => loadMonthly());
+  els.monthlyRows?.addEventListener("click", openLedgerMonthFromEvent);
+  els.ledgerCommunityView?.addEventListener("click", openLedgerCommunityFromEvent);
+  els.ledgerViewTabs?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-ledger-view]");
+    if (!button || state.editingLedgerIds.size) return;
+    setLedgerView(button.dataset.ledgerView);
+  });
+  els.ledgerViewTabs?.addEventListener("keydown", handleLedgerViewKeydown);
+  [
+    els.ledgerPeriodPreset,
+    els.ledgerMonth,
+    els.ledgerStartDate,
+    els.ledgerEndDate,
+    els.ledgerGrade
+  ].forEach((control) => control?.addEventListener("change", () => scheduleLedgerReload()));
+  els.ledgerSearch?.addEventListener("input", () => scheduleLedgerReload(350));
+  els.ledgerCommunityOptions?.addEventListener("change", handleLedgerCommunityFilterChange);
+  els.ledgerCommunityClear?.addEventListener("click", clearLedgerCommunityFilter);
   els.reloadCommunitySummary?.addEventListener("click", () => {
     state.communityRecordPage = 0;
     syncCommunitySummaryUrl();
@@ -270,11 +314,6 @@ function bindEvents() {
   els.ledgerSaveEdits?.addEventListener("click", saveLedgerEdits);
   els.ledgerDiscardEdits?.addEventListener("click", discardLedgerEdits);
   els.ledgerDeleteSelected?.addEventListener("click", deleteLedgerSelection);
-  els.reloadLedger?.addEventListener("click", () => {
-    if (state.editingLedgerIds.size) return;
-    state.ledgerPage = 0;
-    loadLedger();
-  });
   els.ledgerPrevPage?.addEventListener("click", () => {
     if (state.editingLedgerIds.size || state.ledgerPage <= 0) return;
     state.ledgerPage -= 1;
@@ -441,6 +480,8 @@ function setupAdminSidebar(profile) {
 }
 
 function addAdminSidebarLinks(sidebar) {
+  sidebar.querySelectorAll('a[href="./admin_monthly.html"], a[href="./admin_community.html"]').forEach((link) => link.remove());
+
   const dashboard = sidebar.querySelector('a[href="./admin.html"]');
   if (dashboard && !sidebar.querySelector('a[href="./collection.html"]')) {
     dashboard.insertAdjacentHTML(
@@ -611,6 +652,7 @@ async function loadAdminData() {
     renderMemberRegistry();
     renderCommunityRegistry();
     renderMapSection();
+    renderLedgerCommunityIndex();
     await Promise.all([
       loadMonthly({ quiet: true }),
       loadCommunitySummary({ quiet: true }),
@@ -1122,6 +1164,7 @@ function pluralize(label, count) {
 }
 
 function renderSelectors() {
+  const params = new URLSearchParams(window.location.search);
   const communityOptions = [
     ["", "All communities"],
     ...state.communities.map((community) => [
@@ -1131,7 +1174,10 @@ function renderSelectors() {
   ];
 
   if (els.monthlyCommunity) setSelectOptions(els.monthlyCommunity, communityOptions, els.monthlyCommunity.value);
-  if (els.ledgerCommunity) setSelectOptions(els.ledgerCommunity, communityOptions, els.ledgerCommunity.value);
+  if (els.ledgerCommunity) {
+    const requestedCommunities = els.ledgerCommunity.value || params.get("community") || "";
+    setLedgerCommunities(parseLedgerCommunityIds(requestedCommunities));
+  }
   if (els.communitySummarySelect) setSelectOptions(els.communitySummarySelect, communityOptions, selectedCommunityValue());
 
   const gradeOptions = state.gradeSettings.map((grade) => [
@@ -1139,7 +1185,9 @@ function renderSelectors() {
     [grade.grade, grade.label && grade.label !== grade.grade ? grade.label : "", grade.rejected ? "Rejected" : ""].filter(Boolean).join(" - ")
   ]);
   if (els.monthlyGrade) setSelectOptions(els.monthlyGrade, [["", "All grades"], ...gradeOptions], els.monthlyGrade.value);
-  if (els.ledgerGrade) setSelectOptions(els.ledgerGrade, [["", "All grades"], ...gradeOptions], els.ledgerGrade.value);
+  if (els.ledgerGrade) {
+    setSelectOptions(els.ledgerGrade, [["", "All grades"], ...gradeOptions], els.ledgerGrade.value || params.get("grade") || "");
+  }
 }
 
 function selectedCommunityValue() {
@@ -1163,8 +1211,12 @@ function syncCommunitySummaryUrl() {
 }
 
 function communityRecordsUrl(communityId) {
-  const params = new URLSearchParams({ community: String(communityId || ""), period: "all" });
-  return `./admin_community.html?${params.toString()}`;
+  const params = new URLSearchParams({
+    view: "all",
+    community: String(communityId || ""),
+    period: "all"
+  });
+  return `./admin_ledger.html?${params.toString()}`;
 }
 
 async function loadMonthly(options = {}) {
@@ -1191,7 +1243,9 @@ function renderMonthly() {
   els.monthlyCount.textContent = `${state.monthlyRows.length} rows`;
   els.monthlyRows.innerHTML = state.monthlyRows.map((row) => `
     <tr>
-      <td><strong>${escapeHtml(row.month_label || formatMonth(row.month_start))}</strong></td>
+      <td>${els.ledgerMonthlyView
+        ? `<button class="ledger-summary-link" type="button" data-ledger-month="${escapeAttribute(ledgerMonthValue(row.month_start))}">${escapeHtml(row.month_label || formatMonth(row.month_start))}</button>`
+        : `<strong>${escapeHtml(row.month_label || formatMonth(row.month_start))}</strong>`}</td>
       <td>${escapeHtml(formatInteger(row.collection_count))}</td>
       <td>${escapeHtml(formatInteger(row.active_collecting_members))}</td>
       <td>${escapeHtml(formatInteger(row.communities_collected))}</td>
@@ -1206,6 +1260,215 @@ function renderMonthly() {
       <td>${escapeHtml(formatDate(row.last_collection_at))}</td>
     </tr>
   `).join("") || emptyRow(13, "No monthly rows for the selected filters.");
+}
+
+function setLedgerView(requestedView, options = {}) {
+  if (!els.ledgerViewTabs) return;
+  const view = ["all", "monthly", "community"].includes(requestedView) ? requestedView : "all";
+  state.ledgerView = view;
+
+  const panels = {
+    all: els.ledgerAllView,
+    monthly: els.ledgerMonthlyView,
+    community: els.ledgerCommunityView
+  };
+  Object.entries(panels).forEach(([key, panel]) => {
+    if (panel) panel.hidden = key !== view;
+  });
+  els.ledgerViewTabs.querySelectorAll("[data-ledger-view]").forEach((button) => {
+    const selected = button.dataset.ledgerView === view;
+    button.setAttribute("aria-selected", String(selected));
+    button.tabIndex = selected ? 0 : -1;
+  });
+  if (els.ledgerCount) els.ledgerCount.hidden = view !== "all";
+  if (view === "community") renderLedgerCommunityIndex();
+  if (options.syncUrl !== false) syncLedgerUrl();
+}
+
+function handleLedgerViewKeydown(event) {
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  const tabs = [...els.ledgerViewTabs.querySelectorAll("[data-ledger-view]")];
+  const currentIndex = tabs.indexOf(event.target.closest("[data-ledger-view]"));
+  if (currentIndex < 0) return;
+  event.preventDefault();
+  let nextIndex = event.key === "Home" ? 0 : tabs.length - 1;
+  if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+  if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabs.length;
+  setLedgerView(tabs[nextIndex].dataset.ledgerView);
+  tabs[nextIndex].focus();
+}
+
+function syncLedgerUrl() {
+  if (!els.ledgerViewTabs) return;
+  const url = new URL(window.location.href);
+  setUrlFilter(url, "view", state.ledgerView === "all" ? "" : state.ledgerView);
+  setUrlFilter(url, "period", els.ledgerPeriodPreset?.value === "30" ? "" : els.ledgerPeriodPreset?.value);
+  setUrlFilter(url, "month", els.ledgerMonth?.value);
+  setUrlFilter(url, "from", els.ledgerStartDate?.value);
+  setUrlFilter(url, "to", els.ledgerEndDate?.value);
+  setUrlFilter(url, "community", els.ledgerCommunity?.value);
+  setUrlFilter(url, "grade", els.ledgerGrade?.value);
+  setUrlFilter(url, "search", sanitizeSearchTerm(els.ledgerSearch?.value));
+  window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+function setUrlFilter(url, key, value) {
+  const normalized = String(value || "").trim();
+  if (normalized) url.searchParams.set(key, normalized);
+  else url.searchParams.delete(key);
+}
+
+function parseLedgerCommunityIds(value) {
+  return [...new Set(String(value || "")
+    .split(",")
+    .map((communityId) => communityId.trim().toUpperCase())
+    .filter(Boolean))];
+}
+
+function setLedgerCommunities(communityIds) {
+  if (!els.ledgerCommunity) return;
+  const requested = new Set(parseLedgerCommunityIds(communityIds));
+  state.selectedLedgerCommunityIds = new Set(state.communities
+    .map((community) => String(community.community_id || ""))
+    .filter((communityId) => requested.has(communityId.toUpperCase())));
+  renderLedgerCommunityFilter();
+}
+
+function renderLedgerCommunityFilter() {
+  if (!els.ledgerCommunityOptions || !els.ledgerCommunitySummary) return;
+  els.ledgerCommunityOptions.innerHTML = state.communities.map((community) => {
+    const communityId = String(community.community_id || "");
+    const checked = state.selectedLedgerCommunityIds.has(communityId) ? " checked" : "";
+    return `<label><input type="checkbox" value="${escapeAttribute(communityId)}" data-ledger-community-option${checked}> <span>${escapeHtml(communityLabel(community))}</span></label>`;
+  }).join("") || '<p class="field-hint">No communities available.</p>';
+  syncLedgerCommunityControl();
+}
+
+function syncLedgerCommunityControl() {
+  if (!els.ledgerCommunity || !els.ledgerCommunitySummary) return;
+  const selectedIds = state.communities
+    .map((community) => String(community.community_id || ""))
+    .filter((communityId) => state.selectedLedgerCommunityIds.has(communityId));
+  els.ledgerCommunity.value = selectedIds.join(",");
+  const selectedCommunities = state.communities.filter((community) => (
+    state.selectedLedgerCommunityIds.has(String(community.community_id || ""))
+  ));
+  const summary = selectedCommunities.length === 0
+    ? "All communities"
+    : selectedCommunities.length === 1
+      ? communityLabel(selectedCommunities[0])
+      : `${selectedCommunities.length} communities`;
+  els.ledgerCommunitySummary.textContent = summary;
+  els.ledgerCommunitySummary.title = selectedCommunities.length > 1
+    ? selectedCommunities.map(communityLabel).join(", ")
+    : summary;
+  if (els.ledgerCommunityClear) els.ledgerCommunityClear.disabled = selectedCommunities.length === 0;
+}
+
+function handleLedgerCommunityFilterChange(event) {
+  const checkbox = event.target.closest("[data-ledger-community-option]");
+  if (!checkbox || state.editingLedgerIds.size) return;
+  if (checkbox.checked) state.selectedLedgerCommunityIds.add(checkbox.value);
+  else state.selectedLedgerCommunityIds.delete(checkbox.value);
+  syncLedgerCommunityControl();
+  scheduleLedgerReload(150);
+}
+
+function clearLedgerCommunityFilter() {
+  if (state.editingLedgerIds.size || state.selectedLedgerCommunityIds.size === 0) return;
+  state.selectedLedgerCommunityIds.clear();
+  els.ledgerCommunityOptions.querySelectorAll("[data-ledger-community-option]").forEach((checkbox) => {
+    checkbox.checked = false;
+  });
+  syncLedgerCommunityControl();
+  scheduleLedgerReload();
+}
+
+function scheduleLedgerReload(delay = 0) {
+  if (!els.ledgerRows || state.editingLedgerIds.size) return;
+  window.clearTimeout(state.ledgerReloadTimer);
+  state.ledgerReloadTimer = window.setTimeout(() => {
+    state.ledgerPage = 0;
+    syncLedgerUrl();
+    loadLedger();
+  }, delay);
+}
+
+function openLedgerMonthFromEvent(event) {
+  const button = event.target.closest("[data-ledger-month]");
+  if (!button || !els.ledgerMonthlyView || state.editingLedgerIds.size) return;
+  const month = button.dataset.ledgerMonth;
+  if (!/^\d{4}-\d{2}$/.test(month)) return;
+
+  els.ledgerPeriodPreset.value = "month";
+  els.ledgerMonth.value = month;
+  els.ledgerStartDate.value = "";
+  els.ledgerEndDate.value = "";
+  setLedgerCommunities(els.monthlyCommunity?.value || "");
+  els.ledgerGrade.value = els.monthlyGrade?.value || "";
+  els.ledgerSearch.value = "";
+  state.ledgerPage = 0;
+  setLedgerView("all", { syncUrl: false });
+  syncLedgerUrl();
+  els.ledgerViewTabs.querySelector('[data-ledger-view="all"]')?.focus();
+  setLedgerActionStatus(`Showing collection records for ${formatMonth(`${month}-01`)}.`);
+  loadLedger({ quiet: true });
+}
+
+function ledgerMonthValue(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})/);
+  if (match) return `${match[1]}-${match[2]}`;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : monthInputValue(date);
+}
+
+function renderLedgerCommunityIndex() {
+  if (!els.ledgerActiveCommunityRows || !els.ledgerInactiveCommunityRows) return;
+  const active = state.communities.filter((community) => Number(community.collection_count || 0) > 0);
+  const inactive = state.communities.filter((community) => Number(community.collection_count || 0) === 0);
+
+  els.ledgerCommunityCount.textContent = `${state.communities.length} communit${state.communities.length === 1 ? "y" : "ies"}`;
+  els.ledgerActiveCommunityCount.textContent = `${active.length} active`;
+  els.ledgerInactiveCommunityCount.textContent = `${inactive.length}`;
+  els.ledgerActiveCommunityRows.innerHTML = active.map((community) => `
+    <tr>
+      <td><button class="ledger-summary-link" type="button" data-ledger-community="${escapeAttribute(community.community_id)}">${escapeHtml(communityLabel(community))}</button></td>
+      <td>${escapeHtml(formatInteger(community.collection_count))}</td>
+      <td>${escapeHtml(formatInteger(community.active_collecting_members))}</td>
+      <td>${escapeHtml(formatKg(community.total_weight_kg))}</td>
+      <td>${escapeHtml(formatDate(community.first_collection_at))}</td>
+      <td>${escapeHtml(formatDate(community.last_collection_at))}</td>
+    </tr>
+  `).join("") || emptyRow(6, "No communities have collection records yet.");
+  els.ledgerInactiveCommunityRows.innerHTML = inactive.map((community) => `
+    <tr>
+      <td><button class="ledger-summary-link" type="button" data-ledger-community="${escapeAttribute(community.community_id)}">${escapeHtml(communityLabel(community))}</button></td>
+      <td>${escapeHtml(formatInteger(community.member_count))}</td>
+      <td>0</td>
+    </tr>
+  `).join("") || emptyRow(3, "No inactive communities.");
+}
+
+function openLedgerCommunityFromEvent(event) {
+  const button = event.target.closest("[data-ledger-community]");
+  if (!button || state.editingLedgerIds.size) return;
+  const communityId = button.dataset.ledgerCommunity;
+  if (!communityId) return;
+
+  els.ledgerPeriodPreset.value = "all";
+  els.ledgerMonth.value = "";
+  els.ledgerStartDate.value = "";
+  els.ledgerEndDate.value = "";
+  setLedgerCommunities(communityId);
+  els.ledgerGrade.value = "";
+  els.ledgerSearch.value = "";
+  state.ledgerPage = 0;
+  setLedgerView("all", { syncUrl: false });
+  syncLedgerUrl();
+  els.ledgerViewTabs.querySelector('[data-ledger-view="all"]')?.focus();
+  const community = state.communities.find((row) => row.community_id === communityId);
+  setLedgerActionStatus(`Showing all collection records for ${communityLabel(community || { community_id: communityId })}.`);
+  loadLedger({ quiet: true });
 }
 
 async function loadCommunitySummary(options = {}) {
@@ -1948,6 +2211,7 @@ async function deleteCollectionRows(rows) {
 
 async function loadLedger(options = {}) {
   if (!els.ledgerRows) return;
+  const loadSequence = ++state.ledgerLoadSequence;
   resetLedgerEditState();
   updateLedgerSelectionUi();
   if (!options.quiet) {
@@ -1958,11 +2222,13 @@ async function loadLedger(options = {}) {
   try {
     const payload = buildLedgerPayload(LEDGER_PAGE_SIZE, state.ledgerPage * LEDGER_PAGE_SIZE);
     const resultRows = await supabaseRpc(RPC.ledger, payload);
+    if (loadSequence !== state.ledgerLoadSequence) return;
     const result = resultRows[0] || {};
     state.ledgerRows = Array.isArray(result.rows) ? result.rows : [];
     state.ledgerTotal = Number(result.total_count || 0);
     renderLedger();
   } catch (error) {
+    if (loadSequence !== state.ledgerLoadSequence) return;
     state.ledgerRows = [];
     els.ledgerRows.innerHTML = emptyRow(18 + state.customLedgerFields.length, writeErrorMessage(error));
     els.ledgerCount.textContent = "Error";
@@ -1992,8 +2258,6 @@ function renderLedger() {
       <tr data-ledger-row="${escapeAttribute(id)}" class="${rowClasses}">
         <td class="selection-cell"${canEdit ? "" : " hidden"}><input type="checkbox" data-ledger-select-id="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(row.transaction_id || "ledger row")}"${checked}${editing ? " disabled" : ""}></td>
         <td>${escapeHtml(formatDateTime(row.collected_at))}</td>
-        <td><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
-        <td>${row.receipt_id ? `<a class="table-action-link" href="./receipt.html?id=${encodeURIComponent(row.receipt_id)}">${escapeHtml(row.receipt_number || "View")}</a>` : "-"}</td>
         <td>${isEditing ? ledgerSelectControl(id, "community_id", draft.community_id, todayCommunityOptions(row)) : inlineCell([row.community_id, row.community_name_snapshot])}</td>
         <td>${isEditing ? ledgerSelectControl(id, "farmer_id", draft.farmer_id, todayMemberOptions(row)) : inlineCell([row.farmer_id, row.farmer_name_snapshot])}</td>
         <td>${isEditing ? ledgerTextControl(id, "sack_id", draft.sack_id, "today-sack-editor", 80) : escapeHtml(row.sack_id || "-")}</td>
@@ -2008,6 +2272,8 @@ function renderLedger() {
         <td>${isEditing ? ledgerTextControl(id, "notes", draft.notes, "today-notes-editor", 1000) : escapeHtml(row.notes || "-")}</td>
         ${state.customLedgerFields.map((field) => `<td>${escapeHtml(formatCustomFieldValue(row.custom_fields?.[field.field_key], field))}</td>`).join("")}
         <td>${inlineCell([collectorName(row), row.recorded_by_email])}</td>
+        <td><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
+        <td>${row.receipt_id ? `<a class="table-action-link" href="./receipt.html?id=${encodeURIComponent(row.receipt_id)}">${escapeHtml(row.receipt_number || "View")}</a>` : "-"}</td>
         <td>${escapeHtml(formatDateTime(row.created_at))}</td>
       </tr>
     `;
@@ -2115,10 +2381,13 @@ function updateLedgerSelectionUi() {
   }
   [
     els.ledgerPeriodPreset, els.ledgerMonth, els.ledgerStartDate, els.ledgerEndDate,
-    els.ledgerCommunity, els.ledgerGrade, els.ledgerSearch, els.reloadLedger,
-    els.exportLedgerCsv
+    els.ledgerGrade, els.ledgerSearch, els.exportLedgerCsv
   ].forEach((control) => { if (control) control.disabled = editing; });
+  els.ledgerCommunityFilter?.classList.toggle("is-disabled", editing);
+  els.ledgerCommunityFilter?.querySelectorAll("input, button").forEach((control) => { control.disabled = editing; });
+  if (editing && els.ledgerCommunityFilter) els.ledgerCommunityFilter.open = false;
   document.querySelectorAll("[data-ledger-sort]").forEach((button) => { button.disabled = editing; });
+  els.ledgerViewTabs?.querySelectorAll("[data-ledger-view]").forEach((button) => { button.disabled = editing; });
   if (els.ledgerPrevPage) els.ledgerPrevPage.disabled = editing || state.ledgerPage <= 0;
   if (els.ledgerNextPage) els.ledgerNextPage.disabled = editing || (state.ledgerPage + 1) * LEDGER_PAGE_SIZE >= state.ledgerTotal;
 }
@@ -2462,8 +2731,6 @@ function rowsToCsv(rows) {
   const customHeaders = state.customLedgerFields.map((field) => `custom_${field.field_key}`);
   const headers = [
     "collected_at",
-    "transaction_id",
-    "receipt_number",
     "community_id",
     "community_name",
     "farmer_id",
@@ -2483,14 +2750,14 @@ function rowsToCsv(rows) {
     "recorded_by_name",
     "recorded_by_email",
     "recorded_access_type",
+    "transaction_id",
+    "receipt_number",
     "created_at"
   ];
   const lines = [headers.join(",")];
   rows.forEach((row) => {
     lines.push([
       row.collected_at,
-      row.transaction_id,
-      row.receipt_number,
       row.community_id,
       row.community_name_snapshot,
       row.farmer_id,
@@ -2510,6 +2777,8 @@ function rowsToCsv(rows) {
       row.recorded_by_name,
       row.recorded_by_email,
       row.recorded_access_type,
+      row.transaction_id,
+      row.receipt_number,
       row.created_at
     ].map(csvCell).join(","));
   });

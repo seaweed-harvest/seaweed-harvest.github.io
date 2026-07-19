@@ -36,8 +36,6 @@
       <a href="./admin_map.html">Community Map</a>
       <p class="admin-menu-heading">Data</p>
       <a href="./admin_today.html">Today's Intake</a>
-      <a href="./admin_monthly.html">Monthly</a>
-      <a href="./admin_community.html">Per Community</a>
       <a href="./admin_ledger.html" aria-current="page">Collection Ledger</a>
       <p class="admin-menu-heading">Tools</p>
       <a href="./tags.html">Tags</a>
@@ -45,98 +43,216 @@
 
     <section class="admin-content">
       <section class="panel admin-page-section">
-        <div class="section-head compact admin-section-title">
-          <h2>Collection Ledger</h2>
+        <div class="section-head compact admin-section-title ledger-view-header">
+          <div class="ledger-title-and-tabs">
+            <h2>Collection Ledger</h2>
+            <nav id="ledgerViewTabs" class="ledger-view-tabs" aria-label="Collection ledger views" role="tablist">
+              <button id="ledgerAllTab" type="button" role="tab" aria-controls="ledgerAllView" data-ledger-view="all">All records</button>
+              <button id="ledgerMonthlyTab" type="button" role="tab" aria-controls="ledgerMonthlyView" data-ledger-view="monthly">Monthly records</button>
+              <button id="ledgerCommunityTab" type="button" role="tab" aria-controls="ledgerCommunityView" data-ledger-view="community">Community records</button>
+            </nav>
+          </div>
           <span id="ledgerCount" class="status-pill">0 rows</span>
         </div>
         <div class="admin-card-body standalone">
-          <div class="admin-toolbar admin-filter-grid">
-            <label>
-              Period
-              <select id="ledgerPeriodPreset">
-                <option value="30">Last 30 days</option>
-                <option value="7">Last 7 days</option>
-                <option value="this_month">This month</option>
-                <option value="month">Selected month</option>
-                <option value="custom">Custom dates</option>
-                <option value="all">Search all records</option>
-              </select>
-            </label>
-            <label>
-              Month
-              <input id="ledgerMonth" type="month">
-            </label>
-            <label>
-              From
-              <input id="ledgerStartDate" type="date">
-            </label>
-            <label>
-              To
-              <input id="ledgerEndDate" type="date">
-            </label>
-            <label>
-              Community
-              <select id="ledgerCommunity"></select>
-            </label>
-            <label>
-              Grade
-              <select id="ledgerGrade">
-                <option value="">All grades</option>
-                <option value="A">A</option>
-                <option value="B">B</option>
-                <option value="C">C</option>
-              </select>
-            </label>
-            <label>
-              Search
-              <input id="ledgerSearch" type="search" autocomplete="off" placeholder="Member, sack, transaction">
-            </label>
-            <button id="reloadLedger" type="button">Load</button>
-            <button id="exportLedgerCsv" type="button">Export CSV</button>
-          </div>
+          <section id="ledgerAllView" class="ledger-view-panel" role="tabpanel" aria-labelledby="ledgerAllTab">
+            <div class="admin-toolbar admin-filter-grid ledger-filter-grid">
+              <label>
+                Period
+                <select id="ledgerPeriodPreset">
+                  <option value="30">Last 30 days</option>
+                  <option value="7">Last 7 days</option>
+                  <option value="this_month">This month</option>
+                  <option value="month">Selected month</option>
+                  <option value="custom">Custom dates</option>
+                  <option value="all">Search all records</option>
+                </select>
+              </label>
+              <label>
+                Month
+                <input id="ledgerMonth" type="month">
+              </label>
+              <label>
+                From
+                <input id="ledgerStartDate" type="date">
+              </label>
+              <label>
+                To
+                <input id="ledgerEndDate" type="date">
+              </label>
+              <fieldset class="ledger-community-filter-field">
+                <legend>Community</legend>
+                <input id="ledgerCommunity" type="hidden" value="">
+                <details id="ledgerCommunityFilter" class="ledger-community-filter">
+                  <summary id="ledgerCommunitySummary">All communities</summary>
+                  <div class="ledger-community-filter-menu">
+                    <button id="ledgerCommunityClear" class="ledger-community-clear" type="button">Clear selection</button>
+                    <div id="ledgerCommunityOptions" class="ledger-community-options" role="group" aria-label="Filter by communities"></div>
+                  </div>
+                </details>
+              </fieldset>
+              <label>
+                Grade
+                <select id="ledgerGrade">
+                  <option value="">All grades</option>
+                  <option value="A">A</option>
+                  <option value="B">B</option>
+                  <option value="C">C</option>
+                </select>
+              </label>
+              <label>
+                Search
+                <input id="ledgerSearch" type="search" autocomplete="off" placeholder="Member, sack, transaction">
+              </label>
+              <button id="exportLedgerCsv" type="button">Export CSV</button>
+            </div>
 
-          <div class="ledger-pagination">
-            <button id="ledgerPrevPage" type="button">Previous</button>
-            <span id="ledgerPageStatus" class="admin-status">Page 1</span>
-            <button id="ledgerNextPage" type="button">Next</button>
-          </div>
+            <div class="ledger-pagination">
+              <button id="ledgerPrevPage" type="button">Previous</button>
+              <span id="ledgerPageStatus" class="admin-status">Page 1</span>
+              <button id="ledgerNextPage" type="button">Next</button>
+            </div>
 
-          <div id="ledgerEditActions" class="today-edit-actions" hidden>
-            <span id="ledgerSelectedCount" class="status-pill">0 selected</span>
-            <button id="ledgerStartEdit" type="button">Edit</button>
-            <button id="ledgerSaveEdits" type="button" hidden disabled>Save</button>
-            <button id="ledgerDiscardEdits" type="button" hidden>Discard changes</button>
-            <button id="ledgerDeleteSelected" class="danger-button" type="button">Delete</button>
-          </div>
-          <span id="ledgerActionStatus" class="admin-status ledger-action-status" aria-live="polite"></span>
+            <div id="ledgerEditActions" class="today-edit-actions" hidden>
+              <span id="ledgerSelectedCount" class="status-pill">0 selected</span>
+              <button id="ledgerStartEdit" type="button">Edit</button>
+              <button id="ledgerSaveEdits" type="button" hidden disabled>Save</button>
+              <button id="ledgerDiscardEdits" type="button" hidden>Discard changes</button>
+              <button id="ledgerDeleteSelected" class="danger-button" type="button">Delete</button>
+            </div>
+            <span id="ledgerActionStatus" class="admin-status ledger-action-status" aria-live="polite"></span>
 
-          <div class="responsive-table-wrap">
-            <table class="management-table admin-data-table ledger-table">
-              <thead>
-                <tr>
-                  <th id="ledgerSelectionHeader" class="selection-cell"><input id="ledgerSelectAll" type="checkbox" aria-label="Select all visible ledger rows"></th>
-                  <th><button type="button" data-ledger-sort="collected_at">Collected</button></th>
-                  <th><button type="button" data-ledger-sort="transaction_id">Transaction</button></th>
-                  <th>Receipt</th>
-                  <th><button type="button" data-ledger-sort="community_id">Community</button></th>
-                  <th><button type="button" data-ledger-sort="farmer_id">Member</button></th>
-                  <th><button type="button" data-ledger-sort="sack_id">Sack ID</button></th>
-                  <th><button type="button" data-ledger-sort="sack_weight_kg">Weight kg</button></th>
-                  <th><button type="button" data-ledger-sort="seaweed_type">Type</button></th>
-                  <th>Form</th>
-                  <th><button type="button" data-ledger-sort="seaweed_grade">Grade</button></th>
-                  <th><button type="button" data-ledger-sort="price_per_kg">Price/kg</button></th>
-                  <th><button type="button" data-ledger-sort="total_price">Total KSH</button></th>
-                  <th>GPS</th>
-                  <th>Photos</th>
-                  <th>Notes</th>
-                  <th><button type="button" data-ledger-sort="recorded_by_name">Recorded by</button></th>
-                  <th><button type="button" data-ledger-sort="created_at">Saved</button></th>
-                </tr>
-              </thead>
-              <tbody id="ledgerRows"></tbody>
-            </table>
-          </div>
+            <div class="responsive-table-wrap">
+              <table class="management-table admin-data-table ledger-table">
+                <thead>
+                  <tr>
+                    <th id="ledgerSelectionHeader" class="selection-cell"><input id="ledgerSelectAll" type="checkbox" aria-label="Select all visible ledger rows"></th>
+                    <th><button type="button" data-ledger-sort="collected_at">Collected</button></th>
+                    <th><button type="button" data-ledger-sort="community_id">Community</button></th>
+                    <th><button type="button" data-ledger-sort="farmer_id">Member</button></th>
+                    <th><button type="button" data-ledger-sort="sack_id">Sack ID</button></th>
+                    <th><button type="button" data-ledger-sort="sack_weight_kg">Weight kg</button></th>
+                    <th><button type="button" data-ledger-sort="seaweed_type">Type</button></th>
+                    <th>Form</th>
+                    <th><button type="button" data-ledger-sort="seaweed_grade">Grade</button></th>
+                    <th><button type="button" data-ledger-sort="price_per_kg">Price/kg</button></th>
+                    <th><button type="button" data-ledger-sort="total_price">Total KSH</button></th>
+                    <th>GPS</th>
+                    <th>Photos</th>
+                    <th>Notes</th>
+                    <th><button type="button" data-ledger-sort="recorded_by_name">Recorded by</button></th>
+                    <th><button type="button" data-ledger-sort="transaction_id">Transaction</button></th>
+                    <th>Receipt</th>
+                    <th><button type="button" data-ledger-sort="created_at">Saved</button></th>
+                  </tr>
+                </thead>
+                <tbody id="ledgerRows"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="ledgerMonthlyView" class="ledger-view-panel" role="tabpanel" aria-labelledby="ledgerMonthlyTab" hidden>
+            <div class="ledger-view-intro">
+              <div>
+                <h3>Monthly records</h3>
+                <p>Select a month to open its individual collection records.</p>
+              </div>
+              <span id="monthlyCount" class="status-pill">0 rows</span>
+            </div>
+            <div class="admin-toolbar admin-filter-grid ledger-summary-filter-grid">
+              <label>
+                Year
+                <input id="monthlyYear" type="number" min="2020" max="2100" step="1">
+              </label>
+              <label>
+                Community
+                <select id="monthlyCommunity"></select>
+              </label>
+              <label>
+                Grade
+                <select id="monthlyGrade">
+                  <option value="">All grades</option>
+                  <option value="A">A</option>
+                  <option value="B">B</option>
+                  <option value="C">C</option>
+                </select>
+              </label>
+              <button id="reloadMonthly" type="button">Load</button>
+            </div>
+            <div class="responsive-table-wrap">
+              <table class="management-table admin-data-table ledger-summary-table">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th>Collections</th>
+                    <th>Members</th>
+                    <th>Communities</th>
+                    <th>Total kg</th>
+                    <th>A kg</th>
+                    <th>B kg</th>
+                    <th>C kg</th>
+                    <th>Ungraded kg</th>
+                    <th>KSH</th>
+                    <th>Avg kg</th>
+                    <th>First date</th>
+                    <th>Last date</th>
+                  </tr>
+                </thead>
+                <tbody id="monthlyRows"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="ledgerCommunityView" class="ledger-view-panel" role="tabpanel" aria-labelledby="ledgerCommunityTab" hidden>
+            <div class="ledger-view-intro">
+              <div>
+                <h3>Community records</h3>
+                <p>Select a community to open all of its individual collection records.</p>
+              </div>
+              <span id="ledgerCommunityCount" class="status-pill">0 communities</span>
+            </div>
+            <section class="admin-subsection ledger-community-section">
+              <div class="section-head compact">
+                <h3>Active communities</h3>
+                <span id="ledgerActiveCommunityCount" class="status-pill">0</span>
+              </div>
+              <div class="responsive-table-wrap">
+                <table class="management-table admin-data-table ledger-community-table">
+                  <thead>
+                    <tr>
+                      <th>Community</th>
+                      <th>Collections</th>
+                      <th>Collecting members</th>
+                      <th>Total kg</th>
+                      <th>First collection</th>
+                      <th>Last collection</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ledgerActiveCommunityRows"></tbody>
+                </table>
+              </div>
+            </section>
+            <details id="ledgerInactiveCommunities" class="admin-management-card ledger-inactive-communities">
+              <summary class="admin-card-summary">
+                <strong>Inactive communities (0 records)</strong>
+                <span id="ledgerInactiveCommunityCount" class="status-pill status-muted">0</span>
+              </summary>
+              <div class="admin-card-body">
+                <div class="responsive-table-wrap">
+                  <table class="management-table admin-data-table ledger-community-table">
+                    <thead>
+                      <tr>
+                        <th>Community</th>
+                        <th>Registered members</th>
+                        <th>Collection records</th>
+                      </tr>
+                    </thead>
+                    <tbody id="ledgerInactiveCommunityRows"></tbody>
+                  </table>
+                </div>
+              </div>
+            </details>
+          </section>
         </div>
       </section>
     </section>
