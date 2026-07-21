@@ -35,7 +35,8 @@
       <section class="panel">
         <div class="section-head compact"><h2>Users</h2><button id="reloadUsers" type="button">Reload</button></div>
         <form id="inviteUserForm" class="user-invite-form">
-          <label>Email<input id="inviteEmail" type="email" autocomplete="email" required></label>
+          <label>Email (optional)<input id="inviteEmail" type="email" autocomplete="email"></label>
+          <label>Phone number<input id="invitePhone" type="tel" autocomplete="tel"></label>
           <label>Name<input id="inviteName" type="text" autocomplete="name" minlength="2" maxlength="100" required></label>
           <label>Role
             <select id="inviteRole">
@@ -49,6 +50,7 @@
           </label>
           <label>Community<select id="inviteCommunity"><option value="">All / not assigned</option></select></label>
           <label id="inviteFarmerIdField" hidden>Farmer ID<input id="inviteFarmerId" type="text" inputmode="numeric" placeholder="RID4301 or 4301"></label>
+          <label id="inviteTemporaryPasswordField" hidden>Temporary password<input id="inviteTemporaryPassword" type="text" autocomplete="new-password" minlength="10"><span class="field-help">Give this to the user privately. They must change it after sign-in.</span></label>
           <fieldset class="aggregator-access-fieldset wide-field">
             <legend>Aggregator access</legend>
             <div id="inviteAggregators" class="aggregator-access-options"></div>
@@ -66,17 +68,28 @@
 
         <div class="responsive-table-wrap compact-data-table-wrap user-directory-wrap">
           <table class="management-table admin-data-table user-directory-table">
-            <thead><tr><th>Email</th><th>Name</th><th>Application role</th><th>Aggregators</th><th>Status</th><th>Community</th><th>Last sign in</th><th>Manage users</th><th>Manage admins</th><th></th></tr></thead>
+            <thead><tr><th>Sign-in</th><th>Name</th><th>Application role</th><th>Aggregators</th><th>Status</th><th>Community</th><th>Last sign in</th><th>Manage users</th><th>Manage admins</th><th></th></tr></thead>
             <tbody id="userDirectoryRows"></tbody>
           </table>
         </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head compact"><h2>Sign-in Help Requests</h2><span id="passwordHelpCount" class="status-pill">0 pending</span></div>
+        <div class="responsive-table-wrap compact-data-table-wrap password-help-wrap">
+          <table class="management-table admin-data-table password-help-table">
+            <thead><tr><th>Requested</th><th>Name</th><th>Contact</th><th>Matched account</th><th>Notification</th><th></th></tr></thead>
+            <tbody id="passwordHelpRows"></tbody>
+          </table>
+        </div>
+        <p id="passwordHelpStatus" class="admin-status" aria-live="polite"></p>
       </section>
 
       <section id="userEditorPanel" class="panel user-editor-panel" hidden>
         <div class="section-head compact"><h2>Edit User</h2><button id="closeUserEditor" type="button">Close</button></div>
         <form id="editUserForm" class="user-invite-form">
           <input id="editUserId" type="hidden">
-          <label>Email<input id="editUserEmail" type="email" disabled></label>
+          <label>Sign-in<input id="editUserEmail" type="text" disabled></label>
           <label>Name<input id="editUserName" type="text" minlength="2" maxlength="100" required></label>
           <label>Role<select id="editUserRole"></select></label>
           <label>Status<select id="editUserStatus"><option value="active">Active</option><option value="pending">Pending</option><option value="suspended">Suspended</option></select></label>
@@ -100,7 +113,7 @@
         <div class="section-head compact"><h2>Account Registrations</h2><span id="farmerRegistrationCount" class="status-pill">0 pending</span></div>
         <div class="responsive-table-wrap compact-data-table-wrap">
           <table class="management-table admin-data-table farmer-registration-table">
-            <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Community</th><th>Existing ID requested</th><th>Farm size</th><th>Link existing ID</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Sign-in</th><th>Phone</th><th>Role</th><th>Community</th><th>Existing ID requested</th><th>Farm size</th><th>Link existing ID</th><th></th></tr></thead>
             <tbody id="farmerRegistrationRows"></tbody>
           </table>
         </div>
@@ -119,8 +132,27 @@
     </section>
   </main>
 
+  <dialog id="temporaryPasswordDialog" class="account-reset-dialog">
+    <form id="temporaryPasswordForm" class="stack-form">
+      <input id="temporaryPasswordRequestId" type="hidden">
+      <div class="section-head compact">
+        <div><h2>Set Temporary Password</h2><p id="temporaryPasswordAccount" class="compact-note"></p></div>
+        <button id="closeTemporaryPassword" type="button" aria-label="Close">Close</button>
+      </div>
+      <p class="auth-help-copy">Confirm the person's identity first. Give the temporary password to them privately; the system will require a new password after sign-in.</p>
+      <label>Temporary password
+        <span class="temporary-password-row"><input id="temporaryPasswordValue" type="text" autocomplete="new-password" minlength="10" required><button id="generateTemporaryPassword" type="button">Generate</button></span>
+      </label>
+      <div class="button-row">
+        <button id="saveTemporaryPassword" type="submit">Set temporary password</button>
+        <button id="copyTemporaryPassword" type="button">Copy</button>
+      </div>
+      <p id="temporaryPasswordStatus" class="admin-status" aria-live="polite"></p>
+    </form>
+  </dialog>
+
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
   <script type="module" src="./assets/js/admin_page.js?v=20"></script>
-  <script type="module" src="./assets/js/users_page.js"></script>
+  <script type="module" src="./assets/js/users_page.js?v=2"></script>
 </body>
 </html>

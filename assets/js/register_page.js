@@ -1,5 +1,5 @@
 import { APP_CONFIG } from "./config.js";
-import { currentSession, enabledSocialProviders, signInWithProvider, signUpAccount } from "./auth_client.js";
+import { currentSession, enabledSocialProviders, normalizePhone, signInWithProvider, signUpAccount } from "./auth_client.js?v=19";
 import { callRpc, selectRows } from "./supabase_client.js";
 
 const els = {};
@@ -74,12 +74,16 @@ async function handleRegistration(event) {
     }
 
     const data = await signUpAccount(
-      els.registrationEmail.value.trim(),
+      {
+        email: els.registrationEmail.value.trim(),
+        phone: els.registrationPhone.value.trim()
+      },
       els.registrationPassword.value,
       details
     );
     if (data.session) window.location.replace("./access_pending.html");
-    else setStatus("Registration received. Check your email to confirm the account.");
+    else if (els.registrationEmail.value.trim()) setStatus("Registration received. Check your email to confirm the account.");
+    else setStatus("Registration received. An administrator will review the account.");
   } catch (error) {
     setStatus(error.message, "error");
   }
@@ -100,9 +104,10 @@ async function socialRegistration(provider) {
 
 function registrationDetails() {
   const isFarmer = els.registrationRole.value === "farmer_viewer";
+  const phone = normalizePhone(els.registrationPhone.value);
   return {
     full_name: els.registrationName.value.trim(),
-    phone: nullableText(els.registrationPhone.value),
+    phone,
     requested_role: els.registrationRole.value,
     requested_community_id: isFarmer ? nullableText(els.registrationCommunity.value) : null,
     requested_farmer_id: isFarmer ? normalizedFarmerId(els.registrationFarmerId.value) : null,

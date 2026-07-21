@@ -44,18 +44,20 @@ const roleLabels = {
   system_admin: "System admin"
 };
 
-const state = { users: [], registrations: [], communities: [], aggregators: [], activity: [], actor: null, editingUser: null };
+const state = { users: [], registrations: [], passwordHelp: [], communities: [], aggregators: [], activity: [], actor: null, editingUser: null };
 const els = {};
 
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   [
-    "reloadUsers", "inviteUserForm", "inviteEmail", "inviteName", "inviteRole",
-    "inviteCommunity", "inviteFarmerIdField", "inviteFarmerId", "inviteAggregators", "invitePermissions", "inviteDashboardPreferences", "inviteStatus", "userDirectoryRows",
+    "reloadUsers", "inviteUserForm", "inviteEmail", "invitePhone", "inviteName", "inviteRole",
+    "inviteCommunity", "inviteFarmerIdField", "inviteFarmerId", "inviteTemporaryPasswordField", "inviteTemporaryPassword", "inviteAggregators", "invitePermissions", "inviteDashboardPreferences", "inviteStatus", "userDirectoryRows",
     "userEditorPanel", "closeUserEditor", "editUserForm", "editUserId", "editUserEmail",
     "editUserName", "editUserRole", "editUserStatus", "editUserCommunity", "editFarmerIdField", "editFarmerId", "editAggregators", "editPermissions", "editDashboardPreferences",
-    "editUserMessage", "deleteUser", "farmerRegistrationCount", "farmerRegistrationRows", "farmerRegistrationStatus",
+    "editUserMessage", "deleteUser", "passwordHelpCount", "passwordHelpRows", "passwordHelpStatus",
+    "temporaryPasswordDialog", "temporaryPasswordForm", "temporaryPasswordRequestId", "temporaryPasswordAccount", "temporaryPasswordValue", "generateTemporaryPassword", "saveTemporaryPassword", "copyTemporaryPassword", "closeTemporaryPassword", "temporaryPasswordStatus",
+    "farmerRegistrationCount", "farmerRegistrationRows", "farmerRegistrationStatus",
     "userActivityPanel", "userActivityCount", "userActivityRows"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
@@ -71,11 +73,13 @@ async function init() {
   applyRolePreset("invite", els.inviteRole.value);
   renderDashboardInputs("invite", els.inviteRole.value);
   configureFarmerRoleFields("invite");
+  configureInviteContactMode();
   await loadPageData();
 }
 
 function bindEvents() {
   els.reloadUsers.addEventListener("click", loadPageData);
+  els.inviteEmail.addEventListener("input", configureInviteContactMode);
   els.inviteRole.addEventListener("change", () => {
     applyRolePreset("invite", els.inviteRole.value);
     renderDashboardInputs("invite", els.inviteRole.value);
@@ -95,6 +99,11 @@ function bindEvents() {
     els.userEditorPanel.hidden = true;
   });
   els.userDirectoryRows.addEventListener("click", handleUserTableClick);
+  els.passwordHelpRows.addEventListener("click", handlePasswordHelpClick);
+  els.temporaryPasswordForm.addEventListener("submit", issueTemporaryPassword);
+  els.generateTemporaryPassword.addEventListener("click", () => { els.temporaryPasswordValue.value = generatedPassword(); });
+  els.copyTemporaryPassword.addEventListener("click", copyTemporaryPassword);
+  els.closeTemporaryPassword.addEventListener("click", closeTemporaryPasswordDialog);
   els.farmerRegistrationRows.addEventListener("click", handleRegistrationClick);
 }
 
@@ -104,9 +113,10 @@ async function loadPageData() {
     const activityRequest = canViewUserActivity()
       ? authClient.rpc("ag_admin_activity_log", { p_limit: 20 })
       : Promise.resolve({ data: [], error: null });
-    const [usersResponse, registrationsResponse, activityResponse, aggregatorResponse, communities] = await Promise.all([
+    const [usersResponse, registrationsResponse, passwordHelpResponse, activityResponse, aggregatorResponse, communities] = await Promise.all([
       authClient.rpc("ag_admin_user_directory"),
       authClient.rpc("ag_admin_farmer_registration_requests"),
+      invokeAdminUsers({ action: "list_password_help" }),
       activityRequest,
       authClient.rpc("ag_admin_user_aggregator_options"),
       selectRows(APP_CONFIG.tables.communities, "select=community_id,community_name&order=community_name.asc")
@@ -117,12 +127,14 @@ async function loadPageData() {
     if (aggregatorResponse.error) throw aggregatorResponse.error;
     state.users = usersResponse.data || [];
     state.registrations = registrationsResponse.data || [];
+    state.passwordHelp = passwordHelpResponse.requests || [];
     state.activity = activityResponse.data || [];
     state.aggregators = aggregatorResponse.data || [];
     state.communities = communities;
     renderCommunityOptions();
     renderAggregatorInputs("invite", defaultInviteAggregatorIds());
     renderUsers();
+    renderPasswordHelp();
     renderRegistrations();
     renderActivity();
     setStatus(els.inviteStatus, "");
@@ -138,6 +150,11 @@ function canViewUserActivity() {
 
 async function inviteUser(event) {
   event.preventDefault();
+  const usesEmailInvite = Boolean(els.inviteEmail.value.trim());
+  if (!usesEmailInvite && !els.invitePhone.value.trim()) {
+    setStatus(els.inviteStatus, "Enter an email address or phone number.", "error");
+    return;
+  }
   const aggregatorIds = selectedAggregatorIds("invite");
   if (!aggregatorIds.length) {
     setStatus(els.inviteStatus, "Select at least one aggregator.", "error");
@@ -147,11 +164,13 @@ async function inviteUser(event) {
     setStatus(els.inviteStatus, "Keep at least one dashboard item visible.", "error");
     return;
   }
-  setStatus(els.inviteStatus, "Sending invite...");
+  setStatus(els.inviteStatus, usesEmailInvite ? "Sending invite..." : "Creating phone account...");
   try {
-    await invokeAdminUsers({
+    const result = await invokeAdminUsers({
       action: "invite",
       email: els.inviteEmail.value.trim(),
+      phone: els.invitePhone.value.trim(),
+      temporary_password: usesEmailInvite ? null : els.inviteTemporaryPassword.value,
       display_name: nullableText(els.inviteName.value),
       app_role: els.inviteRole.value,
       community_id: nullableText(els.inviteCommunity.value),
@@ -162,12 +181,18 @@ async function inviteUser(event) {
     });
     els.inviteUserForm.reset();
     els.inviteRole.value = "company_admin";
+    configureInviteContactMode();
     configureFarmerRoleFields("invite");
     applyRolePreset("invite", "company_admin");
     renderDashboardInputs("invite", "company_admin");
     renderAggregatorInputs("invite", defaultInviteAggregatorIds());
-    setStatus(els.inviteStatus, "Invite sent.");
     await loadPageData();
+    setStatus(
+      els.inviteStatus,
+      result.account_setup === "temporary_password"
+        ? "Phone account created. Give the temporary password to the user privately."
+        : "Invite sent."
+    );
   } catch (error) {
     setStatus(els.inviteStatus, error.message, "error");
   }
@@ -239,7 +264,7 @@ async function deleteSelectedUser() {
 function renderUsers() {
   els.userDirectoryRows.innerHTML = state.users.length ? state.users.map((user) => `
     <tr>
-      <td>${escapeHtml(user.email)}</td>
+      <td>${escapeHtml(user.email || user.phone || "-")}</td>
       <td>${user.display_name
         ? escapeHtml(user.display_name)
         : '<span class="user-name-warning" title="This user must add a name">Name required</span>'}</td>
@@ -257,6 +282,29 @@ function renderUsers() {
   `).join("") : '<tr><td colspan="10">No users yet.</td></tr>';
 }
 
+function renderPasswordHelp() {
+  els.passwordHelpCount.textContent = `${state.passwordHelp.length} pending`;
+  els.passwordHelpRows.innerHTML = state.passwordHelp.length ? state.passwordHelp.map((request) => {
+    const matched = Array.isArray(request.matched) ? request.matched[0] : request.matched;
+    const account = matched
+      ? `${matched.display_name || matched.email || matched.phone || "Unnamed account"} (${roleLabels[matched.app_role] || matched.app_role})`
+      : "No automatic match";
+    const resetDisabled = !matched || matched.is_protected_owner;
+    return `
+      <tr>
+        <td>${escapeHtml(formatDate(request.created_at))}</td>
+        <td>${escapeHtml(request.requester_name)}</td>
+        <td>${escapeHtml(request.contact_value)}</td>
+        <td>${escapeHtml(account)}</td>
+        <td>${escapeHtml(notificationLabel(request.notification_status))}</td>
+        <td class="row-actions">
+          <button type="button" data-reset-help="${escapeHtml(request.id)}"${resetDisabled ? " disabled" : ""}>Set temporary password</button>
+          <button type="button" data-dismiss-help="${escapeHtml(request.id)}">Dismiss</button>
+        </td>
+      </tr>`;
+  }).join("") : '<tr><td colspan="6">No pending sign-in help requests.</td></tr>';
+}
+
 function renderRegistrations() {
   els.farmerRegistrationCount.textContent = `${state.registrations.length} pending`;
   els.farmerRegistrationRows.innerHTML = state.registrations.length ? state.registrations.map((row) => {
@@ -265,7 +313,7 @@ function renderRegistrations() {
     return `
       <tr>
         <td>${escapeHtml(row.full_name)}</td>
-        <td>${escapeHtml(row.email)}</td>
+        <td>${escapeHtml(row.email || row.phone || "-")}</td>
         <td>${escapeHtml(row.phone || "-")}</td>
         <td>${escapeHtml(roleLabels[requestedRole] || requestedRole)}</td>
         <td>${escapeHtml(isFarmer ? [row.requested_community_id, row.community_name].filter(Boolean).join(" - ") || "-" : "-")}</td>
@@ -298,7 +346,7 @@ function handleUserTableClick(event) {
 
   state.editingUser = user;
   els.editUserId.value = user.id;
-  els.editUserEmail.value = user.email;
+  els.editUserEmail.value = user.email || user.phone || "";
   els.editUserName.value = user.display_name || "";
   els.editUserRole.value = user.app_role;
   els.editUserStatus.value = user.account_status;
@@ -312,6 +360,80 @@ function handleUserTableClick(event) {
   renderDashboardInputs("edit", user.app_role, user.dashboard_preferences);
   els.userEditorPanel.hidden = false;
   els.userEditorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function handlePasswordHelpClick(event) {
+  const resetButton = event.target.closest("[data-reset-help]");
+  const dismissButton = event.target.closest("[data-dismiss-help]");
+  if (resetButton) {
+    const request = state.passwordHelp.find((row) => row.id === resetButton.dataset.resetHelp);
+    if (!request) return;
+    const matched = Array.isArray(request.matched) ? request.matched[0] : request.matched;
+    if (!matched || matched.is_protected_owner) return;
+    els.temporaryPasswordRequestId.value = request.id;
+    els.temporaryPasswordAccount.textContent = matched.display_name || matched.email || matched.phone || request.contact_value;
+    els.temporaryPasswordValue.value = generatedPassword();
+    els.saveTemporaryPassword.disabled = false;
+    setStatus(els.temporaryPasswordStatus, "");
+    els.temporaryPasswordDialog.showModal();
+    els.temporaryPasswordValue.focus();
+    els.temporaryPasswordValue.select();
+    return;
+  }
+  if (dismissButton) dismissPasswordHelp(dismissButton.dataset.dismissHelp);
+}
+
+async function issueTemporaryPassword(event) {
+  event.preventDefault();
+  setStatus(els.temporaryPasswordStatus, "Setting temporary password...");
+  els.saveTemporaryPassword.disabled = true;
+  try {
+    await invokeAdminUsers({
+      action: "issue_temporary_password",
+      request_id: els.temporaryPasswordRequestId.value,
+      temporary_password: els.temporaryPasswordValue.value
+    });
+    setStatus(els.temporaryPasswordStatus, "Password set. Give it to the user privately; they must change it after sign-in.");
+    await loadPageData();
+  } catch (error) {
+    els.saveTemporaryPassword.disabled = false;
+    setStatus(els.temporaryPasswordStatus, error.message, "error");
+  }
+}
+
+async function dismissPasswordHelp(requestId) {
+  if (!window.confirm("Dismiss this sign-in help request?")) return;
+  setStatus(els.passwordHelpStatus, "Dismissing...");
+  try {
+    await invokeAdminUsers({ action: "dismiss_password_help", request_id: requestId });
+    setStatus(els.passwordHelpStatus, "Request dismissed.");
+    await loadPageData();
+  } catch (error) {
+    setStatus(els.passwordHelpStatus, error.message, "error");
+  }
+}
+
+function closeTemporaryPasswordDialog() {
+  els.temporaryPasswordDialog.close();
+  els.temporaryPasswordForm.reset();
+  setStatus(els.temporaryPasswordStatus, "");
+}
+
+async function copyTemporaryPassword() {
+  try {
+    await navigator.clipboard.writeText(els.temporaryPasswordValue.value);
+    setStatus(els.temporaryPasswordStatus, "Temporary password copied.");
+  } catch {
+    els.temporaryPasswordValue.focus();
+    els.temporaryPasswordValue.select();
+    setStatus(els.temporaryPasswordStatus, "Select and copy the temporary password.");
+  }
+}
+
+function generatedPassword() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const bytes = crypto.getRandomValues(new Uint8Array(10));
+  return `Sea7-${[...bytes].map((value) => alphabet[value % alphabet.length]).join("")}`;
 }
 
 async function handleRegistrationClick(event) {
@@ -438,6 +560,16 @@ function configureFarmerRoleFields(prefix) {
   if (!isFarmer && isInvite) input.value = "";
 }
 
+function configureInviteContactMode() {
+  const usesEmailInvite = Boolean(els.inviteEmail.value.trim());
+  els.invitePhone.required = !usesEmailInvite;
+  els.inviteTemporaryPasswordField.hidden = usesEmailInvite;
+  els.inviteTemporaryPassword.required = !usesEmailInvite;
+  if (!usesEmailInvite && !els.inviteTemporaryPassword.value) {
+    els.inviteTemporaryPassword.value = generatedPassword();
+  }
+}
+
 function rolePreset(role) {
   const values = Object.fromEntries(permissionDefinitions.map(([key]) => [key, false]));
   if (role === "company_admin") Object.assign(values, { can_access_admin: true, can_submit_collection: true, can_view_dashboard: true, can_view_registry: true, can_edit_registry: true, can_view_map: true, can_view_data: true, can_edit_collections: true, can_view_finance: true, can_manage_pricing: true, can_export_data: true, can_manage_settings: true, can_manage_users: true, can_view_notifications: true, can_manage_notifications: true });
@@ -500,6 +632,13 @@ function formatDate(value) {
 function capitalize(value) {
   const text = String(value || "");
   return text ? `${text[0].toUpperCase()}${text.slice(1)}` : "-";
+}
+
+function notificationLabel(value) {
+  if (value === "sent") return "Administrator emailed";
+  if (value === "failed") return "Email failed; shown here";
+  if (value === "not_configured") return "Shown here";
+  return "Email pending";
 }
 
 function nullableText(value) {

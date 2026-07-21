@@ -28,7 +28,7 @@
       <h2>Make Account</h2>
       <form id="farmerRegistrationForm" class="stack-form">
         <label>Name<input id="registrationName" type="text" autocomplete="name" required></label>
-        <label>Email<input id="registrationEmail" type="email" autocomplete="email" required></label>
+        <label>Email (optional)<input id="registrationEmail" type="email" autocomplete="email"></label>
         <label>Phone number<input id="registrationPhone" type="tel" autocomplete="tel" required></label>
         <label>Role
           <select id="registrationRole" required>
@@ -55,11 +55,12 @@
         <button id="registrationFacebook" type="button">Register with Facebook</button>
       </div>
       <p id="registrationReviewNote" class="compact-note">An administrator checks and links the farmer account before harvest records become visible.</p>
+      <p class="compact-note">No email is needed. A phone-only account signs in with its phone number and password.</p>
       <p class="auth-account-link">Already have an account? <a href="./login.html">Sign in</a></p>
       <p id="registrationStatus" class="form-status" aria-live="polite"></p>
     </section>
   </main>
 
-  <script type="module" src="./assets/js/register_page.js"></script>
+  <script type="module" src="./assets/js/register_page.js?v=2"></script>
 </body>
 </html>

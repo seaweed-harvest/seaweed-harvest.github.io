@@ -3240,6 +3240,31 @@ button:disabled {
   margin-top: 14px;
 }
 
+.auth-help-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+}
+
+.auth-help-divider::before,
+.auth-help-divider::after {
+  height: 1px;
+  flex: 1;
+  background: var(--border-soft);
+  content: "";
+}
+
+.auth-help-copy {
+  margin: 0;
+  color: var(--text-sec);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
 .auth-account-link {
   color: var(--text-sec);
   font-size: 0.86rem;
@@ -3506,7 +3531,8 @@ button:disabled {
 
 .user-directory-table,
 .farmer-registration-table,
-.user-activity-table {
+.user-activity-table,
+.password-help-table {
   min-width: 1180px;
 }
 
@@ -3527,6 +3553,47 @@ button:disabled {
 
 .user-activity-wrap {
   max-height: 520px;
+}
+
+.password-help-wrap {
+  max-height: 420px;
+}
+
+.field-help {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 400;
+  line-height: 1.35;
+  text-transform: none;
+}
+
+.account-reset-dialog {
+  width: min(520px, calc(100% - 28px));
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 18px 45px rgba(18, 54, 47, 0.24);
+}
+
+.account-reset-dialog::backdrop {
+  background: rgba(18, 54, 47, 0.48);
+}
+
+.account-reset-dialog h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.temporary-password-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.temporary-password-row button {
+  min-height: 38px;
 }
 
 .registration-link-id {

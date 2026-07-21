@@ -244,8 +244,9 @@ async function setupAggregatorControl(account, options) {
   document.dispatchEvent(new CustomEvent("seaweed-aggregator-context-ready", { detail: context }));
 }
 
-export async function signInWithPassword(email, password) {
-  const { data, error } = await authClient.auth.signInWithPassword({ email, password });
+export async function signInWithPassword(identifier, password) {
+  const credentials = loginIdentifier(identifier);
+  const { data, error } = await authClient.auth.signInWithPassword({ ...credentials, password });
   if (error) throw error;
   profilePromise = null;
   return data;
@@ -260,16 +261,21 @@ export async function recordLogin(loginMethod = "session") {
   return data;
 }
 
-export async function signUpAccount(email, password, details) {
+export async function signUpAccount(contact, password, details) {
+  const email = typeof contact === "object"
+    ? String(contact.email || "").trim().toLowerCase()
+    : String(contact || "").trim().toLowerCase();
+  const phone = typeof contact === "object" ? normalizePhone(contact.phone) : null;
+  if (!email && !phone) throw new Error("Enter an email address or phone number.");
   const { data, error } = await authClient.auth.signUp({
-    email,
+    ...(email ? { email } : { phone }),
     password,
     options: {
-      emailRedirectTo: `${siteBaseUrl()}/register.html?confirmed=1`,
+      ...(email ? { emailRedirectTo: `${siteBaseUrl()}/register.html?confirmed=1` } : {}),
       data: {
         registration_type: "account_self",
         full_name: details.full_name,
-        phone: details.phone || null,
+        phone: phone || details.phone || null,
         requested_role: details.requested_role || "farmer_viewer",
         requested_farmer_id: details.requested_farmer_id || null,
         requested_community_id: details.requested_community_id || null,
@@ -301,6 +307,24 @@ export async function sendPasswordReset(email) {
     redirectTo: `${siteBaseUrl()}/login.html?mode=recovery`
   });
   if (error) throw error;
+  return data;
+}
+
+export async function requestPasswordHelp(name, contact) {
+  const { data, error } = await authClient.functions.invoke("password-help", {
+    body: { name, contact }
+  });
+  if (error) {
+    let message = error.message;
+    try {
+      const body = await error.context?.json();
+      message = body?.error || message;
+    } catch {
+      // Keep the client error when no JSON response is available.
+    }
+    throw new Error(message);
+  }
+  if (data?.error) throw new Error(data.error);
   return data;
 }
 
@@ -382,6 +406,24 @@ export async function enabledSocialProviders() {
 export function siteBaseUrl() {
   const url = new URL(".", window.location.href);
   return url.href.replace(/\/$/, "");
+}
+
+export function normalizePhone(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  let normalized = raw.replace(/[\s().-]/g, "");
+  if (/^0\d{9}$/.test(normalized)) normalized = `+254${normalized.slice(1)}`;
+  else if (/^254\d{9}$/.test(normalized)) normalized = `+${normalized}`;
+  if (!/^\+[1-9]\d{7,14}$/.test(normalized)) {
+    throw new Error("Enter a valid phone number, such as 0712 345 678.");
+  }
+  return normalized;
+}
+
+function loginIdentifier(value) {
+  const identifier = String(value || "").trim();
+  if (identifier.includes("@")) return { email: identifier.toLowerCase() };
+  return { phone: normalizePhone(identifier) };
 }
 
 export function routeForProfile(profile) {

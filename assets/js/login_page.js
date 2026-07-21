@@ -4,6 +4,7 @@ import {
   currentSession,
   enabledSocialProviders,
   recordLogin,
+  requestPasswordHelp,
   routeForProfile,
   sendPasswordReset,
   signOut,
@@ -11,7 +12,7 @@ import {
   signInWithProvider,
   updateMyDisplayName,
   updatePassword
-} from "./auth_client.js?v=18";
+} from "./auth_client.js?v=19";
 import { transitionTo } from "./app_transition.js";
 
 const els = {};
@@ -23,8 +24,8 @@ async function init() {
     "loginPanel", "loginForm", "loginEmail", "loginPassword", "socialLoginActions",
     "googleSignIn", "facebookSignIn", "showResetPassword", "passwordPanel",
     "passwordPanelTitle", "passwordForm", "accountDisplayName", "newPassword", "confirmPassword",
-    "cancelPasswordUpdate", "resetPanel", "resetForm",
-    "resetEmail", "cancelResetPassword", "authStatus"
+    "cancelPasswordUpdate", "resetPanel", "resetForm", "assistedResetForm",
+    "resetEmail", "assistedResetName", "assistedResetContact", "cancelResetPassword", "authStatus"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
   bindEvents();
@@ -41,7 +42,7 @@ async function init() {
   }
 
   if (requiresPasswordChange(session)) {
-    const email = session.user.email || "";
+    const email = session.user.email || session.user.phone || "";
     await signOut();
     els.loginEmail.value = email;
     document.body.removeAttribute("data-auth-pending");
@@ -73,6 +74,7 @@ function bindEvents() {
   els.loginForm.addEventListener("submit", handleLogin);
   els.passwordForm.addEventListener("submit", handlePasswordUpdate);
   els.resetForm.addEventListener("submit", handleReset);
+  els.assistedResetForm.addEventListener("submit", handleAssistedReset);
   els.showResetPassword.addEventListener("click", () => showPanel("reset"));
   els.cancelResetPassword.addEventListener("click", () => showPanel("login"));
   els.cancelPasswordUpdate.addEventListener("click", () => showPanel("login"));
@@ -135,6 +137,21 @@ async function handleReset(event) {
   }
 }
 
+async function handleAssistedReset(event) {
+  event.preventDefault();
+  setStatus("Sending request...");
+  try {
+    const result = await requestPasswordHelp(
+      els.assistedResetName.value.trim(),
+      els.assistedResetContact.value.trim()
+    );
+    els.assistedResetForm.reset();
+    setStatus(result.message || "Request received. An administrator will contact you.");
+  } catch (error) {
+    setStatus(error.message, "error");
+  }
+}
+
 async function socialSignIn(provider) {
   setStatus(`Opening ${provider}...`);
   try {
@@ -189,7 +206,7 @@ function passwordModeTitle(mode) {
 function signInErrorMessage(error) {
   const message = String(error?.message || "").toLowerCase();
   if (message.includes("invalid login credentials") || message.includes("invalid email or password")) {
-    return "Email or password is incorrect.";
+    return "Email, phone number or password is incorrect.";
   }
   if (message.includes("email not confirmed")) return "Confirm your email before signing in.";
   if (message.includes("rate limit") || message.includes("too many")) {
