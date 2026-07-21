@@ -3,7 +3,7 @@ const DATABASE_VERSION = 1;
 const OUTBOX_STORE = "collection-outbox";
 const REFERENCE_STORE = "reference-data";
 const SYNCED_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-const MAX_SYNCED_HISTORY = 20;
+const MAX_SYNCED_HISTORY = 1000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_BACKUP_PHOTO_BYTES = 700 * 1024;
 

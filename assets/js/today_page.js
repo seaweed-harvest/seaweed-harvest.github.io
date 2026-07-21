@@ -1,11 +1,13 @@
 import { APP_CONFIG } from "./config.js";
-import { callPublicRpc, selectRows } from "./supabase_client.js";
+import { callPublicRpc, callRpc, selectRows } from "./supabase_client.js";
 import {
   createPendingBackup,
   deleteOutboxItem,
+  getOutboxItem,
   initialiseOfflineStore,
   listOutboxItems,
-  restorePendingBackup
+  restorePendingBackup,
+  updateOutboxItem
 } from "./offline_store.js";
 import { syncPendingCollections } from "./offline_sync.js";
 import { createOperationFeedback } from "./operation_feedback.js";
@@ -20,6 +22,9 @@ const state = {
   seaweedTypes: [],
   grades: [],
   localReady: false,
+  authenticated: false,
+  canEditCollections: false,
+  accessToken: null,
   online: navigator.onLine,
   networkVerified: false,
   syncing: false,
@@ -160,7 +165,11 @@ async function setupOptionalAccount() {
     const session = await authApi.currentSession();
     if (!session) return;
     const profile = await authApi.currentProfile(true);
-    if (!profile) return;
+    if (!profile || profile.account_status !== "active") return;
+
+    state.authenticated = true;
+    state.accessToken = session.access_token;
+    state.canEditCollections = profile.app_role === "system_admin" || Boolean(profile.can_edit_collections);
 
     els.todaySignInLink.hidden = true;
     els.todayAdminLink.hidden = !(profile.account_status === "active"
@@ -321,7 +330,7 @@ async function loadToday() {
   setStatus("Loading...");
   try {
     const [rows, communities, seaweedTypes, grades] = await Promise.all([
-      callPublicRpc("ag_public_mawimbi_today_intake"),
+      state.authenticated ? callRpc("ag_public_mawimbi_today_intake") : Promise.resolve([]),
       callPublicRpc("ag_public_mawimbi_communities"),
       selectRows("ag_public_seaweed_type_settings", "select=*&order=display_order.asc"),
       selectRows("ag_public_grade_price_settings", "select=*&order=display_order.asc")
@@ -339,9 +348,11 @@ async function loadToday() {
     combineTodayRows();
     renderRows();
     updateLocalSyncUi();
-    els.todayConnectionStatus.textContent = "Live";
+    els.todayConnectionStatus.textContent = state.authenticated ? "Live" : "Online";
     els.todayConnectionStatus.className = "status-pill";
-    setStatus("Loaded.");
+    setStatus(state.authenticated
+      ? "Loaded."
+      : "Showing records saved on this device today.");
   } catch (error) {
     const stillOnline = navigator.onLine;
     state.online = stillOnline;
@@ -367,8 +378,10 @@ async function refreshLocalRows() {
   const items = await listOutboxItems();
   const pendingItems = items.filter((item) => item.status !== "synced");
   state.pendingCount = pendingItems.length;
+  const visibleTodayItems = state.authenticated ? pendingItems : items;
+  state.localRows = visibleTodayItems.map(localItemToRow)
+    .filter((row) => isTodayInNairobi(row.collected_at));
   const pendingRows = pendingItems.map(localItemToRow);
-  state.localRows = pendingRows.filter((row) => isTodayInNairobi(row.collected_at));
   state.olderLocalRows = pendingRows.filter((row) => !isTodayInNairobi(row.collected_at));
   combineTodayRows();
   renderRows();
@@ -377,8 +390,10 @@ async function refreshLocalRows() {
 
 function localItemToRow(item) {
   const payload = item.payload || {};
+  const result = item.result || {};
+  const synced = item.status === "synced" && Boolean(result.collection_id);
   return {
-    id: `local:${item.submissionId}`,
+    id: synced ? result.collection_id : `local:${item.submissionId}`,
     collected_at: payload.collected_at || item.createdAt,
     farmer_name_snapshot: payload.farmer_name_snapshot || item.summary?.farmer || null,
     sack_weight_kg: payload.sack_weight_kg ?? item.summary?.weightKg ?? null,
@@ -387,9 +402,10 @@ function localItemToRow(item) {
     community_id: payload.community_id || null,
     community_name_snapshot: payload.community_name_snapshot || item.summary?.community || null,
     recorded_by_name: payload.collector_name || item.collectorName || null,
-    transaction_id: payload.transaction_id || item.summary?.transactionId || null,
-    updated_at: item.updatedAt,
-    _localRecord: true,
+    transaction_id: result.transaction_id || payload.transaction_id || item.summary?.transactionId || null,
+    updated_at: result.updated_at || null,
+    _localRecord: !synced,
+    _deviceRecord: true,
     _submissionId: item.submissionId,
     _syncStatus: item.status || "pending",
     _lastError: item.lastError || null,
@@ -453,7 +469,9 @@ function nairobiDateKey(date) {
 function renderRows() {
   els.publicTodayCount.textContent = `${state.rows.length} row${state.rows.length === 1 ? "" : "s"}`;
   if (!state.rows.length) {
-    els.publicTodayRows.innerHTML = '<tr><td colspan="10" class="empty-state">No Mawimbi intake has been recorded today.</td></tr>';
+    els.publicTodayRows.innerHTML = `<tr><td colspan="10" class="empty-state">${state.authenticated
+      ? "No Mawimbi intake has been recorded today."
+      : "No collection records have been saved on this device today."}</td></tr>`;
     renderOlderRows();
     updateSelectionUi();
     return;
@@ -465,10 +483,11 @@ function renderRows() {
     const dirty = state.dirtyIds.has(id);
     const draft = state.drafts.get(id) || rowDraft(row);
     const local = Boolean(row._localRecord);
+    const manageable = canManageRow(row);
     return `
       <tr data-public-today-row="${escapeAttribute(id)}" class="${dirty ? "today-row-dirty" : ""}${local ? " today-row-local" : ""}">
         <td class="today-sync-status-cell">${syncStatusHtml(row)}</td>
-        <td class="selection-cell"><input type="checkbox" data-public-today-select="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(row.transaction_id || "intake row")}"${state.selectedIds.has(id) ? " checked" : ""}${state.editingIds.size ? " disabled" : ""}></td>
+        <td class="selection-cell">${manageable ? `<input type="checkbox" data-public-today-select="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(row.transaction_id || "intake row")}"${state.selectedIds.has(id) ? " checked" : ""}${state.editingIds.size ? " disabled" : ""}>` : ""}</td>
         <td>${escapeHtml(formatTime(row.collected_at))}</td>
         <td>${editing ? textControl(id, "farmer_name_snapshot", draft.farmer_name_snapshot, "today-farmer-editor", 150) : escapeHtml(row.farmer_name_snapshot || "-")}</td>
         <td>${editing ? numberControl(id, "sack_weight_kg", draft.sack_weight_kg, 0.01, 0.01) : escapeHtml(formatNumber(row.sack_weight_kg))}</td>
@@ -544,7 +563,7 @@ function toggleAllRows() {
   if (state.editingIds.size) return;
   state.selectedIds.clear();
   if (els.publicTodaySelectAll.checked) {
-    state.rows.forEach((row) => state.selectedIds.add(String(row.id)));
+    state.rows.filter(canManageRow).forEach((row) => state.selectedIds.add(String(row.id)));
   }
   renderRows();
 }
@@ -559,7 +578,7 @@ function toggleOlderRows() {
 }
 
 function startEdit() {
-  const editableIds = [...state.selectedIds].filter((id) => !rowById(id)?._localRecord);
+  const editableIds = [...state.selectedIds].filter((id) => canEditRow(rowById(id)));
   if (!editableIds.length) return;
   state.editingIds = new Set(editableIds);
   state.dirtyIds.clear();
@@ -602,13 +621,16 @@ async function deleteSelectedRecords() {
     if (serverRows.length) {
       const result = await submitPublicIntakeDeletes(editorName, serverRows.map((row) => ({
         id: row.id,
-        expected_updated_at: row.updated_at
+        expected_updated_at: row.updated_at || undefined,
+        submission_id: !state.authenticated ? row._submissionId : undefined
       })));
       if (Number(result?.deleted_count || 0) !== serverRows.length) {
         throw new Error("Supabase did not confirm every selected deletion. Reload before trying again.");
       }
     }
-    for (const row of localRows) await deleteOutboxItem(row._submissionId);
+    for (const row of selectedRows.filter((row) => row._submissionId)) {
+      await deleteOutboxItem(row._submissionId);
+    }
     resetEditState();
     await loadToday();
     setStatus(`Deleted ${count} selected record${count === 1 ? "" : "s"}.`);
@@ -642,6 +664,7 @@ async function saveEdits() {
   setStatus("Saving changes...");
   try {
     const result = await submitPublicIntakeEdits(editorName, updates);
+    await persistDeviceEdits(updates, result);
     await loadToday();
     const count = Number(result?.updated_count || 0);
     setStatus(`Updated ${count} row${count === 1 ? "" : "s"}.`);
@@ -666,7 +689,7 @@ async function submitPublicIntakeChange(body) {
     method: "POST",
     headers: {
       apikey: APP_CONFIG.supabase.anonKey,
-      Authorization: `Bearer ${APP_CONFIG.supabase.anonKey}`,
+      Authorization: `Bearer ${state.accessToken || APP_CONFIG.supabase.anonKey}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify(body)
@@ -676,17 +699,67 @@ async function submitPublicIntakeChange(body) {
   return payload.result || {};
 }
 
+async function persistDeviceEdits(updates, result) {
+  const resultRows = new Map((Array.isArray(result?.rows) ? result.rows : [])
+    .map((row) => [String(row.id || ""), row]));
+  for (const update of updates) {
+    const row = rowById(update.id);
+    if (!row?._submissionId) continue;
+    const item = await getOutboxItem(row._submissionId);
+    if (!item) continue;
+    const payload = { ...(item.payload || {}) };
+    Object.entries(update).forEach(([field, value]) => {
+      if (["id", "expected_updated_at", "submission_id"].includes(field)) return;
+      if (field === "recorded_by_name") payload.collector_name = value;
+      else payload[field] = value;
+    });
+    const community = state.communities.find((candidate) => candidate.community_id === payload.community_id);
+    if (community) payload.community_name_snapshot = community.community_name;
+    const confirmed = resultRows.get(String(update.id || ""));
+    await updateOutboxItem(row._submissionId, {
+      payload,
+      collectorName: payload.collector_name || item.collectorName,
+      result: {
+        ...(item.result || {}),
+        updated_at: confirmed?.updated_at || item.result?.updated_at || null
+      },
+      summary: {
+        ...(item.summary || {}),
+        farmer: payload.farmer_name_snapshot || null,
+        community: payload.community_name_snapshot || payload.community_id || null,
+        weightKg: payload.sack_weight_kg ?? null,
+        grade: payload.grade_code || null
+      }
+    });
+  }
+}
+
+function canManageRow(row) {
+  if (!row) return false;
+  if (row._localRecord) return true;
+  if (state.authenticated) return state.canEditCollections;
+  return Boolean(row._deviceRecord && row._submissionId);
+}
+
+function canEditRow(row) {
+  return Boolean(row && !row._localRecord && canManageRow(row));
+}
+
 function updatePayload(id) {
   const row = rowById(id);
   const draft = state.drafts.get(id);
   if (!row || !draft) return null;
   const original = rowDraft(row);
-  const payload = { id, expected_updated_at: row.updated_at };
+  const payload = { id, expected_updated_at: row.updated_at || undefined };
+  let changed = false;
   Object.keys(original).forEach((field) => {
     if (normaliseValue(field, draft[field]) === normaliseValue(field, original[field])) return;
     payload[field] = field === "sack_weight_kg" ? optionalNumber(draft[field]) : nullableText(draft[field]);
+    changed = true;
   });
-  return Object.keys(payload).length > 2 ? payload : null;
+  if (!changed) return null;
+  if (!state.authenticated && row._submissionId) payload.submission_id = row._submissionId;
+  return payload;
 }
 
 function updateDirtyState(id) {
@@ -713,9 +786,10 @@ function updateSelectionUi() {
   const editing = state.editingIds.size > 0;
   const dirty = state.dirtyIds.size;
   const selectedRows = [...state.selectedIds].map(rowById).filter(Boolean);
-  const editableCount = selectedRows.filter((row) => !row._localRecord).length;
-  const selectableCount = state.rows.length;
-  const currentIds = new Set(state.rows.map((row) => String(row.id || "")));
+  const editableCount = selectedRows.filter(canEditRow).length;
+  const selectableRows = state.rows.filter(canManageRow);
+  const selectableCount = selectableRows.length;
+  const currentIds = new Set(selectableRows.map((row) => String(row.id || "")));
   const currentSelected = [...state.selectedIds].filter((id) => currentIds.has(String(id))).length;
   const olderIds = new Set(state.olderLocalRows.map((row) => String(row.id || "")));
   const olderSelected = [...state.selectedIds].filter((id) => olderIds.has(String(id))).length;
