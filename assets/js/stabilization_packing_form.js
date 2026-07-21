@@ -1,0 +1,132 @@
+import { authClient, currentAggregatorContext, requireAdminAccess } from "./auth_client.js";
+import { selectRows } from "./supabase_client.js";
+
+const els = {};
+let submissionId = crypto.randomUUID();
+let defaultSpecies = "spinosum";
+
+document.addEventListener("DOMContentLoaded", init);
+
+async function init() {
+  [
+    "packingRecordForm", "cartonSerial", "packedOn", "packingSpecies",
+    "packingAggregator", "packingRecordedBy", "packingWeight", "packingWeightUnit",
+    "packingTemperature", "packingSalinity", "packingSalinityUnit", "packingPh",
+    "packingEc", "packingChemical", "packingDose", "packingDoseUnit", "packingNotes",
+    "savePackingRecord", "clearPackingRecord", "packingRecordStatus"
+  ].forEach((id) => { els[id] = document.getElementById(id); });
+
+  const access = await requireAdminAccess("can_submit_collection");
+  if (!access) return;
+
+  els.packedOn.value = kenyaDate();
+  els.packingRecordedBy.value = access.profile?.display_name || access.profile?.email || "Signed-in user";
+  els.packingRecordForm.addEventListener("submit", submitRecord);
+  els.clearPackingRecord.addEventListener("click", clearForm);
+
+  try {
+    const [context, species] = await Promise.all([
+      currentAggregatorContext(true),
+      selectRows("ag_public_seaweed_type_settings", "select=*&order=display_order.asc")
+    ]);
+    const active = context.active_aggregator;
+    els.packingAggregator.value = active?.organisation_name || active?.short_name || active?.aggregator_code || "";
+    renderSpecies(species);
+    els.cartonSerial.focus();
+  } catch (error) {
+    setStatus(error.message, "error");
+  }
+}
+
+function renderSpecies(rows) {
+  if (!rows.length) return;
+  els.packingSpecies.replaceChildren();
+  rows.forEach((row) => {
+    const option = document.createElement("option");
+    option.value = row.type_key;
+    option.textContent = row.common_name ? `${row.label} (${row.common_name})` : row.label;
+    els.packingSpecies.append(option);
+  });
+  defaultSpecies = rows.find((row) => row.is_default)?.type_key || rows[0].type_key;
+  els.packingSpecies.value = defaultSpecies;
+}
+
+async function submitRecord(event) {
+  event.preventDefault();
+  if (!els.packingRecordForm.reportValidity()) return;
+
+  els.savePackingRecord.disabled = true;
+  setStatus("Saving...");
+  try {
+    const { data, error } = await authClient.rpc("ag_submit_stabilization_packing_record", {
+      p_submission_id: submissionId,
+      p_record: {
+        carton_serial: els.cartonSerial.value.trim(),
+        packed_on: els.packedOn.value,
+        species: els.packingSpecies.value,
+        weight_value: Number(els.packingWeight.value),
+        weight_unit: els.packingWeightUnit.value,
+        room_temperature_c: numberOrNull(els.packingTemperature.value),
+        salinity_value: numberOrNull(els.packingSalinity.value),
+        salinity_unit: els.packingSalinityUnit.value,
+        ph_value: numberOrNull(els.packingPh.value),
+        electrical_conductivity_ms_cm: numberOrNull(els.packingEc.value),
+        chemical_dose_value: numberOrNull(els.packingDose.value),
+        chemical_dose_unit: els.packingDoseUnit.value,
+        notes: textOrNull(els.packingNotes.value)
+      }
+    });
+    if (error) throw error;
+    const saved = Array.isArray(data) ? data[0] : data;
+    const serial = saved?.carton_serial || els.cartonSerial.value.trim();
+    resetInputs();
+    setStatus(`Carton ${serial} saved.`);
+  } catch (error) {
+    setStatus(error.message, "error");
+  } finally {
+    els.savePackingRecord.disabled = false;
+  }
+}
+
+function clearForm() {
+  resetInputs();
+  setStatus("");
+}
+
+function resetInputs() {
+  const aggregator = els.packingAggregator.value;
+  const recordedBy = els.packingRecordedBy.value;
+  els.packingRecordForm.reset();
+  els.packedOn.value = kenyaDate();
+  els.packingSpecies.value = defaultSpecies;
+  els.packingAggregator.value = aggregator;
+  els.packingRecordedBy.value = recordedBy;
+  els.packingChemical.value = "Sodium benzoate";
+  submissionId = crypto.randomUUID();
+  els.cartonSerial.focus();
+}
+
+function numberOrNull(value) {
+  return value === "" ? null : Number(value);
+}
+
+function textOrNull(value) {
+  return value.trim() || null;
+}
+
+function kenyaDate() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Nairobi",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
+function setStatus(message, status = "") {
+  els.packingRecordStatus.textContent = message;
+  if (status) els.packingRecordStatus.dataset.status = status;
+  else delete els.packingRecordStatus.dataset.status;
+}

@@ -4040,6 +4040,80 @@ button:disabled {
   grid-column: span 2;
 }
 
+.packing-record-page .admin-content > .panel {
+  min-width: 0;
+  max-width: 760px;
+  padding: 16px;
+}
+
+.packing-record-form {
+  display: grid;
+  gap: 12px;
+}
+
+.packing-record-form fieldset {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel-soft);
+}
+
+.packing-record-form legend {
+  padding: 0 6px;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.packing-record-form label {
+  display: grid;
+  gap: 5px;
+  color: var(--text-sec);
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.packing-record-form input,
+.packing-record-form select,
+.packing-record-form textarea {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-weight: 400;
+  text-transform: none;
+}
+
+.packing-record-form input[readonly] {
+  background: #f6faf9;
+  color: var(--text-sec);
+}
+
+.packing-measure-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px;
+  gap: 8px;
+}
+
+.packing-record-actions {
+  padding-top: 2px;
+}
+
+.packing-record-actions .admin-status {
+  flex: 1 1 220px;
+  margin: 0;
+}
+
 .notifications-page .admin-content > .panel,
 .seaweedke-page .admin-content > .panel {
   min-width: 0;
@@ -4432,6 +4506,10 @@ label input[type="checkbox"] {
 
   .tenant-inline-form {
     grid-template-columns: 1fr;
+  }
+
+  .packing-record-page .admin-content > .panel {
+    max-width: 100%;
   }
 
   .receipt-document-head {

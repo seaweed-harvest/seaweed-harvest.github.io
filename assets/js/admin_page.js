@@ -491,6 +491,13 @@ function addAdminSidebarLinks(sidebar) {
       '<p class="admin-menu-heading">Forms</p><a href="./collection.html" data-permission="can_submit_collection">Collection Form</a>'
     );
   }
+  const collectionForm = sidebar.querySelector('a[href="./collection.html"]');
+  if (collectionForm && !sidebar.querySelector('a[href="./stabilization_packing.html"]')) {
+    collectionForm.insertAdjacentHTML(
+      "afterend",
+      '<a href="./stabilization_packing.html" data-permission="can_submit_collection">Stabilization &amp; Packing</a>'
+    );
+  }
 
   const registryHeading = [...sidebar.querySelectorAll(".admin-menu-heading")]
     .find((heading) => heading.textContent.trim().toLowerCase() === "registry");
@@ -598,6 +605,7 @@ function applySidebarPermissions(sidebar, profile) {
     "./admin_monthly.html": "can_view_data",
     "./admin_community.html": "can_view_data",
     "./admin_ledger.html": "can_view_data",
+    "./stabilization_packing.html": "can_submit_collection",
     "./tags.html": "can_access_admin"
   };
 
@@ -620,6 +628,7 @@ function requiredPermissionForPage() {
     "admin_monthly.html": "can_view_data",
     "admin_community.html": "can_view_data",
     "admin_ledger.html": "can_view_data",
+    "stabilization_packing.html": "can_submit_collection",
     "admin_receipts.html": "can_view_data",
     "admin_notifications.html": "can_view_notifications",
     "admin_seaweedke.html": "can_manage_sms_settings",
