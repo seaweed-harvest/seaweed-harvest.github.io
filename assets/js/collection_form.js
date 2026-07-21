@@ -114,6 +114,7 @@ async function init() {
       ensureTransactionId();
       updateEmptyFieldHighlights();
       await refreshOfflineQueue();
+      void autoSyncOutbox();
     } catch (error) {
       if (els.collectionSaveStatus) {
         setStatus(error.message || "Unable to open the collection form.", "error");
@@ -263,6 +264,7 @@ async function initialiseOfflineCollection() {
     state.offline.online = true;
     updateOfflineReadiness();
     void refreshOfflineQueue();
+    void autoSyncOutbox();
   });
   window.addEventListener("offline", () => {
     state.offline.online = false;
@@ -271,9 +273,13 @@ async function initialiseOfflineCollection() {
   window.addEventListener("focus", () => {
     updateOfflineReadiness();
     void refreshOfflineQueue();
+    void autoSyncOutbox();
   });
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") void refreshOfflineQueue();
+    if (document.visibilityState === "visible") {
+      void refreshOfflineQueue();
+      void autoSyncOutbox();
+    }
   });
   updateOfflineReadiness();
 }
@@ -296,6 +302,7 @@ async function initialiseNativeRuntime() {
       state.offline.online = Boolean(status.connected);
       updateOfflineReadiness();
       void refreshOfflineQueue();
+      if (state.offline.online) void autoSyncOutbox();
     });
   } catch {
     // Browser online/offline events remain available as a fallback.
@@ -1519,6 +1526,12 @@ async function syncOutbox(options = {}) {
     state.offline.syncing = false;
     await refreshOfflineQueue();
   }
+}
+
+async function autoSyncOutbox() {
+  if (!state.offline.native || !state.offline.ready || !isOnline() || state.offline.syncing) return;
+  const pending = (await listOutboxItems()).filter((item) => item.status !== "synced");
+  if (pending.length > 0) await syncOutbox({ announce: true });
 }
 
 async function refreshOfflineQueue() {

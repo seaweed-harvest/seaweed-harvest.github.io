@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v18";
+const CACHE_VERSION = "seaweed-harvest-collection-v20";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -21,6 +21,7 @@ const APP_SHELL = [
   "./assets/js/operation_feedback.js",
   "./assets/js/today_page.js",
   "./assets/js/config.js",
+  "./assets/js/fixed_table_scrollbar.js",
   "./assets/js/supabase_client.js",
   "./assets/js/vendor/jsQR.js"
 ];

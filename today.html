@@ -65,8 +65,8 @@
         <table class="management-table admin-data-table today-intake-table public-intake-table">
           <thead>
             <tr>
+              <th id="publicTodaySyncHeader">Sync status</th>
               <th class="selection-cell"><input id="publicTodaySelectAll" type="checkbox" aria-label="Select all intake rows"></th>
-              <th id="publicTodaySyncHeader" hidden>Sync status</th>
               <th>Time</th>
               <th>Farmer</th>
               <th>Weight kg</th>
@@ -83,6 +83,42 @@
         </table>
       </div>
       <p id="publicTodayStatus" class="admin-status" aria-live="polite"></p>
+    </section>
+
+    <section id="olderPendingPanel" class="panel public-intake-panel older-pending-panel" hidden>
+      <div class="section-head compact">
+        <div>
+          <h2>Older records waiting to sync</h2>
+          <p class="field-hint">Saved on this device before today.</p>
+        </div>
+        <div class="button-row compact-actions">
+          <span id="olderPendingCount" class="status-pill">0 records</span>
+          <button id="olderPendingSync" type="button">Sync all local records</button>
+        </div>
+      </div>
+      <div id="olderPendingActions" class="today-edit-actions" hidden>
+        <span id="olderPendingSelectedCount" class="status-pill">0 selected</span>
+        <button id="olderPendingDelete" class="danger-button" type="button">Delete selected</button>
+      </div>
+      <div class="responsive-table-wrap public-intake-table-wrap older-pending-table-wrap">
+        <table class="management-table admin-data-table today-intake-table public-intake-table">
+          <thead>
+            <tr>
+              <th>Sync status</th>
+              <th class="selection-cell"><input id="olderPendingSelectAll" type="checkbox" aria-label="Select all older local records"></th>
+              <th>Collected</th>
+              <th>Farmer</th>
+              <th>Weight kg</th>
+              <th>Type</th>
+              <th>Grade</th>
+              <th>Community</th>
+              <th>Collector</th>
+              <th>Transaction</th>
+            </tr>
+          </thead>
+          <tbody id="olderPendingRows"></tbody>
+        </table>
+      </div>
     </section>
 
     <details class="panel intake-recovery-panel">
@@ -108,6 +144,7 @@
     <button type="button" data-operation-action hidden>Done</button>
   </section>
 
+  <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
   <script type="module" src="./assets/js/today_page.js"></script>
 </body>
 </html>

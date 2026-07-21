@@ -926,6 +926,27 @@ body.brand-transition-active {
   min-width: 118px !important;
 }
 
+.older-pending-panel {
+  margin-top: 12px;
+  border-color: rgba(245, 158, 11, 0.34);
+}
+
+.older-pending-panel .section-head {
+  margin-bottom: 8px;
+}
+
+.older-pending-panel .today-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.older-pending-table-wrap {
+  max-height: min(42vh, 440px);
+}
+
 .intake-recovery-panel {
   margin-top: 12px;
 }
@@ -1138,6 +1159,44 @@ input[readonly] {
 
 .status-hidden {
   display: none;
+}
+
+.native-network-indicator {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border: 1px solid rgba(15, 118, 110, 0.28);
+  border-radius: 999px;
+  background: #ecf8f5;
+  color: #0f766e;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.native-network-symbol {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #0f766e;
+  color: #fff;
+  font-size: 0.66rem;
+  line-height: 1;
+}
+
+.native-network-indicator[data-network-state="offline"] {
+  border-color: rgba(245, 158, 11, 0.42);
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.native-network-indicator[data-network-state="offline"] .native-network-symbol {
+  background: #d97706;
 }
 
 .admin-status {
