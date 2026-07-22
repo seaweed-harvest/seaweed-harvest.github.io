@@ -35,7 +35,8 @@ async function init() {
   [
     "reefNurseryForm", "reefNurseryTabs", "reefRecordNumber", "reefTrainingDate",
     "reefLocation", "reefStartTime", "reefFinishTime", "reefTrainerName",
-    "reefSupportingStaff", "reefSessionTypes",
+    "reefSupportingStaff", "reefSessionTypes", "reefOtherSessionTypeField",
+    "reefOtherSessionType",
     "reefConditions", "reefNurseryReference", "reefTrainingSections",
     "reefTrainingEmpty", "openReefTrainingMatrix", "reefTrainingMatrixDialog",
     "reefTrainingMatrixForm", "reefTrainingMatrixEditor", "reefTrainingMatrixStatus",
@@ -55,7 +56,7 @@ async function init() {
   configureDropboxLink();
   els.addReefParticipant.addEventListener("click", () => addParticipantRow({ focus: true }));
   els.reefParticipantRows.addEventListener("click", handleParticipantAction);
-  els.reefSessionTypes.addEventListener("change", renderTrainingSections);
+  els.reefSessionTypes.addEventListener("change", handleSessionTypesChange);
   els.reefTrainingSections.addEventListener("change", updateTrainingDraft);
   els.reefTrainingSections.addEventListener("input", updateTrainingDraft);
   els.openReefTrainingMatrix.addEventListener("click", openTrainingMatrixEditor);
@@ -108,7 +109,7 @@ function initializeNewRecord() {
   els.reefTrainingDate.value = kenyaDate();
   els.reefParticipantRows.replaceChildren();
   addParticipantRow();
-  renderTrainingSections();
+  handleSessionTypesChange();
   updateFieldHighlights();
 }
 
@@ -139,6 +140,7 @@ async function loadRecord(sessionId) {
   els.reefNurseryForm.querySelectorAll('[name="reefSessionType"]').forEach((control) => {
     control.checked = sessionTypes.has(control.value);
   });
+  els.reefOtherSessionType.value = data.other_session_type || "";
   trainingDrafts.clear();
   (Array.isArray(data.training_delivered) ? data.training_delivered : []).forEach((section) => {
     trainingDrafts.set(section.section_key, {
@@ -146,7 +148,7 @@ async function loadRecord(sessionId) {
       otherText: String(section.other_text || "")
     });
   });
-  renderTrainingSections();
+  handleSessionTypesChange();
 
   els.reefParticipantRows.replaceChildren();
   (Array.isArray(data.participants) ? data.participants : []).forEach((participant) => {
@@ -212,7 +214,7 @@ function showTab(name) {
 function addParticipantRow({ focus = false, participant = {} } = {}) {
   const row = document.createElement("tr");
   row.innerHTML = `
-    <td data-label="Participant name"><input type="text" data-participant-field="name" maxlength="160" autocomplete="name" required></td>
+    <td data-label="Participant name"><input type="text" data-participant-field="name" maxlength="160" autocomplete="name"></td>
     <td data-label="Farmer ID / phone"><input type="text" data-participant-field="reference" maxlength="100" autocomplete="tel"></td>
     <td data-label="Gender">
       <select data-participant-field="gender" aria-label="Participant gender">
@@ -298,6 +300,18 @@ function selectedTrainingKeys() {
     .map((control) => control.value);
 }
 
+function handleSessionTypesChange() {
+  const otherSelected = Boolean(els.reefNurseryForm.querySelector('[name="reefSessionType"][value="other"]:checked'));
+  els.reefOtherSessionTypeField.hidden = !otherSelected;
+  els.reefOtherSessionType.required = otherSelected;
+  if (!otherSelected) {
+    els.reefOtherSessionType.value = "";
+    els.reefOtherSessionType.classList.remove("empty-value-control");
+  }
+  renderTrainingSections();
+  updateFieldHighlights();
+}
+
 function trainingDraft(sectionKey) {
   if (!trainingDrafts.has(sectionKey)) {
     trainingDrafts.set(sectionKey, { activityIds: new Set(), otherText: "" });
@@ -306,11 +320,11 @@ function trainingDraft(sectionKey) {
 }
 
 function renderTrainingSections() {
-  const selected = new Set(selectedTrainingKeys());
+  const selected = new Set(selectedTrainingKeys().filter((key) => TRAINING_SECTION_KEYS.includes(key)));
   els.reefTrainingSections.replaceChildren();
   els.reefTrainingEmpty.hidden = selected.size > 0;
   if (!selected.size) {
-    els.reefTrainingEmpty.textContent = "Select the session types first.";
+    els.reefTrainingEmpty.textContent = "No standard training activities selected.";
     return;
   }
 
@@ -561,10 +575,8 @@ async function submitSession(event) {
 function validatedRecord() {
   const required = [
     [els.reefTrainingDate, "Training date", "session"],
-    [els.reefLocation, "Location", "session"],
     [els.reefStartTime, "Start time", "session"],
-    [els.reefFinishTime, "Finish time", "session"],
-    [els.reefTrainerName, "Trainer's name", "session"]
+    [els.reefFinishTime, "Finish time", "session"]
   ];
   for (const [control, label, tab] of required) {
     if (String(control.value || "").trim()) continue;
@@ -582,19 +594,17 @@ function validatedRecord() {
     return validationError("Select at least one type of session.", "session", els.reefSessionTypes);
   }
 
+  const otherSelected = sessionTypes.includes("other");
+  if (otherSelected && !els.reefOtherSessionType.value.trim()) {
+    return validationError("Enter the other session type.", "session", els.reefOtherSessionType);
+  }
+
   const trainingDelivered = [];
-  for (const sectionKey of sessionTypes) {
+  for (const sectionKey of sessionTypes.filter((key) => TRAINING_SECTION_KEYS.includes(key))) {
     const draft = trainingDraft(sectionKey);
     const activityIds = [...draft.activityIds];
     const otherText = textOrNull(draft.otherText);
-    if (!activityIds.length && !otherText) {
-      const section = trainingMatrix.find((item) => item.section_key === sectionKey);
-      return validationError(
-        `Select at least one activity for ${section?.section_label || "each training section"}.`,
-        "training",
-        els.reefTrainingSections
-      );
-    }
+    if (!activityIds.length && !otherText) continue;
     trainingDelivered.push({
       section_key: sectionKey,
       activity_ids: activityIds,
@@ -606,7 +616,9 @@ function validatedRecord() {
     participant_name: row.querySelector('[data-participant-field="name"]').value.trim(),
     farmer_reference_phone: textOrNull(row.querySelector('[data-participant-field="reference"]').value),
     gender: textOrNull(row.querySelector('[data-participant-field="gender"]').value)
-  }));
+  })).filter((participant) => (
+    participant.participant_name || participant.farmer_reference_phone || participant.gender
+  ));
   const firstMissingParticipant = participants.findIndex((participant) => !participant.participant_name);
   if (firstMissingParticipant >= 0) {
     const input = els.reefParticipantRows.rows[firstMissingParticipant]
@@ -623,6 +635,7 @@ function validatedRecord() {
       trainer_name: els.reefTrainerName.value.trim(),
       supporting_staff: textOrNull(els.reefSupportingStaff.value),
       session_types: sessionTypes,
+      other_session_type: otherSelected ? els.reefOtherSessionType.value.trim() : null,
       weather_sea_conditions: textOrNull(els.reefConditions.value),
       nursery_reference: textOrNull(els.reefNurseryReference.value)
     },
@@ -664,7 +677,7 @@ function clearForm({ preserveStatus = false } = {}) {
   closePhotoViewer();
   renderPhotoPreview();
   addParticipantRow();
-  renderTrainingSections();
+  handleSessionTypesChange();
   submissionId = crypto.randomUUID();
   showTab("session");
   els.reefSessionTypes.classList.remove("missing-selection");

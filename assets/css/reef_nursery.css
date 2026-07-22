@@ -279,6 +279,14 @@
   background: #fff8e8;
 }
 
+.reef-other-session-type {
+  margin-top: 2px;
+}
+
+.reef-other-session-type[hidden] {
+  display: none;
+}
+
 .reef-training-empty {
   margin: 2px 0;
   color: var(--text-sec);

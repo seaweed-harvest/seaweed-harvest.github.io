@@ -24,6 +24,7 @@ const SESSION_TYPE_LABELS = {
   line_inspection_maintenance: "Line inspection and maintenance",
   mooring_inspection_maintenance: "Mooring inspection and maintenance",
   nursery_deployment_recovery: "Nursery deployment / recovery",
+  other: "Other",
   nursery_deployment: "Nursery deployment",
   boat_water_safety: "Boat and water safety",
   refresher_training: "Refresher training"
@@ -102,8 +103,8 @@ function renderRows() {
         <td class="reef-select-column"><input type="checkbox" data-select-record value="${escapeHtml(record.session_id)}" aria-label="Select ${escapeHtml(record.record_number)}"></td>
         <td><strong>${escapeHtml(record.record_number)}</strong></td>
         <td>${escapeHtml(formatDate(record.training_date))}</td>
-        <td>${escapeHtml(record.trainer_name)}</td>
-        <td>${escapeHtml(LOCATION_LABELS[record.location] || record.location)}</td>
+        <td>${escapeHtml(record.trainer_name || "-")}</td>
+        <td>${escapeHtml(LOCATION_LABELS[record.location] || record.location || "-")}</td>
         <td>${escapeHtml(formatSessionTypes(record.session_types))}</td>`;
       els.reefRecordsRows.append(row);
     });
@@ -219,7 +220,10 @@ function formatDate(value) {
 
 function formatSessionTypes(values) {
   return (Array.isArray(values) ? values : [])
-    .map((value) => SESSION_TYPE_LABELS[value] || value)
+    .map((value) => {
+      if (String(value).startsWith("other:")) return `Other: ${String(value).slice(6)}`;
+      return SESSION_TYPE_LABELS[value] || value;
+    })
     .join(", ");
 }
 

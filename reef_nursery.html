@@ -64,7 +64,7 @@
                 <input id="reefTrainingDate" type="date" required>
               </label>
               <label>Location
-                <select id="reefLocation" required>
+                <select id="reefLocation">
                   <option value="">Select location</option>
                   <option value="mkwiro">Mkwiro</option>
                   <option value="offshore_nursery">Offshore nursery site</option>
@@ -80,7 +80,7 @@
                 </label>
               </div>
               <label>Trainer's name
-                <input id="reefTrainerName" type="text" maxlength="160" autocomplete="name" required>
+                <input id="reefTrainerName" type="text" maxlength="160" autocomplete="name">
               </label>
               <label>Supporting staff
                 <input id="reefSupportingStaff" type="text" maxlength="500">
@@ -95,7 +95,11 @@
                   <label><input type="checkbox" name="reefSessionType" value="line_inspection_maintenance"><span>Line inspection and maintenance</span></label>
                   <label><input type="checkbox" name="reefSessionType" value="mooring_inspection_maintenance"><span>Mooring inspection and maintenance</span></label>
                   <label><input type="checkbox" name="reefSessionType" value="nursery_deployment_recovery"><span>Nursery deployment / recovery</span></label>
+                  <label><input type="checkbox" name="reefSessionType" value="other"><span>Other</span></label>
                 </div>
+                <label id="reefOtherSessionTypeField" class="reef-other-session-type" hidden>Other session type
+                  <input id="reefOtherSessionType" type="text" maxlength="200" placeholder="Enter session type">
+                </label>
               </div>
 
               <label>Weather and sea conditions
@@ -239,6 +243,6 @@
     </form>
   </dialog>
   <script type="module" src="./assets/js/admin_page.js?v=23"></script>
-  <script type="module" src="./assets/js/reef_nursery_form.js?v=4"></script>
+  <script type="module" src="./assets/js/reef_nursery_form.js?v=5"></script>
 </body>
 </html>
