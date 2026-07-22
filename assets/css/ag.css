@@ -999,6 +999,47 @@ body.brand-transition-active {
   margin: 0;
 }
 
+.form-panel-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-favorite-action {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 7px;
+  display: inline-grid;
+  place-items: center;
+  color: #7b8b87;
+  background: transparent;
+  border-color: transparent;
+}
+
+.form-favorite-action:hover,
+.form-favorite-action:focus-visible {
+  color: #a27600;
+  background: #fff9df;
+  border-color: #efd27a;
+}
+
+.form-favorite-action.is-favorite {
+  color: #c68b00;
+  background: #fff7cf;
+  border-color: #e9c451;
+}
+
+.form-favorite-action svg {
+  width: 20px;
+  height: 20px;
+}
+
+.form-favorite-action.is-favorite svg {
+  fill: currentColor;
+}
+
 .form-pdf-action {
   min-width: 74px;
   min-height: 36px;
@@ -3370,6 +3411,85 @@ button:disabled {
   padding: 16px;
 }
 
+.dashboard-favorite-forms {
+  padding: 14px 16px !important;
+}
+
+.dashboard-favorite-forms .section-head {
+  min-height: 28px;
+  margin-bottom: 8px;
+}
+
+.dashboard-favorite-forms h2 {
+  font-size: 1rem;
+}
+
+.dashboard-form-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.dashboard-form-shortcut {
+  min-width: 0;
+  min-height: 54px;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 9px;
+  color: var(--text);
+  text-decoration: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.dashboard-form-shortcut:hover,
+.dashboard-form-shortcut:focus-visible {
+  border-color: #e0b83c;
+  background: #fffbed;
+}
+
+.dashboard-form-shortcut-icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: #bd8500;
+  background: #fff5c2;
+  border-radius: 50%;
+}
+
+.dashboard-form-shortcut-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.dashboard-form-shortcut strong,
+.dashboard-form-shortcut small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-form-shortcut strong {
+  font-size: 0.9rem;
+}
+
+.dashboard-form-shortcut small {
+  margin-top: 2px;
+  color: var(--text-sec);
+  font-size: 0.76rem;
+}
+
+.dashboard-form-shortcut-arrow {
+  color: var(--text-sec);
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
 .collector-metric-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -5617,6 +5737,10 @@ label input[type="checkbox"] {
 
   .dashboard-preference-options,
   .collector-metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-form-shortcuts {
     grid-template-columns: 1fr;
   }
 

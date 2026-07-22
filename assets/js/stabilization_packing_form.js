@@ -1,4 +1,5 @@
 import { authClient, currentAggregatorContext, requireAdminAccess } from "./auth_client.js";
+import { setupFavoriteFormButton } from "./favorite_forms.js";
 import { selectRows } from "./supabase_client.js";
 import { setPrintValue, setupPdfWorksheet } from "./print_worksheet.js";
 
@@ -18,7 +19,7 @@ async function init() {
     "packingAggregator", "packingRecordedBy", "packingWeight", "packingWeightUnit",
     "packingTemperature", "packingSalinity", "packingSalinityUnit", "packingPh",
     "packingEc", "packingChemical", "packingDose", "packingDoseUnit", "packingDoseDefault", "packingNotes",
-    "savePackingRecord", "clearPackingRecord", "printPackingWorksheet", "packingRecordStatus",
+    "savePackingRecord", "clearPackingRecord", "favoritePackingForm", "printPackingWorksheet", "packingRecordStatus",
     "packingPrintWorksheet", "printPackingAggregator", "printPackingDate",
     "printPackingRecordedBy", "printPackingChemical"
   ].forEach((id) => { els[id] = document.getElementById(id); });
@@ -33,6 +34,14 @@ async function init() {
 
   const access = await requireAdminAccess("can_submit_collection");
   if (!access) return;
+
+  setupFavoriteFormButton({
+    button: els.favoritePackingForm,
+    formKey: "stabilization_packing",
+    profile: access.profile,
+    client: authClient,
+    returnPage: "stabilization_packing.html"
+  });
 
   els.packedOn.value = kenyaDate();
   els.packingRecordedBy.value = access.profile?.display_name || access.profile?.email || "Signed-in user";

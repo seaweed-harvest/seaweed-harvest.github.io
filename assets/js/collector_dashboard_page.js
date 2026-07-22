@@ -1,5 +1,6 @@
 import { authClient, requireAuthenticatedAccount, setupAccountControls } from "./auth_client.js";
 import { applyDashboardPreferences } from "./dashboard_preferences.js";
+import { renderFavoriteForms } from "./favorite_forms.js";
 import { setupAppNavigation } from "./app_navigation.js?v=6";
 
 const els = {};
@@ -31,6 +32,7 @@ async function init() {
       returnPage: "collector_dashboard.html"
     });
     setupAppNavigation({ profile });
+    renderFavoriteForms(document.getElementById("collectorFavoriteForms"), profile);
     els.collectorCollectionLink.hidden = !profile.can_submit_collection && profile.app_role !== "system_admin";
     els.collectorAdminLink.hidden = !profile.can_access_admin && profile.app_role !== "system_admin";
     applyDashboardPreferences(profile);

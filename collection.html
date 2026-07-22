@@ -72,12 +72,17 @@
     <section class="panel form-record-panel collection-form-panel">
       <div class="section-head compact form-panel-toolbar">
         <h2 data-i18n="page.title">Collection</h2>
-        <button id="printCollectionWorksheet" class="form-pdf-action" type="button" aria-label="Download collection worksheet PDF" title="Download collection worksheet PDF">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="printer" aria-hidden="true">
-            <path d="M6 9V2h12v7"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect width="12" height="8" x="6" y="14"></rect>
-          </svg>
-          <span>PDF</span>
-        </button>
+        <div class="form-panel-actions">
+          <button id="favoriteCollectionForm" class="form-favorite-action" type="button" aria-pressed="false" aria-label="Add Collection to dashboard" title="Add Collection to dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" data-lucide="star" aria-hidden="true"><path d="m12 2.8 2.8 5.7 6.3.9-4.6 4.4 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.4 6.3-.9L12 2.8Z"></path></svg>
+          </button>
+          <button id="printCollectionWorksheet" class="form-pdf-action" type="button" aria-label="Download collection worksheet PDF" title="Download collection worksheet PDF">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="printer" aria-hidden="true">
+              <path d="M6 9V2h12v7"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect width="12" height="8" x="6" y="14"></rect>
+            </svg>
+            <span>PDF</span>
+          </button>
+        </div>
       </div>
       <form id="collectionForm" class="collection-form">
         <label class="collector-name-field">
@@ -329,6 +334,6 @@
   </section>
 
   <script src="./assets/js/vendor/jsQR.js"></script>
-  <script type="module" src="./assets/js/collection_form.js?v=23"></script>
+  <script type="module" src="./assets/js/collection_form.js?v=24"></script>
 </body>
 </html>

@@ -26,6 +26,7 @@ import { syncPendingCollections } from "./offline_sync.js";
 import { completeLaunchSplash } from "./app_transition.js";
 import { createOperationFeedback } from "./operation_feedback.js";
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=6";
+import { setupFavoriteFormButton } from "./favorite_forms.js";
 import { setPrintValue, setupPdfWorksheet } from "./print_worksheet.js";
 
 const state = {
@@ -104,6 +105,13 @@ async function init() {
         state.publicContextPromise = loadPublicMawimbiContext();
       }
       setupCollectionHeader();
+      setupFavoriteFormButton({
+        button: els.favoriteCollectionForm,
+        formKey: "collection",
+        profile: state.profile,
+        client: state.authApi?.authClient || null,
+        returnPage: "collection.html"
+      });
       setupCollectorName();
       applyCollectionAccessMode();
       bindEvents();
@@ -350,6 +358,7 @@ function cacheElements() {
     "collectionSignInLink",
     "collectionForm",
     "submitCollection",
+    "favoriteCollectionForm",
     "printCollectionWorksheet",
     "collectionPrintWorksheet",
     "printCollectionAggregator",
