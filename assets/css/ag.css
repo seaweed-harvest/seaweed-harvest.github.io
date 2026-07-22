@@ -1061,21 +1061,24 @@ body.brand-transition-active {
   gap: 12px;
 }
 
-.collector-name-field {
-  width: min(520px, 100%);
+.collector-name-field,
+.form-recorder-field {
+  width: 100%;
   display: grid;
   gap: 5px;
   padding: 0 1px;
 }
 
-.collector-name-field > span {
+.collector-name-field > span,
+.form-recorder-field > span {
   color: var(--text-sec);
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
 }
 
-.collector-name-field input {
+.collector-name-field input,
+.form-recorder-field input {
   width: 100%;
 }
 
@@ -4785,7 +4788,6 @@ body[data-registration-pending] .registration-flow {
   text-transform: uppercase;
 }
 
-.packing-recorder-field,
 .packing-notes-field {
   max-width: none;
 }

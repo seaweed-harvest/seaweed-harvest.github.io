@@ -43,6 +43,11 @@
           </div>
         </div>
         <form id="siteSampleForm" class="packing-record-form site-sample-form">
+          <label class="form-recorder-field">
+            <span>Recorded by</span>
+            <input id="siteSampleRecordedBy" type="text" maxlength="160" autocomplete="name" required>
+          </label>
+
           <fieldset>
             <legend>Sample</legend>
             <div class="packing-record-type-field">
@@ -68,9 +73,6 @@
                 <button id="captureSiteSampleGps" type="button">GPS</button>
               </span>
               <span id="siteSampleGpsHint" class="packing-field-hint">Latitude, longitude</span>
-            </label>
-            <label>Recorded by
-              <input id="siteSampleRecordedBy" type="text" maxlength="160" autocomplete="name" required>
             </label>
           </fieldset>
 
