@@ -10,7 +10,7 @@ export function setupAppNavigation(options = {}) {
   const profile = options.profile || null;
   const currentFile = window.location.pathname.split("/").pop() || "collection.html";
   const dashboardHref = options.dashboardHref || dashboardRoute(profile);
-  const forms = formLinks();
+  const forms = formLinks(profile);
   const records = recordLinks(profile);
 
   header.classList.add("unified-app-header");
@@ -269,7 +269,7 @@ function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
     drawer.append(navigationLink({ label: "Community Map", href: "./admin_map.html" }, currentFile));
   }
 
-  drawer.append(drawerGroup("Forms", formLinks(), currentFile, true));
+  drawer.append(drawerGroup("Forms", formLinks(profile), currentFile, true));
   drawer.append(drawerGroup("Records", recordLinks(profile), currentFile));
 
   const registry = permittedLinks(profile, [
@@ -333,19 +333,22 @@ function navigationLink(link, currentFile) {
   return anchor;
 }
 
-function formLinks() {
-  return [
+function formLinks(profile) {
+  const links = [
     { label: "Collection Form", href: "./collection.html" },
     { label: "BioStim Stock Record", href: "./stabilization_packing.html" },
-    { label: "Site Water Sample", href: "./site_water_sample.html" },
-    { label: "Reef Nursery", href: "./reef_nursery.html" }
+    { label: "Site Water Sample", href: "./site_water_sample.html" }
   ];
+  if (hasPermission(profile, "can_access_reef_nursery")) {
+    links.push({ label: "Reef Nursery", href: "./reef_nursery.html" });
+  }
+  return links;
 }
 
 function recordLinks(profile) {
   const links = [{ label: "Today's Intake", href: hasPermission(profile, "can_view_data") ? "./admin_today.html" : "./today.html" }];
   return links.concat(permittedLinks(profile, [
-    { label: "Reef Nursery Records", href: "./reef_nursery_records.html", permission: "can_submit_collection" },
+    { label: "Reef Nursery Records", href: "./reef_nursery_records.html", permission: "can_access_reef_nursery" },
     { label: "Collection Ledger", href: "./admin_ledger.html", permission: "can_view_data" },
     { label: "Finance Review", href: "./admin_finance.html", permission: "can_view_finance" },
     { label: "Receipts", href: "./admin_receipts.html", permission: "can_view_data" },
@@ -358,6 +361,7 @@ function permittedLinks(profile, links) {
 }
 
 function hasPermission(profile, permission) {
+  if (permission === "can_access_reef_nursery") return Boolean(profile?.can_access_reef_nursery);
   return profile?.app_role === "system_admin" || Boolean(profile?.[permission]);
 }
 

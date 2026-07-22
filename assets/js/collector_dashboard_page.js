@@ -1,7 +1,7 @@
 import { authClient, requireAuthenticatedAccount, setupAccountControls } from "./auth_client.js";
 import { applyDashboardPreferences } from "./dashboard_preferences.js";
 import { renderFavoriteForms } from "./favorite_forms.js";
-import { setupAppNavigation } from "./app_navigation.js?v=6";
+import { setupAppNavigation } from "./app_navigation.js?v=7";
 
 const els = {};
 let profile = null;

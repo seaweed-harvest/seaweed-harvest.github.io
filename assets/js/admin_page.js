@@ -1,10 +1,10 @@
 import { APP_CONFIG } from "./config.js";
 import { hasMapCoordinates as hasGps, mapCoordinates } from "./map_coordinates.js";
 import { dataModeLabel, selectRows } from "./supabase_client.js";
-import { currentAccessToken, requireAdminAccess, setupAccountControls } from "./auth_client.js?v=22";
+import { currentAccessToken, requireAdminAccess, setupAccountControls } from "./auth_client.js?v=23";
 import { applyDashboardPreferences } from "./dashboard_preferences.js";
 import { renderFavoriteForms } from "./favorite_forms.js";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=6";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=7";
 import { moonEvents } from "./moon_calendar.js";
 
 const TABLES = {
@@ -495,8 +495,8 @@ function requiredPermissionForPage() {
     "admin_ledger.html": "can_view_data",
     "stabilization_packing.html": "can_submit_collection",
     "site_water_sample.html": "can_submit_collection",
-    "reef_nursery.html": "can_submit_collection",
-    "reef_nursery_records.html": "can_submit_collection",
+    "reef_nursery.html": "can_access_reef_nursery",
+    "reef_nursery_records.html": "can_access_reef_nursery",
     "admin_receipts.html": "can_view_data",
     "admin_notifications.html": "can_view_notifications",
     "admin_seaweedke.html": "can_manage_sms_settings",

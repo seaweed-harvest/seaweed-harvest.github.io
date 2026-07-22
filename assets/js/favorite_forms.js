@@ -25,7 +25,7 @@ export const FAVORITE_FORMS = [
     label: "Reef Nursery",
     description: "Record nursery training sessions and participants",
     href: "./reef_nursery.html",
-    permission: "can_submit_collection"
+    permission: "can_access_reef_nursery"
   }
 ];
 
@@ -125,6 +125,7 @@ export function renderFavoriteForms(container, profile) {
 }
 
 function hasPermission(profile, permission) {
+  if (permission === "can_access_reef_nursery") return Boolean(profile?.can_access_reef_nursery);
   return profile?.app_role === "system_admin" || Boolean(profile?.[permission]);
 }
 

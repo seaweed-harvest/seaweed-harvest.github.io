@@ -74,8 +74,11 @@ export async function requireAdminAccess(permission = "can_access_admin") {
   const profile = await currentProfile(true);
   const isSystemAdmin = profile?.app_role === "system_admin";
   const isOperationalForm = permission === "can_submit_collection";
+  const isReefNursery = permission === "can_access_reef_nursery";
   const allowed = profile?.account_status === "active"
-    && (isSystemAdmin || (isOperationalForm ? profile.can_submit_collection : (profile.can_access_admin && profile[permission])));
+    && (isReefNursery
+      ? Boolean(profile.can_access_reef_nursery)
+      : (isSystemAdmin || (isOperationalForm ? profile.can_submit_collection : (profile.can_access_admin && profile[permission]))));
 
   if (!allowed) {
     window.location.replace(profile?.app_role === "farmer_viewer" ? "./farmer.html" : "./access_pending.html");
@@ -83,6 +86,34 @@ export async function requireAdminAccess(permission = "can_access_admin") {
   }
 
   return { session, profile };
+}
+
+export async function requireAggregatorAccess(aggregatorCode, permission, returnPage) {
+  const access = await requireAdminAccess(permission);
+  if (!access) return null;
+
+  const expectedCode = String(aggregatorCode || "").trim().toUpperCase();
+  const context = await currentAggregatorContext(true);
+  const aggregator = (context.aggregators || []).find(
+    (item) => String(item.aggregator_code || "").toUpperCase() === expectedCode
+  );
+  if (!aggregator) {
+    window.location.replace("./access_pending.html");
+    return null;
+  }
+
+  let activeContext = context;
+  if (String(context.active_aggregator_id || "") !== String(aggregator.id)) {
+    activeContext = await setActiveAggregator(aggregator.id);
+    access.profile = await currentProfile(true);
+  }
+
+  return {
+    ...access,
+    aggregator,
+    aggregatorContext: activeContext,
+    returnPage: returnPage || currentPage()
+  };
 }
 
 export async function requireCollectionAccess() {

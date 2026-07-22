@@ -11,7 +11,7 @@ import {
 } from "./offline_store.js";
 import { syncPendingCollections } from "./offline_sync.js";
 import { createOperationFeedback } from "./operation_feedback.js";
-import { setupAppNavigation } from "./app_navigation.js?v=6";
+import { setupAppNavigation } from "./app_navigation.js?v=7";
 
 const COLLECTOR_NAME_STORAGE_KEY = "seaweed_harvest:collector_name";
 const state = {

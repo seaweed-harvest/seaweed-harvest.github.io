@@ -1,5 +1,5 @@
 import { APP_CONFIG } from "./config.js";
-import { authClient, requireAdminAccess } from "./auth_client.js";
+import { authClient, requireAggregatorAccess } from "./auth_client.js?v=23";
 import { setupFavoriteFormButton } from "./favorite_forms.js";
 
 const els = {};
@@ -84,7 +84,11 @@ async function init() {
   els.reefNurseryForm.addEventListener("input", updateFieldHighlights);
   els.reefNurseryForm.addEventListener("change", updateFieldHighlights);
 
-  const access = await requireAdminAccess("can_submit_collection");
+  const access = await requireAggregatorAccess(
+    "REEFOLUTION",
+    "can_access_reef_nursery",
+    "reef_nursery.html"
+  );
   if (!access) return;
   photoState.userId = access.session?.user?.id || null;
   await loadTrainingMatrix();

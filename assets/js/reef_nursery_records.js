@@ -1,4 +1,4 @@
-import { authClient, requireAdminAccess } from "./auth_client.js";
+import { authClient, requireAggregatorAccess } from "./auth_client.js?v=23";
 
 const PAGE_SIZE = 50;
 const state = {
@@ -54,7 +54,11 @@ async function init() {
     button.addEventListener("click", () => changeSort(button.dataset.sort));
   });
 
-  const access = await requireAdminAccess("can_submit_collection");
+  const access = await requireAggregatorAccess(
+    "REEFOLUTION",
+    "can_access_reef_nursery",
+    "reef_nursery_records.html"
+  );
   if (!access) return;
   await loadRecords();
 }
