@@ -43,6 +43,10 @@ body[data-auth-pending] .auth-shell {
   visibility: hidden;
 }
 
+body.admin-console-page[data-auth-pending] .app-header {
+  visibility: hidden;
+}
+
 button,
 input,
 select,

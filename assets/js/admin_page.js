@@ -92,6 +92,7 @@ async function init() {
   setupAdminSidebar(state.profile);
   setupAccountControls(state.profile);
   applyDashboardPreferences(state.profile);
+  document.body.removeAttribute("data-auth-pending");
   if (!hasAdminDataView()) return;
   setDefaultControls();
   bindEvents();
