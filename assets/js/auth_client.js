@@ -12,6 +12,9 @@ export const authClient = createClient(APP_CONFIG.supabase.url, APP_CONFIG.supab
 
 let profilePromise = null;
 let aggregatorContextPromise = null;
+const LOGIN_ALIASES = Object.freeze({
+  mawimbi: "mawimbi.facility@accounts.seaweed-harvest.com"
+});
 
 export async function currentSession() {
   const { data, error } = await authClient.auth.getSession();
@@ -70,8 +73,9 @@ export async function requireAdminAccess(permission = "can_access_admin") {
 
   const profile = await currentProfile(true);
   const isSystemAdmin = profile?.app_role === "system_admin";
+  const isOperationalForm = permission === "can_submit_collection";
   const allowed = profile?.account_status === "active"
-    && (isSystemAdmin || (profile.can_access_admin && profile[permission]));
+    && (isSystemAdmin || (isOperationalForm ? profile.can_submit_collection : (profile.can_access_admin && profile[permission])));
 
   if (!allowed) {
     window.location.replace(profile?.app_role === "farmer_viewer" ? "./farmer.html" : "./access_pending.html");
@@ -176,7 +180,7 @@ export function setupAccountControls(profile, options = {}) {
 
   const applyLabels = () => {
     const labels = typeof options.labels === "function" ? options.labels() : options.labels || {};
-    menuLabel.textContent = labels.me || "Me";
+    menuLabel.textContent = labels.me || "User";
     detailsLink.textContent = labels.myDetails || "Profile settings";
     signOutButton.textContent = labels.signOut || "Sign out";
   };
@@ -484,6 +488,8 @@ export function normalizePhone(value) {
 
 function loginIdentifier(value) {
   const identifier = String(value || "").trim();
+  const aliasEmail = LOGIN_ALIASES[identifier.toLowerCase()];
+  if (aliasEmail) return { email: aliasEmail };
   if (identifier.includes("@")) return { email: identifier.toLowerCase() };
   return { phone: normalizePhone(identifier) };
 }

@@ -25,7 +25,7 @@ import {
 import { syncPendingCollections } from "./offline_sync.js";
 import { completeLaunchSplash } from "./app_transition.js";
 import { createOperationFeedback } from "./operation_feedback.js";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=4";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=6";
 import { setPrintValue, setupPdfWorksheet } from "./print_worksheet.js";
 
 const state = {
@@ -246,8 +246,7 @@ function rememberCollectorName() {
 
 async function initialiseOfflineCollection() {
   if (!offlineStorageSupported()) {
-    els.offlineReadiness.textContent = t("offline.unavailable");
-    els.offlineReadiness.dataset.status = "error";
+    setStatus(t("offline.unavailable"), "error");
     return;
   }
 
@@ -257,8 +256,7 @@ async function initialiseOfflineCollection() {
     state.offline.persistent = await requestPersistentOfflineStorage();
     await offlineStorageEstimate();
   } catch (error) {
-    els.offlineReadiness.textContent = error.message || t("offline.unavailable");
-    els.offlineReadiness.dataset.status = "error";
+    setStatus(error.message || t("offline.unavailable"), "error");
   }
 
   if (state.offline.native) {
@@ -343,9 +341,6 @@ function applyCollectionAccessMode() {
 
 function cacheElements() {
   [
-    "offlineSyncPanel",
-    "offlineReadiness",
-    "offlineSyncNow",
     "pendingRecordsBand",
     "pendingRecordsBandLabel",
     "pendingRecordsBandText",
@@ -360,7 +355,6 @@ function cacheElements() {
     "printCollectionAggregator",
     "printCollectionDate",
     "printCollectionCollector",
-    "activeAggregatorName",
     "collectorName",
     "collectionWebsite",
     "farmerId",
@@ -438,7 +432,6 @@ function bindEvents() {
     columnCount: 12,
     prepare: prepareCollectionWorksheet
   });
-  els.offlineSyncNow.addEventListener("click", () => syncOutbox({ announce: true }));
   els.pendingRecordsBandSync.addEventListener("click", () => syncOutbox({ announce: true }));
   document.addEventListener("seaweed-collection-language-change", () => {
     updateOfflineReadiness();
@@ -509,7 +502,6 @@ function prepareCollectionWorksheet() {
   const aggregator = activeAggregator?.short_name
     || activeAggregator?.aggregator_code
     || activeAggregator?.organisation_name
-    || els.activeAggregatorName?.textContent
     || "";
   setPrintValue(els.printCollectionAggregator, aggregator === "-" ? "" : aggregator);
   setPrintValue(els.printCollectionDate, paperDate(els.collectedAt.value));
@@ -811,10 +803,6 @@ function currentFormData() {
 function renderActiveAggregator() {
   const aggregator = state.aggregatorContext?.active_aggregator;
   if (!aggregator) throw new Error("No active aggregator is assigned to this account.");
-  els.activeAggregatorBar = document.getElementById("activeAggregatorBar");
-  els.activeAggregatorName = document.getElementById("activeAggregatorName");
-  els.activeAggregatorName.textContent = `${aggregator.aggregator_code} - ${aggregator.organisation_name}`;
-  els.activeAggregatorBar.hidden = false;
 }
 
 function ensureTransactionId() {
@@ -1587,7 +1575,6 @@ async function refreshOfflineQueue() {
 
   const items = await listOutboxItems();
   const pending = items.filter((item) => item.status !== "synced");
-  els.offlineSyncNow.disabled = state.offline.syncing || !isOnline() || pending.length === 0;
   els.pendingRecordsBand.hidden = pending.length === 0;
   if (!pending.length) return;
 
@@ -1603,19 +1590,7 @@ async function refreshOfflineQueue() {
 }
 
 function updateOfflineReadiness() {
-  if (!state.offline.ready) {
-    els.offlineReadiness.textContent = t("offline.unavailable");
-    els.offlineReadiness.dataset.status = "error";
-    return;
-  }
-  els.offlineReadiness.dataset.status = "";
-  if (!state.offline.referenceSavedAt) {
-    els.offlineReadiness.textContent = t("offline.readyShort");
-  } else if (!state.offline.serviceWorkerReady) {
-    els.offlineReadiness.textContent = t("offline.preparingShort");
-  } else {
-    els.offlineReadiness.textContent = t("offline.readyShort");
-  }
+  setConnectionStatus(t("offline.offline"), "status-muted");
 }
 
 function splitFarmerName(value) {
@@ -2076,8 +2051,12 @@ function updateLabelText(label, text) {
 }
 
 function setConnectionStatus(text, extraClass = "") {
-  els.collectionConnectionStatus.textContent = text;
-  els.collectionConnectionStatus.className = `status-pill ${extraClass}`.trim();
+  const offline = !isOnline();
+  els.collectionConnectionStatus.hidden = !offline;
+  els.collectionConnectionStatus.textContent = offline ? "!" : "";
+  els.collectionConnectionStatus.className = "connection-offline-indicator";
+  els.collectionConnectionStatus.setAttribute("aria-label", offline ? t("offline.offline") : "");
+  els.collectionConnectionStatus.title = offline ? t("offline.offline") : "";
 }
 
 function setFarmerStatus(text, extraClass = "") {

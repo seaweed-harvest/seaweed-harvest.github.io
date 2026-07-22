@@ -13,20 +13,20 @@
     <div class="app-header-inner">
       <div><p class="eyebrow">Seaweed aggregation</p><h1>Admin</h1></div>
       <div class="header-actions admin-header-controls">
-        <nav class="app-nav" aria-label="Main navigation"><a href="./collection.html">Collection</a><a href="./home.html">Home</a></nav>
+        <nav class="app-nav" aria-label="Main navigation"><a href="./collection.html">Collection</a><a href="./today.html">Today's Intake</a><a href="./home.html">Home</a></nav>
       </div>
     </div>
   </header>
-  <main class="app-shell admin-shell admin-layout">
-    <aside class="admin-sidebar" aria-label="Admin menu">
+  <main class="app-shell admin-shell admin-layout form-record-layout">
+    <aside id="packingSidebar" class="admin-sidebar form-page-sidebar" aria-label="Application menu">
       <h2>Admin</h2><a href="./home.html">Dashboard</a>
       <p class="admin-menu-heading">Registry</p><a href="./admin_member_registry.html">Member Registry</a><a href="./admin_community_registry.html">Community Registry</a>
       <p class="admin-menu-heading">Map</p><a href="./admin_map.html">Community Map</a>
       <p class="admin-menu-heading">Records</p><a href="./admin_today.html">Today's Intake</a><a href="./admin_monthly.html">Monthly</a><a href="./admin_community.html">Per Community</a><a href="./admin_ledger.html">Collection Ledger</a>
       <p class="admin-menu-heading">Tools</p><a href="./tags.html">Tags</a>
     </aside>
-    <section class="admin-content admin-page-section">
-      <section class="panel">
+    <section class="admin-content admin-page-section form-page-content">
+      <section class="panel form-record-panel">
         <div class="section-head compact form-panel-toolbar">
           <h2>Stabilization &amp; Packing Record</h2>
           <button id="printPackingWorksheet" class="form-pdf-action" type="button" aria-label="Download stabilization and packing worksheet PDF" title="Download stabilization and packing worksheet PDF">
@@ -157,7 +157,7 @@
       </footer>
     </article>
   </section>
-  <script type="module" src="./assets/js/admin_page.js?v=22"></script>
-  <script type="module" src="./assets/js/stabilization_packing_form.js?v=3"></script>
+  <script type="module" src="./assets/js/admin_page.js?v=23"></script>
+  <script type="module" src="./assets/js/stabilization_packing_form.js?v=4"></script>
 </body>
 </html>

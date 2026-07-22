@@ -1,4 +1,6 @@
 const MOBILE_NAV_QUERY = "(max-width: 980px)";
+const SIDEBAR_PINNED_KEY = "seaweed_ag:admin_sidebar_pinned";
+const SIDEBAR_GROUP_KEY_PREFIX = "seaweed_ag:admin_menu:";
 
 export function setupAppNavigation(options = {}) {
   const header = options.header || document.querySelector(".app-header");
@@ -16,16 +18,6 @@ export function setupAppNavigation(options = {}) {
   primary.className = "mobile-primary-nav";
   primary.setAttribute("aria-label", "Primary navigation");
 
-  const brand = document.createElement("a");
-  brand.className = "mobile-app-brand";
-  brand.href = "./collection.html";
-  brand.setAttribute("aria-label", "Seaweed Harvest collection form");
-  brand.title = "Seaweed Harvest";
-  const brandImage = document.createElement("img");
-  brandImage.src = "./assets/images/seaweed-harvest-icon-192.png";
-  brandImage.alt = "";
-  brand.append(brandImage);
-
   const menuButton = primaryButton("button", "menu", "Menu");
   menuButton.classList.add("mobile-menu-toggle");
   menuButton.type = "button";
@@ -33,20 +25,16 @@ export function setupAppNavigation(options = {}) {
 
   const formsMenu = quickMenu("clipboard-list", "Forms", forms, currentFile, "forms");
   const recordsMenu = quickMenu("database", "Records", records, currentFile, "records");
-  primary.append(brand, menuButton, formsMenu, recordsMenu);
+  primary.append(menuButton, formsMenu, recordsMenu);
   actions.prepend(primary);
 
   let profileFallback = null;
   if (!actions.querySelector(".account-menu")) {
-    profileFallback = document.createElement("a");
-    profileFallback.className = "mobile-profile-link";
+    profileFallback = primaryButton("a", "user-round", "User");
+    profileFallback.classList.add("mobile-profile-link");
     profileFallback.href = `./login.html?return=${encodeURIComponent(currentFile)}`;
     profileFallback.setAttribute("aria-label", "Sign in");
     profileFallback.title = "Sign in";
-    const avatar = document.createElement("span");
-    avatar.className = "account-avatar";
-    avatar.setAttribute("aria-hidden", "true");
-    profileFallback.append(avatar);
     actions.append(profileFallback);
   }
 
@@ -149,7 +137,45 @@ export function populateAppSidebar(sidebar, {
   sidebar.classList.add("admin-sidebar");
   sidebar.setAttribute("aria-label", "Application menu");
   appendNavigationLinks(sidebar, profile, dashboardHref, currentFile);
+  setupSidebarState(sidebar);
   return sidebar;
+}
+
+function setupSidebarState(sidebar) {
+  const layout = sidebar.closest(".admin-layout");
+  if (!layout) return;
+
+  const sidebarHeader = document.createElement("div");
+  sidebarHeader.className = "admin-sidebar-top";
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "admin-sidebar-toggle";
+  sidebarHeader.append(toggle);
+  sidebar.prepend(sidebarHeader);
+
+  let reveal = layout.querySelector(":scope > .admin-sidebar-reveal");
+  if (!reveal) {
+    reveal = document.createElement("button");
+    reveal.type = "button";
+    reveal.className = "admin-sidebar-reveal";
+    reveal.textContent = "Menu";
+    layout.insertBefore(reveal, sidebar);
+  }
+
+  const applyPinnedState = (isPinned, persist = true) => {
+    if (persist) writeStoredValue(SIDEBAR_PINNED_KEY, String(isPinned));
+    layout.classList.toggle("admin-sidebar-unpinned", !isPinned);
+    toggle.textContent = isPinned ? "Unpin" : "Pin";
+    toggle.setAttribute("aria-pressed", String(isPinned));
+    reveal.hidden = isPinned;
+  };
+
+  const saved = readStoredValue(SIDEBAR_PINNED_KEY);
+  applyPinnedState(saved === null ? true : saved !== "false", false);
+  toggle.addEventListener("click", () => applyPinnedState(false));
+  reveal.addEventListener("click", () => applyPinnedState(true));
+  sidebar.dataset.sidebarReady = "true";
 }
 
 function primaryButton(tag, icon, label) {
@@ -186,6 +212,10 @@ const NAV_ICON_NODES = {
     ["ellipse", { cx: "12", cy: "5", rx: "9", ry: "3" }],
     ["path", { d: "M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5" }],
     ["path", { d: "M3 12c0 1.7 4 3 9 3s9-1.3 9-3" }]
+  ],
+  "user-round": [
+    ["circle", { cx: "12", cy: "8", r: "5" }],
+    ["path", { d: "M20 21a8 8 0 0 0-16 0" }]
   ],
   x: [
     ["path", { d: "M18 6 6 18" }],
@@ -262,15 +292,37 @@ function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
 function drawerGroup(label, links, currentFile, defaultOpen = false) {
   const details = document.createElement("details");
   details.className = "admin-menu-group";
-  details.dataset.menuGroup = label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const key = label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  details.dataset.menuGroup = key;
   const summary = document.createElement("summary");
   summary.textContent = label;
   const content = document.createElement("div");
   content.className = "admin-menu-group-links";
   links.forEach((link) => content.append(navigationLink(link, currentFile)));
   details.append(summary, content);
-  details.open = defaultOpen || links.some((link) => fileFromHref(link.href) === currentFile);
+  const saved = readStoredValue(`${SIDEBAR_GROUP_KEY_PREFIX}${key}`);
+  const hasCurrentPage = links.some((link) => fileFromHref(link.href) === currentFile);
+  details.open = saved === null ? (defaultOpen || hasCurrentPage) : saved === "true";
+  details.addEventListener("toggle", () => {
+    writeStoredValue(`${SIDEBAR_GROUP_KEY_PREFIX}${key}`, String(details.open));
+  });
   return details;
+}
+
+function readStoredValue(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredValue(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Navigation remains usable when storage is unavailable.
+  }
 }
 
 function navigationLink(link, currentFile) {

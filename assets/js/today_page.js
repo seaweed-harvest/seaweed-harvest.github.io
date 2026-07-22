@@ -11,6 +11,7 @@ import {
 } from "./offline_store.js";
 import { syncPendingCollections } from "./offline_sync.js";
 import { createOperationFeedback } from "./operation_feedback.js";
+import { setupAppNavigation } from "./app_navigation.js?v=6";
 
 const COLLECTOR_NAME_STORAGE_KEY = "seaweed_harvest:collector_name";
 const state = {
@@ -32,7 +33,8 @@ const state = {
   selectedIds: new Set(),
   editingIds: new Set(),
   dirtyIds: new Set(),
-  drafts: new Map()
+  drafts: new Map(),
+  profile: null
 };
 const els = {};
 let operationFeedback = null;
@@ -117,6 +119,7 @@ async function init() {
   });
 
   await setupOptionalAccount();
+  setupAppNavigation({ profile: state.profile });
   await loadToday();
   void autoSyncLocalRecords();
 }
@@ -167,6 +170,7 @@ async function setupOptionalAccount() {
     const profile = await authApi.currentProfile(true);
     if (!profile || profile.account_status !== "active") return;
 
+    state.profile = profile;
     state.authenticated = true;
     state.accessToken = session.access_token;
     state.canEditCollections = profile.app_role === "system_admin" || Boolean(profile.can_edit_collections);

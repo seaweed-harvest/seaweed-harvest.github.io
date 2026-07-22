@@ -1,5 +1,6 @@
 import { authClient, requireAuthenticatedAccount, setupAccountControls } from "./auth_client.js";
 import { applyDashboardPreferences } from "./dashboard_preferences.js";
+import { setupAppNavigation } from "./app_navigation.js?v=6";
 
 const els = {};
 let profile = null;
@@ -29,6 +30,7 @@ async function init() {
       container: document.querySelector(".collector-header-controls"),
       returnPage: "collector_dashboard.html"
     });
+    setupAppNavigation({ profile });
     els.collectorCollectionLink.hidden = !profile.can_submit_collection && profile.app_role !== "system_admin";
     els.collectorAdminLink.hidden = !profile.can_access_admin && profile.app_role !== "system_admin";
     applyDashboardPreferences(profile);

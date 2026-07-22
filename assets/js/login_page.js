@@ -13,7 +13,7 @@ import {
   signInWithProvider,
   updateMyDisplayName,
   updatePassword
-} from "./auth_client.js?v=21";
+} from "./auth_client.js?v=22";
 import { transitionTo } from "./app_transition.js";
 
 const els = {};
@@ -222,7 +222,7 @@ function passwordModeTitle(mode) {
 function signInErrorMessage(error) {
   const message = String(error?.message || "").toLowerCase();
   if (message.includes("invalid login credentials") || message.includes("invalid email or password")) {
-    return "Email, phone number or password is incorrect.";
+    return "Username, email, phone number or password is incorrect.";
   }
   if (message.includes("email not confirmed")) return "Confirm your email before signing in.";
   if (message.includes("rate limit") || message.includes("too many")) {

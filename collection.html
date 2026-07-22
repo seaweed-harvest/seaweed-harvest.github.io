@@ -69,18 +69,7 @@
       <span id="pendingRecordsBandText">1 record stored locally.</span>
       <button id="pendingRecordsBandSync" type="button" hidden>Sync all local records</button>
     </section>
-    <section id="offlineSyncPanel" class="panel offline-sync-panel" aria-labelledby="offlineSyncTitle">
-      <div class="offline-ready-summary">
-        <h2 id="offlineSyncTitle" data-i18n="offline.title">Phone storage</h2>
-        <strong id="offlineReadiness" data-i18n="offline.preparing">Preparing...</strong>
-      </div>
-      <button id="offlineSyncNow" type="button" data-i18n="offline.syncAll">Sync all local records</button>
-    </section>
-    <section id="activeAggregatorBar" class="active-aggregator-bar" hidden>
-      <span data-i18n="aggregator.label">Aggregator</span>
-      <strong id="activeAggregatorName">-</strong>
-    </section>
-    <section class="panel collection-form-panel">
+    <section class="panel form-record-panel collection-form-panel">
       <div class="section-head compact form-panel-toolbar">
         <h2 data-i18n="page.title">Collection</h2>
         <button id="printCollectionWorksheet" class="form-pdf-action" type="button" aria-label="Download collection worksheet PDF" title="Download collection worksheet PDF">
@@ -340,6 +329,6 @@
   </section>
 
   <script src="./assets/js/vendor/jsQR.js"></script>
-  <script type="module" src="./assets/js/collection_form.js?v=22"></script>
+  <script type="module" src="./assets/js/collection_form.js?v=23"></script>
 </body>
 </html>

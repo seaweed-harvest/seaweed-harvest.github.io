@@ -6,11 +6,12 @@ import {
   setupAccountControls,
   updateMyDetails,
   updatePassword
-} from "./auth_client.js?v=18";
+} from "./auth_client.js?v=22";
 import {
   dashboardSelection,
   saveDashboardPreferences
 } from "./dashboard_preferences.js";
+import { setupAppNavigation } from "./app_navigation.js?v=6";
 
 const els = {};
 let profile = null;
@@ -60,6 +61,7 @@ async function init() {
     returnPage: "my_details.html",
     showMyDetails: false
   });
+  setupAppNavigation({ profile, dashboardHref: routeForProfile(profile) });
   configureHomeLink();
   populateForm();
   populateDashboardPreferences();

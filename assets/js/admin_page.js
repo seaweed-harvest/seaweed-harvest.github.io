@@ -1,9 +1,9 @@
 import { APP_CONFIG } from "./config.js";
 import { hasMapCoordinates as hasGps, mapCoordinates } from "./map_coordinates.js";
 import { dataModeLabel, selectRows } from "./supabase_client.js";
-import { currentAccessToken, requireAdminAccess, setupAccountControls } from "./auth_client.js?v=18";
+import { currentAccessToken, requireAdminAccess, setupAccountControls } from "./auth_client.js?v=22";
 import { applyDashboardPreferences } from "./dashboard_preferences.js";
-import { setupAppNavigation } from "./app_navigation.js?v=3";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=6";
 
 const TABLES = {
   overview: "ag_secure_admin_overview",
@@ -90,11 +90,14 @@ async function init() {
     window.location.replace(`./login.html?error=${encodeURIComponent(error.message)}`);
     return;
   }
-  setupAdminSidebar(state.profile);
+  const sidebar = populateAppSidebar(document.querySelector(".admin-sidebar"), {
+    profile: state.profile,
+    dashboardHref: "./home.html"
+  });
   setupAccountControls(state.profile);
   setupAppNavigation({
     profile: state.profile,
-    sidebar: document.querySelector(".admin-sidebar"),
+    sidebar,
     dashboardHref: "./home.html"
   });
   applyDashboardPreferences(state.profile);
@@ -444,191 +447,6 @@ function setupFixedTableScrollbar() {
     new MutationObserver(scheduleRefresh).observe(document.body, { childList: true, subtree: true });
   }
   scheduleRefresh();
-}
-
-function setupAdminSidebar(profile) {
-  const sidebar = document.querySelector(".admin-sidebar");
-  const layout = document.querySelector(".admin-layout");
-  if (!sidebar || !layout || sidebar.dataset.sidebarReady === "true") return;
-
-  addAdminSidebarLinks(sidebar);
-  applySidebarPermissions(sidebar, profile);
-  groupAdminSidebarLinks(sidebar);
-
-  const title = sidebar.querySelector("h2");
-  const sidebarHeader = document.createElement("div");
-  sidebarHeader.className = "admin-sidebar-top";
-
-  const toggle = document.createElement("button");
-  toggle.type = "button";
-  toggle.className = "admin-sidebar-toggle";
-
-  title?.remove();
-  sidebar.prepend(sidebarHeader);
-  sidebarHeader.append(toggle);
-
-  const reveal = document.createElement("button");
-  reveal.type = "button";
-  reveal.className = "admin-sidebar-reveal";
-  reveal.textContent = "Menu";
-  layout.insertBefore(reveal, sidebar);
-
-  const applyPinnedState = (isPinned) => {
-    localStorage.setItem("seaweed_ag:admin_sidebar_pinned", String(isPinned));
-    layout.classList.toggle("admin-sidebar-unpinned", !isPinned);
-    toggle.textContent = isPinned ? "Unpin" : "Pin";
-    toggle.setAttribute("aria-pressed", String(isPinned));
-    reveal.hidden = isPinned;
-  };
-
-  const savedValue = localStorage.getItem("seaweed_ag:admin_sidebar_pinned");
-  applyPinnedState(savedValue === null ? true : savedValue !== "false");
-  toggle.addEventListener("click", () => applyPinnedState(false));
-  reveal.addEventListener("click", () => applyPinnedState(true));
-  sidebar.dataset.sidebarReady = "true";
-}
-
-function addAdminSidebarLinks(sidebar) {
-  sidebar.querySelectorAll('a[href="./admin_monthly.html"], a[href="./admin_community.html"]').forEach((link) => link.remove());
-
-  const dashboard = sidebar.querySelector('a[href="./home.html"]');
-  if (dashboard && !sidebar.querySelector('a[href="./collection.html"]')) {
-    dashboard.insertAdjacentHTML(
-      "afterend",
-      '<p class="admin-menu-heading">Forms</p><a href="./collection.html" data-permission="can_submit_collection">Collection Form</a>'
-    );
-  }
-  const collectionForm = sidebar.querySelector('a[href="./collection.html"]');
-  if (collectionForm && !sidebar.querySelector('a[href="./stabilization_packing.html"]')) {
-    collectionForm.insertAdjacentHTML(
-      "afterend",
-      '<a href="./stabilization_packing.html" data-permission="can_submit_collection">Stabilization &amp; Packing</a>'
-    );
-  }
-
-  const mapHeading = [...sidebar.querySelectorAll(".admin-menu-heading")]
-    .find((heading) => heading.textContent.trim().toLowerCase() === "map");
-  const communityMap = sidebar.querySelector('a[href="./admin_map.html"]');
-  if (dashboard && mapHeading && communityMap) {
-    mapHeading.remove();
-    dashboard.insertAdjacentElement("afterend", communityMap);
-  }
-
-  const registryHeading = [...sidebar.querySelectorAll(".admin-menu-heading")]
-    .find((heading) => heading.textContent.trim().toLowerCase() === "registry");
-  if (registryHeading) {
-    registryHeading.textContent = "User Registry";
-    if (!sidebar.querySelector('a[href="./admin_aggregators.html"]')) {
-      registryHeading.insertAdjacentHTML("afterend", '<a href="./admin_aggregators.html" data-permission="can_access_admin">Aggregators</a>');
-    }
-    if (!sidebar.querySelector('a[href="./admin_users.html"]')) {
-      registryHeading.insertAdjacentHTML("afterend", '<a href="./admin_users.html" data-permission="can_manage_users">Admin Users</a>');
-    }
-
-    const aggregators = sidebar.querySelector('a[href="./admin_aggregators.html"]');
-    const communities = sidebar.querySelector('a[href="./admin_community_registry.html"]');
-    const farmers = sidebar.querySelector('a[href="./admin_member_registry.html"]');
-    const adminUsers = sidebar.querySelector('a[href="./admin_users.html"]');
-    if (communities) communities.textContent = "Communities";
-    if (farmers) farmers.textContent = "Farmers";
-    if (adminUsers) adminUsers.textContent = "Admin Users";
-    registryHeading.after(...[aggregators, communities, farmers, adminUsers].filter(Boolean));
-  }
-
-  const ledger = sidebar.querySelector('a[href="./admin_ledger.html"]');
-  if (ledger && !sidebar.querySelector('a[href="./admin_finance.html"]')) {
-    ledger.insertAdjacentHTML("afterend", '<a href="./admin_finance.html" data-permission="can_view_finance">Finance Review</a>');
-  }
-
-  const finance = sidebar.querySelector('a[href="./admin_finance.html"]') || ledger;
-  if (finance && !sidebar.querySelector('a[href="./admin_receipts.html"]')) {
-    finance.insertAdjacentHTML("afterend", '<a href="./admin_receipts.html" data-permission="can_view_data">Receipts</a>');
-  }
-
-  const receipts = sidebar.querySelector('a[href="./admin_receipts.html"]') || finance;
-  if (receipts && !sidebar.querySelector('a[href="./admin_notifications.html"]')) {
-    receipts.insertAdjacentHTML("afterend", '<a href="./admin_notifications.html" data-permission="can_view_notifications">Notifications</a>');
-  }
-
-  const tags = sidebar.querySelector('a[href="./tags.html"]');
-  if (tags && !sidebar.querySelector('a[href="./admin_builder.html"]')) {
-    tags.insertAdjacentHTML("afterend", '<a href="./admin_builder.html" data-permission="can_manage_settings">Settings</a>');
-  }
-  const settings = sidebar.querySelector('a[href="./admin_builder.html"]') || tags;
-  if (settings && !sidebar.querySelector('a[href="./admin_pricing.html"]')) {
-    settings.insertAdjacentHTML("afterend", '<a href="./admin_pricing.html" data-permission="can_view_finance">Pricing Matrix</a>');
-  }
-  const pricing = sidebar.querySelector('a[href="./admin_pricing.html"]') || settings;
-  if (pricing && !sidebar.querySelector('a[href="./admin_seaweedke.html"]')) {
-    pricing.insertAdjacentHTML("afterend", '<a href="./admin_seaweedke.html" data-permission="can_manage_sms_settings">SMS Settings</a>');
-  }
-
-  const currentFile = window.location.pathname.split("/").pop() || "home.html";
-  sidebar.querySelectorAll("a").forEach((link) => {
-    const hrefFile = new URL(link.href).pathname.split("/").pop();
-    if (hrefFile === currentFile) link.setAttribute("aria-current", "page");
-    else link.removeAttribute("aria-current");
-  });
-}
-
-function groupAdminSidebarLinks(sidebar) {
-  const headings = [...sidebar.querySelectorAll(".admin-menu-heading")];
-  const currentFile = window.location.pathname.split("/").pop() || "home.html";
-
-  headings.forEach((heading) => {
-    const key = heading.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    const details = document.createElement("details");
-    details.className = "admin-menu-group";
-    details.dataset.menuGroup = key;
-    const summary = document.createElement("summary");
-    summary.textContent = heading.textContent.trim();
-    const links = document.createElement("div");
-    links.className = "admin-menu-group-links";
-
-    let sibling = heading.nextElementSibling;
-    while (sibling && !sibling.classList.contains("admin-menu-heading")) {
-      const next = sibling.nextElementSibling;
-      links.append(sibling);
-      sibling = next;
-    }
-
-    heading.replaceWith(details);
-    details.append(summary, links);
-    const hasCurrentPage = [...links.querySelectorAll("a")].some((link) => (
-      new URL(link.href).pathname.split("/").pop() === currentFile
-    ));
-    const saved = localStorage.getItem(`seaweed_ag:admin_menu:${key}`);
-    details.open = hasCurrentPage || saved === "true";
-    details.hidden = [...links.querySelectorAll("a")].every((link) => link.hidden);
-    details.addEventListener("toggle", () => {
-      localStorage.setItem(`seaweed_ag:admin_menu:${key}`, String(details.open));
-    });
-  });
-
-  const userRegistry = sidebar.querySelector('[data-menu-group="user-registry"]');
-  const tools = sidebar.querySelector('[data-menu-group="tools"]');
-  if (userRegistry && tools) tools.before(userRegistry);
-}
-
-function applySidebarPermissions(sidebar, profile) {
-  const permissionByHref = {
-    "./home.html": "can_view_dashboard",
-    "./admin_member_registry.html": "can_view_registry",
-    "./admin_community_registry.html": "can_view_registry",
-    "./admin_map.html": "can_view_map",
-    "./admin_today.html": "can_view_data",
-    "./admin_monthly.html": "can_view_data",
-    "./admin_community.html": "can_view_data",
-    "./admin_ledger.html": "can_view_data",
-    "./stabilization_packing.html": "can_submit_collection",
-    "./tags.html": "can_access_admin"
-  };
-
-  sidebar.querySelectorAll("a").forEach((link) => {
-    const permission = link.dataset.permission || permissionByHref[link.getAttribute("href")];
-    if (!permission) return;
-    link.hidden = profile.app_role !== "system_admin" && !profile[permission];
-  });
 }
 
 function requiredPermissionForPage() {

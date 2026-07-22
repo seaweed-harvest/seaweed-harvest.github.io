@@ -206,6 +206,105 @@ p {
   display: none;
 }
 
+@media (min-width: 981px) {
+  .unified-app-header .header-actions > .app-nav {
+    display: none;
+  }
+
+  .mobile-primary-nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .mobile-primary-menu {
+    position: relative;
+  }
+
+  .mobile-primary-button,
+  .mobile-profile-link {
+    min-height: 38px;
+    padding: 6px 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--panel);
+    color: var(--text-sec);
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 600;
+    list-style: none;
+    text-decoration: none;
+  }
+
+  .mobile-primary-button::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobile-primary-nav .mobile-menu-toggle {
+    display: none;
+  }
+
+  .mobile-primary-button:hover,
+  .mobile-primary-button[aria-current="page"],
+  .mobile-primary-menu[open] > .mobile-primary-button,
+  .mobile-profile-link:hover {
+    border-color: rgba(15, 118, 110, 0.36);
+    background: rgba(15, 118, 110, 0.08);
+    color: var(--accent);
+  }
+
+  .mobile-primary-icon {
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+  }
+
+  .mobile-primary-icon svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .mobile-primary-popover {
+    width: 230px;
+    position: absolute;
+    z-index: 2350;
+    top: calc(100% + 7px);
+    left: 0;
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel);
+    box-shadow: 0 12px 30px rgba(31, 75, 68, 0.2);
+  }
+
+  .mobile-primary-menu-records .mobile-primary-popover {
+    right: 0;
+    left: auto;
+  }
+
+  .mobile-primary-popover a {
+    min-height: 40px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    border-radius: 6px;
+    color: var(--text-sec);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .mobile-primary-popover a:hover,
+  .mobile-primary-popover a[aria-current="page"] {
+    background: var(--panel-soft);
+    color: var(--accent);
+  }
+}
+
 #adminConnectionStatus {
   display: none !important;
 }
@@ -764,45 +863,6 @@ body.brand-transition-active {
   }
 }
 
-.offline-sync-panel {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
-  padding: 9px 12px;
-}
-
-.offline-ready-summary {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.offline-ready-summary h2 {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.offline-ready-summary strong {
-  color: var(--accent);
-  font-size: 0.86rem;
-}
-
-.offline-ready-summary strong[data-status="error"] {
-  color: #b91c1c;
-}
-
-#offlineSyncNow {
-  min-height: 32px;
-  padding: 3px 10px;
-  font-size: 0.78rem;
-}
-
 .visually-hidden-file {
   position: absolute;
   width: 1px;
@@ -912,6 +972,8 @@ body.brand-transition-active {
 }
 
 .form-page-content {
+  width: 100%;
+  max-width: 1240px;
   min-width: 0;
   display: grid;
   align-content: start;
@@ -920,6 +982,12 @@ body.brand-transition-active {
 
 .form-page-content > * {
   margin: 0;
+}
+
+.form-record-panel {
+  width: 100%;
+  min-width: 0;
+  padding: 16px;
 }
 
 .form-panel-toolbar {
@@ -1265,11 +1333,13 @@ input[readonly] {
 }
 
 .native-network-indicator {
+  width: 30px;
   min-height: 30px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 4px 9px;
+  padding: 0;
   border: 1px solid rgba(15, 118, 110, 0.28);
   border-radius: 999px;
   background: #ecf8f5;
@@ -1300,6 +1370,30 @@ input[readonly] {
 
 .native-network-indicator[data-network-state="offline"] .native-network-symbol {
   background: #d97706;
+}
+
+.native-network-indicator[hidden] {
+  display: none;
+}
+
+.connection-offline-indicator {
+  width: 30px;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(245, 158, 11, 0.42);
+  border-radius: 999px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.connection-offline-indicator[hidden] {
+  display: none;
 }
 
 .admin-status {
@@ -1834,7 +1928,9 @@ body.has-fixed-table-scrollbar {
 }
 
 .admin-console-page .app-header-inner,
-.admin-console-page .app-shell {
+.admin-console-page .app-shell,
+.form-record-page .app-header-inner,
+.form-record-page .app-shell {
   width: min(1880px, calc(100% - 32px));
 }
 
@@ -3499,7 +3595,6 @@ body[data-registration-pending] .registration-flow {
   padding-right: 4px;
 }
 
-.unified-app-header .account-menu-label,
 .unified-app-header .account-menu-chevron {
   display: none;
 }
@@ -4279,12 +4374,6 @@ body[data-registration-pending] .registration-flow {
   grid-column: span 2;
 }
 
-.packing-record-page .admin-content > .panel {
-  min-width: 0;
-  max-width: 980px;
-  padding: 16px;
-}
-
 .packing-record-form {
   display: grid;
   gap: 12px;
@@ -4776,10 +4865,6 @@ label input[type="checkbox"] {
     grid-template-columns: 1fr;
   }
 
-  .packing-record-page .admin-content > .panel {
-    max-width: 100%;
-  }
-
   .receipt-document-head {
     display: grid;
   }
@@ -4838,8 +4923,9 @@ label input[type="checkbox"] {
   .unified-app-header .header-actions {
     width: 100%;
     min-width: 0;
+    position: relative;
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     align-items: center;
     gap: 0;
   }
@@ -4850,12 +4936,25 @@ label input[type="checkbox"] {
     display: none !important;
   }
 
+  .unified-app-header .connection-offline-indicator,
+  .unified-app-header .native-network-indicator {
+    width: 20px;
+    min-height: 20px;
+    position: absolute;
+    z-index: 2360;
+    top: 0;
+    right: 2px;
+    padding: 0;
+    font-size: 0.62rem;
+    pointer-events: none;
+  }
+
   .mobile-primary-nav {
     width: 100%;
     min-width: 0;
-    grid-column: 1 / span 4;
+    grid-column: 1 / span 3;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: center;
     gap: 0;
   }
@@ -4930,10 +5029,6 @@ label input[type="checkbox"] {
     height: 24px;
   }
 
-  .mobile-menu-toggle .mobile-primary-label {
-    display: none;
-  }
-
   .mobile-primary-label {
     max-width: 100%;
     display: block;
@@ -4992,27 +5087,63 @@ label input[type="checkbox"] {
   .unified-app-header .account-controls {
     width: 100%;
     min-width: 0;
-    grid-column: 5;
+    grid-column: 4;
     justify-content: center;
   }
 
   .unified-app-header .account-menu-trigger,
   .mobile-profile-link {
-    width: 40px;
-    height: 40px;
-    min-height: 40px;
-    padding: 4px;
+    width: 100%;
+    height: auto;
+    min-height: 46px;
+    padding: 3px 2px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex-direction: column;
+    gap: 1px;
     border: 0;
-    border-radius: 50%;
+    border-radius: 7px;
     background: transparent;
   }
 
   .mobile-profile-link {
-    grid-column: 5;
+    grid-column: 4;
     justify-self: center;
+  }
+
+  .unified-app-header .account-menu,
+  .unified-app-header .account-menu-trigger {
+    width: 100%;
+  }
+
+  .unified-app-header .account-menu-label {
+    max-width: 100%;
+    display: block;
+    overflow: hidden;
+    font-size: 0.56rem;
+    font-weight: 700;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .unified-app-header .account-avatar {
+    width: 22px;
+    height: 22px;
+    flex-basis: 22px;
+  }
+
+  .unified-app-header .account-avatar::before {
+    width: 7px;
+    height: 7px;
+    top: 4px;
+  }
+
+  .unified-app-header .account-avatar::after {
+    width: 15px;
+    height: 8px;
+    bottom: 3px;
   }
 
   .unified-app-header .account-menu-trigger:hover,
@@ -5024,6 +5155,7 @@ label input[type="checkbox"] {
   .unified-app-header .account-menu-popover {
     z-index: 2350;
     top: calc(100% + 8px);
+    right: 0;
   }
 
   .app-header-inner,
@@ -5281,15 +5413,6 @@ label input[type="checkbox"] {
 
   .collection-form-panel {
     padding: 12px;
-  }
-
-  .offline-sync-panel {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  #offlineSyncNow {
-    width: 100%;
   }
 
   .pending-records-band button {
