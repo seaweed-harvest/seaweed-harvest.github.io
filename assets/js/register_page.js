@@ -135,7 +135,7 @@ function restoreRegistrationDraft() {
 
   els.registrationName.value = draft.full_name || "";
   els.registrationPhone.value = draft.phone || "";
-  els.registrationRole.value = draft.requested_role || "farmer_viewer";
+  els.registrationRole.value = draft.requested_role || "community_viewer";
   els.registrationCommunity.value = draft.requested_community_id || "";
   els.registrationFarmerId.value = draft.requested_farmer_id || "";
 }

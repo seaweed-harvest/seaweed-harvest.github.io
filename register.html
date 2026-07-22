@@ -32,12 +32,12 @@
         <label>Phone number<input id="registrationPhone" type="tel" autocomplete="tel" required></label>
         <label>Role
           <select id="registrationRole" required>
-            <option value="farmer_viewer" selected>Farmer</option>
-            <option value="community_viewer">General account</option>
+            <option value="farmer_viewer">Farmer</option>
+            <option value="community_viewer" selected>General account</option>
             <option value="field_collector">Collector</option>
           </select>
         </label>
-        <fieldset id="farmerRegistrationFields" class="registration-role-fields">
+        <fieldset id="farmerRegistrationFields" class="registration-role-fields" hidden>
           <legend>Farmer details</legend>
           <label>Community
             <select id="registrationCommunity">
