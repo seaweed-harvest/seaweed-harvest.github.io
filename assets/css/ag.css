@@ -1829,6 +1829,12 @@ body.has-fixed-table-scrollbar {
   box-shadow: var(--shadow);
 }
 
+@media (min-width: 981px) {
+  .admin-sidebar.app-navigation-drawer-standalone {
+    display: none;
+  }
+}
+
 .admin-sidebar-top {
   display: flex;
   align-items: center;
