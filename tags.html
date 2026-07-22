@@ -46,64 +46,92 @@
       <section class="panel tag-controls-panel">
         <div class="section-head compact">
           <h2>Tags</h2>
+          <span id="tagAccessStatus" class="status-pill">Loading numbering...</span>
         </div>
-      <form id="tagGeneratorForm" class="tag-generator-form">
-        <label>
-          Tag type
-          <select id="tagType">
-            <option value="farmer">Farmer RID</option>
-            <option value="sack">Sack ID</option>
-            <option value="custom">Custom list</option>
-          </select>
-        </label>
-        <label>
-          Prefix
-          <input id="tagPrefix" type="text" value="RID" autocomplete="off">
-        </label>
-        <label>
-          Start number
-          <input id="tagStartNumber" type="number" min="0" step="1" value="4300">
-        </label>
-        <label>
-          Quantity
-          <input id="tagQuantity" type="number" min="1" max="240" step="1" value="24">
-        </label>
-        <label>
-          Digits
-          <input id="tagDigits" type="number" min="0" max="8" step="1" value="4">
-        </label>
-        <label>
-          Width mm
-          <input id="tagWidthMm" type="number" min="25" max="120" step="1" value="60">
-        </label>
-        <label>
-          Height mm
-          <input id="tagHeightMm" type="number" min="20" max="80" step="1" value="35">
-        </label>
-        <label>
-          QR mm
-          <input id="tagQrMm" type="number" min="14" max="60" step="1" value="24">
-        </label>
-        <label class="wide-field">
-          Custom IDs
-          <textarea id="customIds" rows="4" placeholder="RID4300&#10;RID4301&#10;B-0001"></textarea>
-        </label>
-        <div class="button-row wide-field">
-          <button id="generateTags" type="submit">Generate</button>
-          <button id="printTags" type="button">Print</button>
-          <span id="tagCountStatus" class="admin-status" aria-live="polite"></span>
-        </div>
-      </form>
+        <form id="tagGeneratorForm" class="tag-generator-form">
+          <label>
+            Tag type
+            <select id="tagType">
+              <option value="farmer">Farmer ID</option>
+              <option value="sack">Sack ID</option>
+              <option value="jug">Jug ID</option>
+              <option value="custom">Custom list</option>
+            </select>
+          </label>
+          <label>
+            Quantity
+            <input id="tagQuantity" type="number" min="1" max="240" step="1" value="10">
+          </label>
+          <label>
+            Next ID
+            <input id="tagNextId" type="text" value="-" readonly aria-readonly="true">
+          </label>
+          <details class="tag-size-settings">
+            <summary>Tag size</summary>
+            <div class="tag-size-grid">
+              <label>
+                Width mm
+                <input id="tagWidthMm" type="number" min="25" max="120" step="1" value="60">
+              </label>
+              <label>
+                Height mm
+                <input id="tagHeightMm" type="number" min="20" max="80" step="1" value="35">
+              </label>
+              <label>
+                QR mm
+                <input id="tagQrMm" type="number" min="14" max="60" step="1" value="24">
+              </label>
+            </div>
+          </details>
+          <label id="customIdsField" class="wide-field" hidden>
+            Custom IDs
+            <textarea id="customIds" rows="4" placeholder="RID9990&#10;B-9990&#10;J-9990"></textarea>
+          </label>
+          <div class="button-row wide-field">
+            <button id="generateTags" type="submit">Reserve and generate</button>
+            <button id="generateTrialSet" type="button">Generate 10 of each</button>
+            <button id="printTags" type="button" disabled>Print</button>
+            <span id="tagCountStatus" class="admin-status" aria-live="polite">No tags generated.</span>
+          </div>
+        </form>
       </section>
 
       <section class="panel tag-sheet-panel" aria-label="Printable tag sheet">
+        <div class="section-head compact tag-sheet-heading">
+          <h2>Print sheet</h2>
+          <span id="tagSheetRange" class="admin-status"></span>
+        </div>
         <div id="tagSheet" class="tag-sheet"></div>
+      </section>
+
+      <section class="panel tag-batches-panel">
+        <div class="section-head compact">
+          <h2>Recent batches</h2>
+          <button id="reloadTagBatches" type="button">Reload</button>
+        </div>
+        <div class="table-wrap tag-batch-table-wrap">
+          <table class="management-table admin-data-table tag-batch-table">
+            <thead>
+              <tr>
+                <th>Reserved</th>
+                <th>Type</th>
+                <th>IDs</th>
+                <th>Quantity</th>
+                <th>Printed</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tagBatchRows">
+              <tr><td colspan="6">No reserved batches.</td></tr>
+            </tbody>
+          </table>
+        </div>
       </section>
     </section>
   </main>
 
   <script type="module" src="./assets/js/admin_page.js?v=23"></script>
   <script src="./assets/js/vendor/qrcode-generator.js"></script>
-  <script src="./assets/js/tag_generator.js"></script>
+  <script type="module" src="./assets/js/tag_generator.js?v=2"></script>
 </body>
 </html>

@@ -3373,12 +3373,15 @@ button:disabled {
 }
 
 .tag-shell {
+  min-width: 0;
   display: grid;
   gap: 12px;
 }
 
 .tag-controls-panel,
-.tag-sheet-panel {
+.tag-sheet-panel,
+.tag-batches-panel {
+  min-width: 0;
   padding: 16px;
 }
 
@@ -3391,6 +3394,58 @@ button:disabled {
 .tag-generator-form label {
   display: grid;
   gap: 6px;
+}
+
+.tag-generator-form input[readonly] {
+  background: var(--panel-soft);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.tag-size-settings {
+  align-self: end;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.tag-size-settings summary {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  color: var(--text-sec);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tag-size-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 10px 10px;
+}
+
+.tag-sheet-heading {
+  margin-bottom: 12px;
+}
+
+.tag-sheet-empty {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.tag-batch-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.tag-batch-table th,
+.tag-batch-table td {
+  white-space: nowrap;
 }
 
 .tag-sheet {
@@ -5885,6 +5940,11 @@ label input[type="checkbox"] {
     grid-template-columns: 1fr;
   }
 
+  .tag-sheet {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
+  }
+
   .section-head {
     align-items: flex-start;
     flex-direction: column;
@@ -5941,7 +6001,7 @@ label input[type="checkbox"] {
   }
 
   .tag-sheet {
-    grid-template-columns: repeat(auto-fill, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .farm-size-registration-fields,
@@ -5995,7 +6055,10 @@ label input[type="checkbox"] {
   }
 
   .app-header,
-  .tag-controls-panel {
+  .tag-controls-panel,
+  .tag-batches-panel,
+  .tag-sheet-heading,
+  .admin-sidebar {
     display: none !important;
   }
 
