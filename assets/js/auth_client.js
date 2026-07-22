@@ -285,6 +285,9 @@ export async function signUpAccount(contact, password, details) {
     }
   });
   if (error) throw error;
+  if (email && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    throw new Error("That email cannot be used for a new account. Use your own email or leave it blank for phone sign-in.");
+  }
   profilePromise = null;
   return data;
 }

@@ -1,11 +1,16 @@
 import { APP_CONFIG } from "./config.js";
-import { currentSession, enabledSocialProviders, normalizePhone, signInWithProvider, signUpAccount } from "./auth_client.js?v=19";
+import { currentSession, enabledSocialProviders, normalizePhone, signInWithProvider, signOut, signUpAccount } from "./auth_client.js?v=20";
 import { callRpc, selectRows } from "./supabase_client.js";
 
 const els = {};
 const registrationDraftKey = "seaweed-ag:account-registration-draft";
 
-document.addEventListener("DOMContentLoaded", init);
+document.addEventListener("DOMContentLoaded", () => {
+  init().catch((error) => {
+    document.body.removeAttribute("data-registration-pending");
+    setStatus(error.message || "Account registration could not be loaded. Refresh and try again.", "error");
+  });
+});
 
 async function init() {
   [
@@ -13,26 +18,58 @@ async function init() {
     "farmerRegistrationFields", "registrationReviewNote", "registrationCommunity",
     "registrationFarmerId",
     "registrationPassword", "registrationConfirmPassword", "registrationSocialActions",
-    "registrationGoogle", "registrationFacebook", "registrationStatus"
+    "registrationGoogle", "registrationFacebook", "registrationStatus", "registrationFlow",
+    "registrationSessionNotice", "registrationSessionIdentity", "registrationSignOut"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
   els.farmerRegistrationForm.addEventListener("submit", handleRegistration);
   els.registrationRole.addEventListener("change", updateRoleFields);
   els.registrationGoogle.addEventListener("click", () => socialRegistration("google"));
   els.registrationFacebook.addEventListener("click", () => socialRegistration("facebook"));
-  await configureSocialButtons();
-  await loadCommunities();
-  restoreRegistrationDraft();
-  updateRoleFields();
+  els.registrationSignOut.addEventListener("click", handleRegistrationSignOut);
 
   const session = await currentSession();
+  const draft = loadRegistrationDraft();
+  const isSocialCallback = new URLSearchParams(window.location.search).get("oauth") === "1" && Boolean(draft);
+  if (session && !isSocialCallback) {
+    showExistingSession(session);
+    return;
+  }
+
+  await configureSocialButtons();
+  await loadCommunities();
+  restoreRegistrationDraft(draft);
+  updateRoleFields();
+
   if (session) {
     els.registrationEmail.value = session.user.email || "";
     els.registrationEmail.disabled = true;
     els.registrationPassword.closest("label").hidden = true;
+    els.registrationPassword.required = false;
     els.registrationConfirmPassword.closest("label").hidden = true;
     els.registrationConfirmPassword.required = false;
-    els.farmerRegistrationForm.querySelector('button[type="submit"]').textContent = "Submit registration";
+    els.farmerRegistrationForm.querySelector('button[type="submit"]').textContent = "Finish account registration";
+  }
+  document.body.removeAttribute("data-registration-pending");
+}
+
+function showExistingSession(session) {
+  els.registrationFlow.hidden = true;
+  els.registrationSessionIdentity.textContent = session.user.email || session.user.phone || "an existing account";
+  els.registrationSessionNotice.hidden = false;
+  document.body.removeAttribute("data-registration-pending");
+}
+
+async function handleRegistrationSignOut() {
+  els.registrationSignOut.disabled = true;
+  setStatus("Signing out...");
+  try {
+    await signOut();
+    localStorage.removeItem(registrationDraftKey);
+    window.location.replace("./register.html?new=1");
+  } catch (error) {
+    els.registrationSignOut.disabled = false;
+    setStatus(error.message || "Could not sign out. Try again.", "error");
   }
 }
 
@@ -85,7 +122,7 @@ async function handleRegistration(event) {
     else if (els.registrationEmail.value.trim()) setStatus("Registration received. Check your email to confirm the account.");
     else setStatus("Registration received. An administrator will review the account.");
   } catch (error) {
-    setStatus(error.message, "error");
+    setStatus(registrationErrorMessage(error), "error");
   }
 }
 
@@ -124,13 +161,17 @@ function updateRoleFields() {
     : "An administrator reviews the account before access is activated.";
 }
 
-function restoreRegistrationDraft() {
+function loadRegistrationDraft() {
   let draft = null;
   try {
     draft = JSON.parse(localStorage.getItem(registrationDraftKey) || "null");
   } catch {
     localStorage.removeItem(registrationDraftKey);
   }
+  return draft;
+}
+
+function restoreRegistrationDraft(draft) {
   if (!draft) return;
 
   els.registrationName.value = draft.full_name || "";
@@ -158,6 +199,18 @@ function normalizedFarmerId(value) {
 function nullableText(value) {
   const text = String(value || "").trim();
   return text || null;
+}
+
+function registrationErrorMessage(error) {
+  const message = String(error?.message || "");
+  const normalized = message.toLowerCase();
+  if (normalized.includes("already registered") || normalized.includes("already been registered")) {
+    return "That phone number or email already has an account. Sign in or reset the password instead.";
+  }
+  if (normalized.includes("rate limit") || normalized.includes("too many")) {
+    return "Too many registration attempts. Wait a moment and try again.";
+  }
+  return message || "The account could not be created. Check the details and try again.";
 }
 
 function escapeHtml(value) {

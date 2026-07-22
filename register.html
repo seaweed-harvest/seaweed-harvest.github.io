@@ -8,7 +8,7 @@
   <title>Make Account - Seaweed Aggregation</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
 </head>
-<body class="auth-page">
+<body class="auth-page" data-registration-pending>
   <header class="app-header">
     <div class="app-header-inner">
       <div>
@@ -26,41 +26,55 @@
     <img class="auth-brand-logo" src="./assets/images/seaweed-harvest-logo.svg" alt="Seaweed Harvest">
     <section class="panel auth-panel">
       <h2>Make Account</h2>
-      <form id="farmerRegistrationForm" class="stack-form">
-        <label>Name<input id="registrationName" type="text" autocomplete="name" required></label>
-        <label>Email (optional)<input id="registrationEmail" type="email" autocomplete="email"></label>
-        <label>Phone number<input id="registrationPhone" type="tel" autocomplete="tel" required></label>
-        <label>Role
-          <select id="registrationRole" required>
-            <option value="farmer_viewer">Farmer</option>
-            <option value="community_viewer" selected>General account</option>
-            <option value="field_collector">Collector</option>
-          </select>
-        </label>
-        <fieldset id="farmerRegistrationFields" class="registration-role-fields" hidden>
-          <legend>Farmer details</legend>
-          <label>Community
-            <select id="registrationCommunity">
-              <option value="">Select community</option>
+      <div id="registrationSessionNotice" class="registration-session-notice" role="status" hidden>
+        <strong>Another account is already signed in</strong>
+        <p>You are signed in as <span id="registrationSessionIdentity"></span>.</p>
+        <button id="registrationSignOut" type="button">Sign out and create a different account</button>
+        <a href="./index.html">Continue with the signed-in account</a>
+      </div>
+      <div id="registrationFlow" class="registration-flow">
+        <form id="farmerRegistrationForm" class="stack-form">
+          <label>Name<input id="registrationName" type="text" autocomplete="name" required></label>
+          <label>Phone number<input id="registrationPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="0712 345 678" required></label>
+          <label>Email (optional)
+            <input id="registrationEmail" type="email" autocomplete="email">
+            <small>Leave blank to make a phone-number account. Only enter your own email.</small>
+          </label>
+          <label>Password
+            <input id="registrationPassword" type="password" autocomplete="new-password" minlength="10" required>
+            <small>Use at least 10 characters.</small>
+          </label>
+          <label>Confirm password<input id="registrationConfirmPassword" type="password" autocomplete="new-password" minlength="10" required></label>
+          <label>Role
+            <select id="registrationRole" required>
+              <option value="farmer_viewer">Farmer</option>
+              <option value="community_viewer" selected>General account</option>
+              <option value="field_collector">Collector</option>
             </select>
           </label>
-          <label>Farmer ID, if already registered<input id="registrationFarmerId" type="text" inputmode="numeric" placeholder="RID4301 or 4301"></label>
-        </fieldset>
-        <label>Password<input id="registrationPassword" type="password" autocomplete="new-password" minlength="10" required></label>
-        <label>Confirm password<input id="registrationConfirmPassword" type="password" autocomplete="new-password" minlength="10" required></label>
-        <button type="submit">Make account</button>
-      </form>
-      <div id="registrationSocialActions" class="auth-secondary-actions" hidden>
-        <button id="registrationGoogle" type="button">Register with Google</button>
-        <button id="registrationFacebook" type="button">Register with Facebook</button>
+          <fieldset id="farmerRegistrationFields" class="registration-role-fields" hidden>
+            <legend>Farmer details</legend>
+            <label>Community
+              <select id="registrationCommunity">
+                <option value="">Select community</option>
+              </select>
+            </label>
+            <label>Farmer ID, if already registered<input id="registrationFarmerId" type="text" inputmode="numeric" placeholder="RID4301 or 4301"></label>
+          </fieldset>
+          <button type="submit">Make account</button>
+        </form>
+        <div id="registrationSocialActions" class="auth-secondary-actions" hidden>
+          <button id="registrationGoogle" type="button">Register with Google</button>
+          <button id="registrationFacebook" type="button">Register with Facebook</button>
+        </div>
+        <p id="registrationReviewNote" class="compact-note">An administrator checks and links the farmer account before harvest records become visible.</p>
+        <p class="compact-note">A phone-number account signs in with its phone number and the password created above.</p>
+        <p class="auth-account-link">Already have an account? <a href="./login.html">Sign in</a></p>
       </div>
-      <p id="registrationReviewNote" class="compact-note">An administrator checks and links the farmer account before harvest records become visible.</p>
-      <p class="compact-note">No email is needed. A phone-only account signs in with its phone number and password.</p>
-      <p class="auth-account-link">Already have an account? <a href="./login.html">Sign in</a></p>
       <p id="registrationStatus" class="form-status" aria-live="polite"></p>
     </section>
   </main>
 
-  <script type="module" src="./assets/js/register_page.js?v=2"></script>
+  <script type="module" src="./assets/js/register_page.js?v=3"></script>
 </body>
 </html>

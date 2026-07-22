@@ -58,11 +58,9 @@ body[data-auth-pending] .auth-session-loader {
 }
 
 .auth-session-loader img {
-  width: 72px;
-  height: 72px;
+  width: min(360px, calc(100vw - 48px));
+  height: auto;
   display: block;
-  border-radius: 16px;
-  box-shadow: var(--shadow);
 }
 
 body.admin-console-page[data-auth-pending] .app-header {
@@ -173,6 +171,22 @@ p {
   width: 44px;
   flex: 0 0 44px;
   padding-left: 44px;
+}
+
+@media (min-width: 981px) {
+  .unified-app-header .app-header-inner > :first-child:not(.header-actions) {
+    width: 190px;
+    flex-basis: 190px;
+    padding-left: 190px;
+  }
+
+  .unified-app-header .app-header-inner > :first-child:not(.header-actions)::before {
+    width: 180px;
+    height: 50px;
+    border-radius: 0;
+    background: url("../images/seaweed-harvest-logo.svg") left center / contain no-repeat;
+    box-shadow: none;
+  }
 }
 
 .mobile-primary-nav,
@@ -3338,6 +3352,43 @@ button:disabled {
   margin: 14px 0 0;
   color: var(--text-muted);
   font-size: 0.82rem;
+}
+
+body[data-registration-pending] .registration-flow {
+  visibility: hidden;
+}
+
+.registration-session-notice {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #e7b85f;
+  border-radius: 7px;
+  background: #fff9e9;
+}
+
+.registration-session-notice p {
+  margin: 0;
+  color: var(--text-sec);
+}
+
+.registration-session-notice button {
+  min-height: 42px;
+}
+
+.registration-session-notice a {
+  color: var(--text-sec);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.registration-flow label small {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
 }
 
 .farm-size-registration-fields {
