@@ -159,7 +159,7 @@ function setNextSampleNumber() {
 }
 
 function selectedTideStage() {
-  return els.siteSampleForm.querySelector('[name="siteSampleTide"]:checked')?.value || "spring_low";
+  return els.siteSampleForm.querySelector('[name="siteSampleTide"]:checked')?.value || null;
 }
 
 function selectedEColiSampleTaken() {
@@ -235,7 +235,8 @@ function prepareSiteSampleWorksheet() {
   const community = communities.find((row) => row.id === els.siteSampleCommunity.value);
   setPrintValue(els.printSiteSampleCommunity, community ? `${community.community_id} - ${community.community_name}` : "");
   setPrintValue(els.printSiteSampleDate, paperDateTime(els.siteSampledAt.value));
-  setPrintValue(els.printSiteSampleTide, selectedTideStage() === "spring_high" ? "High" : "Low");
+  const tideLabels = { spring_low: "Low", spring_high: "High" };
+  setPrintValue(els.printSiteSampleTide, tideLabels[selectedTideStage()] || "");
   setPrintValue(els.printSiteSampleRecordedBy, els.siteSampleRecordedBy.value);
 }
 
