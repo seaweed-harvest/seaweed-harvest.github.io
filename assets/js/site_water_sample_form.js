@@ -1,14 +1,13 @@
 import { APP_CONFIG } from "./config.js";
-import { authClient, currentAggregatorContext, requireAdminAccess } from "./auth_client.js";
+import { authClient, requireAdminAccess } from "./auth_client.js";
 import { setupFavoriteFormButton } from "./favorite_forms.js";
 import { setPrintValue, setupPdfWorksheet } from "./print_worksheet.js";
 import { selectRows } from "./supabase_client.js";
 
 const els = {};
 const MEASUREMENT_IDS = [
-  "siteSampleWeight", "siteSampleVolume", "siteSampleTemperature", "siteSampleSalinity",
-  "siteSamplePh", "siteSampleBrix", "siteSampleTds", "siteSampleEc", "siteSampleEColi",
-  "siteSampleDose"
+  "siteSampleTemperature", "siteSampleSalinity", "siteSamplePh", "siteSampleBrix",
+  "siteSampleTds", "siteSampleEc", "siteSampleEColi"
 ];
 
 let submissionId = crypto.randomUUID();
@@ -23,21 +22,20 @@ async function init() {
   [
     "siteSampleForm", "siteSampleNumber", "siteSampleNumberHint", "siteSampledAt",
     "siteSampleCommunity", "siteSampleGps", "siteSampleGpsHint", "captureSiteSampleGps",
-    "siteSampleSpecies", "siteSampleAggregator", "siteSampleRecordedBy", "siteSampleWeight",
-    "siteSampleWeightUnit", "siteSampleVolume", "siteSampleTemperature", "siteSampleSalinity",
-    "siteSampleSalinityUnit", "siteSamplePh", "siteSampleBrix", "siteSampleTds",
+    "siteSampleRecordedBy", "siteSampleTemperature", "siteSampleSalinity", "siteSampleSalinityUnit",
+    "siteSamplePh", "siteSampleBrix", "siteSampleTds",
     "siteSampleTdsUnit", "siteSampleEc", "siteSampleEColi", "siteSampleEColiUnit",
     "siteSampleDose", "siteSampleDoseUnit", "siteSampleAppearance", "saveSiteSample",
     "clearSiteSample", "favoriteSiteSampleForm", "printSiteSampleWorksheet", "siteSampleStatus",
-    "siteSamplePrintWorksheet", "printSiteSampleAggregator", "printSiteSampleCommunity",
-    "printSiteSampleDate", "printSiteSampleRecordedBy"
+    "siteSamplePrintWorksheet", "printSiteSampleCommunity", "printSiteSampleDate",
+    "printSiteSampleTide", "printSiteSampleRecordedBy"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
   setupPdfWorksheet({
     button: els.printSiteSampleWorksheet,
     worksheet: els.siteSamplePrintWorksheet,
     rowCount: 10,
-    columnCount: 14,
+    columnCount: 13,
     prepare: prepareSiteSampleWorksheet
   });
 
@@ -66,21 +64,13 @@ async function init() {
   els.siteSampleForm.addEventListener("change", updateFieldHighlights);
 
   try {
-    const [context, communityRows, speciesRows, formContextResult] = await Promise.all([
-      currentAggregatorContext(true),
+    const [communityRows, formContextResult] = await Promise.all([
       selectRows(APP_CONFIG.tables.communities, "select=id,community_id,community_name&order=community_name.asc"),
-      selectRows("ag_public_seaweed_type_settings", "select=*&order=display_order.asc"),
       authClient.rpc("ag_site_water_sample_form_context")
     ]);
     if (formContextResult.error) throw formContextResult.error;
-    const active = context.active_aggregator;
-    els.siteSampleAggregator.value = active?.organisation_name
-      || active?.short_name
-      || active?.aggregator_code
-      || "";
     communities = communityRows;
     renderCommunities(communityRows);
-    renderSpecies(speciesRows);
     applyFormContext(formContextResult.data);
     updateFieldHighlights();
     els.siteSampleCommunity.focus();
@@ -115,7 +105,7 @@ async function submitSiteSample(event) {
   els.saveSiteSample.disabled = true;
   setStatus("Saving...");
   try {
-    const { data, error } = await authClient.rpc("ag_submit_site_water_sample_record", {
+    const { data, error } = await authClient.rpc("ag_submit_site_water_sample_record_v2", {
       p_submission_id: submissionId,
       p_record: {
         auto_sample_number: !sampleNumberWasEdited,
@@ -127,10 +117,7 @@ async function submitSiteSample(event) {
         gps_latitude: gps.latitude,
         gps_longitude: gps.longitude,
         gps_accuracy_m: gpsAccuracyMeters,
-        species: textOrNull(els.siteSampleSpecies.value),
-        weight_value: numberOrNull(els.siteSampleWeight.value),
-        weight_unit: els.siteSampleWeightUnit.value,
-        volume_l: numberOrNull(els.siteSampleVolume.value),
+        recorded_by_name: textOrNull(els.siteSampleRecordedBy.value),
         temperature_c: numberOrNull(els.siteSampleTemperature.value),
         salinity_value: numberOrNull(els.siteSampleSalinity.value),
         salinity_unit: els.siteSampleSalinityUnit.value,
@@ -165,14 +152,6 @@ function renderCommunities(rows) {
     els.siteSampleCommunity.append(new Option(`${row.community_id} - ${row.community_name}`, row.id));
   });
   if (rows.some((row) => row.id === current)) els.siteSampleCommunity.value = current;
-}
-
-function renderSpecies(rows) {
-  els.siteSampleSpecies.replaceChildren(new Option("Not recorded", ""));
-  rows.filter((row) => row.active !== false).forEach((row) => {
-    const label = row.common_name ? `${row.label} (${row.common_name})` : row.label;
-    els.siteSampleSpecies.append(new Option(label, row.type_key));
-  });
 }
 
 function applyFormContext(value) {
@@ -241,12 +220,10 @@ function clearForm() {
 }
 
 function resetInputs(nextNumber = nextSampleNumber) {
-  const aggregator = els.siteSampleAggregator.value;
   const recordedBy = els.siteSampleRecordedBy.value;
   const community = els.siteSampleCommunity.value;
   nextSampleNumber = String(nextNumber || nextSampleNumber || "1");
   els.siteSampleForm.reset();
-  els.siteSampleAggregator.value = aggregator;
   els.siteSampleRecordedBy.value = recordedBy;
   els.siteSampleCommunity.value = community;
   els.siteSampledAt.value = kenyaDateTime();
@@ -260,9 +237,9 @@ function resetInputs(nextNumber = nextSampleNumber) {
 
 function prepareSiteSampleWorksheet() {
   const community = communities.find((row) => row.id === els.siteSampleCommunity.value);
-  setPrintValue(els.printSiteSampleAggregator, els.siteSampleAggregator.value);
   setPrintValue(els.printSiteSampleCommunity, community ? `${community.community_id} - ${community.community_name}` : "");
   setPrintValue(els.printSiteSampleDate, paperDateTime(els.siteSampledAt.value));
+  setPrintValue(els.printSiteSampleTide, selectedTideStage() === "spring_high" ? "High" : "Low");
   setPrintValue(els.printSiteSampleRecordedBy, els.siteSampleRecordedBy.value);
 }
 

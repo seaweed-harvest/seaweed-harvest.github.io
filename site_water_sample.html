@@ -69,28 +69,13 @@
               </span>
               <span id="siteSampleGpsHint" class="packing-field-hint">Latitude, longitude</span>
             </label>
-            <label>Species
-              <select id="siteSampleSpecies"><option value="">Not recorded</option></select>
-            </label>
-            <label>Aggregator
-              <input id="siteSampleAggregator" type="text" readonly>
-            </label>
             <label>Recorded by
-              <input id="siteSampleRecordedBy" type="text" readonly>
+              <input id="siteSampleRecordedBy" type="text" maxlength="160" autocomplete="name" required>
             </label>
           </fieldset>
 
           <fieldset>
             <legend>Measurements</legend>
-            <label>Weight
-              <span class="packing-measure-row">
-                <input id="siteSampleWeight" type="number" min="0" max="100000" step="0.001" inputmode="decimal">
-                <select id="siteSampleWeightUnit" aria-label="Weight unit"><option value="g">g</option><option value="kg">kg</option></select>
-              </span>
-            </label>
-            <label>Volume (litres)
-              <input id="siteSampleVolume" type="number" min="0" max="100000" step="0.001" inputmode="decimal">
-            </label>
             <label>Water temperature (&deg;C)
               <input id="siteSampleTemperature" type="number" min="-10" max="100" step="0.1" inputmode="decimal" data-recommended="true">
             </label>
@@ -153,19 +138,19 @@
         <span>Spring low and spring high site measurements.</span>
       </header>
       <div class="ag-print-meta">
-        <div><span>Aggregator</span><strong id="printSiteSampleAggregator"></strong></div>
         <div><span>Community</span><strong id="printSiteSampleCommunity"></strong></div>
         <div><span>Sample date</span><strong id="printSiteSampleDate"></strong></div>
+        <div><span>Spring tide</span><strong id="printSiteSampleTide"></strong></div>
         <div><span>Recorded by</span><strong id="printSiteSampleRecordedBy"></strong></div>
       </div>
-      <table class="ag-print-table ag-print-site-sample-table" data-pdf-widths="3,10,7,10,7,6,7,5,5,6,6,7,6,15">
-        <colgroup><col><col><col><col><col><col><col><col><col><col><col><col><col><col></colgroup>
+      <table class="ag-print-table ag-print-site-sample-table" data-pdf-widths="3,11,7,11,7,6,7,5,5,6,6,8,18">
+        <colgroup><col><col><col><col><col><col><col><col><col><col><col><col><col></colgroup>
         <thead>
           <tr>
-            <th scope="col">No.</th><th scope="col">Date / time</th><th scope="col">Tide</th><th scope="col">Community</th><th scope="col">Sample</th><th scope="col">Temp. &deg;C</th><th scope="col">Salinity</th><th scope="col">pH</th><th scope="col">Brix</th><th scope="col">TDS</th><th scope="col">EC</th><th scope="col">E. coli</th><th scope="col">Volume L</th><th scope="col">Notes</th>
+            <th scope="col">No.</th><th scope="col">Date / time</th><th scope="col">Tide</th><th scope="col">Community</th><th scope="col">Sample</th><th scope="col">Temp. &deg;C</th><th scope="col">Salinity</th><th scope="col">pH</th><th scope="col">Brix</th><th scope="col">TDS</th><th scope="col">EC</th><th scope="col">E. coli</th><th scope="col">Notes</th>
           </tr>
         </thead>
-        <tbody data-print-rows="10" data-print-columns="14"></tbody>
+        <tbody data-print-rows="10" data-print-columns="13"></tbody>
       </table>
       <footer class="ag-print-footer">
         <div><span>Entered into system by</span><strong></strong></div><div><span>Date</span><strong></strong></div><div><span>Checked by</span><strong></strong></div>
@@ -173,6 +158,6 @@
     </article>
   </section>
   <script type="module" src="./assets/js/admin_page.js?v=23"></script>
-  <script type="module" src="./assets/js/site_water_sample_form.js?v=1"></script>
+  <script type="module" src="./assets/js/site_water_sample_form.js?v=2"></script>
 </body>
 </html>

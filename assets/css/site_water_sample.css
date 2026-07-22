@@ -19,9 +19,9 @@
 
 @media print {
   .ag-print-site-sample-table col:nth-child(1) { width: 3%; }
-  .ag-print-site-sample-table col:nth-child(2) { width: 10%; }
+  .ag-print-site-sample-table col:nth-child(2) { width: 11%; }
   .ag-print-site-sample-table col:nth-child(3) { width: 7%; }
-  .ag-print-site-sample-table col:nth-child(4) { width: 10%; }
+  .ag-print-site-sample-table col:nth-child(4) { width: 11%; }
   .ag-print-site-sample-table col:nth-child(5) { width: 7%; }
   .ag-print-site-sample-table col:nth-child(6) { width: 6%; }
   .ag-print-site-sample-table col:nth-child(7) { width: 7%; }
@@ -29,7 +29,6 @@
   .ag-print-site-sample-table col:nth-child(9) { width: 5%; }
   .ag-print-site-sample-table col:nth-child(10) { width: 6%; }
   .ag-print-site-sample-table col:nth-child(11) { width: 6%; }
-  .ag-print-site-sample-table col:nth-child(12) { width: 7%; }
-  .ag-print-site-sample-table col:nth-child(13) { width: 6%; }
-  .ag-print-site-sample-table col:nth-child(14) { width: 15%; }
+  .ag-print-site-sample-table col:nth-child(12) { width: 8%; }
+  .ag-print-site-sample-table col:nth-child(13) { width: 18%; }
 }
