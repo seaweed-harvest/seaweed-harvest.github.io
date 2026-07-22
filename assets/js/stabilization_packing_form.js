@@ -18,7 +18,8 @@ async function init() {
     "packedOn", "packedOnLabel", "packingSpecies",
     "packingRecordedBy", "packingWeight", "packingWeightUnit",
     "packingSalinity", "packingSalinityUnit", "packingPh",
-    "packingEc", "packingChemical", "packingDose", "packingDoseUnit", "packingDoseDefault", "packingNotes",
+    "packingEc", "packingStabilizerYes", "packingStabilizerNo", "packingStabilizerFields",
+    "packingChemical", "packingDose", "packingDoseUnit", "packingDoseDefault", "packingNotes",
     "savePackingRecord", "clearPackingRecord", "favoritePackingForm", "printPackingWorksheet", "packingRecordStatus",
     "packingPrintWorksheet", "printPackingDate",
     "printPackingRecordedBy", "printPackingChemical"
@@ -28,7 +29,7 @@ async function init() {
     button: els.printPackingWorksheet,
     worksheet: els.packingPrintWorksheet,
     rowCount: 12,
-    columnCount: 12,
+    columnCount: 13,
     prepare: preparePackingWorksheet
   });
 
@@ -55,6 +56,9 @@ async function init() {
   els.packingRecordForm.querySelectorAll('[name="packingRecordType"]').forEach((control) => {
     control.addEventListener("change", handleRecordTypeChange);
   });
+  els.packingRecordForm.querySelectorAll('[name="packingStabilizerAdded"]').forEach((control) => {
+    control.addEventListener("change", handleStabilizerChange);
+  });
   els.packingDoseDefault.addEventListener("change", handleDoseDefaultChange);
   els.packingDose.addEventListener("input", saveCheckedDoseDefault);
   els.packingDoseUnit.addEventListener("change", saveCheckedDoseDefault);
@@ -70,7 +74,7 @@ async function init() {
     doseDefaultScope = active?.id || active?.aggregator_id || active?.aggregator_code || "default";
     renderSpecies(species);
     applyPackingFormContext(formContextResult.data);
-    applyDoseDefault();
+    updateStabilizerControls();
     updateFieldHighlights();
     els.cartonSerial.focus();
   } catch (error) {
@@ -94,6 +98,8 @@ function renderSpecies(rows) {
 async function submitRecord(event) {
   event.preventDefault();
   if (!els.packingRecordForm.reportValidity()) return;
+  const stabilizerAdded = selectedStabilizerAdded();
+  if (stabilizerAdded === null) return;
 
   els.savePackingRecord.disabled = true;
   setStatus("Saving...");
@@ -113,7 +119,8 @@ async function submitRecord(event) {
         salinity_unit: els.packingSalinityUnit.value,
         ph_value: numberOrNull(els.packingPh.value),
         electrical_conductivity_ms_cm: numberOrNull(els.packingEc.value),
-        chemical_dose_value: numberOrNull(els.packingDose.value),
+        stabilizer_added: stabilizerAdded,
+        chemical_dose_value: stabilizerAdded ? numberOrNull(els.packingDose.value) : null,
         chemical_dose_unit: els.packingDoseUnit.value,
         notes: textOrNull(els.packingNotes.value)
       }
@@ -156,6 +163,35 @@ function applyPackingFormContext(value) {
 
 function selectedRecordType() {
   return els.packingRecordForm.querySelector('[name="packingRecordType"]:checked')?.value || "initial";
+}
+
+function selectedStabilizerAdded() {
+  const value = els.packingRecordForm.querySelector('[name="packingStabilizerAdded"]:checked')?.value;
+  if (value === "yes") return true;
+  if (value === "no") return false;
+  return null;
+}
+
+function handleStabilizerChange() {
+  updateStabilizerControls();
+  updateFieldHighlights();
+}
+
+function updateStabilizerControls() {
+  const selected = selectedStabilizerAdded();
+  const enabled = selected === true;
+  els.packingStabilizerFields.setAttribute("aria-disabled", String(!enabled));
+  els.packingChemical.disabled = !enabled;
+  els.packingDose.disabled = !enabled;
+  els.packingDoseUnit.disabled = !enabled;
+  els.packingDoseDefault.disabled = !enabled;
+  els.packingDose.required = enabled;
+  if (selected !== false) {
+    applyDoseDefault();
+  } else {
+    els.packingDose.value = "";
+    els.packingDoseDefault.checked = false;
+  }
 }
 
 function handleRecordTypeChange() {
@@ -256,7 +292,7 @@ function resetInputs(nextSerial = nextCartonSerial) {
   els.packingRecordedBy.value = recordedBy;
   els.packingChemical.value = "Sodium benzoate";
   setNewCartonMode();
-  applyDoseDefault();
+  updateStabilizerControls();
   updateFieldHighlights();
   submissionId = crypto.randomUUID();
   els.cartonSerial.focus();

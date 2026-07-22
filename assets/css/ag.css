@@ -4785,6 +4785,11 @@ body[data-registration-pending] .registration-flow {
   text-transform: uppercase;
 }
 
+.packing-recorder-field,
+.packing-notes-field {
+  max-width: none;
+}
+
 .packing-record-type-field {
   display: grid;
   gap: 5px;
@@ -4889,6 +4894,37 @@ body[data-registration-pending] .registration-flow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 110px;
   gap: 8px;
+}
+
+.packing-stabilizer-choice {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.packing-stabilizer-fields {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(320px, 1.2fr);
+  gap: 10px 16px;
+  align-items: end;
+  padding-top: 2px;
+  transition: opacity 120ms ease;
+}
+
+.packing-stabilizer-fields[aria-disabled="true"] {
+  opacity: 0.55;
+}
+
+.packing-stabilizer-fields .packing-dose-default-row {
+  grid-column: 2;
+}
+
+.packing-qc-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.35fr) repeat(2, minmax(160px, 0.8fr));
+  gap: 10px 16px;
+  align-items: end;
 }
 
 .packing-record-form .packing-dose-default-row {
@@ -5299,6 +5335,21 @@ label input[type="checkbox"] {
 @media (max-width: 780px) {
   .packing-record-type-control {
     width: 100%;
+  }
+
+  .packing-stabilizer-choice {
+    display: grid;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .packing-stabilizer-fields,
+  .packing-qc-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .packing-stabilizer-fields .packing-dose-default-row {
+    grid-column: auto;
   }
 
   .receipt-result-grid,

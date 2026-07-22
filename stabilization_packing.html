@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0f766e">
   <meta name="robots" content="noindex,nofollow">
-  <title>Stabilization &amp; Packing - Seaweed Aggregation</title>
+  <title>BioStim Stock Record - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
 </head>
 <body class="admin-console-page packing-record-page form-record-page" data-auth-pending>
@@ -28,12 +28,12 @@
     <section class="admin-content admin-page-section form-page-content">
       <section class="panel form-record-panel">
         <div class="section-head compact form-panel-toolbar">
-          <h2>Stabilization &amp; Packing Record</h2>
+          <h2>BioStim Stock Record</h2>
           <div class="form-panel-actions">
-            <button id="favoritePackingForm" class="form-favorite-action" type="button" aria-pressed="false" aria-label="Add Stabilization &amp; Packing to dashboard" title="Add Stabilization &amp; Packing to dashboard">
+            <button id="favoritePackingForm" class="form-favorite-action" type="button" aria-pressed="false" aria-label="Add BioStim Stock Record to dashboard" title="Add BioStim Stock Record to dashboard">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" data-lucide="star" aria-hidden="true"><path d="m12 2.8 2.8 5.7 6.3.9-4.6 4.4 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.4 6.3-.9L12 2.8Z"></path></svg>
             </button>
-            <button id="printPackingWorksheet" class="form-pdf-action" type="button" aria-label="Download stabilization and packing worksheet PDF" title="Download stabilization and packing worksheet PDF">
+            <button id="printPackingWorksheet" class="form-pdf-action" type="button" aria-label="Download BioStim stock worksheet PDF" title="Download BioStim stock worksheet PDF">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="printer" aria-hidden="true">
                 <path d="M6 9V2h12v7"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect width="12" height="8" x="6" y="14"></rect>
               </svg>
@@ -42,6 +42,10 @@
           </div>
         </div>
         <form id="packingRecordForm" class="packing-record-form">
+          <label class="packing-recorder-field">Recorded by
+            <input id="packingRecordedBy" type="text" maxlength="160" autocomplete="name" required>
+          </label>
+
           <fieldset>
             <legend>Record</legend>
             <div class="packing-record-type-field">
@@ -72,55 +76,70 @@
                 <option value="other">Other</option>
               </select>
             </label>
-            <label>Recorded by
-              <input id="packingRecordedBy" type="text" maxlength="160" autocomplete="name" required>
-            </label>
-          </fieldset>
-
-          <fieldset>
-            <legend>Measurements</legend>
             <label>Weight
               <span class="packing-measure-row">
                 <input id="packingWeight" type="number" min="0.001" max="100000" step="0.001" inputmode="decimal" required>
                 <select id="packingWeightUnit" aria-label="Weight unit"><option value="kg">kg</option><option value="g">g</option></select>
               </span>
             </label>
-            <label>Salinity
-              <span class="packing-measure-row">
-                <input id="packingSalinity" type="number" min="0" max="100" step="0.01" inputmode="decimal" data-recommended="true">
-                <select id="packingSalinityUnit" aria-label="Salinity unit"><option value="PSU">PSU</option><option value="ppt">ppt</option></select>
-              </span>
-            </label>
-            <label>pH
-              <input id="packingPh" type="number" min="0" max="14" step="0.01" inputmode="decimal" data-recommended="true">
-            </label>
-            <label>Electrical conductivity (mS/cm)
-              <input id="packingEc" type="number" min="0" max="500" step="0.01" inputmode="decimal" data-recommended="true">
-            </label>
           </fieldset>
 
           <fieldset>
-            <legend>Stabilization</legend>
-            <label>Chemical
-              <input id="packingChemical" type="text" value="Sodium benzoate" readonly>
-            </label>
-            <label>Chemical dose
-              <span class="packing-measure-row">
-                <input id="packingDose" type="number" min="0" max="100000" step="0.001" inputmode="decimal" data-recommended="true">
-                <select id="packingDoseUnit" aria-label="Chemical dose unit"><option value="g/L">g/L</option><option value="mg/L">mg/L</option><option value="%">%</option></select>
-              </span>
-            </label>
-            <label class="packing-dose-default-row">
-              <input id="packingDoseDefault" type="checkbox">
-              <span>Set as default</span>
-            </label>
-            <label>Notes
-              <textarea id="packingNotes" rows="3" maxlength="1000"></textarea>
-            </label>
+            <legend>Stabilisation</legend>
+            <div class="packing-stabilizer-choice">
+              <span class="packing-field-label">Stabiliser added?</span>
+              <div class="packing-record-type-control" role="radiogroup" aria-label="Stabiliser added">
+                <label>
+                  <input id="packingStabilizerYes" type="radio" name="packingStabilizerAdded" value="yes" required>
+                  <span>Yes</span>
+                </label>
+                <label>
+                  <input id="packingStabilizerNo" type="radio" name="packingStabilizerAdded" value="no" required>
+                  <span>No</span>
+                </label>
+              </div>
+            </div>
+            <div id="packingStabilizerFields" class="packing-stabilizer-fields" aria-disabled="true">
+              <label>Chemical
+                <input id="packingChemical" type="text" value="Sodium benzoate" readonly>
+              </label>
+              <label>Chemical dose
+                <span class="packing-measure-row">
+                  <input id="packingDose" type="number" min="0.001" max="100000" step="0.001" inputmode="decimal" data-recommended="true" disabled>
+                  <select id="packingDoseUnit" aria-label="Chemical dose unit" disabled><option value="g/L">g/L</option><option value="mg/L">mg/L</option><option value="%">%</option></select>
+                </span>
+              </label>
+              <label class="packing-dose-default-row">
+                <input id="packingDoseDefault" type="checkbox" disabled>
+                <span>Set as default</span>
+              </label>
+            </div>
           </fieldset>
 
+          <fieldset>
+            <legend>QC Measurements</legend>
+            <div class="packing-qc-grid">
+              <label>Salinity
+                <span class="packing-measure-row">
+                  <input id="packingSalinity" type="number" min="0" max="100" step="0.01" inputmode="decimal" data-recommended="true">
+                  <select id="packingSalinityUnit" aria-label="Salinity unit"><option value="PSU">PSU</option><option value="ppt">ppt</option></select>
+                </span>
+              </label>
+              <label>pH
+                <input id="packingPh" type="number" min="0" max="14" step="0.01" inputmode="decimal" data-recommended="true">
+              </label>
+              <label>EC (mS/cm)
+                <input id="packingEc" type="number" min="0" max="500" step="0.01" inputmode="decimal" data-recommended="true">
+              </label>
+            </div>
+          </fieldset>
+
+          <label class="packing-notes-field">Notes
+            <textarea id="packingNotes" rows="3" maxlength="1000"></textarea>
+          </label>
+
           <div class="button-row packing-record-actions">
-            <button id="savePackingRecord" type="submit">Save packing record</button>
+            <button id="savePackingRecord" type="submit">Save BioStim record</button>
             <button id="clearPackingRecord" type="button">Clear</button>
             <p id="packingRecordStatus" class="admin-status" aria-live="polite"></p>
           </div>
@@ -128,21 +147,21 @@
       </section>
     </section>
   </main>
-  <section id="packingPrintWorksheet" class="ag-print-document" data-print-title="Stabilization and Packing Worksheet" data-pdf-filename="seaweed-stabilization-packing-worksheet.pdf" aria-hidden="true">
+  <section id="packingPrintWorksheet" class="ag-print-document" data-print-title="BioStim Stock Worksheet" data-pdf-filename="seaweed-biostim-stock-worksheet.pdf" aria-hidden="true">
     <article class="ag-print-page">
       <header class="ag-print-header">
         <p>Seaweed Harvest</p>
-        <h1>Stabilization &amp; Packing Worksheet</h1>
-        <span>Blank production sheet for handwritten carton records.</span>
+        <h1>BioStim Stock Worksheet</h1>
+        <span>Blank production sheet for handwritten stock records.</span>
       </header>
       <div class="ag-print-meta">
         <div><span>Date</span><strong id="printPackingDate"></strong></div>
         <div><span>Recorded by</span><strong id="printPackingRecordedBy"></strong></div>
         <div><span>Chemical</span><strong id="printPackingChemical">Sodium benzoate</strong></div>
       </div>
-      <table class="ag-print-table ag-print-packing-table" data-pdf-widths="3,11,9,7,4,7,5,5,8,7,5,29">
+      <table class="ag-print-table ag-print-packing-table" data-pdf-widths="3,10,8,7,4,7,4,4,7,6,5,5,30">
         <colgroup>
-          <col><col><col><col><col><col><col><col><col><col><col><col>
+          <col><col><col><col><col><col><col><col><col><col><col><col><col>
         </colgroup>
         <thead>
           <tr>
@@ -155,12 +174,13 @@
             <th scope="col">Unit</th>
             <th scope="col">pH</th>
             <th scope="col">EC mS/cm</th>
+            <th scope="col">Stabiliser Y/N</th>
             <th scope="col">Dose</th>
             <th scope="col">Unit</th>
             <th scope="col">Notes</th>
           </tr>
         </thead>
-        <tbody data-print-rows="12" data-print-columns="12"></tbody>
+        <tbody data-print-rows="12" data-print-columns="13"></tbody>
       </table>
       <footer class="ag-print-footer">
         <div><span>Entered into system by</span><strong></strong></div>
@@ -170,6 +190,6 @@
     </article>
   </section>
   <script type="module" src="./assets/js/admin_page.js?v=23"></script>
-  <script type="module" src="./assets/js/stabilization_packing_form.js?v=7"></script>
+  <script type="module" src="./assets/js/stabilization_packing_form.js?v=8"></script>
 </body>
 </html>

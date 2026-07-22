@@ -8,8 +8,8 @@ export const FAVORITE_FORMS = [
   },
   {
     key: "stabilization_packing",
-    label: "Stabilization & Packing",
-    description: "Record carton stabilization and packing",
+    label: "BioStim Stock Record",
+    description: "Record stabilisation, stock weight, and QC measurements",
     href: "./stabilization_packing.html",
     permission: "can_submit_collection"
   },

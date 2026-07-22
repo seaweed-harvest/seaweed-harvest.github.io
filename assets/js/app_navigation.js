@@ -336,7 +336,7 @@ function navigationLink(link, currentFile) {
 function formLinks() {
   return [
     { label: "Collection Form", href: "./collection.html" },
-    { label: "Stabilization & Packing", href: "./stabilization_packing.html" },
+    { label: "BioStim Stock Record", href: "./stabilization_packing.html" },
     { label: "Site Water Sample", href: "./site_water_sample.html" }
   ];
 }
