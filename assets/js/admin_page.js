@@ -3,6 +3,7 @@ import { hasMapCoordinates as hasGps, mapCoordinates } from "./map_coordinates.j
 import { dataModeLabel, selectRows } from "./supabase_client.js";
 import { currentAccessToken, requireAdminAccess, setupAccountControls } from "./auth_client.js?v=18";
 import { applyDashboardPreferences } from "./dashboard_preferences.js";
+import { setupAppNavigation } from "./app_navigation.js";
 
 const TABLES = {
   overview: "ag_secure_admin_overview",
@@ -91,6 +92,11 @@ async function init() {
   }
   setupAdminSidebar(state.profile);
   setupAccountControls(state.profile);
+  setupAppNavigation({
+    profile: state.profile,
+    sidebar: document.querySelector(".admin-sidebar"),
+    dashboardHref: "./home.html"
+  });
   applyDashboardPreferences(state.profile);
   document.body.removeAttribute("data-auth-pending");
   if (!hasAdminDataView()) return;
@@ -498,6 +504,14 @@ function addAdminSidebarLinks(sidebar) {
       "afterend",
       '<a href="./stabilization_packing.html" data-permission="can_submit_collection">Stabilization &amp; Packing</a>'
     );
+  }
+
+  const mapHeading = [...sidebar.querySelectorAll(".admin-menu-heading")]
+    .find((heading) => heading.textContent.trim().toLowerCase() === "map");
+  const communityMap = sidebar.querySelector('a[href="./admin_map.html"]');
+  if (dashboard && mapHeading && communityMap) {
+    mapHeading.remove();
+    dashboard.insertAdjacentElement("afterend", communityMap);
   }
 
   const registryHeading = [...sidebar.querySelectorAll(".admin-menu-heading")]

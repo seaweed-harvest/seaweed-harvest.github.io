@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v24";
+const CACHE_VERSION = "seaweed-harvest-collection-v25";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -14,6 +14,7 @@ const APP_SHELL = [
   "./assets/images/seaweed-harvest-icon-192.png",
   "./assets/images/seaweed-harvest-icon-512.png",
   "./assets/js/collection_form.js",
+  "./assets/js/app_navigation.js",
   "./assets/js/app_transition.js",
   "./assets/js/collection_language.js",
   "./assets/js/offline_store.js",

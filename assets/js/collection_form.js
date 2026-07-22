@@ -25,6 +25,7 @@ import {
 import { syncPendingCollections } from "./offline_sync.js";
 import { completeLaunchSplash } from "./app_transition.js";
 import { createOperationFeedback } from "./operation_feedback.js";
+import { setupAppNavigation } from "./app_navigation.js";
 
 const state = {
   communities: [],
@@ -202,17 +203,25 @@ function setupCollectionHeader() {
     && profile.account_status === "active"
     && (profile.app_role === "system_admin" || profile.can_access_admin));
 
-  if (!signedIn) return;
-  state.authApi?.setupAccountControls(profile, {
-    returnPage: "collection.html",
-    signOutReturn: "./index.html",
-    showAggregator: !state.publicMode,
-    languageEvent: "seaweed-collection-language-change",
-    labels: () => ({
-      myDetails: t("account.myDetails"),
-      changePassword: t("account.changePassword"),
-      signOut: t("account.signOut")
-    })
+  if (signedIn) {
+    state.authApi?.setupAccountControls(profile, {
+      returnPage: "collection.html",
+      signOutReturn: "./index.html",
+      showAggregator: !state.publicMode,
+      languageEvent: "seaweed-collection-language-change",
+      labels: () => ({
+        myDetails: t("account.myDetails"),
+        changePassword: t("account.changePassword"),
+        signOut: t("account.signOut")
+      })
+    });
+  }
+
+  setupAppNavigation({
+    profile: signedIn ? profile : null,
+    dashboardHref: signedIn
+      ? state.authApi?.routeForProfile(profile) || "./home.html"
+      : "./login.html?return=home.html"
   });
 }
 
