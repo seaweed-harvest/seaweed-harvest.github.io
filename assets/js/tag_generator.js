@@ -248,7 +248,7 @@ function inferType(id) {
   const value = String(id || "").trim().toUpperCase();
   if (/^RID\d{4,}$/.test(value)) return "farmer";
   if (/^B-\d{4,}$/.test(value)) return "sack";
-  if (/^J-\d{4,}$/.test(value)) return "jug";
+  if (/^P-\d{4,}$/.test(value)) return "jug";
   return "custom";
 }
 
