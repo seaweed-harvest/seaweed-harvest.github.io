@@ -4407,6 +4407,77 @@ body[data-registration-pending] .registration-flow {
   text-transform: uppercase;
 }
 
+.packing-record-type-field {
+  display: grid;
+  gap: 5px;
+}
+
+.packing-field-label {
+  color: var(--text-sec);
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.packing-record-type-control {
+  width: fit-content;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel);
+}
+
+.packing-record-form .packing-record-type-control label {
+  display: block;
+  color: var(--text-sec);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.packing-record-form .packing-record-type-control input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-width: 1px;
+  min-height: 1px;
+  padding: 0;
+  border: 0;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.packing-record-type-control span {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 5px;
+}
+
+.packing-record-type-control input:checked + span {
+  background: var(--panel-soft);
+  color: var(--accent);
+}
+
+.packing-record-type-control input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.packing-field-hint {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 400;
+  text-transform: none;
+}
+
 .packing-record-form input,
 .packing-record-form select,
 .packing-record-form textarea {
@@ -4848,6 +4919,10 @@ label input[type="checkbox"] {
 }
 
 @media (max-width: 780px) {
+  .packing-record-type-control {
+    width: 100%;
+  }
+
   .receipt-result-grid,
   .tenant-form-grid,
   .tenant-relationship-grid,

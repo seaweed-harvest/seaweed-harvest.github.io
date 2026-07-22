@@ -39,10 +39,25 @@
         <form id="packingRecordForm" class="packing-record-form">
           <fieldset>
             <legend>Record</legend>
+            <div class="packing-record-type-field">
+              <span class="packing-field-label">Record type</span>
+              <div class="packing-record-type-control" role="radiogroup" aria-label="Record type">
+                <label>
+                  <input type="radio" name="packingRecordType" value="initial" checked>
+                  <span>New carton</span>
+                </label>
+                <label>
+                  <input type="radio" name="packingRecordType" value="retest">
+                  <span>Retest existing</span>
+                </label>
+              </div>
+            </div>
             <label>Carton serial
-              <input id="cartonSerial" type="text" inputmode="numeric" pattern="[0-9]+" maxlength="30" autocomplete="off" required>
+              <input id="cartonSerial" type="text" inputmode="numeric" pattern="[0-9]+" maxlength="30" autocomplete="off" list="existingCartonSerials" aria-describedby="cartonSerialHint" required>
+              <span id="cartonSerialHint" class="packing-field-hint">Next carton number. You can type over it.</span>
             </label>
-            <label>Packing date
+            <datalist id="existingCartonSerials"></datalist>
+            <label><span id="packedOnLabel">Packing date</span>
               <input id="packedOn" type="date" required>
             </label>
             <label>Species
@@ -158,6 +173,6 @@
     </article>
   </section>
   <script type="module" src="./assets/js/admin_page.js?v=23"></script>
-  <script type="module" src="./assets/js/stabilization_packing_form.js?v=4"></script>
+  <script type="module" src="./assets/js/stabilization_packing_form.js?v=5"></script>
 </body>
 </html>

@@ -6,12 +6,15 @@ const els = {};
 let submissionId = crypto.randomUUID();
 let defaultSpecies = "spinosum";
 let doseDefaultScope = "default";
+let nextCartonSerial = "1";
+let cartonSerialWasEdited = false;
 
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   [
-    "packingRecordForm", "cartonSerial", "packedOn", "packingSpecies",
+    "packingRecordForm", "cartonSerial", "cartonSerialHint", "existingCartonSerials",
+    "packedOn", "packedOnLabel", "packingSpecies",
     "packingAggregator", "packingRecordedBy", "packingWeight", "packingWeightUnit",
     "packingTemperature", "packingSalinity", "packingSalinityUnit", "packingPh",
     "packingEc", "packingChemical", "packingDose", "packingDoseUnit", "packingDoseDefault", "packingNotes",
@@ -37,19 +40,28 @@ async function init() {
   els.clearPackingRecord.addEventListener("click", clearForm);
   els.packingRecordForm.addEventListener("input", updateFieldHighlights);
   els.packingRecordForm.addEventListener("change", updateFieldHighlights);
+  els.cartonSerial.addEventListener("input", () => {
+    if (selectedRecordType() === "initial") cartonSerialWasEdited = true;
+  });
+  els.packingRecordForm.querySelectorAll('[name="packingRecordType"]').forEach((control) => {
+    control.addEventListener("change", handleRecordTypeChange);
+  });
   els.packingDoseDefault.addEventListener("change", handleDoseDefaultChange);
   els.packingDose.addEventListener("input", saveCheckedDoseDefault);
   els.packingDoseUnit.addEventListener("change", saveCheckedDoseDefault);
 
   try {
-    const [context, species] = await Promise.all([
+    const [context, species, formContextResult] = await Promise.all([
       currentAggregatorContext(true),
-      selectRows("ag_public_seaweed_type_settings", "select=*&order=display_order.asc")
+      selectRows("ag_public_seaweed_type_settings", "select=*&order=display_order.asc"),
+      authClient.rpc("ag_stabilization_packing_form_context")
     ]);
+    if (formContextResult.error) throw formContextResult.error;
     const active = context.active_aggregator;
     doseDefaultScope = active?.id || active?.aggregator_id || active?.aggregator_code || "default";
     els.packingAggregator.value = active?.organisation_name || active?.short_name || active?.aggregator_code || "";
     renderSpecies(species);
+    applyPackingFormContext(formContextResult.data);
     applyDoseDefault();
     updateFieldHighlights();
     els.cartonSerial.focus();
@@ -81,6 +93,8 @@ async function submitRecord(event) {
     const { data, error } = await authClient.rpc("ag_submit_stabilization_packing_record", {
       p_submission_id: submissionId,
       p_record: {
+        record_type: selectedRecordType(),
+        auto_carton_serial: selectedRecordType() === "initial" && !cartonSerialWasEdited,
         carton_serial: els.cartonSerial.value.trim(),
         packed_on: els.packedOn.value,
         species: els.packingSpecies.value,
@@ -99,8 +113,13 @@ async function submitRecord(event) {
     if (error) throw error;
     const saved = Array.isArray(data) ? data[0] : data;
     const serial = saved?.carton_serial || els.cartonSerial.value.trim();
-    resetInputs();
-    setStatus(`Carton ${serial} saved.`);
+    const recordType = saved?.record_type || selectedRecordType();
+    const testSequence = Number(saved?.test_sequence || 1);
+    rememberCarton(serial, testSequence);
+    resetInputs(saved?.next_carton_serial || nextSerialAfter(serial));
+    setStatus(recordType === "retest"
+      ? `Retest ${testSequence} for carton ${serial} saved.`
+      : `Carton ${serial} saved. Next carton ${nextCartonSerial} is ready.`);
   } catch (error) {
     setStatus(error.message, "error");
   } finally {
@@ -111,6 +130,64 @@ async function submitRecord(event) {
 function clearForm() {
   resetInputs();
   setStatus("");
+}
+
+function applyPackingFormContext(value) {
+  const context = Array.isArray(value) ? value[0] : value;
+  nextCartonSerial = String(context?.next_carton_serial || "1");
+  els.existingCartonSerials.replaceChildren();
+  (context?.recent_cartons || []).forEach((carton) => {
+    const option = document.createElement("option");
+    option.value = carton.carton_serial;
+    const count = Number(carton.test_count || 1);
+    option.label = count > 1 ? `${count} tests` : "1 test";
+    els.existingCartonSerials.append(option);
+  });
+  setNewCartonMode();
+}
+
+function selectedRecordType() {
+  return els.packingRecordForm.querySelector('[name="packingRecordType"]:checked')?.value || "initial";
+}
+
+function handleRecordTypeChange() {
+  if (selectedRecordType() === "retest") {
+    els.cartonSerial.value = "";
+    cartonSerialWasEdited = true;
+    els.packedOnLabel.textContent = "Retest date";
+    els.cartonSerialHint.textContent = "Enter an existing carton serial.";
+    els.cartonSerial.focus();
+  } else {
+    setNewCartonMode();
+  }
+  updateFieldHighlights();
+}
+
+function setNewCartonMode() {
+  const initial = els.packingRecordForm.querySelector('[name="packingRecordType"][value="initial"]');
+  if (initial) initial.checked = true;
+  els.cartonSerial.value = nextCartonSerial;
+  cartonSerialWasEdited = false;
+  els.packedOnLabel.textContent = "Packing date";
+  els.cartonSerialHint.textContent = "Next carton number. You can type over it.";
+}
+
+function rememberCarton(serial, testSequence) {
+  let option = [...els.existingCartonSerials.options].find((item) => item.value === serial);
+  if (!option) {
+    option = document.createElement("option");
+    option.value = serial;
+    els.existingCartonSerials.prepend(option);
+  }
+  option.label = testSequence > 1 ? `${testSequence} tests` : "1 test";
+}
+
+function nextSerialAfter(serial) {
+  const match = String(serial || "").match(/^([0-9]+)$/);
+  if (!match) return nextCartonSerial;
+  const width = match[1].length;
+  const next = (BigInt(match[1]) + 1n).toString();
+  return next.padStart(Math.max(width, next.length), "0");
 }
 
 function handleDoseDefaultChange() {
@@ -163,15 +240,17 @@ function preparePackingWorksheet() {
   setPrintValue(els.printPackingChemical, els.packingChemical.value);
 }
 
-function resetInputs() {
+function resetInputs(nextSerial = nextCartonSerial) {
   const aggregator = els.packingAggregator.value;
   const recordedBy = els.packingRecordedBy.value;
+  nextCartonSerial = String(nextSerial || nextCartonSerial || "1");
   els.packingRecordForm.reset();
   els.packedOn.value = kenyaDate();
   els.packingSpecies.value = defaultSpecies;
   els.packingAggregator.value = aggregator;
   els.packingRecordedBy.value = recordedBy;
   els.packingChemical.value = "Sodium benzoate";
+  setNewCartonMode();
   applyDoseDefault();
   updateFieldHighlights();
   submissionId = crypto.randomUUID();
