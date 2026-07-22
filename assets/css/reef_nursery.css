@@ -37,6 +37,7 @@
 
 .reef-records-panel {
   min-width: 0;
+  padding: 16px;
 }
 
 .reef-records-panel .section-head > div > p {
