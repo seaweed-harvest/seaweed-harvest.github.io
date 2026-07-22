@@ -3711,6 +3711,23 @@ body[data-registration-pending] .registration-flow {
   gap: 8px;
 }
 
+.password-reset-link-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.password-reset-link-row input {
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.72rem;
+}
+
+.password-reset-link-row button {
+  min-height: 38px;
+  white-space: nowrap;
+}
+
 .temporary-password-row button {
   min-height: 38px;
 }

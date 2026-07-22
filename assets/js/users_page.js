@@ -57,6 +57,7 @@ async function init() {
     "editUserName", "editUserRole", "editUserStatus", "editUserCommunity", "editFarmerIdField", "editFarmerId", "editAggregators", "editPermissions", "editDashboardPreferences",
     "editUserMessage", "deleteUser", "passwordHelpCount", "passwordHelpRows", "passwordHelpStatus",
     "temporaryPasswordDialog", "temporaryPasswordForm", "temporaryPasswordRequestId", "temporaryPasswordAccount", "temporaryPasswordValue", "generateTemporaryPassword", "saveTemporaryPassword", "copyTemporaryPassword", "closeTemporaryPassword", "temporaryPasswordStatus",
+    "passwordResetLinkDialog", "passwordResetLinkAccount", "passwordResetLinkValue", "copyPasswordResetLink", "closePasswordResetLink", "passwordResetLinkStatus",
     "farmerRegistrationCount", "farmerRegistrationRows", "farmerRegistrationStatus",
     "userActivityPanel", "userActivityCount", "userActivityRows"
   ].forEach((id) => { els[id] = document.getElementById(id); });
@@ -104,6 +105,8 @@ function bindEvents() {
   els.generateTemporaryPassword.addEventListener("click", () => { els.temporaryPasswordValue.value = generatedPassword(); });
   els.copyTemporaryPassword.addEventListener("click", copyTemporaryPassword);
   els.closeTemporaryPassword.addEventListener("click", closeTemporaryPasswordDialog);
+  els.copyPasswordResetLink.addEventListener("click", copyPasswordResetLink);
+  els.closePasswordResetLink.addEventListener("click", closePasswordResetLinkDialog);
   els.farmerRegistrationRows.addEventListener("click", handleRegistrationClick);
 }
 
@@ -275,9 +278,10 @@ function renderUsers() {
       <td>${escapeHtml(formatDate(user.last_sign_in_at))}</td>
       <td>${user.can_manage_users ? "Yes" : "No"}</td>
       <td>${user.can_manage_admin_users ? "Yes" : "No"}</td>
-      <td>${user.is_protected_owner
+      <td class="row-actions">${user.is_protected_owner
         ? '<span class="protected-owner-label" title="This owner account cannot be edited or removed">Protected owner</span>'
-        : `<button type="button" data-edit-user="${escapeHtml(user.id)}">Edit</button>`}</td>
+        : `<button type="button" data-edit-user="${escapeHtml(user.id)}">Edit</button>`}
+        <button type="button" data-password-reset-link="${escapeHtml(user.id)}"${canCreatePasswordResetLink(user) ? "" : " disabled"}>Reset link</button></td>
     </tr>
   `).join("") : '<tr><td colspan="10">No users yet.</td></tr>';
 }
@@ -339,6 +343,11 @@ function renderActivity() {
 }
 
 function handleUserTableClick(event) {
+  const resetButton = event.target.closest("[data-password-reset-link]");
+  if (resetButton) {
+    createPasswordResetLink(resetButton.dataset.passwordResetLink);
+    return;
+  }
   const button = event.target.closest("[data-edit-user]");
   if (!button) return;
   const user = state.users.find((row) => row.id === button.dataset.editUser);
@@ -360,6 +369,59 @@ function handleUserTableClick(event) {
   renderDashboardInputs("edit", user.app_role, user.dashboard_preferences);
   els.userEditorPanel.hidden = false;
   els.userEditorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function canCreatePasswordResetLink(user) {
+  if (!user || !state.actor) return false;
+  if (user.is_protected_owner) return user.id === state.actor.id;
+  const targetIsAdmin = ["system_admin", "company_admin"].includes(user.app_role)
+    || user.can_manage_users
+    || user.can_manage_admin_users;
+  return !targetIsAdmin
+    || state.actor.is_protected_owner
+    || state.actor.app_role === "system_admin"
+    || state.actor.can_manage_admin_users;
+}
+
+async function createPasswordResetLink(userId) {
+  const user = state.users.find((row) => row.id === userId);
+  if (!user || !canCreatePasswordResetLink(user)) return;
+  const accountName = user.display_name || user.email || user.phone || "Selected user";
+  els.passwordResetLinkAccount.textContent = accountName;
+  els.passwordResetLinkValue.value = "";
+  els.copyPasswordResetLink.disabled = true;
+  setStatus(els.passwordResetLinkStatus, "Creating secure link...");
+  els.passwordResetLinkDialog.showModal();
+
+  try {
+    const result = await invokeAdminUsers({ action: "create_password_reset_link", user_id: userId });
+    els.passwordResetLinkValue.value = result.reset_url;
+    els.copyPasswordResetLink.disabled = false;
+    setStatus(els.passwordResetLinkStatus, `Ready. This link expires ${formatDate(result.expires_at)}.`);
+    els.passwordResetLinkValue.focus();
+    els.passwordResetLinkValue.select();
+  } catch (error) {
+    setStatus(els.passwordResetLinkStatus, error.message, "error");
+  }
+}
+
+async function copyPasswordResetLink() {
+  const link = els.passwordResetLinkValue.value;
+  if (!link) return;
+  try {
+    await navigator.clipboard.writeText(link);
+    setStatus(els.passwordResetLinkStatus, "Reset link copied. Send it privately to the user.");
+  } catch {
+    els.passwordResetLinkValue.focus();
+    els.passwordResetLinkValue.select();
+    setStatus(els.passwordResetLinkStatus, "Select and copy the reset link.");
+  }
+}
+
+function closePasswordResetLinkDialog() {
+  els.passwordResetLinkDialog.close();
+  els.passwordResetLinkValue.value = "";
+  setStatus(els.passwordResetLinkStatus, "");
 }
 
 function handlePasswordHelpClick(event) {
