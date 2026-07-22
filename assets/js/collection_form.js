@@ -470,6 +470,7 @@ function bindEvents() {
   els.manualFarmerLastNames.addEventListener("input", updateQuickReference);
   els.manualFarmerPhone.addEventListener("input", scheduleFarmerPhoneLookup);
   els.manualFarmerPhone.addEventListener("change", lookupFarmerByPhone);
+  els.quickFarmerName.addEventListener("click", acceptPendingFarmerMatch);
   els.manualFarmerFarmSize.addEventListener("input", updateQuickReference);
   els.manualFarmerFarmSizeUnit.addEventListener("change", updateQuickReference);
   els.manualCommunityInput.addEventListener("input", syncManualCommunity);
@@ -730,6 +731,15 @@ async function lookupFarmerByPhone() {
     return;
   }
 
+  linkFarmerMatch(farmer);
+}
+
+function acceptPendingFarmerMatch() {
+  if (!state.pendingFarmer) return;
+  linkFarmerMatch(state.pendingFarmer);
+}
+
+function linkFarmerMatch(farmer) {
   clearPendingFarmer();
   state.selectedFarmer = farmer;
   els.farmerId.value = farmer.farmer_id || "";
@@ -798,6 +808,13 @@ function updateQuickReference() {
   const community = selectedCommunity() || findCommunityFromText(els.manualCommunityInput.value);
   const farmerName = combinedManualFarmerName() || state.selectedFarmer?.name || state.pendingFarmer?.name;
   els.quickFarmerName.textContent = farmerName || "-";
+  els.quickFarmerName.disabled = !state.pendingFarmer;
+  els.quickFarmerName.classList.toggle("is-candidate", Boolean(state.pendingFarmer));
+  if (state.pendingFarmer) {
+    els.quickFarmerName.setAttribute("aria-label", t("quick.selectMatch", { name: farmerName }));
+  } else {
+    els.quickFarmerName.removeAttribute("aria-label");
+  }
   els.quickFarmerMatchStatus.hidden = !state.pendingFarmer;
   els.quickFarmerCommunity.textContent = communityLabel(community) || "-";
   els.quickFarmerFarmSize.textContent = formatManualFarmSize();

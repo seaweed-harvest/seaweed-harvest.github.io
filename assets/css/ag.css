@@ -1513,8 +1513,37 @@ input[readonly] {
   font-weight: 700;
 }
 
-.quick-farmer-reference strong {
+.quick-farmer-reference strong,
+.quick-farmer-name {
   font-weight: 500;
+}
+
+.quick-farmer-name,
+.quick-farmer-name:disabled {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: default;
+  opacity: 1;
+  text-align: left;
+}
+
+.quick-farmer-name:hover {
+  border-color: transparent;
+  color: var(--text);
+}
+
+.quick-farmer-name.is-candidate {
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.quick-farmer-name.is-candidate:hover {
+  color: #0b5f59;
 }
 
 .quick-match-status {
