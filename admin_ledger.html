@@ -207,6 +207,21 @@
                 <tbody id="monthlyRows"></tbody>
               </table>
             </div>
+            <section class="collection-calendar-section" aria-labelledby="collectionCalendarTitle">
+              <div class="collection-calendar-heading">
+                <div>
+                  <h3 id="collectionCalendarTitle">Collection activity</h3>
+                  <p>Latest four months. Green days show the number of collection records.</p>
+                </div>
+                <div class="collection-calendar-legend" aria-label="Calendar legend">
+                  <span><i class="collection-calendar-swatch" aria-hidden="true"></i> Collection day</span>
+                  <span><i class="collection-calendar-moon new" aria-hidden="true">&#127761;</i> New moon</span>
+                  <span><i class="collection-calendar-moon full" aria-hidden="true">&#127765;</i> Full moon</span>
+                </div>
+              </div>
+              <p id="monthlyCalendarStatus" class="admin-status" aria-live="polite"></p>
+              <div id="monthlyCalendar" class="collection-calendar-grid"></div>
+            </section>
           </section>
 
           <section id="ledgerCommunityView" class="ledger-view-panel" role="tabpanel" aria-labelledby="ledgerCommunityTab" hidden>
@@ -265,6 +280,6 @@
   </main>
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
-  <script type="module" src="./assets/js/admin_page.js?v=23"></script>
+  <script type="module" src="./assets/js/admin_page.js?v=24"></script>
 </body>
 </html>

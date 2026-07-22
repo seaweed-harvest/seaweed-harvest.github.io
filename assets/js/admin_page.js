@@ -5,6 +5,7 @@ import { currentAccessToken, requireAdminAccess, setupAccountControls } from "./
 import { applyDashboardPreferences } from "./dashboard_preferences.js";
 import { renderFavoriteForms } from "./favorite_forms.js";
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=6";
+import { moonEvents } from "./moon_calendar.js";
 
 const TABLES = {
   overview: "ag_secure_admin_overview",
@@ -14,6 +15,7 @@ const TABLES = {
 
 const RPC = {
   monthly: "ag_sec_admin_monthly_summary",
+  dailyCollectionActivity: "ag_sec_admin_daily_collection_activity",
   communityPeriod: "ag_sec_admin_community_period_summary",
   communityGrades: "ag_sec_admin_community_grade_summary",
   ledger: "ag_sec_admin_collection_ledger_page",
@@ -41,6 +43,7 @@ const state = {
   gradeSettings: [],
   seaweedTypeSettings: [],
   monthlyRows: [],
+  dailyCollectionRows: [],
   communitySummary: null,
   communityGradeRows: [],
   communityMonthlyRows: [],
@@ -155,6 +158,8 @@ function cacheElements() {
     "monthlyGrade",
     "reloadMonthly",
     "monthlyRows",
+    "monthlyCalendar",
+    "monthlyCalendarStatus",
     "communitySummaryStatus",
     "communitySummarySelect",
     "communityPeriodPreset",
@@ -1073,18 +1078,32 @@ function communityRecordsUrl(communityId) {
 async function loadMonthly(options = {}) {
   if (!els.monthlyRows) return;
   if (!options.quiet) els.monthlyCount.textContent = "Loading";
+  if (els.monthlyCalendarStatus && !options.quiet) els.monthlyCalendarStatus.textContent = "Loading calendar...";
 
   try {
-    state.monthlyRows = await supabaseRpc(RPC.monthly, {
-      p_year: numberOrNull(els.monthlyYear.value),
-      p_community_id: nullableText(els.monthlyCommunity.value),
-      p_grade: nullableText(els.monthlyGrade.value)
-    });
+    const calendarRange = collectionCalendarRange(new Date());
+    [state.monthlyRows, state.dailyCollectionRows] = await Promise.all([
+      supabaseRpc(RPC.monthly, {
+        p_year: numberOrNull(els.monthlyYear.value),
+        p_community_id: nullableText(els.monthlyCommunity.value),
+        p_grade: nullableText(els.monthlyGrade.value)
+      }),
+      supabaseRpc(RPC.dailyCollectionActivity, {
+        p_start_date: calendarRange.startDate,
+        p_end_date: calendarRange.endDate,
+        p_community_id: nullableText(els.monthlyCommunity.value),
+        p_grade: nullableText(els.monthlyGrade.value)
+      })
+    ]);
     renderMonthly();
+    renderCollectionCalendar();
   } catch (error) {
     state.monthlyRows = [];
+    state.dailyCollectionRows = [];
     els.monthlyCount.textContent = "Error";
     els.monthlyRows.innerHTML = emptyRow(13, error.message);
+    if (els.monthlyCalendarStatus) els.monthlyCalendarStatus.textContent = `Calendar unavailable. ${error.message}`;
+    if (els.monthlyCalendar) els.monthlyCalendar.innerHTML = "";
   }
 }
 
@@ -1111,6 +1130,109 @@ function renderMonthly() {
       <td>${escapeHtml(formatDate(row.last_collection_at))}</td>
     </tr>
   `).join("") || emptyRow(13, "No monthly rows for the selected filters.");
+}
+
+function renderCollectionCalendar() {
+  if (!els.monthlyCalendar) return;
+
+  const now = new Date();
+  const todayKey = kenyaDateInputValue(now);
+  const monthKeys = collectionCalendarMonthKeys(now);
+  const range = collectionCalendarRange(now);
+  const dailyCounts = new Map(state.dailyCollectionRows.map((row) => [
+    String(row.collection_date),
+    Number(row.collection_count || 0)
+  ]));
+  const moonByDate = new Map(moonEvents(
+    new Date(`${range.startDate}T00:00:00Z`),
+    new Date(`${range.endDate}T00:00:00Z`)
+  ).map((event) => [kenyaDateInputValue(event.date), event]));
+
+  els.monthlyCalendar.innerHTML = monthKeys.map((monthKey) => {
+    const [year, month] = monthKey.split("-").map(Number);
+    const days = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const mondayOffset = (new Date(Date.UTC(year, month - 1, 1)).getUTCDay() + 6) % 7;
+    const cells = [];
+
+    for (let index = 0; index < mondayOffset; index += 1) {
+      cells.push('<span class="collection-calendar-day empty" aria-hidden="true"></span>');
+    }
+
+    for (let day = 1; day <= days; day += 1) {
+      const dateKey = `${monthKey}-${String(day).padStart(2, "0")}`;
+      const count = dailyCounts.get(dateKey) || 0;
+      const moon = moonByDate.get(dateKey);
+      const classes = [
+        "collection-calendar-day",
+        count ? "has-collections" : "",
+        dateKey === todayKey ? "today" : ""
+      ].filter(Boolean).join(" ");
+      const detail = [
+        formatCalendarDate(dateKey),
+        count ? `${formatInteger(count)} collection ${count === 1 ? "record" : "records"}` : "No collection records",
+        moon?.label || ""
+      ].filter(Boolean).join(". ");
+
+      cells.push(`
+        <span class="${classes}" data-collection-date="${escapeAttribute(dateKey)}" title="${escapeAttribute(detail)}" aria-label="${escapeAttribute(detail)}">
+          <span class="collection-calendar-date">${day}</span>
+          ${count ? `<strong class="collection-calendar-count">${escapeHtml(formatInteger(count))}</strong>` : ""}
+          ${moon ? `<i class="collection-calendar-moon ${escapeAttribute(moon.type)}" title="${escapeAttribute(moon.label)}" aria-hidden="true">${moon.type === "full" ? "&#127765;" : "&#127761;"}</i>` : ""}
+        </span>
+      `);
+    }
+
+    const monthLabel = new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-GB", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC"
+    });
+    return `
+      <section class="collection-calendar-month" aria-label="${escapeAttribute(monthLabel)}">
+        <h4>${escapeHtml(monthLabel)}</h4>
+        <div class="collection-calendar-weekdays" aria-hidden="true">
+          <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+        </div>
+        <div class="collection-calendar-days">${cells.join("")}</div>
+      </section>
+    `;
+  }).join("");
+
+  if (els.monthlyCalendarStatus) {
+    const total = state.dailyCollectionRows.reduce((sum, row) => sum + Number(row.collection_count || 0), 0);
+    els.monthlyCalendarStatus.textContent = total
+      ? `${formatInteger(total)} records across ${formatInteger(state.dailyCollectionRows.length)} collection days.`
+      : "No collection records in the latest four months for these filters.";
+  }
+}
+
+function collectionCalendarMonthKeys(now) {
+  const [year, month] = kenyaDateInputValue(now).slice(0, 7).split("-").map(Number);
+  return Array.from({ length: 4 }, (_, offset) => {
+    const date = new Date(Date.UTC(year, month - 1 - offset, 1));
+    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+  });
+}
+
+function collectionCalendarRange(now) {
+  const monthKeys = collectionCalendarMonthKeys(now);
+  const oldestMonth = monthKeys[monthKeys.length - 1];
+  const [year, month] = monthKeys[0].split("-").map(Number);
+  const nextMonth = new Date(Date.UTC(year, month, 1));
+  return {
+    startDate: `${oldestMonth}-01`,
+    endDate: `${nextMonth.getUTCFullYear()}-${String(nextMonth.getUTCMonth() + 1).padStart(2, "0")}-01`
+  };
+}
+
+function formatCalendarDate(dateKey) {
+  const [year, month, day] = String(dateKey).split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC"
+  });
 }
 
 function setLedgerView(requestedView, options = {}) {
