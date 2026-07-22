@@ -8,7 +8,10 @@
   <link rel="preload" as="image" href="./assets/images/seaweed-harvest-login-sway.gif">
   <link rel="stylesheet" href="./assets/css/ag.css">
 </head>
-<body class="auth-page auth-gateway-page">
+<body class="auth-page auth-gateway-page" data-auth-pending>
+  <div class="auth-session-loader" role="status" aria-label="Checking your account">
+    <img src="./assets/images/seaweed-harvest-icon-192.png" alt="">
+  </div>
   <main class="auth-shell auth-gateway-shell">
     <div class="auth-brand-animation" aria-label="Seaweed Harvest">
       <img class="auth-brand-logo auth-brand-logo-animated" src="./assets/images/seaweed-harvest-login-sway.gif" alt="Seaweed Harvest" fetchpriority="high">
@@ -67,6 +70,6 @@
     <img src="./assets/images/seaweed-harvest-splash.gif" alt="">
   </div>
 
-  <script type="module" src="./assets/js/login_page.js?v=19"></script>
+  <script type="module" src="./assets/js/login_page.js?v=20"></script>
 </body>
 </html>

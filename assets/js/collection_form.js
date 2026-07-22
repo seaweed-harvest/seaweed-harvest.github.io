@@ -25,7 +25,7 @@ import {
 import { syncPendingCollections } from "./offline_sync.js";
 import { completeLaunchSplash } from "./app_transition.js";
 import { createOperationFeedback } from "./operation_feedback.js";
-import { setupAppNavigation } from "./app_navigation.js?v=2";
+import { setupAppNavigation } from "./app_navigation.js?v=3";
 import { setPrintValue, setupPrintWorksheet } from "./print_worksheet.js";
 
 const state = {

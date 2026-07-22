@@ -43,6 +43,28 @@ body[data-auth-pending] .auth-shell {
   visibility: hidden;
 }
 
+.auth-session-loader {
+  display: none;
+}
+
+body[data-auth-pending] .auth-session-loader {
+  min-height: 100dvh;
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+}
+
+.auth-session-loader img {
+  width: 72px;
+  height: 72px;
+  display: block;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+
 body.admin-console-page[data-auth-pending] .app-header {
   visibility: hidden;
 }
@@ -4668,11 +4690,10 @@ label input[type="checkbox"] {
   .unified-app-header .header-actions {
     width: 100%;
     min-width: 0;
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     align-items: center;
-    justify-content: flex-start;
-    flex-wrap: nowrap;
-    gap: 4px;
+    gap: 0;
   }
 
   .unified-app-header .header-actions > .app-nav,
@@ -4682,17 +4703,19 @@ label input[type="checkbox"] {
   }
 
   .mobile-primary-nav {
+    width: 100%;
     min-width: 0;
-    flex: 1 1 auto;
+    grid-column: 1 / span 4;
     display: grid;
-    grid-template-columns: 40px 46px repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     align-items: center;
-    gap: 2px;
+    gap: 0;
   }
 
   .mobile-app-brand {
     width: 38px;
     height: 38px;
+    justify-self: center;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -4819,8 +4842,10 @@ label input[type="checkbox"] {
   }
 
   .unified-app-header .account-controls {
-    min-width: 40px;
-    flex: 0 0 40px;
+    width: 100%;
+    min-width: 0;
+    grid-column: 5;
+    justify-content: center;
   }
 
   .unified-app-header .account-menu-trigger,
@@ -4838,7 +4863,8 @@ label input[type="checkbox"] {
   }
 
   .mobile-profile-link {
-    flex: 0 0 40px;
+    grid-column: 5;
+    justify-self: center;
   }
 
   .unified-app-header .account-menu-trigger:hover,

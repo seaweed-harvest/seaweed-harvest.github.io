@@ -59,13 +59,13 @@ async function init() {
 
   if (session) {
     await recordLogin(session.user?.app_metadata?.provider || "session").catch(() => {});
-    await routeSignedInUser();
+    await routeSignedInUser({ animate: false });
     return;
   }
 
-  document.body.removeAttribute("data-auth-pending");
   await configureSocialButtons();
   showQueryMessage();
+  document.body.removeAttribute("data-auth-pending");
 
   authClient.auth.onAuthStateChange((event) => {
     if (event === "PASSWORD_RECOVERY") {
@@ -167,7 +167,7 @@ async function socialSignIn(provider) {
   }
 }
 
-async function routeSignedInUser() {
+async function routeSignedInUser(options = {}) {
   const profile = await currentProfile(true);
   const requested = new URLSearchParams(window.location.search).get("return");
   const requestedPage = safePage(requested);
@@ -180,6 +180,10 @@ async function routeSignedInUser() {
     || (requestedFile === "farmer.html" && profile?.app_role === "farmer_viewer")
     || requestedFile === "access_pending.html";
   const destination = requested && canUseRequestedPage ? `./${requestedPage}` : routeForProfile(profile);
+  if (options.animate === false) {
+    window.location.replace(destination);
+    return;
+  }
   await transitionTo(destination);
 }
 
