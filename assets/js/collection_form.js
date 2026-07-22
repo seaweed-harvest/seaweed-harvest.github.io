@@ -11,7 +11,7 @@ import {
   initCollectionLanguage,
   t,
   unitLabel
-} from "./collection_language.js?v=19";
+} from "./collection_language.js?v=20";
 import {
   initialiseOfflineStore,
   listOutboxItems,
@@ -50,6 +50,8 @@ const state = {
   submissionId: crypto.randomUUID(),
   selectedFarmer: null,
   selectedFarmerPhoneQuery: "",
+  pendingFarmer: null,
+  pendingFarmerPhoneQuery: "",
   gps: null,
   collectionPhotos: [],
   activePhotoIndex: null,
@@ -377,6 +379,7 @@ function cacheElements() {
     "farmerLinkStatus",
     "farmerDetails",
     "quickFarmerName",
+    "quickFarmerMatchStatus",
     "quickFarmerCommunity",
     "quickFarmerFarmSize",
     "manualFarmerFirstName",
@@ -458,6 +461,7 @@ function bindEvents() {
     const hadLinkedFarmer = Boolean(state.selectedFarmer);
     state.selectedFarmer = null;
     state.selectedFarmerPhoneQuery = "";
+    clearPendingFarmer();
     if (hadLinkedFarmer) clearManualFarmerDetails();
     setFarmerStatus("");
     updateQuickReference();
@@ -612,6 +616,7 @@ async function lookupFarmer() {
   if (!farmerId) {
     state.selectedFarmer = null;
     state.selectedFarmerPhoneQuery = "";
+    clearPendingFarmer();
     setFarmerStatus("");
     updateQuickReference();
     return;
@@ -633,6 +638,7 @@ async function lookupFarmer() {
   }
   state.selectedFarmer = farmer || null;
   state.selectedFarmerPhoneQuery = normalizedPhoneDigits(farmer?.phone);
+  clearPendingFarmer();
 
   if (!farmer) {
     setFarmerStatus(t("status.notFound"), "status-muted");
@@ -657,8 +663,12 @@ function scheduleFarmerPhoneLookup() {
   if (state.selectedFarmer && query !== state.selectedFarmerPhoneQuery) {
     clearSelectedFarmer({ preservePhone: true });
   }
+  if (state.pendingFarmer && !query.startsWith(state.pendingFarmerPhoneQuery)) {
+    clearPendingFarmer();
+  }
 
   if (query.length < FARMER_PHONE_LOOKUP_MIN_DIGITS) {
+    clearPendingFarmer();
     updateQuickReference();
     return;
   }
@@ -678,7 +688,12 @@ async function lookupFarmerByPhone() {
 
   let farmer = null;
   const localMatches = state.farmers.filter((row) => normalizedPhoneDigits(row.phone).startsWith(query));
-  if (localMatches.length === 1) farmer = localMatches[0];
+  if (localMatches.length === 1) {
+    farmer = {
+      ...localMatches[0],
+      match_exact: normalizedPhoneDigits(localMatches[0].phone) === query
+    };
+  }
 
   if (!state.farmers.length && isSupabaseEnabled()) {
     try {
@@ -699,18 +714,30 @@ async function lookupFarmerByPhone() {
 
   if (!farmer) {
     if (state.selectedFarmer) clearSelectedFarmer({ preservePhone: true });
+    clearPendingFarmer();
     setFarmerStatus("");
     updateQuickReference();
     return;
   }
 
+  if (!farmer.match_exact) {
+    if (state.selectedFarmer) clearSelectedFarmer({ preservePhone: true });
+    state.pendingFarmer = farmer;
+    state.pendingFarmerPhoneQuery = query;
+    els.farmerId.value = "";
+    setFarmerStatus("");
+    updateQuickReference();
+    return;
+  }
+
+  clearPendingFarmer();
   state.selectedFarmer = farmer;
   els.farmerId.value = farmer.farmer_id || "";
   if (farmer.community_id) {
     els.communityId.value = farmer.community_id;
     syncCommunityName();
   }
-  syncManualDetailsFromFarmer(farmer, { preservePhone: !farmer.phone });
+  syncManualDetailsFromFarmer(farmer, { preservePhone: true });
   state.selectedFarmerPhoneQuery = normalizedPhoneDigits(els.manualFarmerPhone.value);
   updateQuickReference();
   setFarmerStatus(t("status.linked"), "");
@@ -747,6 +774,11 @@ function clearSelectedFarmer(options = {}) {
   clearManualFarmerDetails(options);
 }
 
+function clearPendingFarmer() {
+  state.pendingFarmer = null;
+  state.pendingFarmerPhoneQuery = "";
+}
+
 function syncCommunityName() {
   const community = selectedCommunity();
   els.communityName.value = community?.community_name || "";
@@ -764,8 +796,9 @@ function syncManualCommunity(event) {
 
 function updateQuickReference() {
   const community = selectedCommunity() || findCommunityFromText(els.manualCommunityInput.value);
-  const farmerName = combinedManualFarmerName() || state.selectedFarmer?.name;
+  const farmerName = combinedManualFarmerName() || state.selectedFarmer?.name || state.pendingFarmer?.name;
   els.quickFarmerName.textContent = farmerName || "-";
+  els.quickFarmerMatchStatus.hidden = !state.pendingFarmer;
   els.quickFarmerCommunity.textContent = communityLabel(community) || "-";
   els.quickFarmerFarmSize.textContent = formatManualFarmSize();
 }
@@ -774,6 +807,7 @@ function assignNextFarmerId() {
   els.farmerId.value = nextFarmerId();
   state.selectedFarmer = null;
   state.selectedFarmerPhoneQuery = "";
+  clearPendingFarmer();
   setFarmerStatus("");
   updateQuickReference();
 }
@@ -1531,6 +1565,7 @@ function clearForm(options = {}) {
   els.collectionWebsite.value = "";
   state.selectedFarmer = null;
   state.selectedFarmerPhoneQuery = "";
+  clearPendingFarmer();
   state.gps = null;
   state.collectionPhotos = [];
   state.retakePhotoIndex = null;

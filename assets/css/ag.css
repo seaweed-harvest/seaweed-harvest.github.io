@@ -1517,6 +1517,14 @@ input[readonly] {
   font-weight: 500;
 }
 
+.quick-match-status {
+  margin-left: 5px;
+  color: #8a6116;
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .manual-farmer-fields {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
