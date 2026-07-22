@@ -15,6 +15,9 @@ export const APP_CONFIG = {
       facebook: false
     }
   },
+  externalLinks: {
+    reefNurseryDropbox: ""
+  },
   tables: {
     communities: "ag_secure_communities",
     farmers: "farmers",

@@ -50,6 +50,7 @@
             <button id="reefTrainingTab" type="button" role="tab" aria-selected="false" aria-controls="reefTrainingPanel" data-reef-tab="training">Training delivered</button>
             <button id="reefCompetencyTab" type="button" role="tab" aria-selected="false" aria-controls="reefCompetencyPanel" data-reef-tab="competency">Practical competency assessment</button>
             <button id="reefSeaweedTab" type="button" role="tab" aria-selected="false" aria-controls="reefSeaweedPanel" data-reef-tab="seaweed">Seaweed Record</button>
+            <button id="reefPhotosTab" type="button" role="tab" aria-selected="false" aria-controls="reefPhotosPanel" data-reef-tab="photos">Photos</button>
             <button id="reefRaftTab" type="button" role="tab" aria-selected="false" aria-controls="reefRaftPanel" data-reef-tab="raft">Raft Service Details</button>
           </nav>
 
@@ -168,6 +169,31 @@
             </fieldset>
           </section>
 
+          <section id="reefPhotosPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefPhotosTab" data-reef-panel="photos" hidden>
+            <fieldset>
+              <legend>Photos</legend>
+              <div class="reef-dropbox-row">
+                <span>Other media or upload problem?</span>
+                <a id="reefDropboxLink" href="#" target="_blank" rel="noopener noreferrer" hidden>Open Dropbox folder</a>
+                <span id="reefDropboxPending">Dropbox link pending.</span>
+              </div>
+              <div class="reef-photo-toolbar">
+                <button id="reefTakePhoto" class="secondary-action reef-photo-action" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4 16 6h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l1.5-2z"></path><circle cx="12" cy="13" r="3"></circle></svg>
+                  <span>Take photo</span>
+                </button>
+                <button id="reefChoosePhotos" class="secondary-action reef-photo-action" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>
+                  <span>Choose photos</span>
+                </button>
+              </div>
+              <input id="reefCameraPhoto" class="reef-hidden-file" type="file" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
+              <input id="reefGalleryPhotos" class="reef-hidden-file" type="file" accept="image/*" multiple tabindex="-1" aria-hidden="true">
+              <p id="reefPhotoStatus" class="reef-photo-status" aria-live="polite">Up to 8 photos. Compressed before upload.</p>
+              <div id="reefPhotoPreview" class="reef-photo-grid" aria-live="polite"></div>
+            </fieldset>
+          </section>
+
           <section id="reefRaftPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefRaftTab" data-reef-panel="raft" hidden>
             <fieldset class="reef-prepared-section">
               <legend>Raft Service Details</legend>
@@ -184,7 +210,15 @@
       </section>
     </section>
   </main>
+  <dialog id="reefPhotoViewer" class="reef-photo-dialog" aria-labelledby="reefPhotoViewerTitle">
+    <div class="reef-photo-dialog-panel">
+      <h2 id="reefPhotoViewerTitle">Photo preview</h2>
+      <img id="reefPhotoViewerImage" alt="Selected Reef Nursery photo">
+      <p id="reefPhotoViewerName"></p>
+      <button id="reefClosePhotoViewer" type="button">Close</button>
+    </div>
+  </dialog>
   <script type="module" src="./assets/js/admin_page.js?v=23"></script>
-  <script type="module" src="./assets/js/reef_nursery_form.js?v=1"></script>
+  <script type="module" src="./assets/js/reef_nursery_form.js?v=2"></script>
 </body>
 </html>

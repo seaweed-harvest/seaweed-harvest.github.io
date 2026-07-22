@@ -1,7 +1,18 @@
+import { APP_CONFIG } from "./config.js";
 import { authClient, requireAdminAccess } from "./auth_client.js";
 import { setupFavoriteFormButton } from "./favorite_forms.js";
 
 const els = {};
+const PHOTO_BUCKET = "reef-nursery-photos";
+const PHOTO_MAX_COUNT = 8;
+const PHOTO_MAX_BYTES = 1024 * 1024;
+const PHOTO_TARGET_BYTES = 850 * 1024;
+const PHOTO_MAX_EDGE = 2200;
+const photoState = {
+  files: [],
+  userId: null,
+  activePhotoUrl: null
+};
 let submissionId = crypto.randomUUID();
 
 document.addEventListener("DOMContentLoaded", init);
@@ -15,12 +26,28 @@ async function init() {
     "reefParticipantCount", "addReefParticipant", "reefSeaweedHealth",
     "reefSeedWeight", "reefSeedWeightUnit", "reefHarvestWeight",
     "reefHarvestWeightUnit", "reefEquipmentReplaced", "saveReefNursery",
-    "clearReefNursery", "favoriteReefNurseryForm", "reefNurseryStatus"
+    "reefTakePhoto", "reefChoosePhotos", "reefCameraPhoto", "reefGalleryPhotos",
+    "reefPhotoStatus", "reefPhotoPreview", "reefDropboxLink", "reefDropboxPending",
+    "reefPhotoViewer", "reefPhotoViewerImage", "reefPhotoViewerName",
+    "reefClosePhotoViewer", "clearReefNursery", "favoriteReefNurseryForm",
+    "reefNurseryStatus"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
   setupTabs();
+  configureDropboxLink();
   els.addReefParticipant.addEventListener("click", () => addParticipantRow({ focus: true }));
   els.reefParticipantRows.addEventListener("click", handleParticipantAction);
+  els.reefTakePhoto.addEventListener("click", () => els.reefCameraPhoto.click());
+  els.reefChoosePhotos.addEventListener("click", () => els.reefGalleryPhotos.click());
+  els.reefCameraPhoto.addEventListener("change", addSelectedPhotos);
+  els.reefGalleryPhotos.addEventListener("change", addSelectedPhotos);
+  els.reefPhotoPreview.addEventListener("click", handlePhotoAction);
+  els.reefClosePhotoViewer.addEventListener("click", closePhotoViewer);
+  els.reefPhotoViewer.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closePhotoViewer();
+  });
+  els.reefPhotoViewer.addEventListener("close", releasePhotoViewerUrl);
   els.reefNurseryForm.addEventListener("submit", submitSession);
   els.clearReefNursery.addEventListener("click", clearForm);
   els.reefNurseryForm.addEventListener("input", updateFieldHighlights);
@@ -28,6 +55,7 @@ async function init() {
 
   const access = await requireAdminAccess("can_submit_collection");
   if (!access) return;
+  photoState.userId = access.session?.user?.id || null;
 
   setupFavoriteFormButton({
     button: els.favoriteReefNurseryForm,
@@ -125,20 +153,29 @@ async function submitSession(event) {
   if (!record) return;
 
   els.saveReefNursery.disabled = true;
-  setStatus("Saving...");
+  let uploadedPhotos = [];
+  setStatus(photoState.files.length ? "Preparing photos..." : "Saving...");
   try {
+    uploadedPhotos = await prepareAndUploadPhotos();
+    setStatus("Saving Reef Nursery session...");
     const { data, error } = await authClient.rpc("ag_submit_reef_nursery_session", {
       p_submission_id: submissionId,
       p_session: record.session,
       p_participants: record.participants,
-      p_seaweed_record: record.seaweed
+      p_seaweed_record: record.seaweed,
+      p_photos: uploadedPhotos.map((photo) => photo.manifest)
     });
     if (error) throw error;
     const saved = Array.isArray(data) ? data[0] : data;
     const participantCount = Number(saved?.participant_count ?? record.participants.length);
+    const photoCount = Number(saved?.photo_count ?? uploadedPhotos.length);
     clearForm({ preserveStatus: true });
-    setStatus(`Reef Nursery session saved with ${participantCount} ${participantCount === 1 ? "participant" : "participants"}.`);
+    const photoSummary = photoCount
+      ? ` and ${photoCount} ${photoCount === 1 ? "photo" : "photos"}`
+      : "";
+    setStatus(`Reef Nursery session saved with ${participantCount} ${participantCount === 1 ? "participant" : "participants"}${photoSummary}.`);
   } catch (error) {
+    await removeUploadedPhotos(uploadedPhotos.map((photo) => photo.manifest.storage_path));
     setStatus(error.message || "The Reef Nursery session could not be saved.", "error");
   } finally {
     els.saveReefNursery.disabled = false;
@@ -223,6 +260,11 @@ function clearForm({ preserveStatus = false } = {}) {
   els.reefRecordedBy.value = recordedBy;
   els.reefTrainingDate.value = kenyaDate();
   els.reefParticipantRows.replaceChildren();
+  photoState.files = [];
+  els.reefCameraPhoto.value = "";
+  els.reefGalleryPhotos.value = "";
+  closePhotoViewer();
+  renderPhotoPreview();
   addParticipantRow();
   submissionId = crypto.randomUUID();
   showTab("session");
@@ -252,6 +294,235 @@ function textOrNull(value) {
 
 function numberOrNull(value) {
   return value === "" ? null : Number(value);
+}
+
+function configureDropboxLink() {
+  const configured = String(APP_CONFIG.externalLinks?.reefNurseryDropbox || "").trim();
+  let valid = false;
+  try {
+    const url = new URL(configured);
+    valid = ["http:", "https:"].includes(url.protocol);
+  } catch (_error) {
+    valid = false;
+  }
+  els.reefDropboxLink.hidden = !valid;
+  els.reefDropboxPending.hidden = valid;
+  if (valid) els.reefDropboxLink.href = configured;
+  else els.reefDropboxLink.removeAttribute("href");
+}
+
+function addSelectedPhotos(event) {
+  const input = event.currentTarget;
+  const candidates = [...(input.files || [])];
+  const available = Math.max(0, PHOTO_MAX_COUNT - photoState.files.length);
+  if (candidates.length > available) {
+    setPhotoStatus(`Only ${PHOTO_MAX_COUNT} photos can be added.`, "error");
+  }
+  candidates.slice(0, available).forEach((file) => {
+    if (isImageFile(file)) photoState.files.push(file);
+    else setPhotoStatus("Only image files can be added.", "error");
+  });
+  input.value = "";
+  renderPhotoPreview();
+}
+
+function isImageFile(file) {
+  return String(file?.type || "").startsWith("image/")
+    || /\.(jpe?g|png|webp|heic|heif)$/i.test(String(file?.name || ""));
+}
+
+function renderPhotoPreview() {
+  els.reefPhotoPreview.replaceChildren();
+  photoState.files.forEach((file, index) => {
+    const card = document.createElement("article");
+    card.className = "reef-photo-card";
+
+    const view = document.createElement("button");
+    view.type = "button";
+    view.className = "reef-photo-view";
+    view.dataset.viewPhoto = String(index);
+    view.setAttribute("aria-label", `View photo ${index + 1}`);
+
+    const image = document.createElement("img");
+    const objectUrl = URL.createObjectURL(file);
+    image.src = objectUrl;
+    image.alt = `Selected Reef Nursery photo ${index + 1}`;
+    image.addEventListener("load", () => URL.revokeObjectURL(objectUrl), { once: true });
+    image.addEventListener("error", () => URL.revokeObjectURL(objectUrl), { once: true });
+
+    const caption = document.createElement("span");
+    caption.textContent = file.name || `Photo ${index + 1}`;
+    view.append(image, caption);
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "reef-photo-remove";
+    remove.dataset.removePhoto = String(index);
+    remove.setAttribute("aria-label", `Remove photo ${index + 1}`);
+    remove.title = "Remove photo";
+    remove.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"></path></svg>';
+
+    card.append(view, remove);
+    els.reefPhotoPreview.append(card);
+  });
+  setPhotoStatus(photoState.files.length
+    ? `${photoState.files.length} of ${PHOTO_MAX_COUNT} photos ready.`
+    : `Up to ${PHOTO_MAX_COUNT} photos. Compressed before upload.`);
+}
+
+function handlePhotoAction(event) {
+  const remove = event.target.closest("[data-remove-photo]");
+  if (remove) {
+    photoState.files.splice(Number(remove.dataset.removePhoto), 1);
+    renderPhotoPreview();
+    return;
+  }
+  const view = event.target.closest("[data-view-photo]");
+  if (view) openPhotoViewer(Number(view.dataset.viewPhoto));
+}
+
+function openPhotoViewer(index) {
+  const file = photoState.files[index];
+  if (!file) return;
+  releasePhotoViewerUrl();
+  photoState.activePhotoUrl = URL.createObjectURL(file);
+  els.reefPhotoViewerImage.src = photoState.activePhotoUrl;
+  els.reefPhotoViewerName.textContent = file.name || `Photo ${index + 1}`;
+  if (typeof els.reefPhotoViewer.showModal === "function") els.reefPhotoViewer.showModal();
+  else els.reefPhotoViewer.setAttribute("open", "");
+}
+
+function closePhotoViewer() {
+  if (typeof els.reefPhotoViewer.close === "function" && els.reefPhotoViewer.open) {
+    els.reefPhotoViewer.close();
+  } else {
+    els.reefPhotoViewer.removeAttribute("open");
+    releasePhotoViewerUrl();
+  }
+}
+
+function releasePhotoViewerUrl() {
+  if (photoState.activePhotoUrl) URL.revokeObjectURL(photoState.activePhotoUrl);
+  photoState.activePhotoUrl = null;
+  els.reefPhotoViewerImage.removeAttribute("src");
+  els.reefPhotoViewerName.textContent = "";
+}
+
+async function prepareAndUploadPhotos() {
+  if (!photoState.files.length) return [];
+  if (!photoState.userId) throw new Error("Sign in again before uploading photos.");
+  const uploaded = [];
+  for (let index = 0; index < photoState.files.length; index += 1) {
+    const file = photoState.files[index];
+    setPhotoStatus(`Compressing photo ${index + 1} of ${photoState.files.length}...`);
+    const blob = await compressReefPhoto(file);
+    if (blob.size > PHOTO_MAX_BYTES) throw new Error("A photo could not be reduced below 1 MB.");
+    const objectPath = `${photoState.userId}/${submissionId}/${String(index + 1).padStart(2, "0")}-${crypto.randomUUID()}.jpg`;
+    setPhotoStatus(`Uploading photo ${index + 1} of ${photoState.files.length}...`);
+    const { error } = await authClient.storage.from(PHOTO_BUCKET).upload(objectPath, blob, {
+      cacheControl: "31536000",
+      contentType: "image/jpeg",
+      upsert: false
+    });
+    if (error) {
+      await removeUploadedPhotos(uploaded.map((photo) => photo.manifest.storage_path));
+      throw error;
+    }
+    uploaded.push({
+      manifest: {
+        storage_path: objectPath,
+        original_name: String(file.name || `photo-${index + 1}.jpg`).slice(0, 255),
+        byte_size: blob.size,
+        content_type: "image/jpeg"
+      }
+    });
+  }
+  return uploaded;
+}
+
+async function removeUploadedPhotos(paths) {
+  const uniquePaths = [...new Set((paths || []).filter(Boolean))];
+  if (!uniquePaths.length) return;
+  await authClient.storage.from(PHOTO_BUCKET).remove(uniquePaths).catch(() => {});
+}
+
+async function compressReefPhoto(file) {
+  const image = await loadReefImage(file);
+  let width = image.naturalWidth || image.width;
+  let height = image.naturalHeight || image.height;
+  if (!width || !height) throw new Error("A selected photo could not be opened.");
+  const scale = Math.min(1, PHOTO_MAX_EDGE / Math.max(width, height));
+  width = Math.max(1, Math.round(width * scale));
+  height = Math.max(1, Math.round(height * scale));
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d", { alpha: false });
+    if (!context) throw new Error("This browser could not prepare the selected photo.");
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, width, height);
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(image, 0, 0, width, height);
+    const blob = await jpegBlobNearTarget(canvas);
+    if (blob.size <= PHOTO_MAX_BYTES) return blob;
+    const reduction = Math.min(0.9, Math.sqrt(PHOTO_TARGET_BYTES / blob.size) * 0.96);
+    width = Math.max(1, Math.round(width * reduction));
+    height = Math.max(1, Math.round(height * reduction));
+  }
+  throw new Error("A photo could not be reduced below 1 MB.");
+}
+
+function loadReefImage(file) {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("A selected photo could not be opened. Try a JPEG image."));
+    };
+    image.src = objectUrl;
+  });
+}
+
+async function jpegBlobNearTarget(canvas) {
+  let low = 0.38;
+  let high = 0.92;
+  let best = null;
+  let smallest = null;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const quality = (low + high) / 2;
+    const blob = await canvasToJpegBlob(canvas, quality);
+    if (!smallest || blob.size < smallest.size) smallest = blob;
+    if (blob.size <= PHOTO_TARGET_BYTES) {
+      best = blob;
+      low = quality;
+    } else {
+      high = quality;
+    }
+  }
+  return best || smallest;
+}
+
+function canvasToJpegBlob(canvas, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("This browser could not compress the selected photo."));
+    }, "image/jpeg", quality);
+  });
+}
+
+function setPhotoStatus(message, status = "") {
+  els.reefPhotoStatus.textContent = message;
+  if (status) els.reefPhotoStatus.dataset.status = status;
+  else delete els.reefPhotoStatus.dataset.status;
 }
 
 function kenyaDate() {

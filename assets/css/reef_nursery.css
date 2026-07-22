@@ -189,6 +189,166 @@
   margin: 0;
 }
 
+.reef-dropbox-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  background: #fff;
+  font-size: 0.8rem;
+}
+
+.reef-dropbox-row a {
+  font-weight: 700;
+}
+
+#reefDropboxPending {
+  color: var(--text-sec);
+}
+
+.reef-photo-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reef-photo-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 138px;
+}
+
+.reef-photo-action svg,
+.reef-photo-remove svg {
+  width: 18px;
+  height: 18px;
+}
+
+.reef-nursery-form .reef-hidden-file {
+  position: fixed;
+  left: -10000px;
+  width: 1px !important;
+  min-width: 1px !important;
+  max-width: 1px !important;
+  height: 1px !important;
+  min-height: 1px !important;
+  max-height: 1px !important;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.reef-photo-status {
+  margin: 0;
+  color: var(--text-sec);
+  font-size: 0.78rem;
+}
+
+.reef-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  gap: 10px;
+}
+
+.reef-photo-card {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+
+.reef-photo-view {
+  display: grid;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.reef-photo-view img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  background: var(--panel-soft);
+}
+
+.reef-photo-view span {
+  min-width: 0;
+  padding: 7px 36px 7px 8px;
+  overflow: hidden;
+  color: var(--text-sec);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reef-photo-remove {
+  position: absolute;
+  right: 5px;
+  bottom: 4px;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-color: #e9b4af;
+  background: #fff;
+  color: #b42318;
+}
+
+.reef-photo-dialog {
+  width: min(92vw, 760px);
+  max-height: 92vh;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.reef-photo-dialog::backdrop {
+  background: rgba(4, 38, 36, 0.62);
+}
+
+.reef-photo-dialog-panel {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.reef-photo-dialog-panel h2,
+.reef-photo-dialog-panel p {
+  margin: 0;
+}
+
+.reef-photo-dialog-panel img {
+  width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  background: #eff7f5;
+}
+
+.reef-photo-dialog-panel p {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-sec);
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .reef-visually-hidden {
   position: absolute;
   width: 1px;
@@ -270,5 +430,13 @@
 
   .reef-participant-table td:last-child::before {
     display: none;
+  }
+
+  .reef-photo-action {
+    flex: 1 1 130px;
+  }
+
+  .reef-photo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
