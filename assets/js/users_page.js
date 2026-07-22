@@ -1,5 +1,5 @@
 import { APP_CONFIG } from "./config.js";
-import { authClient, currentProfile, invokeAdminUsers, requireAdminAccess } from "./auth_client.js";
+import { authClient, currentProfile, invokeAdminUsers, isAuthSessionError, requireAdminAccess } from "./auth_client.js?v=4";
 import { selectRows } from "./supabase_client.js";
 import { DASHBOARD_OPTIONS } from "./dashboard_preferences.js";
 
@@ -46,6 +46,7 @@ const roleLabels = {
 
 const state = { users: [], registrations: [], passwordHelp: [], communities: [], aggregators: [], activity: [], actor: null, editingUser: null };
 const els = {};
+const pendingPasswordResetUserKey = "seaweed-pending-password-reset-user";
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -76,6 +77,7 @@ async function init() {
   configureFarmerRoleFields("invite");
   configureInviteContactMode();
   await loadPageData();
+  await resumePasswordResetLink();
 }
 
 function bindEvents() {
@@ -401,8 +403,21 @@ async function createPasswordResetLink(userId) {
     els.passwordResetLinkValue.focus();
     els.passwordResetLinkValue.select();
   } catch (error) {
+    if (isAuthSessionError(error)) {
+      sessionStorage.setItem(pendingPasswordResetUserKey, userId);
+      const message = encodeURIComponent("Your sign-in ended. Sign in again to create the reset link.");
+      window.location.replace(`./login.html?return=admin_users.html&error=${message}`);
+      return;
+    }
     setStatus(els.passwordResetLinkStatus, error.message, "error");
   }
+}
+
+async function resumePasswordResetLink() {
+  const userId = sessionStorage.getItem(pendingPasswordResetUserKey);
+  if (!userId) return;
+  sessionStorage.removeItem(pendingPasswordResetUserKey);
+  if (state.users.some((row) => row.id === userId)) await createPasswordResetLink(userId);
 }
 
 async function copyPasswordResetLink() {

@@ -372,19 +372,66 @@ export async function signOut() {
 }
 
 export async function invokeAdminUsers(payload) {
-  const { data, error } = await authClient.functions.invoke("admin-users", { body: payload });
-  if (error) {
-    let message = error.message;
-    try {
-      const body = await error.context?.json();
-      message = body?.error || message;
-    } catch {
-      // Keep the client error when no JSON response is available.
-    }
-    throw new Error(message);
+  let session = await functionSession();
+  let response = await invokeAdminUsersRequest(payload, session.access_token);
+  let failure = await functionFailure(response);
+
+  if (failure.isSessionInvalid) {
+    session = await refreshFunctionSession();
+    response = await invokeAdminUsersRequest(payload, session.access_token);
+    failure = await functionFailure(response);
   }
-  if (data?.error) throw new Error(data.error);
-  return data;
+
+  if (failure.isSessionInvalid) throw authSessionRequiredError();
+  if (failure.message) throw new Error(failure.message);
+  return response.data;
+}
+
+export function isAuthSessionError(error) {
+  return error?.code === "AUTH_SESSION_REQUIRED";
+}
+
+async function functionSession() {
+  const { data, error } = await authClient.auth.getSession();
+  if (error || !data.session) throw authSessionRequiredError();
+  const expiresSoon = Number(data.session.expires_at || 0) <= Math.floor(Date.now() / 1000) + 60;
+  return expiresSoon ? refreshFunctionSession() : data.session;
+}
+
+async function refreshFunctionSession() {
+  const { data, error } = await authClient.auth.refreshSession();
+  if (error || !data.session) throw authSessionRequiredError();
+  return data.session;
+}
+
+function invokeAdminUsersRequest(payload, accessToken) {
+  return authClient.functions.invoke("admin-users", {
+    body: payload,
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+}
+
+async function functionFailure({ data, error }) {
+  if (!error && !data?.error) return { message: "", isSessionInvalid: false };
+  let message = data?.error || error?.message || "Request failed";
+  const status = Number(error?.context?.status || 0);
+  try {
+    const body = await error?.context?.json();
+    message = body?.error || message;
+  } catch {
+    // Keep the available function error when the response has no JSON body.
+  }
+  return {
+    message,
+    isSessionInvalid: status === 401
+      || /session is not valid|authentication required|jwt expired|invalid jwt/i.test(String(message))
+  };
+}
+
+function authSessionRequiredError() {
+  const error = new Error("Your sign-in ended. Sign in again to continue.");
+  error.code = "AUTH_SESSION_REQUIRED";
+  return error;
 }
 
 export async function enabledSocialProviders() {
