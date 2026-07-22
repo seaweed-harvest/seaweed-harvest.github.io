@@ -95,6 +95,10 @@
         </label>
         <fieldset class="farmer-fieldset">
           <legend data-i18n="farmer.legend">Farmer</legend>
+          <label class="farmer-phone-field wide-field">
+            <span data-i18n="farmer.phone">Phone</span>
+            <input id="manualFarmerPhone" type="tel" inputmode="tel" autocomplete="tel" maxlength="40">
+          </label>
           <div class="field-status-block" hidden aria-hidden="true">
             <input id="farmerId" type="hidden">
             <button id="lookupFarmer" type="button" tabindex="-1">Lookup</button>
@@ -116,10 +120,6 @@
               <label>
                 <span data-i18n="farmer.lastNames">Last / other names</span>
                 <input id="manualFarmerLastNames" type="text" autocomplete="family-name">
-              </label>
-              <label>
-                <span data-i18n="farmer.phone">Phone</span>
-                <input id="manualFarmerPhone" type="text" autocomplete="tel">
               </label>
               <label>
                 <span data-i18n="farmer.community">Community</span>
@@ -334,6 +334,6 @@
   </section>
 
   <script src="./assets/js/vendor/jsQR.js"></script>
-  <script type="module" src="./assets/js/collection_form.js?v=24"></script>
+  <script type="module" src="./assets/js/collection_form.js?v=25"></script>
 </body>
 </html>

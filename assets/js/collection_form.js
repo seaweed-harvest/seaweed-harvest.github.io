@@ -49,6 +49,7 @@ const state = {
   canOverridePrice: false,
   submissionId: crypto.randomUUID(),
   selectedFarmer: null,
+  selectedFarmerPhoneQuery: "",
   gps: null,
   collectionPhotos: [],
   activePhotoIndex: null,
@@ -82,9 +83,13 @@ const PHOTO_MAX_EDGE = 1920;
 const COLLECTOR_NAME_STORAGE_KEY = "seaweed_harvest:collector_name";
 const FORM_REFERENCE_KEY = "mawimbi-collection-form";
 const MAWIMBI_CONTEXT_KEY = "mawimbi-context";
+const FARMER_PHONE_LOOKUP_MIN_DIGITS = 5;
+const FARMER_PHONE_LOOKUP_DELAY_MS = 250;
 
 const els = {};
 let operationFeedback = null;
+let farmerPhoneLookupTimer = null;
+let farmerPhoneLookupRequest = 0;
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -452,13 +457,15 @@ function bindEvents() {
   els.farmerId.addEventListener("input", () => {
     const hadLinkedFarmer = Boolean(state.selectedFarmer);
     state.selectedFarmer = null;
+    state.selectedFarmerPhoneQuery = "";
     if (hadLinkedFarmer) clearManualFarmerDetails();
     setFarmerStatus("");
     updateQuickReference();
   });
   els.manualFarmerFirstName.addEventListener("input", updateQuickReference);
   els.manualFarmerLastNames.addEventListener("input", updateQuickReference);
-  els.manualFarmerPhone.addEventListener("input", updateQuickReference);
+  els.manualFarmerPhone.addEventListener("input", scheduleFarmerPhoneLookup);
+  els.manualFarmerPhone.addEventListener("change", lookupFarmerByPhone);
   els.manualFarmerFarmSize.addEventListener("input", updateQuickReference);
   els.manualFarmerFarmSizeUnit.addEventListener("change", updateQuickReference);
   els.manualCommunityInput.addEventListener("input", syncManualCommunity);
@@ -604,6 +611,7 @@ async function lookupFarmer() {
   const farmerId = normalizedFarmerId();
   if (!farmerId) {
     state.selectedFarmer = null;
+    state.selectedFarmerPhoneQuery = "";
     setFarmerStatus("");
     updateQuickReference();
     return;
@@ -624,6 +632,7 @@ async function lookupFarmer() {
     }
   }
   state.selectedFarmer = farmer || null;
+  state.selectedFarmerPhoneQuery = normalizedPhoneDigits(farmer?.phone);
 
   if (!farmer) {
     setFarmerStatus(t("status.notFound"), "status-muted");
@@ -641,26 +650,101 @@ async function lookupFarmer() {
   setFarmerStatus(t("status.linked"), "");
 }
 
-function syncManualDetailsFromFarmer(farmer) {
+function scheduleFarmerPhoneLookup() {
+  window.clearTimeout(farmerPhoneLookupTimer);
+  farmerPhoneLookupRequest += 1;
+  const query = normalizedPhoneDigits(els.manualFarmerPhone.value);
+  if (state.selectedFarmer && query !== state.selectedFarmerPhoneQuery) {
+    clearSelectedFarmer({ preservePhone: true });
+  }
+
+  if (query.length < FARMER_PHONE_LOOKUP_MIN_DIGITS) {
+    updateQuickReference();
+    return;
+  }
+
+  farmerPhoneLookupTimer = window.setTimeout(
+    () => lookupFarmerByPhone(),
+    FARMER_PHONE_LOOKUP_DELAY_MS
+  );
+}
+
+async function lookupFarmerByPhone() {
+  window.clearTimeout(farmerPhoneLookupTimer);
+  const phoneValue = String(els.manualFarmerPhone.value || "").trim();
+  const query = normalizedPhoneDigits(phoneValue);
+  const requestId = ++farmerPhoneLookupRequest;
+  if (query.length < FARMER_PHONE_LOOKUP_MIN_DIGITS) return;
+
+  let farmer = null;
+  const localMatches = state.farmers.filter((row) => normalizedPhoneDigits(row.phone).startsWith(query));
+  if (localMatches.length === 1) farmer = localMatches[0];
+
+  if (!state.farmers.length && isSupabaseEnabled()) {
+    try {
+      const result = state.publicMode
+        ? await callPublicRpc("ag_public_mawimbi_farmer_phone_lookup", { p_phone: phoneValue })
+        : await callRpc("ag_farmer_phone_lookup", { p_phone: phoneValue });
+      farmer = result && Object.keys(result).length ? result : null;
+    } catch (error) {
+      if (requestId !== farmerPhoneLookupRequest) return;
+      setFarmerStatus(t("status.lookupFailed"), "status-muted");
+      setStatus(error.message, "error");
+      return;
+    }
+  }
+
+  if (requestId !== farmerPhoneLookupRequest
+      || phoneValue !== String(els.manualFarmerPhone.value || "").trim()) return;
+
+  if (!farmer) {
+    if (state.selectedFarmer) clearSelectedFarmer({ preservePhone: true });
+    setFarmerStatus("");
+    updateQuickReference();
+    return;
+  }
+
+  state.selectedFarmer = farmer;
+  els.farmerId.value = farmer.farmer_id || "";
+  if (farmer.community_id) {
+    els.communityId.value = farmer.community_id;
+    syncCommunityName();
+  }
+  syncManualDetailsFromFarmer(farmer, { preservePhone: !farmer.phone });
+  state.selectedFarmerPhoneQuery = normalizedPhoneDigits(els.manualFarmerPhone.value);
+  updateQuickReference();
+  setFarmerStatus(t("status.linked"), "");
+}
+
+function syncManualDetailsFromFarmer(farmer, options = {}) {
+  const enteredPhone = els.manualFarmerPhone.value;
   const community = communityById(farmer.community_id);
   const name = splitFarmerName(farmer.name);
   els.manualFarmerFirstName.value = name.firstName;
   els.manualFarmerLastNames.value = name.lastNames;
-  els.manualFarmerPhone.value = farmer.phone || "";
+  els.manualFarmerPhone.value = options.preservePhone ? enteredPhone : farmer.phone || "";
   els.manualCommunityInput.value = communityLabel(community) || farmer.community_id || "";
   els.manualFarmerFarmSize.value = farmer.farm_size_value ?? "";
   els.manualFarmerFarmSizeUnit.value = farmer.farm_size_unit || "blocks";
 }
 
-function clearManualFarmerDetails() {
+function clearManualFarmerDetails(options = {}) {
+  const enteredPhone = els.manualFarmerPhone.value;
   els.manualFarmerFirstName.value = "";
   els.manualFarmerLastNames.value = "";
-  els.manualFarmerPhone.value = "";
+  els.manualFarmerPhone.value = options.preservePhone ? enteredPhone : "";
   els.manualCommunityInput.value = "";
   els.manualFarmerFarmSize.value = "";
   els.manualFarmerFarmSizeUnit.value = "blocks";
   els.communityId.value = "";
   syncCommunityName();
+}
+
+function clearSelectedFarmer(options = {}) {
+  state.selectedFarmer = null;
+  state.selectedFarmerPhoneQuery = "";
+  els.farmerId.value = "";
+  clearManualFarmerDetails(options);
 }
 
 function syncCommunityName() {
@@ -689,6 +773,7 @@ function updateQuickReference() {
 function assignNextFarmerId() {
   els.farmerId.value = nextFarmerId();
   state.selectedFarmer = null;
+  state.selectedFarmerPhoneQuery = "";
   setFarmerStatus("");
   updateQuickReference();
 }
@@ -1401,8 +1486,8 @@ function buildPayload(photoPaths = []) {
   return {
     collector_name: requiredText(els.collectorName.value, t("collector.name")),
     transaction_id: requiredText(els.transactionId.value, t("harvest.transactionId")),
-    farmer_id: null,
-    farmer_record_id: null,
+    farmer_id: state.selectedFarmer?.farmer_id || null,
+    farmer_record_id: state.selectedFarmer?.id || null,
     farmer_name_snapshot: farmerNameSnapshot,
     community_id: nullableText(els.communityId.value),
     community_record_id: community?.id || null,
@@ -1445,6 +1530,7 @@ function clearForm(options = {}) {
   els.collectorName.value = collectorName || localStorage.getItem(COLLECTOR_NAME_STORAGE_KEY) || "";
   els.collectionWebsite.value = "";
   state.selectedFarmer = null;
+  state.selectedFarmerPhoneQuery = "";
   state.gps = null;
   state.collectionPhotos = [];
   state.retakePhotoIndex = null;
@@ -1632,6 +1718,13 @@ function normalizeFarmerIdValue(value) {
   const match = raw.match(/^RID(\d+)$/);
   if (match) return `RID${match[1].padStart(4, "0")}`;
   return raw;
+}
+
+function normalizedPhoneDigits(value) {
+  let digits = String(value || "").replace(/\D/g, "");
+  if (digits.startsWith("254")) digits = digits.slice(3);
+  else if (digits.startsWith("0")) digits = digits.slice(1);
+  return digits;
 }
 
 function normalizeSackIdValue(value) {
@@ -2009,6 +2102,7 @@ function formulaTokens(expression, values) {
 
 function setFixedFormOrder() {
   const fixedOrder = [
+    [els.manualFarmerPhone.closest("label"), 10],
     [document.querySelector(".field-status-block"), 20],
     [document.querySelector(".quick-farmer-reference"), 30],
     [els.farmerDetails, 40],
