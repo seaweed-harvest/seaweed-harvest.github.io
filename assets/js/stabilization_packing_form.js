@@ -16,11 +16,11 @@ async function init() {
   [
     "packingRecordForm", "cartonSerial", "cartonSerialHint", "existingCartonSerials",
     "packedOn", "packedOnLabel", "packingSpecies",
-    "packingAggregator", "packingRecordedBy", "packingWeight", "packingWeightUnit",
-    "packingTemperature", "packingSalinity", "packingSalinityUnit", "packingPh",
+    "packingRecordedBy", "packingWeight", "packingWeightUnit",
+    "packingSalinity", "packingSalinityUnit", "packingPh",
     "packingEc", "packingChemical", "packingDose", "packingDoseUnit", "packingDoseDefault", "packingNotes",
     "savePackingRecord", "clearPackingRecord", "favoritePackingForm", "printPackingWorksheet", "packingRecordStatus",
-    "packingPrintWorksheet", "printPackingAggregator", "printPackingDate",
+    "packingPrintWorksheet", "printPackingDate",
     "printPackingRecordedBy", "printPackingChemical"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
@@ -28,7 +28,7 @@ async function init() {
     button: els.printPackingWorksheet,
     worksheet: els.packingPrintWorksheet,
     rowCount: 12,
-    columnCount: 13,
+    columnCount: 12,
     prepare: preparePackingWorksheet
   });
 
@@ -68,7 +68,6 @@ async function init() {
     if (formContextResult.error) throw formContextResult.error;
     const active = context.active_aggregator;
     doseDefaultScope = active?.id || active?.aggregator_id || active?.aggregator_code || "default";
-    els.packingAggregator.value = active?.organisation_name || active?.short_name || active?.aggregator_code || "";
     renderSpecies(species);
     applyPackingFormContext(formContextResult.data);
     applyDoseDefault();
@@ -99,7 +98,7 @@ async function submitRecord(event) {
   els.savePackingRecord.disabled = true;
   setStatus("Saving...");
   try {
-    const { data, error } = await authClient.rpc("ag_submit_stabilization_packing_record", {
+    const { data, error } = await authClient.rpc("ag_submit_stabilization_packing_record_v2", {
       p_submission_id: submissionId,
       p_record: {
         record_type: selectedRecordType(),
@@ -107,9 +106,9 @@ async function submitRecord(event) {
         carton_serial: els.cartonSerial.value.trim(),
         packed_on: els.packedOn.value,
         species: els.packingSpecies.value,
+        recorded_by_name: textOrNull(els.packingRecordedBy.value),
         weight_value: Number(els.packingWeight.value),
         weight_unit: els.packingWeightUnit.value,
-        room_temperature_c: numberOrNull(els.packingTemperature.value),
         salinity_value: numberOrNull(els.packingSalinity.value),
         salinity_unit: els.packingSalinityUnit.value,
         ph_value: numberOrNull(els.packingPh.value),
@@ -163,7 +162,7 @@ function handleRecordTypeChange() {
   if (selectedRecordType() === "retest") {
     els.cartonSerial.value = "";
     cartonSerialWasEdited = true;
-    els.packedOnLabel.textContent = "Retest date";
+    els.packedOnLabel.textContent = "Date";
     els.cartonSerialHint.textContent = "Enter an existing carton serial.";
     els.cartonSerial.focus();
   } else {
@@ -177,7 +176,7 @@ function setNewCartonMode() {
   if (initial) initial.checked = true;
   els.cartonSerial.value = nextCartonSerial;
   cartonSerialWasEdited = false;
-  els.packedOnLabel.textContent = "Packing date";
+  els.packedOnLabel.textContent = "Date";
   els.cartonSerialHint.textContent = "Next carton number. You can type over it.";
 }
 
@@ -243,20 +242,17 @@ function doseDefaultKey() {
 }
 
 function preparePackingWorksheet() {
-  setPrintValue(els.printPackingAggregator, els.packingAggregator.value);
   setPrintValue(els.printPackingDate, paperDate(els.packedOn.value));
   setPrintValue(els.printPackingRecordedBy, els.packingRecordedBy.value);
   setPrintValue(els.printPackingChemical, els.packingChemical.value);
 }
 
 function resetInputs(nextSerial = nextCartonSerial) {
-  const aggregator = els.packingAggregator.value;
   const recordedBy = els.packingRecordedBy.value;
   nextCartonSerial = String(nextSerial || nextCartonSerial || "1");
   els.packingRecordForm.reset();
   els.packedOn.value = kenyaDate();
   els.packingSpecies.value = defaultSpecies;
-  els.packingAggregator.value = aggregator;
   els.packingRecordedBy.value = recordedBy;
   els.packingChemical.value = "Sodium benzoate";
   setNewCartonMode();
