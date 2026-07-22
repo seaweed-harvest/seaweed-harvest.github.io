@@ -3,7 +3,7 @@ import { hasMapCoordinates as hasGps, mapCoordinates } from "./map_coordinates.j
 import { dataModeLabel, selectRows } from "./supabase_client.js";
 import { currentAccessToken, requireAdminAccess, setupAccountControls } from "./auth_client.js?v=18";
 import { applyDashboardPreferences } from "./dashboard_preferences.js";
-import { setupAppNavigation } from "./app_navigation.js";
+import { setupAppNavigation } from "./app_navigation.js?v=2";
 
 const TABLES = {
   overview: "ag_secure_admin_overview",

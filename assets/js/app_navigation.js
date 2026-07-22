@@ -26,18 +26,14 @@ export function setupAppNavigation(options = {}) {
   brandImage.alt = "";
   brand.append(brandImage);
 
-  const menuButton = primaryButton("button", "☰", "Menu");
+  const menuButton = primaryButton("button", "menu", "Menu");
   menuButton.classList.add("mobile-menu-toggle");
   menuButton.type = "button";
   menuButton.setAttribute("aria-expanded", "false");
 
-  const dashboard = primaryButton("a", "⌂", "Dashboard");
-  dashboard.href = dashboardHref;
-  if (fileFromHref(dashboardHref) === currentFile) dashboard.setAttribute("aria-current", "page");
-
-  const formsMenu = quickMenu("▤", "Forms", forms, currentFile, "forms");
-  const recordsMenu = quickMenu("▦", "Records", records, currentFile, "records");
-  primary.append(brand, menuButton, dashboard, formsMenu, recordsMenu);
+  const formsMenu = quickMenu("clipboard-list", "Forms", forms, currentFile, "forms");
+  const recordsMenu = quickMenu("database", "Records", records, currentFile, "records");
+  primary.append(brand, menuButton, formsMenu, recordsMenu);
   actions.prepend(primary);
 
   let profileFallback = null;
@@ -68,7 +64,7 @@ export function setupAppNavigation(options = {}) {
   closeButton.className = "mobile-drawer-close";
   closeButton.setAttribute("aria-label", "Close menu");
   closeButton.title = "Close menu";
-  closeButton.textContent = "×";
+  closeButton.append(createNavIcon("x"));
   drawerHead.append(drawerTitle, closeButton);
   drawer.prepend(drawerHead);
 
@@ -105,6 +101,8 @@ export function setupAppNavigation(options = {}) {
     else drawer.setAttribute("aria-hidden", String(!drawerOpen));
     syncHeaderHeight();
   };
+
+  setDrawerOpen(false);
 
   menuButton.addEventListener("click", () => setDrawerOpen(!drawerOpen));
   closeButton.addEventListener("click", () => setDrawerOpen(false));
@@ -149,12 +147,55 @@ function primaryButton(tag, icon, label) {
   const iconElement = document.createElement("span");
   iconElement.className = "mobile-primary-icon";
   iconElement.setAttribute("aria-hidden", "true");
-  iconElement.textContent = icon;
+  iconElement.append(createNavIcon(icon));
   const labelElement = document.createElement("span");
   labelElement.className = "mobile-primary-label";
   labelElement.textContent = label;
   element.append(iconElement, labelElement);
   return element;
+}
+
+const NAV_ICON_NODES = {
+  menu: [
+    ["path", { d: "M4 6h16" }],
+    ["path", { d: "M4 12h16" }],
+    ["path", { d: "M4 18h16" }]
+  ],
+  "clipboard-list": [
+    ["rect", { width: "8", height: "4", x: "8", y: "2", rx: "1", ry: "1" }],
+    ["path", { d: "M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" }],
+    ["path", { d: "M12 11h4" }],
+    ["path", { d: "M12 16h4" }],
+    ["path", { d: "M8 11h.01" }],
+    ["path", { d: "M8 16h.01" }]
+  ],
+  database: [
+    ["ellipse", { cx: "12", cy: "5", rx: "9", ry: "3" }],
+    ["path", { d: "M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5" }],
+    ["path", { d: "M3 12c0 1.7 4 3 9 3s9-1.3 9-3" }]
+  ],
+  x: [
+    ["path", { d: "M18 6 6 18" }],
+    ["path", { d: "m6 6 12 12" }]
+  ]
+};
+
+function createNavIcon(name) {
+  const namespace = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(namespace, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  svg.setAttribute("data-lucide", name);
+  (NAV_ICON_NODES[name] || NAV_ICON_NODES.menu).forEach(([tag, attributes]) => {
+    const node = document.createElementNS(namespace, tag);
+    Object.entries(attributes).forEach(([key, value]) => node.setAttribute(key, value));
+    svg.append(node);
+  });
+  return svg;
 }
 
 function quickMenu(icon, label, links, currentFile, key) {
