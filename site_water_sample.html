@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Site Water Sample - Seaweed Aggregation</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+  <link rel="stylesheet" href="./assets/css/site_water_sample.css">
+</head>
+<body class="admin-console-page site-water-sample-page form-record-page" data-auth-pending>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div><p class="eyebrow">Seaweed aggregation</p><h1>Admin</h1></div>
+      <div class="header-actions admin-header-controls">
+        <nav class="app-nav" aria-label="Main navigation"><a href="./collection.html">Collection</a><a href="./today.html">Today's Intake</a><a href="./home.html">Home</a></nav>
+      </div>
+    </div>
+  </header>
+  <main class="app-shell admin-shell admin-layout form-record-layout">
+    <aside id="siteSampleSidebar" class="admin-sidebar form-page-sidebar" aria-label="Application menu">
+      <h2>Admin</h2><a href="./home.html">Dashboard</a>
+      <p class="admin-menu-heading">Registry</p><a href="./admin_member_registry.html">Member Registry</a><a href="./admin_community_registry.html">Community Registry</a>
+      <p class="admin-menu-heading">Map</p><a href="./admin_map.html">Community Map</a>
+      <p class="admin-menu-heading">Records</p><a href="./admin_today.html">Today's Intake</a><a href="./admin_monthly.html">Monthly</a><a href="./admin_community.html">Per Community</a><a href="./admin_ledger.html">Collection Ledger</a>
+      <p class="admin-menu-heading">Tools</p><a href="./tags.html">Tags</a>
+    </aside>
+    <section class="admin-content admin-page-section form-page-content">
+      <section class="panel form-record-panel">
+        <div class="section-head compact form-panel-toolbar">
+          <h2>Site Water Sample</h2>
+          <div class="form-panel-actions">
+            <button id="favoriteSiteSampleForm" class="form-favorite-action" type="button" aria-pressed="false" aria-label="Add Site Water Sample to dashboard" title="Add Site Water Sample to dashboard">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" data-lucide="star" aria-hidden="true"><path d="m12 2.8 2.8 5.7 6.3.9-4.6 4.4 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.4 6.3-.9L12 2.8Z"></path></svg>
+            </button>
+            <button id="printSiteSampleWorksheet" class="form-pdf-action" type="button" aria-label="Download site water sample worksheet PDF" title="Download site water sample worksheet PDF">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="printer" aria-hidden="true">
+                <path d="M6 9V2h12v7"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect width="12" height="8" x="6" y="14"></rect>
+              </svg>
+              <span>PDF</span>
+            </button>
+          </div>
+        </div>
+        <form id="siteSampleForm" class="packing-record-form site-sample-form">
+          <fieldset>
+            <legend>Sample</legend>
+            <div class="packing-record-type-field">
+              <span class="packing-field-label">Spring tide</span>
+              <div class="packing-record-type-control" role="radiogroup" aria-label="Spring tide stage">
+                <label><input type="radio" name="siteSampleTide" value="spring_low" checked><span>Low</span></label>
+                <label><input type="radio" name="siteSampleTide" value="spring_high"><span>High</span></label>
+              </div>
+            </div>
+            <label>Sample number
+              <input id="siteSampleNumber" type="text" inputmode="numeric" pattern="[0-9]+" maxlength="12" autocomplete="off" aria-describedby="siteSampleNumberHint" required>
+              <span id="siteSampleNumberHint" class="packing-field-hint">Next sample number. You can type over it.</span>
+            </label>
+            <label>Date and time
+              <input id="siteSampledAt" type="datetime-local" required>
+            </label>
+            <label>Community
+              <select id="siteSampleCommunity" required><option value="">Select community</option></select>
+            </label>
+            <label>GPS fix
+              <span class="packing-measure-row site-sample-gps-row">
+                <input id="siteSampleGps" type="text" inputmode="decimal" autocomplete="off" placeholder="-4.646000, 39.381000" aria-describedby="siteSampleGpsHint" required>
+                <button id="captureSiteSampleGps" type="button">GPS</button>
+              </span>
+              <span id="siteSampleGpsHint" class="packing-field-hint">Latitude, longitude</span>
+            </label>
+            <label>Species
+              <select id="siteSampleSpecies"><option value="">Not recorded</option></select>
+            </label>
+            <label>Aggregator
+              <input id="siteSampleAggregator" type="text" readonly>
+            </label>
+            <label>Recorded by
+              <input id="siteSampleRecordedBy" type="text" readonly>
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Measurements</legend>
+            <label>Weight
+              <span class="packing-measure-row">
+                <input id="siteSampleWeight" type="number" min="0" max="100000" step="0.001" inputmode="decimal">
+                <select id="siteSampleWeightUnit" aria-label="Weight unit"><option value="g">g</option><option value="kg">kg</option></select>
+              </span>
+            </label>
+            <label>Volume (litres)
+              <input id="siteSampleVolume" type="number" min="0" max="100000" step="0.001" inputmode="decimal">
+            </label>
+            <label>Water temperature (&deg;C)
+              <input id="siteSampleTemperature" type="number" min="-10" max="100" step="0.1" inputmode="decimal" data-recommended="true">
+            </label>
+            <label>Salinity
+              <span class="packing-measure-row">
+                <input id="siteSampleSalinity" type="number" min="0" max="100" step="0.001" inputmode="decimal" data-recommended="true">
+                <select id="siteSampleSalinityUnit" aria-label="Salinity unit"><option value="PSU">PSU</option><option value="ppt">ppt</option></select>
+              </span>
+            </label>
+            <label>pH
+              <input id="siteSamplePh" type="number" min="0" max="14" step="0.01" inputmode="decimal" data-recommended="true">
+            </label>
+            <label>Brix
+              <input id="siteSampleBrix" type="number" min="0" max="100" step="0.01" inputmode="decimal" data-recommended="true">
+            </label>
+            <label>Total dissolved solids (TDS)
+              <span class="packing-measure-row">
+                <input id="siteSampleTds" type="number" min="0" max="100000000" step="0.001" inputmode="decimal" data-recommended="true">
+                <select id="siteSampleTdsUnit" aria-label="TDS unit"><option value="mg/L">mg/L</option><option value="g/L">g/L</option><option value="ppt">ppt</option></select>
+              </span>
+            </label>
+            <label>Electrical conductivity (mS/cm)
+              <input id="siteSampleEc" type="number" min="0" max="10000" step="0.001" inputmode="decimal" data-recommended="true">
+            </label>
+            <label>E. coli
+              <span class="packing-measure-row">
+                <input id="siteSampleEColi" type="number" min="0" max="100000000000" step="0.001" inputmode="decimal" data-recommended="true">
+                <select id="siteSampleEColiUnit" aria-label="E. coli unit"><option value="CFU/100 mL">CFU/100 mL</option><option value="MPN/100 mL">MPN/100 mL</option></select>
+              </span>
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Treatment and observations</legend>
+            <label>Chemical dose
+              <span class="packing-measure-row">
+                <input id="siteSampleDose" type="number" min="0" max="100000000" step="0.001" inputmode="decimal">
+                <select id="siteSampleDoseUnit" aria-label="Chemical dose unit"><option value="mg/L">mg/L</option><option value="g/L">g/L</option><option value="%">%</option></select>
+              </span>
+            </label>
+            <label>Appearance, colour, smell and sediment
+              <textarea id="siteSampleAppearance" rows="3" maxlength="1000"></textarea>
+            </label>
+          </fieldset>
+
+          <div class="button-row packing-record-actions">
+            <button id="saveSiteSample" type="submit">Save site sample</button>
+            <button id="clearSiteSample" type="button">Clear</button>
+            <p id="siteSampleStatus" class="admin-status" aria-live="polite"></p>
+          </div>
+        </form>
+      </section>
+    </section>
+  </main>
+  <section id="siteSamplePrintWorksheet" class="ag-print-document" data-print-title="Site Water Sample Worksheet" data-pdf-filename="seaweed-site-water-sample-worksheet.pdf" aria-hidden="true">
+    <article class="ag-print-page">
+      <header class="ag-print-header">
+        <p>Seaweed Harvest</p>
+        <h1>Site Water Sample Worksheet</h1>
+        <span>Spring low and spring high site measurements.</span>
+      </header>
+      <div class="ag-print-meta">
+        <div><span>Aggregator</span><strong id="printSiteSampleAggregator"></strong></div>
+        <div><span>Community</span><strong id="printSiteSampleCommunity"></strong></div>
+        <div><span>Sample date</span><strong id="printSiteSampleDate"></strong></div>
+        <div><span>Recorded by</span><strong id="printSiteSampleRecordedBy"></strong></div>
+      </div>
+      <table class="ag-print-table ag-print-site-sample-table" data-pdf-widths="3,10,7,10,7,6,7,5,5,6,6,7,6,15">
+        <colgroup><col><col><col><col><col><col><col><col><col><col><col><col><col><col></colgroup>
+        <thead>
+          <tr>
+            <th scope="col">No.</th><th scope="col">Date / time</th><th scope="col">Tide</th><th scope="col">Community</th><th scope="col">Sample</th><th scope="col">Temp. &deg;C</th><th scope="col">Salinity</th><th scope="col">pH</th><th scope="col">Brix</th><th scope="col">TDS</th><th scope="col">EC</th><th scope="col">E. coli</th><th scope="col">Volume L</th><th scope="col">Notes</th>
+          </tr>
+        </thead>
+        <tbody data-print-rows="10" data-print-columns="14"></tbody>
+      </table>
+      <footer class="ag-print-footer">
+        <div><span>Entered into system by</span><strong></strong></div><div><span>Date</span><strong></strong></div><div><span>Checked by</span><strong></strong></div>
+      </footer>
+    </article>
+  </section>
+  <script type="module" src="./assets/js/admin_page.js?v=23"></script>
+  <script type="module" src="./assets/js/site_water_sample_form.js?v=1"></script>
+</body>
+</html>

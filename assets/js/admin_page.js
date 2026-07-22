@@ -494,6 +494,7 @@ function requiredPermissionForPage() {
     "admin_community.html": "can_view_data",
     "admin_ledger.html": "can_view_data",
     "stabilization_packing.html": "can_submit_collection",
+    "site_water_sample.html": "can_submit_collection",
     "admin_receipts.html": "can_view_data",
     "admin_notifications.html": "can_view_notifications",
     "admin_seaweedke.html": "can_manage_sms_settings",

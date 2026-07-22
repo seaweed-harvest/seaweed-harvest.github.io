@@ -12,6 +12,13 @@ export const FAVORITE_FORMS = [
     description: "Record carton stabilization and packing",
     href: "./stabilization_packing.html",
     permission: "can_submit_collection"
+  },
+  {
+    key: "site_water_sample",
+    label: "Site Water Sample",
+    description: "Record spring tide water measurements",
+    href: "./site_water_sample.html",
+    permission: "can_submit_collection"
   }
 ];
 
