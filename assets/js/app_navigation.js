@@ -345,6 +345,7 @@ function formLinks() {
 function recordLinks(profile) {
   const links = [{ label: "Today's Intake", href: hasPermission(profile, "can_view_data") ? "./admin_today.html" : "./today.html" }];
   return links.concat(permittedLinks(profile, [
+    { label: "Reef Nursery Records", href: "./reef_nursery_records.html", permission: "can_submit_collection" },
     { label: "Collection Ledger", href: "./admin_ledger.html", permission: "can_view_data" },
     { label: "Finance Review", href: "./admin_finance.html", permission: "can_view_finance" },
     { label: "Receipts", href: "./admin_receipts.html", permission: "can_view_data" },

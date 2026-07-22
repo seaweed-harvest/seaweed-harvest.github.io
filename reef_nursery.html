@@ -39,10 +39,13 @@
         </div>
 
         <form id="reefNurseryForm" class="packing-record-form reef-nursery-form" novalidate>
-          <label class="form-recorder-field">
-            <span>Recorded by</span>
-            <input id="reefRecordedBy" type="text" maxlength="160" autocomplete="name" required>
-          </label>
+          <div class="reef-record-context">
+            <label>
+              <span>Record number</span>
+              <input id="reefRecordNumber" type="text" value="New record" readonly>
+            </label>
+            <a class="reef-previous-records" href="./reef_nursery_records.html">Previous records</a>
+          </div>
 
           <nav id="reefNurseryTabs" class="reef-form-tabs" aria-label="Reef nursery record sections" role="tablist">
             <button id="reefSessionTab" type="button" role="tab" aria-selected="true" aria-controls="reefSessionPanel" data-reef-tab="session">Session details</button>
@@ -76,14 +79,9 @@
                   <input id="reefFinishTime" type="time" required>
                 </label>
               </div>
-              <div class="reef-two-column-grid">
-                <label>Trainer's name
-                  <input id="reefTrainerName" type="text" maxlength="160" autocomplete="name" required>
-                </label>
-                <label>Trainer's organisation
-                  <input id="reefTrainerOrganisation" type="text" maxlength="200" required>
-                </label>
-              </div>
+              <label>Trainer's name
+                <input id="reefTrainerName" type="text" maxlength="160" autocomplete="name" required>
+              </label>
               <label>Supporting staff
                 <input id="reefSupportingStaff" type="text" maxlength="500">
               </label>
@@ -91,13 +89,12 @@
               <div class="reef-session-type-field">
                 <span class="packing-field-label">Type of session</span>
                 <div class="reef-session-type-grid" id="reefSessionTypes">
+                  <label><input type="checkbox" name="reefSessionType" value="general_in_water_training"><span>General in-water training</span></label>
                   <label><input type="checkbox" name="reefSessionType" value="seeding"><span>Seeding</span></label>
-                  <label><input type="checkbox" name="reefSessionType" value="nursery_deployment"><span>Nursery deployment</span></label>
                   <label><input type="checkbox" name="reefSessionType" value="harvesting"><span>Harvesting</span></label>
                   <label><input type="checkbox" name="reefSessionType" value="line_inspection_maintenance"><span>Line inspection and maintenance</span></label>
-                  <label><input type="checkbox" name="reefSessionType" value="boat_water_safety"><span>Boat and water safety</span></label>
-                  <label><input type="checkbox" name="reefSessionType" value="general_in_water_training"><span>General in-water training</span></label>
-                  <label><input type="checkbox" name="reefSessionType" value="refresher_training"><span>Refresher training</span></label>
+                  <label><input type="checkbox" name="reefSessionType" value="mooring_inspection_maintenance"><span>Mooring inspection and maintenance</span></label>
+                  <label><input type="checkbox" name="reefSessionType" value="nursery_deployment_recovery"><span>Nursery deployment / recovery</span></label>
                 </div>
               </div>
 
@@ -130,9 +127,13 @@
           </section>
 
           <section id="reefTrainingPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefTrainingTab" data-reef-panel="training" hidden>
-            <fieldset class="reef-prepared-section">
+            <fieldset>
               <legend>Training delivered</legend>
-              <p>Fields to be confirmed.</p>
+              <p id="reefTrainingEmpty" class="reef-training-empty">Select the session types first.</p>
+              <div id="reefTrainingSections" class="reef-training-sections"></div>
+              <div class="reef-matrix-link-row">
+                <button id="openReefTrainingMatrix" class="reef-text-action" type="button">Update training matrix</button>
+              </div>
             </fieldset>
           </section>
 
@@ -218,7 +219,26 @@
       <button id="reefClosePhotoViewer" type="button">Close</button>
     </div>
   </dialog>
+  <dialog id="reefTrainingMatrixDialog" class="reef-matrix-dialog" aria-labelledby="reefTrainingMatrixTitle">
+    <form id="reefTrainingMatrixForm" class="reef-matrix-dialog-panel" method="dialog">
+      <div class="reef-matrix-dialog-head">
+        <div>
+          <h2 id="reefTrainingMatrixTitle">Update training matrix</h2>
+          <p>Edit the activities available to trainers.</p>
+        </div>
+        <button id="closeReefTrainingMatrix" class="reef-icon-action" type="button" aria-label="Close training matrix" title="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg>
+        </button>
+      </div>
+      <div id="reefTrainingMatrixEditor" class="reef-matrix-editor"></div>
+      <div class="reef-matrix-dialog-actions">
+        <p id="reefTrainingMatrixStatus" class="admin-status" aria-live="polite"></p>
+        <button id="cancelReefTrainingMatrix" type="button">Cancel</button>
+        <button id="saveReefTrainingMatrix" type="submit">Save matrix</button>
+      </div>
+    </form>
+  </dialog>
   <script type="module" src="./assets/js/admin_page.js?v=23"></script>
-  <script type="module" src="./assets/js/reef_nursery_form.js?v=2"></script>
+  <script type="module" src="./assets/js/reef_nursery_form.js?v=4"></script>
 </body>
 </html>
