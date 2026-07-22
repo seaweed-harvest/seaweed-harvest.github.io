@@ -29,6 +29,7 @@ const RPC = {
 };
 
 const LEDGER_PAGE_SIZE = 50;
+const CALENDAR_DAY_PAGE_SIZE = 50;
 const COMMUNITY_RECORD_PAGE_SIZE = 50;
 const EXPORT_MAX_ROWS = 5000;
 const KENYA_COAST_VIEW = {
@@ -44,6 +45,11 @@ const state = {
   seaweedTypeSettings: [],
   monthlyRows: [],
   dailyCollectionRows: [],
+  calendarSelectedDate: null,
+  calendarDayRows: [],
+  calendarDayTotal: 0,
+  calendarDayPage: 0,
+  calendarDayLoadSequence: 0,
   communitySummary: null,
   communityGradeRows: [],
   communityMonthlyRows: [],
@@ -160,6 +166,14 @@ function cacheElements() {
     "monthlyRows",
     "monthlyCalendar",
     "monthlyCalendarStatus",
+    "calendarDayRecords",
+    "calendarDayRecordsTitle",
+    "calendarDayRecordsStatus",
+    "calendarDayRecordCount",
+    "calendarDayPrevPage",
+    "calendarDayNextPage",
+    "calendarDayPageStatus",
+    "calendarDayRecordRows",
     "communitySummaryStatus",
     "communitySummarySelect",
     "communityPeriodPreset",
@@ -279,6 +293,17 @@ function bindEvents() {
   els.mappedCommunityList?.addEventListener("keydown", focusMapMarkerFromEvent);
   els.reloadMonthly?.addEventListener("click", () => loadMonthly());
   els.monthlyRows?.addEventListener("click", openLedgerMonthFromEvent);
+  els.monthlyCalendar?.addEventListener("click", selectCollectionCalendarDay);
+  els.calendarDayPrevPage?.addEventListener("click", () => {
+    if (state.calendarDayPage <= 0) return;
+    state.calendarDayPage -= 1;
+    loadCalendarDayRecords();
+  });
+  els.calendarDayNextPage?.addEventListener("click", () => {
+    if ((state.calendarDayPage + 1) * CALENDAR_DAY_PAGE_SIZE >= state.calendarDayTotal) return;
+    state.calendarDayPage += 1;
+    loadCalendarDayRecords();
+  });
   els.ledgerCommunityView?.addEventListener("click", openLedgerCommunityFromEvent);
   els.ledgerViewTabs?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-ledger-view]");
@@ -1097,6 +1122,7 @@ async function loadMonthly(options = {}) {
     ]);
     renderMonthly();
     renderCollectionCalendar();
+    if (state.calendarSelectedDate) await loadCalendarDayRecords({ quiet: true });
   } catch (error) {
     state.monthlyRows = [];
     state.dailyCollectionRows = [];
@@ -1165,7 +1191,8 @@ function renderCollectionCalendar() {
       const classes = [
         "collection-calendar-day",
         count ? "has-collections" : "",
-        dateKey === todayKey ? "today" : ""
+        dateKey === todayKey ? "today" : "",
+        dateKey === state.calendarSelectedDate ? "selected" : ""
       ].filter(Boolean).join(" ");
       const detail = [
         formatCalendarDate(dateKey),
@@ -1174,11 +1201,11 @@ function renderCollectionCalendar() {
       ].filter(Boolean).join(". ");
 
       cells.push(`
-        <span class="${classes}" data-collection-date="${escapeAttribute(dateKey)}" title="${escapeAttribute(detail)}" aria-label="${escapeAttribute(detail)}">
+        <button class="${classes}" type="button" data-collection-date="${escapeAttribute(dateKey)}" title="${escapeAttribute(detail)}" aria-label="${escapeAttribute(detail)}" aria-pressed="${dateKey === state.calendarSelectedDate}">
           <span class="collection-calendar-date">${day}</span>
           ${count ? `<strong class="collection-calendar-count">${escapeHtml(formatInteger(count))}</strong>` : ""}
           ${moon ? `<i class="collection-calendar-moon ${escapeAttribute(moon.type)}" title="${escapeAttribute(moon.label)}" aria-hidden="true">${moon.type === "full" ? "&#127765;" : "&#127761;"}</i>` : ""}
-        </span>
+        </button>
       `);
     }
 
@@ -1204,6 +1231,94 @@ function renderCollectionCalendar() {
       ? `${formatInteger(total)} records across ${formatInteger(state.dailyCollectionRows.length)} collection days.`
       : "No collection records in the latest four months for these filters.";
   }
+}
+
+function selectCollectionCalendarDay(event) {
+  const day = event.target.closest("[data-collection-date]");
+  if (!day) return;
+  const dateKey = String(day.dataset.collectionDate || "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return;
+
+  state.calendarSelectedDate = dateKey;
+  state.calendarDayPage = 0;
+  renderCollectionCalendar();
+  loadCalendarDayRecords();
+}
+
+async function loadCalendarDayRecords(options = {}) {
+  if (!els.calendarDayRecords || !state.calendarSelectedDate) return;
+  const loadSequence = ++state.calendarDayLoadSequence;
+  els.calendarDayRecords.hidden = false;
+  els.calendarDayRecordsTitle.textContent = `Records for ${formatCalendarDate(state.calendarSelectedDate)}`;
+  if (!options.quiet) els.calendarDayRecordsStatus.textContent = "Loading records...";
+  els.calendarDayRecordCount.textContent = "Loading";
+
+  try {
+    const resultRows = await supabaseRpc(RPC.ledger, calendarDayRecordPayload());
+    if (loadSequence !== state.calendarDayLoadSequence) return;
+    const result = resultRows[0] || {};
+    state.calendarDayRows = Array.isArray(result.rows) ? result.rows : [];
+    state.calendarDayTotal = Number(result.total_count || 0);
+    renderCalendarDayRecords();
+  } catch (error) {
+    if (loadSequence !== state.calendarDayLoadSequence) return;
+    state.calendarDayRows = [];
+    state.calendarDayTotal = 0;
+    els.calendarDayRecordRows.innerHTML = emptyRow(11, writeErrorMessage(error));
+    els.calendarDayRecordCount.textContent = "Error";
+    els.calendarDayPageStatus.textContent = "Could not load records.";
+    els.calendarDayRecordsStatus.textContent = writeErrorMessage(error);
+  }
+}
+
+function calendarDayRecordPayload() {
+  const startDate = state.calendarSelectedDate;
+  const [year, month, day] = startDate.split("-").map(Number);
+  const nextDate = new Date(Date.UTC(year, month - 1, day + 1));
+  const endDate = `${nextDate.getUTCFullYear()}-${String(nextDate.getUTCMonth() + 1).padStart(2, "0")}-${String(nextDate.getUTCDate()).padStart(2, "0")}`;
+  return {
+    p_start_at: `${startDate}T00:00:00+03:00`,
+    p_end_at: `${endDate}T00:00:00+03:00`,
+    p_community_id: nullableText(els.monthlyCommunity?.value),
+    p_grade: nullableText(els.monthlyGrade?.value),
+    p_search: null,
+    p_sort_key: "collected_at",
+    p_sort_direction: "desc",
+    p_page_limit: CALENDAR_DAY_PAGE_SIZE,
+    p_page_offset: state.calendarDayPage * CALENDAR_DAY_PAGE_SIZE
+  };
+}
+
+function renderCalendarDayRecords() {
+  if (!els.calendarDayRecordRows) return;
+
+  els.calendarDayRecordCount.textContent = `${formatInteger(state.calendarDayTotal)} ${state.calendarDayTotal === 1 ? "record" : "records"}`;
+  els.calendarDayRecordRows.innerHTML = state.calendarDayRows.map((row) => `
+    <tr>
+      <td>${escapeHtml(formatDateTime(row.collected_at))}</td>
+      <td>${inlineCell([row.farmer_id, row.farmer_name_snapshot])}</td>
+      <td>${escapeHtml(formatKg(row.sack_weight_kg))}</td>
+      <td>${escapeHtml(formatSeaweedType(row.seaweed_type))}</td>
+      <td>${escapeHtml(row.seaweed_grade || "Ungraded")}</td>
+      <td>${inlineCell([row.community_id, row.community_name_snapshot])}</td>
+      <td>${escapeHtml(formatMoney(row.price_per_kg))}</td>
+      <td>${escapeHtml(formatMoney(row.total_price))}</td>
+      <td>${escapeHtml(collectorName(row) || "-")}</td>
+      <td><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
+      <td>${escapeHtml(row.notes || "-")}</td>
+    </tr>
+  `).join("") || emptyRow(11, "No collection records were saved on this day.");
+
+  const first = state.calendarDayTotal ? state.calendarDayPage * CALENDAR_DAY_PAGE_SIZE + 1 : 0;
+  const last = Math.min((state.calendarDayPage + 1) * CALENDAR_DAY_PAGE_SIZE, state.calendarDayTotal);
+  els.calendarDayPageStatus.textContent = state.calendarDayTotal
+    ? `Rows ${first}-${last} of ${state.calendarDayTotal}`
+    : "No rows";
+  els.calendarDayPrevPage.disabled = state.calendarDayPage <= 0;
+  els.calendarDayNextPage.disabled = (state.calendarDayPage + 1) * CALENDAR_DAY_PAGE_SIZE >= state.calendarDayTotal;
+  els.calendarDayRecordsStatus.textContent = state.calendarDayTotal
+    ? "Select another calendar day to replace these records."
+    : "No records for this date and the selected filters.";
 }
 
 function collectionCalendarMonthKeys(now) {

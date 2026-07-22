@@ -221,6 +221,40 @@
               </div>
               <p id="monthlyCalendarStatus" class="admin-status" aria-live="polite"></p>
               <div id="monthlyCalendar" class="collection-calendar-grid"></div>
+              <section id="calendarDayRecords" class="collection-calendar-records" aria-labelledby="calendarDayRecordsTitle" hidden>
+                <div class="section-head compact">
+                  <div>
+                    <h3 id="calendarDayRecordsTitle">Daily records</h3>
+                    <p id="calendarDayRecordsStatus" class="admin-status" aria-live="polite">Select a calendar day.</p>
+                  </div>
+                  <span id="calendarDayRecordCount" class="status-pill">0 records</span>
+                </div>
+                <div class="ledger-pagination collection-calendar-pagination">
+                  <button id="calendarDayPrevPage" type="button">Previous</button>
+                  <span id="calendarDayPageStatus" class="admin-status">Page 1</span>
+                  <button id="calendarDayNextPage" type="button">Next</button>
+                </div>
+                <div class="responsive-table-wrap">
+                  <table class="management-table admin-data-table collection-calendar-record-table">
+                    <thead>
+                      <tr>
+                        <th>Collected</th>
+                        <th>Farmer</th>
+                        <th>Weight kg</th>
+                        <th>Type</th>
+                        <th>Grade</th>
+                        <th>Community</th>
+                        <th>Price/kg</th>
+                        <th>Total KSH</th>
+                        <th>Collector</th>
+                        <th>Transaction</th>
+                        <th>Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody id="calendarDayRecordRows"></tbody>
+                  </table>
+                </div>
+              </section>
             </section>
           </section>
 
@@ -280,6 +314,6 @@
   </main>
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
-  <script type="module" src="./assets/js/admin_page.js?v=24"></script>
+  <script type="module" src="./assets/js/admin_page.js?v=25"></script>
 </body>
 </html>
