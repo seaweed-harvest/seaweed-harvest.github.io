@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function init() {
-  ["adminResetForm", "adminResetPassword", "adminResetConfirm", "adminResetSubmit", "adminResetStatus"]
+  ["adminResetForm", "adminResetPassword", "adminResetConfirm", "adminResetSubmit", "adminResetStatus", "adminResetAccount", "adminResetAccountName"]
     .forEach((id) => { els[id] = document.getElementById(id); });
   els.adminResetForm.addEventListener("submit", resetPassword);
 
@@ -31,6 +31,9 @@ async function init() {
   if (!inspection.valid) {
     throw new Error("This password reset link is invalid, expired or already used. Ask an administrator for a new link.");
   }
+
+  els.adminResetAccountName.textContent = inspection.display_name || "Your account";
+  els.adminResetAccount.hidden = false;
 
   document.body.removeAttribute("data-auth-pending");
   setStatus("Enter a new password with at least 10 characters, including letters and numbers.");
@@ -97,4 +100,3 @@ function setStatus(message, type = "") {
   els.adminResetStatus.textContent = message || "";
   els.adminResetStatus.dataset.status = type;
 }
-
