@@ -58,9 +58,18 @@ body[data-auth-pending] .auth-session-loader {
 }
 
 .auth-session-loader img {
+  width: 72px;
+  height: 72px;
+  display: block;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+
+.auth-session-loader img[src$="seaweed-harvest-logo.svg"] {
   width: min(360px, calc(100vw - 48px));
   height: auto;
-  display: block;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 body.admin-console-page[data-auth-pending] .app-header {
