@@ -558,7 +558,7 @@ function renderSetupError(error) {
   if (els.communityGradeRows) els.communityGradeRows.innerHTML = emptyRow(5, message);
   if (els.communityMonthlyRows) els.communityMonthlyRows.innerHTML = emptyRow(6, message);
   if (els.communityRecordRows) els.communityRecordRows.innerHTML = emptyRow(12, message);
-  if (els.todayIntakeRows) els.todayIntakeRows.innerHTML = emptyRow(12, message);
+  if (els.todayIntakeRows) els.todayIntakeRows.innerHTML = emptyRow(13, message);
   if (els.ledgerRows) els.ledgerRows.innerHTML = emptyRow(18 + state.customLedgerFields.length, message);
   if (els.mapStatus) {
     els.mapStatus.textContent = "Setup needed";
@@ -1956,7 +1956,7 @@ async function loadTodayIntake(options = {}) {
   } catch (error) {
     state.todayIntakeRows = [];
     els.todayIntakeCount.textContent = "Error";
-    els.todayIntakeRows.innerHTML = emptyRow(12, writeErrorMessage(error));
+    els.todayIntakeRows.innerHTML = emptyRow(13, writeErrorMessage(error));
     setTodayIntakeStatus("Could not load intake rows.", "error");
   }
 }
@@ -1980,7 +1980,6 @@ function renderTodayIntake() {
       <tr data-today-row="${escapeAttribute(id)}" class="${rowClasses}">
         <td class="selection-cell"${canEdit ? "" : " hidden"}><input type="checkbox" data-today-id="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(row.transaction_id || "intake row")}"${checked}${editing ? " disabled" : ""}></td>
         <td>${escapeHtml(formatDateTime(row.collected_at))}</td>
-        <td><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
         <td>${isEditing ? todaySelectControl(id, "community_id", draft.community_id, todayCommunityOptions(row)) : inlineCell([row.community_id, row.community_name_snapshot])}</td>
         <td>${isEditing ? todaySelectControl(id, "farmer_id", draft.farmer_id, todayMemberOptions(row)) : inlineCell([row.farmer_id, row.farmer_name_snapshot])}</td>
         <td>${isEditing ? todayTextControl(id, "sack_id", draft.sack_id, "today-sack-editor", 80) : escapeHtml(row.sack_id || "-")}</td>
@@ -1990,9 +1989,11 @@ function renderTodayIntake() {
         <td>${isEditing ? todayNumberControl(id, "price_per_kg", draft.price_per_kg, "today-number-editor", 0.01, 0) : escapeHtml(formatMoney(row.price_per_kg))}</td>
         <td data-today-total="${escapeAttribute(id)}">${escapeHtml(formatMoney(isEditing ? todayDraftTotal(draft, row.total_price) : row.total_price))}</td>
         <td>${isEditing ? todayTextControl(id, "notes", draft.notes, "today-notes-editor", 1000) : escapeHtml(row.notes || "-")}</td>
+        <td>${escapeHtml(collectorName(row) || "-")}</td>
+        <td><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
       </tr>
     `;
-  }).join("") || emptyRow(12, "No intake rows recorded for this date.");
+  }).join("") || emptyRow(13, "No intake rows recorded for this date.");
 
   updateTodaySelectionUi();
 }
