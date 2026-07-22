@@ -96,12 +96,56 @@
           <div class="button-row packing-record-actions">
             <button id="savePackingRecord" type="submit">Save packing record</button>
             <button id="clearPackingRecord" type="button">Clear</button>
+            <button id="printPackingWorksheet" type="button">Print / PDF</button>
             <p id="packingRecordStatus" class="admin-status" aria-live="polite"></p>
           </div>
         </form>
       </section>
     </section>
   </main>
+  <section id="packingPrintWorksheet" class="ag-print-document" data-print-title="Stabilization and Packing Worksheet" aria-hidden="true">
+    <article class="ag-print-page">
+      <header class="ag-print-header">
+        <p>Seaweed Harvest</p>
+        <h1>Stabilization &amp; Packing Worksheet</h1>
+        <span>Blank production sheet for handwritten carton records.</span>
+      </header>
+      <div class="ag-print-meta">
+        <div><span>Aggregator</span><strong id="printPackingAggregator"></strong></div>
+        <div><span>Packing date</span><strong id="printPackingDate"></strong></div>
+        <div><span>Recorded by</span><strong id="printPackingRecordedBy"></strong></div>
+        <div><span>Chemical</span><strong id="printPackingChemical">Sodium benzoate</strong></div>
+      </div>
+      <table class="ag-print-table ag-print-packing-table">
+        <colgroup>
+          <col><col><col><col><col><col><col><col><col><col><col><col><col>
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">No.</th>
+            <th scope="col">Carton serial</th>
+            <th scope="col">Species</th>
+            <th scope="col">Weight</th>
+            <th scope="col">Unit</th>
+            <th scope="col">Temp. &deg;C</th>
+            <th scope="col">Salinity</th>
+            <th scope="col">Unit</th>
+            <th scope="col">pH</th>
+            <th scope="col">EC mS/cm</th>
+            <th scope="col">Dose</th>
+            <th scope="col">Unit</th>
+            <th scope="col">Notes</th>
+          </tr>
+        </thead>
+        <tbody data-print-rows="12" data-print-columns="13"></tbody>
+      </table>
+      <footer class="ag-print-footer">
+        <div><span>Entered into system by</span><strong></strong></div>
+        <div><span>Date</span><strong></strong></div>
+        <div><span>Checked by</span><strong></strong></div>
+      </footer>
+    </article>
+  </section>
   <script type="module" src="./assets/js/admin_page.js?v=20"></script>
   <script type="module" src="./assets/js/stabilization_packing_form.js"></script>
 </body>

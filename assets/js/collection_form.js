@@ -11,7 +11,7 @@ import {
   initCollectionLanguage,
   t,
   unitLabel
-} from "./collection_language.js?v=18";
+} from "./collection_language.js?v=19";
 import {
   initialiseOfflineStore,
   listOutboxItems,
@@ -26,6 +26,7 @@ import { syncPendingCollections } from "./offline_sync.js";
 import { completeLaunchSplash } from "./app_transition.js";
 import { createOperationFeedback } from "./operation_feedback.js";
 import { setupAppNavigation } from "./app_navigation.js";
+import { setPrintValue, setupPrintWorksheet } from "./print_worksheet.js";
 
 const state = {
   communities: [],
@@ -348,6 +349,12 @@ function cacheElements() {
     "collectionSignInLink",
     "collectionForm",
     "submitCollection",
+    "printCollectionWorksheet",
+    "collectionPrintWorksheet",
+    "printCollectionAggregator",
+    "printCollectionDate",
+    "printCollectionCollector",
+    "activeAggregatorName",
     "collectorName",
     "collectionWebsite",
     "farmerId",
@@ -418,6 +425,13 @@ function cacheElements() {
 }
 
 function bindEvents() {
+  setupPrintWorksheet({
+    button: els.printCollectionWorksheet,
+    worksheet: els.collectionPrintWorksheet,
+    rowCount: 12,
+    columnCount: 12,
+    prepare: prepareCollectionWorksheet
+  });
   els.offlineSyncNow.addEventListener("click", () => syncOutbox({ announce: true }));
   els.pendingRecordsBandSync.addEventListener("click", () => syncOutbox({ announce: true }));
   document.addEventListener("seaweed-collection-language-change", () => {
@@ -482,6 +496,24 @@ function bindEvents() {
   els.stopQrScanner.addEventListener("click", stopQrScanner);
   els.dismissSavedReceipt.addEventListener("click", () => { els.collectionReceiptResult.hidden = true; });
   document.addEventListener("seaweed-collection-language-change", refreshTranslatedContent);
+}
+
+function prepareCollectionWorksheet() {
+  const activeAggregator = state.aggregatorContext?.active_aggregator;
+  const aggregator = activeAggregator?.short_name
+    || activeAggregator?.aggregator_code
+    || activeAggregator?.organisation_name
+    || els.activeAggregatorName?.textContent
+    || "";
+  setPrintValue(els.printCollectionAggregator, aggregator === "-" ? "" : aggregator);
+  setPrintValue(els.printCollectionDate, paperDate(els.collectedAt.value));
+  setPrintValue(els.printCollectionCollector, els.collectorName.value);
+}
+
+function paperDate(value) {
+  const date = String(value || "").slice(0, 10);
+  const [year, month, day] = date.split("-");
+  return year && month && day ? `${day}/${month}/${year}` : "";
 }
 
 async function loadFormData() {

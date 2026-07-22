@@ -5276,3 +5276,178 @@ label input[type="checkbox"] {
     box-shadow: none;
   }
 }
+
+.ag-print-document {
+  display: none;
+}
+
+@media print {
+  body.ag-printing {
+    margin: 0;
+    color: #000;
+    background: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
+  body.ag-printing > :not(.ag-print-document) {
+    display: none !important;
+  }
+
+  body.ag-printing .ag-print-document {
+    display: block !important;
+    color: #000;
+    background: #fff;
+  }
+
+  body.ag-printing *,
+  body.ag-printing *::before,
+  body.ag-printing *::after {
+    color: #000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    letter-spacing: 0 !important;
+    print-color-adjust: economy;
+    -webkit-print-color-adjust: economy;
+  }
+
+  .ag-print-page {
+    display: flex;
+    width: 100%;
+    height: 195mm;
+    max-height: 195mm;
+    flex-direction: column;
+    gap: 2mm;
+    overflow: hidden;
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+
+  .ag-print-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    padding-bottom: 1.5mm;
+    border-bottom: 1.5pt solid #000;
+  }
+
+  .ag-print-header p {
+    grid-column: 1 / -1;
+    margin: 0 0 0.5mm;
+    font-size: 6.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .ag-print-header h1 {
+    margin: 0;
+    font-size: 14pt;
+    line-height: 1;
+  }
+
+  .ag-print-header span {
+    font-size: 7pt;
+  }
+
+  .ag-print-meta,
+  .ag-print-footer {
+    display: grid;
+    gap: 3mm;
+  }
+
+  .ag-print-meta {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .ag-print-footer {
+    grid-template-columns: 2fr 1fr 2fr;
+  }
+
+  .ag-print-meta > div,
+  .ag-print-footer > div {
+    display: grid;
+    grid-template-columns: auto minmax(15mm, 1fr);
+    align-items: end;
+    gap: 1.5mm;
+    min-width: 0;
+  }
+
+  .ag-print-meta span,
+  .ag-print-footer span {
+    font-size: 6.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .ag-print-meta strong,
+  .ag-print-footer strong {
+    min-height: 5mm;
+    overflow: hidden;
+    border-bottom: 0.7pt solid #333;
+    font-size: 8pt;
+    line-height: 4.5mm;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ag-print-table {
+    width: 100%;
+    flex: 1 1 auto;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 6.5pt;
+  }
+
+  .ag-print-table th,
+  .ag-print-table td {
+    padding: 0.8mm;
+    border: 0.7pt solid #222;
+    overflow: hidden;
+    vertical-align: top;
+  }
+
+  .ag-print-table thead th {
+    height: 9mm;
+    font-size: 6pt;
+    line-height: 1.05;
+    text-align: left;
+    text-transform: uppercase;
+    vertical-align: middle;
+  }
+
+  .ag-print-table tbody tr {
+    height: 10.2mm;
+  }
+
+  .ag-print-table tbody th {
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  .ag-print-collection-table col:nth-child(1) { width: 3%; }
+  .ag-print-collection-table col:nth-child(2) { width: 6%; }
+  .ag-print-collection-table col:nth-child(3) { width: 8%; }
+  .ag-print-collection-table col:nth-child(4) { width: 14%; }
+  .ag-print-collection-table col:nth-child(5) { width: 14%; }
+  .ag-print-collection-table col:nth-child(6) { width: 8%; }
+  .ag-print-collection-table col:nth-child(7) { width: 8%; }
+  .ag-print-collection-table col:nth-child(8) { width: 7%; }
+  .ag-print-collection-table col:nth-child(9) { width: 5%; }
+  .ag-print-collection-table col:nth-child(10) { width: 7%; }
+  .ag-print-collection-table col:nth-child(11) { width: 8%; }
+  .ag-print-collection-table col:nth-child(12) { width: 12%; }
+
+  .ag-print-packing-table col:nth-child(1) { width: 3%; }
+  .ag-print-packing-table col:nth-child(2) { width: 11%; }
+  .ag-print-packing-table col:nth-child(3) { width: 9%; }
+  .ag-print-packing-table col:nth-child(4) { width: 7%; }
+  .ag-print-packing-table col:nth-child(5) { width: 4%; }
+  .ag-print-packing-table col:nth-child(6) { width: 6%; }
+  .ag-print-packing-table col:nth-child(7) { width: 7%; }
+  .ag-print-packing-table col:nth-child(8) { width: 5%; }
+  .ag-print-packing-table col:nth-child(9) { width: 5%; }
+  .ag-print-packing-table col:nth-child(10) { width: 8%; }
+  .ag-print-packing-table col:nth-child(11) { width: 7%; }
+  .ag-print-packing-table col:nth-child(12) { width: 5%; }
+  .ag-print-packing-table col:nth-child(13) { width: 23%; }
+}

@@ -221,6 +221,7 @@
         <div class="button-row">
           <button id="submitCollection" type="submit" data-i18n="action.submit">Submit collection</button>
           <button id="clearCollectionForm" type="button" data-i18n="action.clear">Clear</button>
+          <button id="printCollectionWorksheet" type="button" data-i18n="action.printWorksheet">Print / PDF</button>
           <span id="collectionSaveStatus" class="admin-status" aria-live="polite"></span>
         </div>
       </form>
@@ -284,7 +285,50 @@
   </dialog>
   <input id="collectionPhotoRetake" class="visually-hidden-file" type="file" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
 
+  <section id="collectionPrintWorksheet" class="ag-print-document" data-print-title="Seaweed Collection Worksheet" aria-hidden="true">
+    <article class="ag-print-page">
+      <header class="ag-print-header">
+        <p>Seaweed Harvest</p>
+        <h1 data-i18n="print.collectionTitle">Seaweed Collection Worksheet</h1>
+        <span data-i18n="print.collectionHint">Blank field sheet for handwritten collection records.</span>
+      </header>
+      <div class="ag-print-meta">
+        <div><span data-i18n="aggregator.label">Aggregator</span><strong id="printCollectionAggregator"></strong></div>
+        <div><span data-i18n="print.collectionDate">Collection date</span><strong id="printCollectionDate"></strong></div>
+        <div><span data-i18n="collector.name">Collector name</span><strong id="printCollectionCollector"></strong></div>
+        <div><span data-i18n="print.sheetReference">Sheet reference</span><strong></strong></div>
+      </div>
+      <table class="ag-print-table ag-print-collection-table">
+        <colgroup>
+          <col><col><col><col><col><col><col><col><col><col><col><col>
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col" data-i18n="print.number">No.</th>
+            <th scope="col" data-i18n="print.time">Time</th>
+            <th scope="col" data-i18n="farmer.id">Farmer ID</th>
+            <th scope="col" data-i18n="print.farmerName">Farmer name</th>
+            <th scope="col" data-i18n="print.community">Community</th>
+            <th scope="col" data-i18n="harvest.sackId">Sack ID</th>
+            <th scope="col" data-i18n="print.type">Type</th>
+            <th scope="col" data-i18n="harvest.weight">Weight kg</th>
+            <th scope="col" data-i18n="harvest.grade">Grade</th>
+            <th scope="col" data-i18n="print.pricePerKg">Price/kg</th>
+            <th scope="col" data-i18n="print.totalKsh">Total KSH</th>
+            <th scope="col" data-i18n="harvest.notes">Notes</th>
+          </tr>
+        </thead>
+        <tbody data-print-rows="12" data-print-columns="12"></tbody>
+      </table>
+      <footer class="ag-print-footer">
+        <div><span data-i18n="print.enteredBy">Entered into system by</span><strong></strong></div>
+        <div><span data-i18n="print.date">Date</span><strong></strong></div>
+        <div><span data-i18n="print.checkedBy">Checked by</span><strong></strong></div>
+      </footer>
+    </article>
+  </section>
+
   <script src="./assets/js/vendor/jsQR.js"></script>
-  <script type="module" src="./assets/js/collection_form.js?v=18"></script>
+  <script type="module" src="./assets/js/collection_form.js?v=19"></script>
 </body>
 </html>

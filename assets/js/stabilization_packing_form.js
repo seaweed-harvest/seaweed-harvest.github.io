@@ -1,5 +1,6 @@
 import { authClient, currentAggregatorContext, requireAdminAccess } from "./auth_client.js";
 import { selectRows } from "./supabase_client.js";
+import { setPrintValue, setupPrintWorksheet } from "./print_worksheet.js";
 
 const els = {};
 let submissionId = crypto.randomUUID();
@@ -13,8 +14,18 @@ async function init() {
     "packingAggregator", "packingRecordedBy", "packingWeight", "packingWeightUnit",
     "packingTemperature", "packingSalinity", "packingSalinityUnit", "packingPh",
     "packingEc", "packingChemical", "packingDose", "packingDoseUnit", "packingNotes",
-    "savePackingRecord", "clearPackingRecord", "packingRecordStatus"
+    "savePackingRecord", "clearPackingRecord", "printPackingWorksheet", "packingRecordStatus",
+    "packingPrintWorksheet", "printPackingAggregator", "printPackingDate",
+    "printPackingRecordedBy", "printPackingChemical"
   ].forEach((id) => { els[id] = document.getElementById(id); });
+
+  setupPrintWorksheet({
+    button: els.printPackingWorksheet,
+    worksheet: els.packingPrintWorksheet,
+    rowCount: 12,
+    columnCount: 13,
+    prepare: preparePackingWorksheet
+  });
 
   const access = await requireAdminAccess("can_submit_collection");
   if (!access) return;
@@ -93,6 +104,13 @@ function clearForm() {
   setStatus("");
 }
 
+function preparePackingWorksheet() {
+  setPrintValue(els.printPackingAggregator, els.packingAggregator.value);
+  setPrintValue(els.printPackingDate, paperDate(els.packedOn.value));
+  setPrintValue(els.printPackingRecordedBy, els.packingRecordedBy.value);
+  setPrintValue(els.printPackingChemical, els.packingChemical.value);
+}
+
 function resetInputs() {
   const aggregator = els.packingAggregator.value;
   const recordedBy = els.packingRecordedBy.value;
@@ -123,6 +141,11 @@ function kenyaDate() {
   }).formatToParts(new Date());
   const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${value.year}-${value.month}-${value.day}`;
+}
+
+function paperDate(value) {
+  const [year, month, day] = String(value || "").split("-");
+  return year && month && day ? `${day}/${month}/${year}` : "";
 }
 
 function setStatus(message, status = "") {
