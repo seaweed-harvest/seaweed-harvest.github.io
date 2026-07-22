@@ -31,7 +31,7 @@
   </script>
   <link rel="stylesheet" href="./assets/css/ag.css">
 </head>
-<body class="collection-page" data-auth-pending>
+<body class="collection-page form-record-page" data-auth-pending>
   <div id="appLaunchSplash" class="app-launch-splash" role="status" aria-label="Opening Seaweed Harvest">
     <img src="./assets/images/seaweed-harvest-splash.gif" alt="">
   </div>
@@ -53,7 +53,9 @@
     </div>
   </header>
 
-  <main class="app-shell">
+  <main class="app-shell admin-shell admin-layout form-record-layout">
+    <aside id="collectionSidebar" class="admin-sidebar form-page-sidebar" aria-label="Application menu"></aside>
+    <section class="admin-content admin-page-section form-page-content">
     <section class="language-card" aria-label="Language" data-i18n-aria-label="language.ariaLabel">
       <span class="language-card-label" data-i18n="language.label">Language:</span>
       <div class="language-card-actions" role="group" aria-label="Choose language" data-i18n-aria-label="language.choose">
@@ -79,6 +81,15 @@
       <strong id="activeAggregatorName">-</strong>
     </section>
     <section class="panel collection-form-panel">
+      <div class="section-head compact form-panel-toolbar">
+        <h2 data-i18n="page.title">Collection</h2>
+        <button id="printCollectionWorksheet" class="form-pdf-action" type="button" aria-label="Download collection worksheet PDF" title="Download collection worksheet PDF">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="printer" aria-hidden="true">
+            <path d="M6 9V2h12v7"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect width="12" height="8" x="6" y="14"></rect>
+          </svg>
+          <span>PDF</span>
+        </button>
+      </div>
       <form id="collectionForm" class="collection-form">
         <label class="collector-name-field">
           <span data-i18n="collector.name">Collector name</span>
@@ -221,7 +232,6 @@
         <div class="button-row">
           <button id="submitCollection" type="submit" data-i18n="action.submit">Submit collection</button>
           <button id="clearCollectionForm" type="button" data-i18n="action.clear">Clear</button>
-          <button id="printCollectionWorksheet" type="button" data-i18n="action.printWorksheet">Print / PDF</button>
           <span id="collectionSaveStatus" class="admin-status" aria-live="polite"></span>
         </div>
       </form>
@@ -241,6 +251,7 @@
         <a id="viewSavedReceipt" class="button-link" href="./receipt.html" data-i18n="receipt.view">View receipt</a>
         <button id="dismissSavedReceipt" type="button" data-i18n="action.close">Close</button>
       </div>
+    </section>
     </section>
   </main>
 
@@ -285,7 +296,7 @@
   </dialog>
   <input id="collectionPhotoRetake" class="visually-hidden-file" type="file" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
 
-  <section id="collectionPrintWorksheet" class="ag-print-document" data-print-title="Seaweed Collection Worksheet" aria-hidden="true">
+  <section id="collectionPrintWorksheet" class="ag-print-document" data-print-title="Seaweed Collection Worksheet" data-pdf-filename="seaweed-collection-worksheet.pdf" aria-hidden="true">
     <article class="ag-print-page">
       <header class="ag-print-header">
         <p>Seaweed Harvest</p>
@@ -298,7 +309,7 @@
         <div><span data-i18n="collector.name">Collector name</span><strong id="printCollectionCollector"></strong></div>
         <div><span data-i18n="print.sheetReference">Sheet reference</span><strong></strong></div>
       </div>
-      <table class="ag-print-table ag-print-collection-table">
+      <table class="ag-print-table ag-print-collection-table" data-pdf-widths="3,6,8,14,14,8,8,7,5,7,8,12">
         <colgroup>
           <col><col><col><col><col><col><col><col><col><col><col><col>
         </colgroup>
@@ -329,6 +340,6 @@
   </section>
 
   <script src="./assets/js/vendor/jsQR.js"></script>
-  <script type="module" src="./assets/js/collection_form.js?v=21"></script>
+  <script type="module" src="./assets/js/collection_form.js?v=22"></script>
 </body>
 </html>

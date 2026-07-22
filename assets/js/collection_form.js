@@ -25,8 +25,8 @@ import {
 import { syncPendingCollections } from "./offline_sync.js";
 import { completeLaunchSplash } from "./app_transition.js";
 import { createOperationFeedback } from "./operation_feedback.js";
-import { setupAppNavigation } from "./app_navigation.js?v=3";
-import { setPrintValue, setupPrintWorksheet } from "./print_worksheet.js";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=4";
+import { setPrintValue, setupPdfWorksheet } from "./print_worksheet.js";
 
 const state = {
   communities: [],
@@ -218,11 +218,17 @@ function setupCollectionHeader() {
     });
   }
 
+  const dashboardHref = signedIn
+    ? state.authApi?.routeForProfile(profile) || "./home.html"
+    : "./login.html?return=home.html";
+  const sidebar = populateAppSidebar(document.getElementById("collectionSidebar"), {
+    profile: signedIn ? profile : null,
+    dashboardHref
+  });
   setupAppNavigation({
     profile: signedIn ? profile : null,
-    dashboardHref: signedIn
-      ? state.authApi?.routeForProfile(profile) || "./home.html"
-      : "./login.html?return=home.html"
+    dashboardHref,
+    sidebar
   });
 }
 
@@ -425,7 +431,7 @@ function cacheElements() {
 }
 
 function bindEvents() {
-  setupPrintWorksheet({
+  setupPdfWorksheet({
     button: els.printCollectionWorksheet,
     worksheet: els.collectionPrintWorksheet,
     rowCount: 12,

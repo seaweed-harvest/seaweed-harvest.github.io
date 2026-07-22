@@ -1,10 +1,11 @@
 import { authClient, currentAggregatorContext, requireAdminAccess } from "./auth_client.js";
 import { selectRows } from "./supabase_client.js";
-import { setPrintValue, setupPrintWorksheet } from "./print_worksheet.js";
+import { setPrintValue, setupPdfWorksheet } from "./print_worksheet.js";
 
 const els = {};
 let submissionId = crypto.randomUUID();
 let defaultSpecies = "spinosum";
+let doseDefaultScope = "default";
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -13,13 +14,13 @@ async function init() {
     "packingRecordForm", "cartonSerial", "packedOn", "packingSpecies",
     "packingAggregator", "packingRecordedBy", "packingWeight", "packingWeightUnit",
     "packingTemperature", "packingSalinity", "packingSalinityUnit", "packingPh",
-    "packingEc", "packingChemical", "packingDose", "packingDoseUnit", "packingNotes",
+    "packingEc", "packingChemical", "packingDose", "packingDoseUnit", "packingDoseDefault", "packingNotes",
     "savePackingRecord", "clearPackingRecord", "printPackingWorksheet", "packingRecordStatus",
     "packingPrintWorksheet", "printPackingAggregator", "printPackingDate",
     "printPackingRecordedBy", "printPackingChemical"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
-  setupPrintWorksheet({
+  setupPdfWorksheet({
     button: els.printPackingWorksheet,
     worksheet: els.packingPrintWorksheet,
     rowCount: 12,
@@ -34,6 +35,11 @@ async function init() {
   els.packingRecordedBy.value = access.profile?.display_name || access.profile?.email || "Signed-in user";
   els.packingRecordForm.addEventListener("submit", submitRecord);
   els.clearPackingRecord.addEventListener("click", clearForm);
+  els.packingRecordForm.addEventListener("input", updateFieldHighlights);
+  els.packingRecordForm.addEventListener("change", updateFieldHighlights);
+  els.packingDoseDefault.addEventListener("change", handleDoseDefaultChange);
+  els.packingDose.addEventListener("input", saveCheckedDoseDefault);
+  els.packingDoseUnit.addEventListener("change", saveCheckedDoseDefault);
 
   try {
     const [context, species] = await Promise.all([
@@ -41,8 +47,11 @@ async function init() {
       selectRows("ag_public_seaweed_type_settings", "select=*&order=display_order.asc")
     ]);
     const active = context.active_aggregator;
+    doseDefaultScope = active?.id || active?.aggregator_id || active?.aggregator_code || "default";
     els.packingAggregator.value = active?.organisation_name || active?.short_name || active?.aggregator_code || "";
     renderSpecies(species);
+    applyDoseDefault();
+    updateFieldHighlights();
     els.cartonSerial.focus();
   } catch (error) {
     setStatus(error.message, "error");
@@ -104,6 +113,49 @@ function clearForm() {
   setStatus("");
 }
 
+function handleDoseDefaultChange() {
+  if (!els.packingDoseDefault.checked) {
+    localStorage.removeItem(doseDefaultKey());
+    setStatus("Default chemical dose cleared.");
+    return;
+  }
+  if (els.packingDose.value === "") {
+    els.packingDoseDefault.checked = false;
+    els.packingDose.focus();
+    setStatus("Enter a chemical dose before setting the default.", "error");
+    return;
+  }
+  saveCheckedDoseDefault();
+  setStatus(`Default dose set to ${els.packingDose.value} ${els.packingDoseUnit.value}.`);
+}
+
+function saveCheckedDoseDefault() {
+  if (!els.packingDoseDefault.checked || els.packingDose.value === "") return;
+  localStorage.setItem(doseDefaultKey(), JSON.stringify({
+    value: els.packingDose.value,
+    unit: els.packingDoseUnit.value
+  }));
+}
+
+function applyDoseDefault() {
+  els.packingDoseDefault.checked = false;
+  try {
+    const saved = JSON.parse(localStorage.getItem(doseDefaultKey()) || "null");
+    if (!saved || saved.value === "" || !Number.isFinite(Number(saved.value))) return;
+    els.packingDose.value = String(saved.value);
+    if ([...els.packingDoseUnit.options].some((option) => option.value === saved.unit)) {
+      els.packingDoseUnit.value = saved.unit;
+    }
+    els.packingDoseDefault.checked = true;
+  } catch {
+    localStorage.removeItem(doseDefaultKey());
+  }
+}
+
+function doseDefaultKey() {
+  return `seaweed-harvest:packing-dose-default:${doseDefaultScope}`;
+}
+
 function preparePackingWorksheet() {
   setPrintValue(els.printPackingAggregator, els.packingAggregator.value);
   setPrintValue(els.printPackingDate, paperDate(els.packedOn.value));
@@ -120,8 +172,21 @@ function resetInputs() {
   els.packingAggregator.value = aggregator;
   els.packingRecordedBy.value = recordedBy;
   els.packingChemical.value = "Sodium benzoate";
+  applyDoseDefault();
+  updateFieldHighlights();
   submissionId = crypto.randomUUID();
   els.cartonSerial.focus();
+}
+
+function updateFieldHighlights() {
+  els.packingRecordForm.querySelectorAll("input, select, textarea").forEach((control) => {
+    const type = String(control.type || "").toLowerCase();
+    const excluded = ["hidden", "checkbox", "radio", "button", "submit", "reset"].includes(type)
+      || control.disabled
+      || control.readOnly;
+    const shouldHighlight = !excluded && (control.required || control.dataset.recommended === "true");
+    control.classList.toggle("empty-value-control", shouldHighlight && String(control.value ?? "").trim() === "");
+  });
 }
 
 function numberOrNull(value) {

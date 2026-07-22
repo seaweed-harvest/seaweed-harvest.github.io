@@ -8,7 +8,7 @@
   <title>Stabilization &amp; Packing - Seaweed Aggregation</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
 </head>
-<body class="admin-console-page packing-record-page" data-auth-pending>
+<body class="admin-console-page packing-record-page form-record-page" data-auth-pending>
   <header class="app-header">
     <div class="app-header-inner">
       <div><p class="eyebrow">Seaweed aggregation</p><h1>Admin</h1></div>
@@ -27,7 +27,15 @@
     </aside>
     <section class="admin-content admin-page-section">
       <section class="panel">
-        <div class="section-head compact"><h2>Stabilization &amp; Packing Record</h2></div>
+        <div class="section-head compact form-panel-toolbar">
+          <h2>Stabilization &amp; Packing Record</h2>
+          <button id="printPackingWorksheet" class="form-pdf-action" type="button" aria-label="Download stabilization and packing worksheet PDF" title="Download stabilization and packing worksheet PDF">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="printer" aria-hidden="true">
+              <path d="M6 9V2h12v7"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect width="12" height="8" x="6" y="14"></rect>
+            </svg>
+            <span>PDF</span>
+          </button>
+        </div>
         <form id="packingRecordForm" class="packing-record-form">
           <fieldset>
             <legend>Record</legend>
@@ -61,19 +69,19 @@
               </span>
             </label>
             <label>Room temperature (°C)
-              <input id="packingTemperature" type="number" min="-10" max="100" step="0.1" inputmode="decimal">
+              <input id="packingTemperature" type="number" min="-10" max="100" step="0.1" inputmode="decimal" data-recommended="true">
             </label>
             <label>Salinity
               <span class="packing-measure-row">
-                <input id="packingSalinity" type="number" min="0" max="100" step="0.01" inputmode="decimal">
+                <input id="packingSalinity" type="number" min="0" max="100" step="0.01" inputmode="decimal" data-recommended="true">
                 <select id="packingSalinityUnit" aria-label="Salinity unit"><option value="PSU">PSU</option><option value="ppt">ppt</option></select>
               </span>
             </label>
             <label>pH
-              <input id="packingPh" type="number" min="0" max="14" step="0.01" inputmode="decimal">
+              <input id="packingPh" type="number" min="0" max="14" step="0.01" inputmode="decimal" data-recommended="true">
             </label>
             <label>Electrical conductivity (mS/cm)
-              <input id="packingEc" type="number" min="0" max="500" step="0.01" inputmode="decimal">
+              <input id="packingEc" type="number" min="0" max="500" step="0.01" inputmode="decimal" data-recommended="true">
             </label>
           </fieldset>
 
@@ -84,9 +92,13 @@
             </label>
             <label>Chemical dose
               <span class="packing-measure-row">
-                <input id="packingDose" type="number" min="0" max="100000" step="0.001" inputmode="decimal">
+                <input id="packingDose" type="number" min="0" max="100000" step="0.001" inputmode="decimal" data-recommended="true">
                 <select id="packingDoseUnit" aria-label="Chemical dose unit"><option value="g/L">g/L</option><option value="mg/L">mg/L</option><option value="%">%</option></select>
               </span>
+            </label>
+            <label class="packing-dose-default-row">
+              <input id="packingDoseDefault" type="checkbox">
+              <span>Set as default</span>
             </label>
             <label>Notes
               <textarea id="packingNotes" rows="3" maxlength="1000"></textarea>
@@ -96,14 +108,13 @@
           <div class="button-row packing-record-actions">
             <button id="savePackingRecord" type="submit">Save packing record</button>
             <button id="clearPackingRecord" type="button">Clear</button>
-            <button id="printPackingWorksheet" type="button">Print / PDF</button>
             <p id="packingRecordStatus" class="admin-status" aria-live="polite"></p>
           </div>
         </form>
       </section>
     </section>
   </main>
-  <section id="packingPrintWorksheet" class="ag-print-document" data-print-title="Stabilization and Packing Worksheet" aria-hidden="true">
+  <section id="packingPrintWorksheet" class="ag-print-document" data-print-title="Stabilization and Packing Worksheet" data-pdf-filename="seaweed-stabilization-packing-worksheet.pdf" aria-hidden="true">
     <article class="ag-print-page">
       <header class="ag-print-header">
         <p>Seaweed Harvest</p>
@@ -116,7 +127,7 @@
         <div><span>Recorded by</span><strong id="printPackingRecordedBy"></strong></div>
         <div><span>Chemical</span><strong id="printPackingChemical">Sodium benzoate</strong></div>
       </div>
-      <table class="ag-print-table ag-print-packing-table">
+      <table class="ag-print-table ag-print-packing-table" data-pdf-widths="3,11,9,7,4,6,7,5,5,8,7,5,23">
         <colgroup>
           <col><col><col><col><col><col><col><col><col><col><col><col><col>
         </colgroup>
@@ -147,6 +158,6 @@
     </article>
   </section>
   <script type="module" src="./assets/js/admin_page.js?v=22"></script>
-  <script type="module" src="./assets/js/stabilization_packing_form.js?v=2"></script>
+  <script type="module" src="./assets/js/stabilization_packing_form.js?v=3"></script>
 </body>
 </html>

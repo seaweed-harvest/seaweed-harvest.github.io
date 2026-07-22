@@ -911,6 +911,42 @@ body.brand-transition-active {
   padding: 16px;
 }
 
+.form-page-content {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.form-page-content > * {
+  margin: 0;
+}
+
+.form-panel-toolbar {
+  min-height: 40px;
+  margin-bottom: 12px;
+}
+
+.form-panel-toolbar h2 {
+  margin: 0;
+}
+
+.form-pdf-action {
+  min-width: 74px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 5px 10px;
+}
+
+.form-pdf-action svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
 .collection-form {
   display: grid;
   gap: 12px;
@@ -4245,7 +4281,7 @@ body[data-registration-pending] .registration-flow {
 
 .packing-record-page .admin-content > .panel {
   min-width: 0;
-  max-width: 760px;
+  max-width: 980px;
   padding: 16px;
 }
 
@@ -4302,10 +4338,39 @@ body[data-registration-pending] .registration-flow {
   color: var(--text-sec);
 }
 
+.packing-record-form .empty-value-control {
+  border-color: #e0bd75;
+  background: #fff8e8;
+}
+
+.packing-record-form .empty-value-control:focus-visible {
+  border-color: var(--accent);
+}
+
 .packing-measure-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 110px;
   gap: 8px;
+}
+
+.packing-record-form .packing-dose-default-row {
+  width: fit-content;
+  min-height: 30px;
+  display: inline-flex;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-sec);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: none;
+}
+
+.packing-record-form .packing-dose-default-row input {
+  width: 14px;
+  height: 14px;
+  min-height: 14px;
+  padding: 0;
 }
 
 .packing-record-actions {

@@ -139,6 +139,19 @@ export function setupAppNavigation(options = {}) {
   return { drawer, menuButton, primary, profileFallback, setDrawerOpen };
 }
 
+export function populateAppSidebar(sidebar, {
+  profile = null,
+  dashboardHref = dashboardRoute(profile),
+  currentFile = window.location.pathname.split("/").pop() || "collection.html"
+} = {}) {
+  if (!sidebar) return null;
+  sidebar.replaceChildren();
+  sidebar.classList.add("admin-sidebar");
+  sidebar.setAttribute("aria-label", "Application menu");
+  appendNavigationLinks(sidebar, profile, dashboardHref, currentFile);
+  return sidebar;
+}
+
 function primaryButton(tag, icon, label) {
   const element = document.createElement(tag);
   element.className = "mobile-primary-button";
@@ -214,6 +227,12 @@ function createNavigationDrawer(profile, dashboardHref, currentFile) {
   const drawer = document.createElement("aside");
   drawer.className = "admin-sidebar app-navigation-drawer-standalone";
   drawer.setAttribute("aria-label", "Application menu");
+  appendNavigationLinks(drawer, profile, dashboardHref, currentFile);
+  document.body.append(drawer);
+  return drawer;
+}
+
+function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
   drawer.append(navigationLink({ label: "Dashboard", href: dashboardHref }, currentFile));
 
   if (hasPermission(profile, "can_view_map")) {
@@ -238,8 +257,6 @@ function createNavigationDrawer(profile, dashboardHref, currentFile) {
     { label: "SMS Settings", href: "./admin_seaweedke.html", permission: "can_manage_sms_settings" }
   ]);
   if (tools.length) drawer.append(drawerGroup("Tools", tools, currentFile));
-  document.body.append(drawer);
-  return drawer;
 }
 
 function drawerGroup(label, links, currentFile, defaultOpen = false) {
