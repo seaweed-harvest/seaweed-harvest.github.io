@@ -17,7 +17,13 @@ import { transitionTo } from "./app_transition.js";
 
 const els = {};
 
-document.addEventListener("DOMContentLoaded", init);
+document.addEventListener("DOMContentLoaded", () => {
+  init().catch((error) => {
+    document.body.removeAttribute("data-auth-pending");
+    showPanel("login");
+    setStatus(error.message || "Sign-in could not be loaded. Refresh and try again.", "error");
+  });
+});
 
 async function init() {
   [
