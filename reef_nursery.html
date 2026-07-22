@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Reef Nursery - Seaweed Harvest</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+  <link rel="stylesheet" href="./assets/css/reef_nursery.css">
+</head>
+<body class="admin-console-page reef-nursery-page form-record-page" data-auth-pending>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div><p class="eyebrow">Seaweed aggregation</p><h1>Admin</h1></div>
+      <div class="header-actions admin-header-controls">
+        <nav class="app-nav" aria-label="Main navigation"><a href="./collection.html">Collection</a><a href="./today.html">Today's Intake</a><a href="./home.html">Home</a></nav>
+      </div>
+    </div>
+  </header>
+  <main class="app-shell admin-shell admin-layout form-record-layout">
+    <aside id="reefNurserySidebar" class="admin-sidebar form-page-sidebar" aria-label="Application menu">
+      <h2>Admin</h2><a href="./home.html">Dashboard</a>
+      <p class="admin-menu-heading">Registry</p><a href="./admin_member_registry.html">Member Registry</a><a href="./admin_community_registry.html">Community Registry</a>
+      <p class="admin-menu-heading">Map</p><a href="./admin_map.html">Community Map</a>
+      <p class="admin-menu-heading">Records</p><a href="./admin_today.html">Today's Intake</a><a href="./admin_ledger.html">Collection Ledger</a>
+      <p class="admin-menu-heading">Tools</p><a href="./tags.html">Tags</a>
+    </aside>
+
+    <section class="admin-content admin-page-section form-page-content">
+      <section class="panel form-record-panel reef-nursery-panel">
+        <div class="section-head compact form-panel-toolbar">
+          <h2>Reef Nursery</h2>
+          <div class="form-panel-actions">
+            <button id="favoriteReefNurseryForm" class="form-favorite-action" type="button" aria-pressed="false" aria-label="Add Reef Nursery to dashboard" title="Add Reef Nursery to dashboard">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" data-lucide="star" aria-hidden="true"><path d="m12 2.8 2.8 5.7 6.3.9-4.6 4.4 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.4 6.3-.9L12 2.8Z"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <form id="reefNurseryForm" class="packing-record-form reef-nursery-form" novalidate>
+          <label class="form-recorder-field">
+            <span>Recorded by</span>
+            <input id="reefRecordedBy" type="text" maxlength="160" autocomplete="name" required>
+          </label>
+
+          <nav id="reefNurseryTabs" class="reef-form-tabs" aria-label="Reef nursery record sections" role="tablist">
+            <button id="reefSessionTab" type="button" role="tab" aria-selected="true" aria-controls="reefSessionPanel" data-reef-tab="session">Session details</button>
+            <button id="reefParticipantsTab" type="button" role="tab" aria-selected="false" aria-controls="reefParticipantsPanel" data-reef-tab="participants">Participants</button>
+            <button id="reefTrainingTab" type="button" role="tab" aria-selected="false" aria-controls="reefTrainingPanel" data-reef-tab="training">Training delivered</button>
+            <button id="reefCompetencyTab" type="button" role="tab" aria-selected="false" aria-controls="reefCompetencyPanel" data-reef-tab="competency">Practical competency assessment</button>
+            <button id="reefSeaweedTab" type="button" role="tab" aria-selected="false" aria-controls="reefSeaweedPanel" data-reef-tab="seaweed">Seaweed Record</button>
+            <button id="reefRaftTab" type="button" role="tab" aria-selected="false" aria-controls="reefRaftPanel" data-reef-tab="raft">Raft Service Details</button>
+          </nav>
+
+          <section id="reefSessionPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefSessionTab" data-reef-panel="session">
+            <fieldset>
+              <legend>Session details</legend>
+              <label>Training date
+                <input id="reefTrainingDate" type="date" required>
+              </label>
+              <label>Location
+                <select id="reefLocation" required>
+                  <option value="">Select location</option>
+                  <option value="mkwiro">Mkwiro</option>
+                  <option value="offshore_nursery">Offshore nursery site</option>
+                  <option value="shoreline_preparation">Shoreline preparation area</option>
+                </select>
+              </label>
+              <div class="reef-two-column-grid">
+                <label>Start time
+                  <input id="reefStartTime" type="time" required>
+                </label>
+                <label>Finish time
+                  <input id="reefFinishTime" type="time" required>
+                </label>
+              </div>
+              <div class="reef-two-column-grid">
+                <label>Trainer's name
+                  <input id="reefTrainerName" type="text" maxlength="160" autocomplete="name" required>
+                </label>
+                <label>Trainer's organisation
+                  <input id="reefTrainerOrganisation" type="text" maxlength="200" required>
+                </label>
+              </div>
+              <label>Supporting staff
+                <input id="reefSupportingStaff" type="text" maxlength="500">
+              </label>
+
+              <div class="reef-session-type-field">
+                <span class="packing-field-label">Type of session</span>
+                <div class="reef-session-type-grid" id="reefSessionTypes">
+                  <label><input type="checkbox" name="reefSessionType" value="seeding"><span>Seeding</span></label>
+                  <label><input type="checkbox" name="reefSessionType" value="nursery_deployment"><span>Nursery deployment</span></label>
+                  <label><input type="checkbox" name="reefSessionType" value="harvesting"><span>Harvesting</span></label>
+                  <label><input type="checkbox" name="reefSessionType" value="line_inspection_maintenance"><span>Line inspection and maintenance</span></label>
+                  <label><input type="checkbox" name="reefSessionType" value="boat_water_safety"><span>Boat and water safety</span></label>
+                  <label><input type="checkbox" name="reefSessionType" value="general_in_water_training"><span>General in-water training</span></label>
+                  <label><input type="checkbox" name="reefSessionType" value="refresher_training"><span>Refresher training</span></label>
+                </div>
+              </div>
+
+              <label>Weather and sea conditions
+                <textarea id="reefConditions" rows="3" maxlength="1000"></textarea>
+              </label>
+              <label>Nursery raft, cage or mooring reference
+                <input id="reefNurseryReference" type="text" maxlength="200">
+              </label>
+            </fieldset>
+          </section>
+
+          <section id="reefParticipantsPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefParticipantsTab" data-reef-panel="participants" hidden>
+            <fieldset>
+              <legend>Participants</legend>
+              <div class="reef-participant-toolbar">
+                <span id="reefParticipantCount" class="status-pill">1 participant</span>
+                <button id="addReefParticipant" class="secondary-action reef-add-row" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+                  <span>Add participant</span>
+                </button>
+              </div>
+              <div class="reef-participant-table-wrap">
+                <table class="reef-participant-table">
+                  <thead><tr><th>Participant name</th><th>Farmer ID / phone</th><th>Gender</th><th><span class="reef-visually-hidden">Actions</span></th></tr></thead>
+                  <tbody id="reefParticipantRows"></tbody>
+                </table>
+              </div>
+            </fieldset>
+          </section>
+
+          <section id="reefTrainingPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefTrainingTab" data-reef-panel="training" hidden>
+            <fieldset class="reef-prepared-section">
+              <legend>Training delivered</legend>
+              <p>Fields to be confirmed.</p>
+            </fieldset>
+          </section>
+
+          <section id="reefCompetencyPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefCompetencyTab" data-reef-panel="competency" hidden>
+            <fieldset class="reef-prepared-section">
+              <legend>Practical competency assessment</legend>
+              <p>Fields to be confirmed.</p>
+            </fieldset>
+          </section>
+
+          <section id="reefSeaweedPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefSeaweedTab" data-reef-panel="seaweed" hidden>
+            <fieldset>
+              <legend>Seaweed Record</legend>
+              <label>Seaweed health
+                <textarea id="reefSeaweedHealth" rows="3" maxlength="500"></textarea>
+              </label>
+              <div class="reef-two-column-grid">
+                <label>Seed weight
+                  <span class="packing-measure-row">
+                    <input id="reefSeedWeight" type="number" min="0" max="100000" step="0.001" inputmode="decimal">
+                    <select id="reefSeedWeightUnit" aria-label="Seed weight unit"><option value="kg">kg</option><option value="g">g</option></select>
+                  </span>
+                </label>
+                <label>Harvest weight
+                  <span class="packing-measure-row">
+                    <input id="reefHarvestWeight" type="number" min="0" max="100000" step="0.001" inputmode="decimal">
+                    <select id="reefHarvestWeightUnit" aria-label="Harvest weight unit"><option value="kg">kg</option><option value="g">g</option></select>
+                  </span>
+                </label>
+              </div>
+              <label>Equipment replaced
+                <textarea id="reefEquipmentReplaced" rows="3" maxlength="1000"></textarea>
+              </label>
+            </fieldset>
+          </section>
+
+          <section id="reefRaftPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefRaftTab" data-reef-panel="raft" hidden>
+            <fieldset class="reef-prepared-section">
+              <legend>Raft Service Details</legend>
+              <p>Fields to be confirmed.</p>
+            </fieldset>
+          </section>
+
+          <div class="button-row reef-form-actions">
+            <button id="saveReefNursery" type="submit">Save Reef Nursery session</button>
+            <button id="clearReefNursery" type="button">Clear</button>
+            <p id="reefNurseryStatus" class="admin-status" aria-live="polite"></p>
+          </div>
+        </form>
+      </section>
+    </section>
+  </main>
+  <script type="module" src="./assets/js/admin_page.js?v=23"></script>
+  <script type="module" src="./assets/js/reef_nursery_form.js?v=1"></script>
+</body>
+</html>

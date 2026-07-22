@@ -19,6 +19,13 @@ export const FAVORITE_FORMS = [
     description: "Record spring tide water measurements",
     href: "./site_water_sample.html",
     permission: "can_submit_collection"
+  },
+  {
+    key: "reef_nursery",
+    label: "Reef Nursery",
+    description: "Record nursery training sessions and participants",
+    href: "./reef_nursery.html",
+    permission: "can_submit_collection"
   }
 ];
 

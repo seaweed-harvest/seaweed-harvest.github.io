@@ -337,7 +337,8 @@ function formLinks() {
   return [
     { label: "Collection Form", href: "./collection.html" },
     { label: "BioStim Stock Record", href: "./stabilization_packing.html" },
-    { label: "Site Water Sample", href: "./site_water_sample.html" }
+    { label: "Site Water Sample", href: "./site_water_sample.html" },
+    { label: "Reef Nursery", href: "./reef_nursery.html" }
   ];
 }
 
