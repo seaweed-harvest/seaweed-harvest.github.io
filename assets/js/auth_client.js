@@ -313,6 +313,18 @@ export async function sendPasswordReset(email) {
   return data;
 }
 
+export async function recordEmailPasswordResetCompletion() {
+  const session = await currentSession();
+  if (!session?.access_token) return { ok: false, recorded: false };
+  const { data, error } = await authClient.functions.invoke("password-reset-link", {
+    body: { action: "complete_email_reset" },
+    headers: { Authorization: `Bearer ${session.access_token}` }
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 export async function requestPasswordHelp(name, contact) {
   const { data, error } = await authClient.functions.invoke("password-help", {
     body: { name, contact }

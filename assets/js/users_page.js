@@ -58,7 +58,7 @@ async function init() {
     "editUserName", "editUserRole", "editUserStatus", "editUserCommunity", "editFarmerIdField", "editFarmerId", "editAggregators", "editPermissions", "editDashboardPreferences",
     "editUserMessage", "deleteUser", "passwordHelpCount", "passwordHelpRows", "passwordHelpStatus",
     "temporaryPasswordDialog", "temporaryPasswordForm", "temporaryPasswordRequestId", "temporaryPasswordAccount", "temporaryPasswordValue", "generateTemporaryPassword", "saveTemporaryPassword", "copyTemporaryPassword", "closeTemporaryPassword", "temporaryPasswordStatus",
-    "passwordResetLinkDialog", "passwordResetLinkAccount", "passwordResetLinkValue", "copyPasswordResetLink", "closePasswordResetLink", "passwordResetLinkStatus",
+    "passwordResetLinkDialog", "passwordResetLinkAccount", "passwordResetLinkInstructions", "passwordResetLinkField", "passwordResetLinkValue", "copyPasswordResetLink", "closePasswordResetLink", "passwordResetLinkStatus",
     "farmerRegistrationCount", "farmerRegistrationRows", "farmerRegistrationStatus",
     "userActivityPanel", "userActivityCount", "userActivityRows"
   ].forEach((id) => { els[id] = document.getElementById(id); });
@@ -283,7 +283,7 @@ function renderUsers() {
       <td class="row-actions">${user.is_protected_owner
         ? '<span class="protected-owner-label" title="This owner account cannot be edited or removed">Protected owner</span>'
         : `<button type="button" data-edit-user="${escapeHtml(user.id)}">Edit</button>`}
-        <button type="button" data-password-reset-link="${escapeHtml(user.id)}"${canCreatePasswordResetLink(user) ? "" : " disabled"}>Reset link</button></td>
+        <button type="button" data-password-reset-link="${escapeHtml(user.id)}"${canCreatePasswordResetLink(user) ? "" : " disabled"}>${user.email ? "Email reset" : "Reset link"}</button></td>
     </tr>
   `).join("") : '<tr><td colspan="10">No users yet.</td></tr>';
 }
@@ -391,15 +391,30 @@ async function createPasswordResetLink(userId) {
   const accountName = user.display_name || user.email || user.phone || "Selected user";
   els.passwordResetLinkAccount.textContent = accountName;
   els.passwordResetLinkValue.value = "";
+  els.passwordResetLinkField.hidden = Boolean(user.email);
+  els.passwordResetLinkInstructions.textContent = user.email
+    ? "Sending a secure password reset to the account email."
+    : "Send this link privately to the user. It expires in one hour and can only be used once.";
   els.copyPasswordResetLink.disabled = true;
-  setStatus(els.passwordResetLinkStatus, "Creating secure link...");
+  setStatus(els.passwordResetLinkStatus, user.email ? "Sending reset email..." : "Creating secure link...");
   els.passwordResetLinkDialog.showModal();
 
   try {
     const result = await invokeAdminUsers({ action: "create_password_reset_link", user_id: userId });
+    if (result.delivery === "email") {
+      els.passwordResetLinkInstructions.textContent = "The user can open the email and choose a new password. The reset expires in one hour.";
+      els.passwordResetLinkField.hidden = true;
+      setStatus(els.passwordResetLinkStatus, `Reset email sent to ${result.recipient}.`);
+      return;
+    }
+
     els.passwordResetLinkValue.value = result.reset_url;
+    els.passwordResetLinkField.hidden = false;
     els.copyPasswordResetLink.disabled = false;
-    setStatus(els.passwordResetLinkStatus, `Ready. This link expires ${formatDate(result.expires_at)}.`);
+    els.passwordResetLinkInstructions.textContent = "Send this link privately to the user. It expires in one hour and can only be used once.";
+    setStatus(els.passwordResetLinkStatus, result.email_fallback
+      ? "Email delivery was unavailable. Copy and send this secure link instead."
+      : `Ready. This link expires ${formatDate(result.expires_at)}.`);
     els.passwordResetLinkValue.focus();
     els.passwordResetLinkValue.select();
   } catch (error) {
@@ -436,6 +451,8 @@ async function copyPasswordResetLink() {
 function closePasswordResetLinkDialog() {
   els.passwordResetLinkDialog.close();
   els.passwordResetLinkValue.value = "";
+  els.passwordResetLinkField.hidden = false;
+  els.passwordResetLinkInstructions.textContent = "Preparing a secure password reset.";
   setStatus(els.passwordResetLinkStatus, "");
 }
 

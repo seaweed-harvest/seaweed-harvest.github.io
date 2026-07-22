@@ -154,11 +154,11 @@
   <dialog id="passwordResetLinkDialog" class="account-reset-dialog">
     <div class="stack-form">
       <div class="section-head compact">
-        <div><h2>Password Reset Link</h2><p id="passwordResetLinkAccount" class="compact-note"></p></div>
+        <div><h2>Password Reset</h2><p id="passwordResetLinkAccount" class="compact-note"></p></div>
         <button id="closePasswordResetLink" type="button" aria-label="Close">Close</button>
       </div>
-      <p class="auth-help-copy">Send this link privately to the user. It expires in one hour and can only be used once.</p>
-      <label>Reset link
+      <p id="passwordResetLinkInstructions" class="auth-help-copy">Preparing a secure password reset.</p>
+      <label id="passwordResetLinkField">Reset link
         <span class="password-reset-link-row"><input id="passwordResetLinkValue" type="text" readonly><button id="copyPasswordResetLink" type="button">Copy link</button></span>
       </label>
       <p id="passwordResetLinkStatus" class="admin-status" aria-live="polite"></p>
@@ -166,7 +166,7 @@
   </dialog>
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
-  <script type="module" src="./assets/js/admin_page.js?v=22"></script>
-  <script type="module" src="./assets/js/users_page.js?v=4"></script>
+  <script type="module" src="./assets/js/admin_page.js?v=23"></script>
+  <script type="module" src="./assets/js/users_page.js?v=5"></script>
 </body>
 </html>

@@ -3,6 +3,7 @@ import {
   currentProfile,
   currentSession,
   enabledSocialProviders,
+  recordEmailPasswordResetCompletion,
   recordLogin,
   requestPasswordHelp,
   routeForProfile,
@@ -12,10 +13,11 @@ import {
   signInWithProvider,
   updateMyDisplayName,
   updatePassword
-} from "./auth_client.js?v=19";
+} from "./auth_client.js?v=21";
 import { transitionTo } from "./app_transition.js";
 
 const els = {};
+let activePasswordMode = "";
 
 document.addEventListener("DOMContentLoaded", () => {
   init().catch((error) => {
@@ -43,7 +45,7 @@ async function init() {
     await recordLogin(mode).catch(() => {});
     await preparePasswordPanel(session, passwordModeTitle(mode), mode === "invite"
       ? "Create your password to finish setting up the account."
-      : "Enter and confirm your new password.");
+      : "Enter and confirm your new password.", mode);
     return;
   }
 
@@ -70,7 +72,7 @@ async function init() {
   authClient.auth.onAuthStateChange((event) => {
     if (event === "PASSWORD_RECOVERY") {
       currentSession().then((activeSession) => {
-        if (activeSession) preparePasswordPanel(activeSession, "Reset Password", "Enter and confirm your new password.");
+        if (activeSession) preparePasswordPanel(activeSession, "Reset Password", "Enter and confirm your new password.", "recovery");
       });
     }
   });
@@ -99,7 +101,8 @@ async function handleLogin(event) {
       await preparePasswordPanel(
         result.session,
         "Change Password",
-        "Temporary password accepted. Confirm your name and choose a new password."
+        "Temporary password accepted. Confirm your name and choose a new password.",
+        "change"
       );
       return;
     }
@@ -125,6 +128,9 @@ async function handlePasswordUpdate(event) {
   try {
     await updateMyDisplayName(displayName);
     await updatePassword(els.newPassword.value, displayName);
+    if (activePasswordMode === "recovery") {
+      await recordEmailPasswordResetCompletion().catch(() => {});
+    }
     setStatus("Password saved.");
     await routeSignedInUser();
   } catch (error) {
@@ -235,7 +241,8 @@ function requiresPasswordChange(value) {
   return Boolean(user?.user_metadata?.must_change_password);
 }
 
-async function preparePasswordPanel(session, title, message) {
+async function preparePasswordPanel(session, title, message, mode = "change") {
+  activePasswordMode = mode;
   showPanel("password");
   els.passwordPanelTitle.textContent = title;
   let profile = null;
