@@ -6,8 +6,7 @@ import { selectRows } from "./supabase_client.js";
 
 const els = {};
 const MEASUREMENT_IDS = [
-  "siteSampleTemperature", "siteSampleSalinity", "siteSamplePh", "siteSampleBrix",
-  "siteSampleTds", "siteSampleEc", "siteSampleEColi"
+  "siteSampleTemperature", "siteSampleSalinity", "siteSampleTds", "siteSampleEc"
 ];
 
 let submissionId = crypto.randomUUID();
@@ -23,9 +22,7 @@ async function init() {
     "siteSampleForm", "siteSampleNumber", "siteSampleNumberHint", "siteSampledAt",
     "siteSampleCommunity", "siteSampleGps", "siteSampleGpsHint", "captureSiteSampleGps",
     "siteSampleRecordedBy", "siteSampleTemperature", "siteSampleSalinity", "siteSampleSalinityUnit",
-    "siteSamplePh", "siteSampleBrix", "siteSampleTds",
-    "siteSampleTdsUnit", "siteSampleEc", "siteSampleEColi", "siteSampleEColiUnit",
-    "siteSampleDose", "siteSampleDoseUnit", "siteSampleAppearance", "saveSiteSample",
+    "siteSampleTds", "siteSampleTdsUnit", "siteSampleEc", "siteSampleNotes", "saveSiteSample",
     "clearSiteSample", "favoriteSiteSampleForm", "printSiteSampleWorksheet", "siteSampleStatus",
     "siteSamplePrintWorksheet", "printSiteSampleCommunity", "printSiteSampleDate",
     "printSiteSampleTide", "printSiteSampleRecordedBy"
@@ -105,7 +102,7 @@ async function submitSiteSample(event) {
   els.saveSiteSample.disabled = true;
   setStatus("Saving...");
   try {
-    const { data, error } = await authClient.rpc("ag_submit_site_water_sample_record_v2", {
+    const { data, error } = await authClient.rpc("ag_submit_site_water_sample_record_v3", {
       p_submission_id: submissionId,
       p_record: {
         auto_sample_number: !sampleNumberWasEdited,
@@ -121,16 +118,11 @@ async function submitSiteSample(event) {
         temperature_c: numberOrNull(els.siteSampleTemperature.value),
         salinity_value: numberOrNull(els.siteSampleSalinity.value),
         salinity_unit: els.siteSampleSalinityUnit.value,
-        ph_value: numberOrNull(els.siteSamplePh.value),
-        brix_value: numberOrNull(els.siteSampleBrix.value),
         tds_value: numberOrNull(els.siteSampleTds.value),
         tds_unit: els.siteSampleTdsUnit.value,
         electrical_conductivity_ms_cm: numberOrNull(els.siteSampleEc.value),
-        e_coli_value: numberOrNull(els.siteSampleEColi.value),
-        e_coli_unit: els.siteSampleEColiUnit.value,
-        chemical_dose_value: numberOrNull(els.siteSampleDose.value),
-        chemical_dose_unit: els.siteSampleDoseUnit.value,
-        appearance_notes: textOrNull(els.siteSampleAppearance.value)
+        e_coli_sample_taken: selectedEColiSampleTaken(),
+        notes: textOrNull(els.siteSampleNotes.value)
       }
     });
     if (error) throw error;
@@ -168,6 +160,10 @@ function setNextSampleNumber() {
 
 function selectedTideStage() {
   return els.siteSampleForm.querySelector('[name="siteSampleTide"]:checked')?.value || "spring_low";
+}
+
+function selectedEColiSampleTaken() {
+  return els.siteSampleForm.querySelector('[name="siteSampleEColiTaken"]:checked')?.value === "yes";
 }
 
 function captureGps() {
