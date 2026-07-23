@@ -358,10 +358,10 @@ function navigationLink(link, currentFile) {
 
 function formLinks(profile) {
   const links = [
-    { label: "Collection Form", href: "./collection.html" },
-    { label: "Process Record", href: "./process_record.html", permission: "can_submit_collection" },
-    { label: "BioStim Stock Record", href: "./stabilization_packing.html", permission: "can_submit_collection" },
-    { label: "Site Water Sample", href: "./site_water_sample.html", permission: "can_submit_collection" }
+    { label: "1. Site Water Samples", href: "./site_water_sample.html", permission: "can_submit_collection" },
+    { label: "2. Intake Collection", href: "./collection.html" },
+    { label: "3. Stock Record", href: "./stabilization_packing.html", permission: "can_submit_collection" },
+    { label: "4. Process Record", href: "./process_record.html", permission: "can_submit_collection" }
   ];
   if (hasPermission(profile, "can_access_reef_nursery")) {
     links.push({ label: "Reef Nursery", href: "./reef_nursery.html" });

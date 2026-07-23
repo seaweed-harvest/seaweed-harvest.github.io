@@ -1,9 +1,23 @@
 export const FAVORITE_FORMS = [
   {
+    key: "site_water_sample",
+    label: "Site Water Samples",
+    description: "Record spring tide water measurements",
+    href: "./site_water_sample.html",
+    permission: "can_submit_collection"
+  },
+  {
     key: "collection",
-    label: "Collection",
+    label: "Intake Collection",
     description: "Record harvested seaweed",
     href: "./collection.html",
+    permission: "can_submit_collection"
+  },
+  {
+    key: "stabilization_packing",
+    label: "Stock Record",
+    description: "Record stabilisation, stock volume, and QC measurements",
+    href: "./stabilization_packing.html",
     permission: "can_submit_collection"
   },
   {
@@ -11,20 +25,6 @@ export const FAVORITE_FORMS = [
     label: "Process Record",
     description: "Record processing weights, output, and production checks",
     href: "./process_record.html",
-    permission: "can_submit_collection"
-  },
-  {
-    key: "stabilization_packing",
-    label: "BioStim Stock Record",
-    description: "Record stabilisation, stock weight, and QC measurements",
-    href: "./stabilization_packing.html",
-    permission: "can_submit_collection"
-  },
-  {
-    key: "site_water_sample",
-    label: "Site Water Sample",
-    description: "Record spring tide water measurements",
-    href: "./site_water_sample.html",
     permission: "can_submit_collection"
   },
   {

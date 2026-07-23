@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v62";
+const CACHE_VERSION = "seaweed-harvest-collection-v63";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
