@@ -5204,7 +5204,6 @@ body[data-registration-pending] .registration-flow {
 .process-record-form fieldset {
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(150px, 1fr));
   gap: 14px;
   margin: 0;
   padding: 18px 1px 2px;
@@ -5219,6 +5218,38 @@ body[data-registration-pending] .registration-flow {
   color: var(--text);
   font-size: 0.95rem;
   font-weight: 700;
+}
+
+.process-session-fields {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.process-measurement-fields {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: start;
+}
+
+.process-species-field,
+.process-measurement-half {
+  grid-column: span 3;
+}
+
+.process-species-field {
+  grid-column: 1 / span 3;
+}
+
+.process-measurement-half-first {
+  grid-column: 1 / span 3;
+}
+
+.process-measurement-third {
+  grid-column: span 2;
+}
+
+.process-field-label {
+  min-height: 1.8em;
+  display: flex;
+  align-items: flex-end;
 }
 
 .process-record-form label {
@@ -5946,9 +5977,17 @@ label input[type="checkbox"] {
 }
 
 @media (max-width: 780px) {
-  .process-record-form fieldset,
+  .process-session-fields,
+  .process-measurement-fields,
   .process-calculation-strip {
     grid-template-columns: 1fr;
+  }
+
+  .process-species-field,
+  .process-measurement-half,
+  .process-measurement-half-first,
+  .process-measurement-third {
+    grid-column: auto;
   }
 
   .packing-record-type-control {
