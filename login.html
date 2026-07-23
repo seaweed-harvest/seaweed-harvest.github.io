@@ -4,7 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0f766e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Seaweed Harvest</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/images/seaweed-harvest-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
   <link rel="preload" as="image" href="./assets/images/seaweed-harvest-logo.svg" type="image/svg+xml">
   <link rel="preload" as="image" href="./assets/images/seaweed-harvest-login-sway.gif">
   <link rel="stylesheet" href="./assets/css/ag.css">
@@ -35,6 +40,7 @@
         <a href="./register.html">Make account</a>
         <button id="showResetPassword" type="button" class="text-button">Reset password</button>
       </div>
+      <a id="offlineCollectionLink" class="button-link auth-offline-collection-link" href="./collection.html" hidden>Continue to offline Collection</a>
     </section>
 
     <section class="panel auth-panel" id="passwordPanel" hidden>
@@ -71,6 +77,6 @@
     <img src="./assets/images/seaweed-harvest-splash.gif" alt="">
   </div>
 
-  <script type="module" src="./assets/js/login_page.js?v=22"></script>
+  <script type="module" src="./assets/js/login_page.js?v=23"></script>
 </body>
 </html>

@@ -11,6 +11,9 @@ const state = {
   total: 0
 };
 const els = {};
+let recordsRoot = document;
+let editHandler = null;
+let initialized = false;
 
 const LOCATION_LABELS = {
   mkwiro: "Mkwiro",
@@ -30,15 +33,28 @@ const SESSION_TYPE_LABELS = {
   refresher_training: "Refresher training"
 };
 
-document.addEventListener("DOMContentLoaded", init);
+document.addEventListener("DOMContentLoaded", () => {
+  if (document.body.classList.contains("reef-nursery-records-page")) {
+    initReefNurseryRecords().catch((error) => setStatus(error.message, "error"));
+  }
+});
 
-async function init() {
+export async function initReefNurseryRecords(options = {}) {
+  if (initialized) return { reload: loadRecords };
+  initialized = true;
+  recordsRoot = options.root || document;
+  editHandler = typeof options.onEdit === "function" ? options.onEdit : null;
   [
     "reefRecordsCount", "reefRecordsSearch", "reefRecordsLoad",
     "reefRecordsSelectionActions", "reefRecordsSelectedCount", "editReefRecord",
     "deleteReefRecords", "reefRecordsStatus", "selectAllReefRecords",
     "reefRecordsRows", "previousReefRecords", "reefRecordsPage", "nextReefRecords"
-  ].forEach((id) => { els[id] = document.getElementById(id); });
+  ].forEach((id) => { els[id] = recordsRoot.querySelector(`#${id}`); });
+
+  if (!els.reefRecordsRows) {
+    initialized = false;
+    return null;
+  }
 
   els.reefRecordsLoad.addEventListener("click", searchRecords);
   els.reefRecordsSearch.addEventListener("keydown", (event) => {
@@ -50,17 +66,18 @@ async function init() {
   els.deleteReefRecords.addEventListener("click", deleteSelectedRecords);
   els.previousReefRecords.addEventListener("click", () => changePage(-1));
   els.nextReefRecords.addEventListener("click", () => changePage(1));
-  document.querySelectorAll("[data-sort]").forEach((button) => {
+  recordsRoot.querySelectorAll("[data-sort]").forEach((button) => {
     button.addEventListener("click", () => changeSort(button.dataset.sort));
   });
 
-  const access = await requireAggregatorAccess(
-    "REEFOLUTION",
-    "can_access_reef_nursery",
-    "reef_nursery_records.html"
-  );
+  const access = options.access || await requireAggregatorAccess(
+      "COSME",
+      "can_access_reef_nursery",
+      "reef_nursery_records.html"
+    );
   if (!access) return;
   await loadRecords();
+  return { reload: loadRecords };
 }
 
 async function loadRecords() {
@@ -140,7 +157,7 @@ function changeSort(sort) {
 }
 
 function updateSortIndicators() {
-  document.querySelectorAll("[data-sort]").forEach((button) => {
+  recordsRoot.querySelectorAll("[data-sort]").forEach((button) => {
     const active = button.dataset.sort === state.sort;
     button.parentElement.setAttribute("aria-sort", active
       ? (state.direction === "asc" ? "ascending" : "descending")
@@ -180,9 +197,13 @@ function updateSelectionActions() {
   els.selectAllReefRecords.indeterminate = selectedVisible > 0 && selectedVisible < visibleIds.length;
 }
 
-function editSelectedRecord() {
+async function editSelectedRecord() {
   if (state.selected.size !== 1) return;
   const [sessionId] = state.selected;
+  if (editHandler) {
+    await editHandler(sessionId);
+    return;
+  }
   window.location.href = `./reef_nursery.html?record=${encodeURIComponent(sessionId)}`;
 }
 

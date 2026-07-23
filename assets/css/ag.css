@@ -971,6 +971,34 @@ body.brand-transition-active {
   padding: 16px;
 }
 
+.offline-access-band {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid rgba(245, 158, 11, 0.42);
+  border-left: 4px solid var(--warn);
+  border-radius: 8px;
+  background: #fff8e8;
+  color: #8a4b08;
+  font-size: 0.8rem;
+}
+
+.offline-access-band[hidden] {
+  display: none;
+}
+
+.offline-access-band strong,
+.offline-access-band span {
+  display: block;
+}
+
+.offline-access-band strong span {
+  display: inline;
+}
+
 .form-page-content {
   width: 100%;
   max-width: 1240px;
@@ -1006,11 +1034,11 @@ body.brand-transition-active {
 }
 
 .form-favorite-action {
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
-  min-height: 36px;
-  padding: 7px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 10px;
   display: inline-grid;
   place-items: center;
   color: #7b8b87;
@@ -1041,19 +1069,31 @@ body.brand-transition-active {
 }
 
 .form-pdf-action {
-  min-width: 74px;
-  min-height: 36px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 5px 10px;
+  gap: 0;
+  padding: 0;
 }
 
 .form-pdf-action svg {
   width: 18px;
   height: 18px;
   flex: 0 0 18px;
+}
+
+.form-pdf-action span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
 }
 
 .collection-form {
@@ -1256,9 +1296,12 @@ input[type="tel"],
 input[type="password"],
 input[type="search"],
 input[type="date"],
+input[type="time"],
 input[type="month"],
 textarea {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #fff;
@@ -3624,6 +3667,37 @@ button:disabled {
   text-transform: none;
 }
 
+.my-aggregator-section {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+  align-items: end;
+  gap: 12px 18px;
+  margin-bottom: 16px;
+  padding: 12px 0 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.my-aggregator-section h2 {
+  margin: 0 0 3px;
+  font-size: 0.92rem;
+}
+
+.my-aggregator-section strong {
+  font-size: 1rem;
+}
+
+.my-aggregator-section > div > span {
+  margin-left: 6px;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.my-aggregator-section .form-status {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 .my-password-section {
   margin-top: 20px;
   padding-top: 16px;
@@ -3862,6 +3936,12 @@ button:disabled {
 .auth-back-button,
 .auth-account-link {
   margin-top: 14px;
+}
+
+.auth-offline-collection-link {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 12px;
 }
 
 .auth-help-divider {
@@ -5877,6 +5957,34 @@ label input[type="checkbox"] {
 }
 
 @media (max-width: 620px) {
+  .form-record-page .app-shell {
+    width: calc(100vw - 32px);
+    max-width: calc(100vw - 32px);
+  }
+
+  .form-record-page .form-page-content {
+    padding: 0;
+  }
+
+  .form-panel-toolbar,
+  .form-panel-toolbar.section-head,
+  .form-panel-toolbar.section-head.compact {
+    align-items: center;
+    flex-direction: row;
+  }
+
+  .form-panel-actions {
+    margin-left: auto;
+  }
+
+  .my-aggregator-section {
+    grid-template-columns: 1fr;
+  }
+
+  .my-aggregator-section .form-status {
+    grid-column: 1;
+  }
+
   .collection-calendar-heading {
     flex-direction: column;
   }

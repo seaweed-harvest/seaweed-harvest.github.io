@@ -414,4 +414,3 @@ function injectStyles() {
   `;
   document.head.append(styles);
 }
-

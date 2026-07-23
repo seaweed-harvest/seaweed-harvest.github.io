@@ -1,8 +1,10 @@
 import {
   authClient,
+  currentAggregatorContext,
   requireAuthenticatedAccount,
   currentProfile,
   routeForProfile,
+  setActiveAggregator,
   setupAccountControls,
   updateMyDetails,
   updatePassword
@@ -12,6 +14,11 @@ import {
   saveDashboardPreferences
 } from "./dashboard_preferences.js";
 import { setupAppNavigation } from "./app_navigation.js?v=7";
+import {
+  listOutboxItems,
+  loadOfflineCollectionAccess,
+  saveOfflineCollectionAccess
+} from "./offline_store.js";
 
 const els = {};
 let profile = null;
@@ -44,7 +51,14 @@ async function init() {
     "myConfirmPassword",
     "saveMyPassword",
     "myPasswordStatus"
+    , "myActiveAggregator", "myAggregatorCode", "myAggregatorSelectorField",
+    "myAggregatorSelector", "myAggregatorStatus"
   ].forEach((id) => { els[id] = document.getElementById(id); });
+
+  if (!navigator.onLine) {
+    await initialiseOfflineProfile();
+    return;
+  }
 
   try {
     const access = await requireAuthenticatedAccount("my_details.html");
@@ -65,6 +79,7 @@ async function init() {
   configureHomeLink();
   populateForm();
   populateDashboardPreferences();
+  await loadAggregatorProfile();
   try {
     await loadReceiptPreferences();
   } catch (error) {
@@ -72,6 +87,38 @@ async function init() {
   }
   els.myDetailsForm.addEventListener("submit", saveDetails);
   els.myPasswordForm.addEventListener("submit", savePassword);
+}
+
+async function initialiseOfflineProfile() {
+  const snapshot = await loadOfflineCollectionAccess().catch(() => null);
+  if (!snapshot) {
+    window.location.replace("./collection.html?online_required=1");
+    return;
+  }
+  profile = {
+    id: snapshot.userId,
+    email: snapshot.email,
+    display_name: snapshot.displayName,
+    account_status: snapshot.accountStatus,
+    can_submit_collection: true,
+    app_role: snapshot.appRole
+  };
+  document.body.removeAttribute("data-auth-pending");
+  setupAppNavigation({ profile, dashboardHref: "./collection.html" });
+  els.myDetailsHomeLink.href = "./collection.html";
+  els.myDetailsHomeLink.textContent = "Collection";
+  populateForm();
+  els.myDetailsForm.querySelectorAll("input, select, textarea, button").forEach((control) => {
+    control.disabled = true;
+  });
+  els.myPasswordForm.querySelectorAll("input, button").forEach((control) => {
+    control.disabled = true;
+  });
+  els.myDashboardPreferences.hidden = true;
+  els.myReceiptPreferences.hidden = true;
+  renderAggregator(snapshot.aggregator, [snapshot.aggregator], snapshot.validatedAt, true);
+  setStatus("Offline profile view. Connect to update account details.");
+  setPasswordStatus("Connect to change your password.");
 }
 
 function configureHomeLink() {
@@ -192,6 +239,87 @@ async function loadReceiptPreferences() {
   els.myReceiptPhone.value = data?.receipt_phone || profile.phone || "";
   els.myReceiptLanguage.value = data?.preferred_language || "en";
   els.myReceiptNotifications.checked = data?.allow_transaction_notifications !== false;
+}
+
+async function loadAggregatorProfile() {
+  const context = await currentAggregatorContext(true);
+  const cached = await loadOfflineCollectionAccess().catch(() => null);
+  renderAggregator(
+    context.active_aggregator,
+    context.aggregators || [],
+    cached?.validatedAt || null,
+    false
+  );
+}
+
+function renderAggregator(active, aggregators, validatedAt, offline) {
+  els.myActiveAggregator.textContent = active?.short_name || active?.organisation_name || "Not assigned";
+  els.myAggregatorCode.textContent = active?.aggregator_code ? ` ${active.aggregator_code}` : "";
+  els.myAggregatorSelectorField.hidden = offline || aggregators.length < 2;
+  els.myAggregatorSelector.replaceChildren();
+  aggregators.forEach((aggregator) => {
+    const option = document.createElement("option");
+    option.value = aggregator.id;
+    option.textContent = aggregator.short_name || aggregator.organisation_name || aggregator.aggregator_code;
+    option.selected = aggregator.id === active?.id;
+    els.myAggregatorSelector.append(option);
+  });
+  const verified = validatedAt
+    ? new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(validatedAt))
+    : "";
+  els.myAggregatorStatus.textContent = offline
+    ? `Offline - last verified ${verified}. Connect to change aggregator.`
+    : (verified ? `Offline Collection access last verified ${verified}.` : "Open Collection online once to enable offline access.");
+  if (!offline) els.myAggregatorSelector.onchange = changeAggregator;
+}
+
+async function changeAggregator() {
+  const aggregatorId = els.myAggregatorSelector.value;
+  if (!navigator.onLine) {
+    setAggregatorStatus("Connect to change aggregator.", "error");
+    return;
+  }
+  const pending = (await listOutboxItems()).filter((item) => item.status !== "synced");
+  if (pending.length && !window.confirm(
+    `${pending.length} local ${pending.length === 1 ? "record is" : "records are"} waiting to sync. `
+    + "They will keep their original aggregator. Change aggregator anyway?"
+  )) {
+    await loadAggregatorProfile();
+    return;
+  }
+  els.myAggregatorSelector.disabled = true;
+  setAggregatorStatus("Changing aggregator...");
+  try {
+    const context = await setActiveAggregator(aggregatorId);
+    profile = await currentProfile(true);
+    const active = context.active_aggregator;
+    if (profile.account_status === "active"
+      && (profile.app_role === "system_admin" || profile.can_submit_collection)
+      && active?.id) {
+      await saveOfflineCollectionAccess({
+        userId: profile.id,
+        email: profile.email,
+        displayName: profile.display_name,
+        accountStatus: profile.account_status,
+        canSubmitCollection: true,
+        canOverridePrice: profile.app_role === "system_admin"
+          || (profile.can_manage_pricing && ["aggregator_admin", "finance"].includes(profile.active_membership_role)),
+        appRole: profile.app_role,
+        activeMembershipRole: profile.active_membership_role,
+        aggregator: active,
+        validatedAt: new Date().toISOString()
+      });
+    }
+    window.location.reload();
+  } catch (error) {
+    setAggregatorStatus(error.message, "error");
+    els.myAggregatorSelector.disabled = false;
+  }
+}
+
+function setAggregatorStatus(message, type = "") {
+  els.myAggregatorStatus.textContent = message || "";
+  els.myAggregatorStatus.dataset.status = type;
 }
 
 function setStatus(message, type = "") {

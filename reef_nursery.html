@@ -39,14 +39,6 @@
         </div>
 
         <form id="reefNurseryForm" class="packing-record-form reef-nursery-form" novalidate>
-          <div class="reef-record-context">
-            <label>
-              <span>Record number</span>
-              <input id="reefRecordNumber" type="text" value="New record" readonly>
-            </label>
-            <a class="reef-previous-records" href="./reef_nursery_records.html">Previous records</a>
-          </div>
-
           <nav id="reefNurseryTabs" class="reef-form-tabs" aria-label="Reef nursery record sections" role="tablist">
             <button id="reefSessionTab" type="button" role="tab" aria-selected="true" aria-controls="reefSessionPanel" data-reef-tab="session">Session details</button>
             <button id="reefParticipantsTab" type="button" role="tab" aria-selected="false" aria-controls="reefParticipantsPanel" data-reef-tab="participants">Participants</button>
@@ -55,11 +47,16 @@
             <button id="reefSeaweedTab" type="button" role="tab" aria-selected="false" aria-controls="reefSeaweedPanel" data-reef-tab="seaweed">Seaweed Record</button>
             <button id="reefPhotosTab" type="button" role="tab" aria-selected="false" aria-controls="reefPhotosPanel" data-reef-tab="photos">Photos</button>
             <button id="reefRaftTab" type="button" role="tab" aria-selected="false" aria-controls="reefRaftPanel" data-reef-tab="raft">Raft Service Details</button>
+            <button id="reefRecordsTab" type="button" role="tab" aria-selected="false" aria-controls="reefRecordsPanel" data-reef-tab="records">Previous records</button>
           </nav>
 
           <section id="reefSessionPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefSessionTab" data-reef-panel="session">
             <fieldset>
               <legend>Session details</legend>
+              <div class="reef-record-meta" aria-label="Record number">
+                <span>Record number</span>
+                <strong id="reefRecordNumber">New record</strong>
+              </div>
               <label>Training date
                 <input id="reefTrainingDate" type="date" required>
               </label>
@@ -206,6 +203,50 @@
             </fieldset>
           </section>
 
+          <section id="reefRecordsPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefRecordsTab" data-reef-panel="records" hidden>
+            <div class="reef-embedded-records">
+              <div class="section-head compact">
+                <div>
+                  <h3>Previous records</h3>
+                  <p id="reefRecordsCount" class="reef-records-count">Loading records...</p>
+                </div>
+                <button id="reefStartNewRecord" type="button">New record</button>
+              </div>
+              <div class="reef-records-toolbar">
+                <label>Search
+                  <input id="reefRecordsSearch" type="search" placeholder="Record, trainer, location or session type" autocomplete="off">
+                </label>
+                <button id="reefRecordsLoad" type="button">Search</button>
+                <div id="reefRecordsSelectionActions" class="reef-records-selection-actions" hidden>
+                  <span id="reefRecordsSelectedCount">0 selected</span>
+                  <button id="editReefRecord" type="button">Open record</button>
+                  <button id="deleteReefRecords" class="danger-action" type="button">Delete selected</button>
+                </div>
+              </div>
+              <p id="reefRecordsStatus" class="admin-status" aria-live="polite"></p>
+              <div class="reef-records-table-wrap">
+                <table class="reef-records-table">
+                  <thead>
+                    <tr>
+                      <th class="reef-select-column"><input id="selectAllReefRecords" type="checkbox" aria-label="Select all records on this page"></th>
+                      <th><button type="button" data-sort="record_number">Record number <span aria-hidden="true"></span></button></th>
+                      <th><button type="button" data-sort="training_date">Date <span aria-hidden="true"></span></button></th>
+                      <th><button type="button" data-sort="trainer_name">Trainer name <span aria-hidden="true"></span></button></th>
+                      <th><button type="button" data-sort="location">Location <span aria-hidden="true"></span></button></th>
+                      <th><button type="button" data-sort="session_types">Type of session <span aria-hidden="true"></span></button></th>
+                    </tr>
+                  </thead>
+                  <tbody id="reefRecordsRows"></tbody>
+                </table>
+              </div>
+              <div class="reef-records-pagination">
+                <button id="previousReefRecords" type="button">Previous</button>
+                <span id="reefRecordsPage">Page 1</span>
+                <button id="nextReefRecords" type="button">Next</button>
+              </div>
+            </div>
+          </section>
+
           <div class="button-row reef-form-actions">
             <button id="saveReefNursery" type="submit">Save Reef Nursery session</button>
             <button id="clearReefNursery" type="button">Clear</button>
@@ -243,6 +284,6 @@
     </form>
   </dialog>
   <script type="module" src="./assets/js/admin_page.js?v=27"></script>
-  <script type="module" src="./assets/js/reef_nursery_form.js?v=6"></script>
+  <script type="module" src="./assets/js/reef_nursery_form.js?v=7"></script>
 </body>
 </html>

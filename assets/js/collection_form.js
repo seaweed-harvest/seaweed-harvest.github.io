@@ -13,12 +13,15 @@ import {
   unitLabel
 } from "./collection_language.js?v=20";
 import {
+  clearOfflineCollectionAccess,
   initialiseOfflineStore,
   listOutboxItems,
+  loadOfflineCollectionAccess,
   loadReferenceSnapshot,
   offlineStorageEstimate,
   offlineStorageSupported,
   requestPersistentOfflineStorage,
+  saveOfflineCollectionAccess,
   saveCollectionToOutbox,
   saveReferenceSnapshot
 } from "./offline_store.js";
@@ -65,7 +68,9 @@ const state = {
     ready: false,
     referenceSavedAt: null,
     serviceWorkerReady: false,
-    syncing: false
+    syncing: false,
+    authenticated: false,
+    accessVerifiedAt: null
   },
   qrScanner: {
     canvas: null,
@@ -83,7 +88,7 @@ const PHOTO_MAX_BYTES = 700 * 1024;
 const PHOTO_TARGET_BYTES = 550 * 1024;
 const PHOTO_MAX_EDGE = 1920;
 const COLLECTOR_NAME_STORAGE_KEY = "seaweed_harvest:collector_name";
-const FORM_REFERENCE_KEY = "mawimbi-collection-form";
+const LEGACY_FORM_REFERENCE_KEY = "mawimbi-collection-form";
 const MAWIMBI_CONTEXT_KEY = "mawimbi-context";
 const FARMER_PHONE_LOOKUP_MIN_DIGITS = 5;
 const FARMER_PHONE_LOOKUP_DELAY_MS = 250;
@@ -103,15 +108,9 @@ async function init() {
       operationFeedback = createOperationFeedback(els.collectionOperationFeedback);
       await initialiseNativeRuntime();
       await initialiseOfflineCollection();
-      try {
-        await initialiseCollectionAccess();
-      } catch (error) {
-        state.session = null;
-        state.profile = null;
-        state.publicMode = true;
-        state.publicContextPromise = loadPublicMawimbiContext();
-      }
+      await initialiseCollectionAccess();
       setupCollectionHeader();
+      renderOfflineAccessState();
       setupFavoriteFormButton({
         button: els.favoriteCollectionForm,
         formKey: "collection",
@@ -147,7 +146,13 @@ async function init() {
 
 async function initialiseCollectionAccess() {
   const storedAuth = localStorage.getItem("seaweed-ag-auth");
-  if (!storedAuth || !isOnline()) {
+  if (!navigator.onLine || !isOnline()) {
+    if (await restoreOfflineCollectionAccess()) return;
+    throw new Error("Internet connection required to verify Collection access on this device.");
+  }
+
+  if (!storedAuth) {
+    await clearCachedCollectionAccess();
     state.session = null;
     state.profile = null;
     state.publicMode = true;
@@ -157,13 +162,17 @@ async function initialiseCollectionAccess() {
   }
 
   state.authApi = await import("./auth_client.js");
-  state.session = await state.authApi.currentSession();
-  if (state.session) {
-    try {
+  try {
+    state.session = await state.authApi.currentSession();
+    if (state.session) {
+      const { error: userError } = await state.authApi.authClient.auth.getUser();
+      if (userError) throw userError;
       state.profile = await state.authApi.currentProfile(true);
-    } catch {
-      state.profile = null;
     }
+  } catch (error) {
+    if (isConnectivityFailure(error) && await restoreOfflineCollectionAccess()) return;
+    await clearCachedCollectionAccess();
+    throw error;
   }
 
   const profile = state.profile;
@@ -175,14 +184,92 @@ async function initialiseCollectionAccess() {
 
   state.publicMode = !canUseAuthenticatedRoute;
   if (canUseAuthenticatedRoute) {
-    state.aggregatorContext = await state.authApi.currentAggregatorContext(true);
+    try {
+      state.aggregatorContext = await state.authApi.currentAggregatorContext(true);
+    } catch (error) {
+      if (isConnectivityFailure(error) && await restoreOfflineCollectionAccess()) return;
+      await clearCachedCollectionAccess();
+      throw error;
+    }
     state.canOverridePrice = profile.app_role === "system_admin"
-      || (profile.can_view_finance && ["platform_admin", "aggregator_admin", "finance"].includes(profile.active_membership_role));
+      || (profile.can_manage_pricing && ["aggregator_admin", "finance"].includes(profile.active_membership_role));
+    if (state.offline.ready) {
+      const snapshot = await saveOfflineCollectionAccess({
+        userId: state.session.user.id,
+        email: state.session.user.email || profile.email,
+        displayName: profile.display_name,
+        accountStatus: profile.account_status,
+        canSubmitCollection: true,
+        canOverridePrice: state.canOverridePrice,
+        appRole: profile.app_role,
+        activeMembershipRole: profile.active_membership_role,
+        aggregator: state.aggregatorContext.active_aggregator,
+        validatedAt: new Date().toISOString()
+      });
+      state.offline.accessVerifiedAt = snapshot.validatedAt;
+    }
     return;
   }
 
+  await clearCachedCollectionAccess();
   state.canOverridePrice = false;
   state.publicContextPromise = loadPublicMawimbiContext();
+}
+
+async function clearCachedCollectionAccess() {
+  if (!state.offline.ready) return;
+  try {
+    await clearOfflineCollectionAccess();
+  } catch (error) {
+    console.warn("Unable to clear cached Collection access.", error);
+  }
+}
+
+function isConnectivityFailure(error) {
+  if (!navigator.onLine || error instanceof TypeError) return true;
+  const message = String(error?.message || error || "").toLowerCase();
+  return /failed to fetch|network(?: error| request)?|load failed|fetch failed|timed out|timeout/.test(message);
+}
+
+async function restoreOfflineCollectionAccess() {
+  if (!state.offline.ready) return false;
+  const snapshot = await loadOfflineCollectionAccess();
+  if (!snapshot) return false;
+  state.authApi = await import("./auth_client.js");
+  state.session = {
+    offline: true,
+    user: { id: snapshot.userId, email: snapshot.email }
+  };
+  state.profile = {
+    id: snapshot.userId,
+    email: snapshot.email,
+    display_name: snapshot.displayName,
+    account_status: snapshot.accountStatus,
+    can_submit_collection: snapshot.canSubmitCollection,
+    app_role: snapshot.appRole,
+    active_membership_role: snapshot.activeMembershipRole
+  };
+  state.aggregatorContext = {
+    active_aggregator_id: snapshot.aggregator.id,
+    active_aggregator: snapshot.aggregator,
+    aggregators: [snapshot.aggregator]
+  };
+  state.publicMode = false;
+  state.canOverridePrice = snapshot.canOverridePrice;
+  state.offline.authenticated = true;
+  state.offline.accessVerifiedAt = snapshot.validatedAt;
+  return true;
+}
+
+function renderOfflineAccessState() {
+  const visible = state.offline.authenticated;
+  els.offlineAccessBand.hidden = !visible;
+  if (!visible) return;
+  els.offlineAccessName.textContent = state.profile?.display_name || state.profile?.email || "collector";
+  els.offlineAccessVerifiedAt.textContent = new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(state.offline.accessVerifiedAt));
 }
 
 async function loadPublicMawimbiContext() {
@@ -360,6 +447,9 @@ function cacheElements() {
     "pendingRecordsBandLabel",
     "pendingRecordsBandText",
     "pendingRecordsBandSync",
+    "offlineAccessBand",
+    "offlineAccessName",
+    "offlineAccessVerifiedAt",
     "collectionConnectionStatus",
     "collectionAdminLink",
     "collectionSignInLink",
@@ -559,7 +649,10 @@ async function loadFormData() {
     formData = { communities, farmers, formSettings, gradePrices, seaweedTypes, productForms, customFields, pricingRules };
     loadedFromNetwork = true;
   } catch (error) {
-    const snapshot = state.offline.ready ? await loadReferenceSnapshot(FORM_REFERENCE_KEY) : null;
+    const snapshot = state.offline.ready
+      ? (await loadReferenceSnapshot(formReferenceKey())
+        || await loadReferenceSnapshot(LEGACY_FORM_REFERENCE_KEY))
+      : null;
     if (!snapshot?.value) {
       setConnectionStatus(t("status.error"), "status-muted");
       setStatus(error.message, "error");
@@ -572,7 +665,7 @@ async function loadFormData() {
 
   if (loadedFromNetwork && state.offline.ready) {
     try {
-      const snapshot = await saveReferenceSnapshot(FORM_REFERENCE_KEY, formData);
+      const snapshot = await saveReferenceSnapshot(formReferenceKey(), formData);
       state.offline.referenceSavedAt = snapshot.savedAt;
     } catch (storageError) {
       state.offline.ready = false;
@@ -655,6 +748,11 @@ async function lookupFarmer() {
   syncManualDetailsFromFarmer(farmer);
   updateQuickReference();
   setFarmerStatus(t("status.linked"), "");
+}
+
+function formReferenceKey() {
+  const aggregatorId = state.aggregatorContext?.active_aggregator_id;
+  return `collection-form:${aggregatorId || "public-mawimbi"}`;
 }
 
 function scheduleFarmerPhoneLookup() {
@@ -1423,6 +1521,9 @@ async function submitCollection(event) {
     await saveCollectionToOutbox({
       submissionId,
       mode: state.publicMode ? "public" : "authenticated",
+      ownerUserId: state.publicMode ? null : state.session?.user?.id || null,
+      aggregatorId: state.aggregatorContext?.active_aggregator_id || null,
+      aggregatorCode: state.aggregatorContext?.active_aggregator?.aggregator_code || null,
       collectorName: String(els.collectorName.value || "").trim(),
       website: els.collectionWebsite.value,
       payload,
@@ -1654,6 +1755,7 @@ async function syncOutbox(options = {}) {
     const result = await syncPendingCollections({
       submissionId: options.submissionId,
       online: isOnline(),
+      currentUserId: state.session?.user?.id || null,
       onProgress: async (_submissionId, progress) => {
         if (options.announce) {
           operationFeedback.update({

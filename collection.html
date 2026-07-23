@@ -69,6 +69,13 @@
       <span id="pendingRecordsBandText">1 record stored locally.</span>
       <button id="pendingRecordsBandSync" type="button" hidden>Sync all local records</button>
     </section>
+    <section id="offlineAccessBand" class="offline-access-band" role="status" aria-live="polite" hidden>
+      <span class="pending-records-icon" aria-hidden="true">!</span>
+      <div>
+        <strong>Offline mode - signed in as <span id="offlineAccessName"></span></strong>
+        <span>Access last verified <span id="offlineAccessVerifiedAt"></span>. Records will remain on this phone until synchronised.</span>
+      </div>
+    </section>
     <section class="panel form-record-panel collection-form-panel">
       <div class="section-head compact form-panel-toolbar">
         <h2 data-i18n="page.title">Collection</h2>

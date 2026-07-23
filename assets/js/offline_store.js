@@ -1,7 +1,11 @@
 const DATABASE_NAME = "seaweed-harvest-offline";
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 const OUTBOX_STORE = "collection-outbox";
 const REFERENCE_STORE = "reference-data";
+const ACCESS_STORE = "offline-access";
+const COLLECTION_ACCESS_KEY = "collection-access";
+const COLLECTION_ACCESS_SCHEMA_VERSION = 1;
+export const OFFLINE_ACCESS_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const SYNCED_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_SYNCED_HISTORY = 1000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -32,6 +36,58 @@ export async function saveReferenceSnapshot(key, value) {
 
 export async function loadReferenceSnapshot(key) {
   return getRecord(REFERENCE_STORE, key);
+}
+
+export async function deleteReferenceSnapshot(key) {
+  return deleteRecord(REFERENCE_STORE, key);
+}
+
+export async function saveOfflineCollectionAccess(snapshot) {
+  const userId = String(snapshot?.userId || "").trim();
+  const aggregatorId = String(snapshot?.aggregator?.id || "").trim();
+  const validatedAt = snapshot?.validatedAt || new Date().toISOString();
+  if (!userId || !aggregatorId || snapshot?.accountStatus !== "active" || snapshot?.canSubmitCollection !== true) {
+    throw new Error("Offline Collection access could not be saved because the verified account details are incomplete.");
+  }
+  const record = {
+    key: COLLECTION_ACCESS_KEY,
+    schemaVersion: COLLECTION_ACCESS_SCHEMA_VERSION,
+    userId,
+    email: String(snapshot.email || "").trim(),
+    displayName: String(snapshot.displayName || snapshot.email || "Collector").trim(),
+    accountStatus: "active",
+    canSubmitCollection: true,
+    canOverridePrice: snapshot.canOverridePrice === true,
+    appRole: String(snapshot.appRole || "").trim(),
+    activeMembershipRole: String(snapshot.activeMembershipRole || "").trim(),
+    aggregator: {
+      id: aggregatorId,
+      aggregator_code: String(snapshot.aggregator.aggregator_code || "").trim(),
+      short_name: String(snapshot.aggregator.short_name || "").trim(),
+      organisation_name: String(snapshot.aggregator.organisation_name || "").trim(),
+      receipt_prefix: String(snapshot.aggregator.receipt_prefix || "").trim(),
+      default_currency: String(snapshot.aggregator.default_currency || "KES").trim()
+    },
+    validatedAt
+  };
+  await putRecord(ACCESS_STORE, record);
+  return record;
+}
+
+export async function loadOfflineCollectionAccess(options = {}) {
+  const maxAgeMs = Number.isFinite(options.maxAgeMs)
+    ? Math.max(0, options.maxAgeMs)
+    : OFFLINE_ACCESS_MAX_AGE_MS;
+  const record = await getRecord(ACCESS_STORE, COLLECTION_ACCESS_KEY);
+  if (!validOfflineCollectionAccess(record, maxAgeMs)) {
+    if (record) await deleteRecord(ACCESS_STORE, COLLECTION_ACCESS_KEY);
+    return null;
+  }
+  return record;
+}
+
+export async function clearOfflineCollectionAccess() {
+  await deleteRecord(ACCESS_STORE, COLLECTION_ACCESS_KEY);
 }
 
 export async function saveCollectionToOutbox(record) {
@@ -222,6 +278,9 @@ function openDatabase() {
       if (!database.objectStoreNames.contains(REFERENCE_STORE)) {
         database.createObjectStore(REFERENCE_STORE, { keyPath: "key" });
       }
+      if (!database.objectStoreNames.contains(ACCESS_STORE)) {
+        database.createObjectStore(ACCESS_STORE, { keyPath: "key" });
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => {
@@ -231,6 +290,22 @@ function openDatabase() {
     request.onblocked = () => reject(new Error("Close other copies of the app and try again."));
   });
   return databasePromise;
+}
+
+function validOfflineCollectionAccess(record, maxAgeMs) {
+  if (!record
+    || record.key !== COLLECTION_ACCESS_KEY
+    || record.schemaVersion !== COLLECTION_ACCESS_SCHEMA_VERSION
+    || !record.userId
+    || record.accountStatus !== "active"
+    || record.canSubmitCollection !== true
+    || !record.aggregator?.id) {
+    return false;
+  }
+  const validatedAt = new Date(record.validatedAt).getTime();
+  return Number.isFinite(validatedAt)
+    && validatedAt <= Date.now() + 5 * 60 * 1000
+    && Date.now() - validatedAt <= maxAgeMs;
 }
 
 async function getRecord(storeName, key, database = null) {

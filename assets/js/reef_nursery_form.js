@@ -1,6 +1,7 @@
 import { APP_CONFIG } from "./config.js";
 import { authClient, requireAggregatorAccess } from "./auth_client.js?v=23";
 import { setupFavoriteFormButton } from "./favorite_forms.js";
+import { initReefNurseryRecords } from "./reef_nursery_records.js?v=3";
 
 const els = {};
 const PHOTO_BUCKET = "reef-nursery-photos";
@@ -28,6 +29,7 @@ let trainingMatrix = [];
 let trainingMatrixEditor = [];
 let submissionId = crypto.randomUUID();
 let editingSessionId = null;
+let recordsController = null;
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -49,7 +51,7 @@ async function init() {
     "reefPhotoStatus", "reefPhotoPreview", "reefDropboxLink", "reefDropboxPending",
     "reefPhotoViewer", "reefPhotoViewerImage", "reefPhotoViewerName",
     "reefClosePhotoViewer", "clearReefNursery", "favoriteReefNurseryForm",
-    "reefNurseryStatus"
+    "reefNurseryStatus", "reefRecordsPanel", "reefStartNewRecord"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
   setupTabs();
@@ -81,17 +83,26 @@ async function init() {
   els.reefPhotoViewer.addEventListener("close", releasePhotoViewerUrl);
   els.reefNurseryForm.addEventListener("submit", submitSession);
   els.clearReefNursery.addEventListener("click", clearForm);
+  els.reefStartNewRecord.addEventListener("click", () => clearForm());
   els.reefNurseryForm.addEventListener("input", updateFieldHighlights);
   els.reefNurseryForm.addEventListener("change", updateFieldHighlights);
 
   const access = await requireAggregatorAccess(
-    "REEFOLUTION",
+    "COSME",
     "can_access_reef_nursery",
     "reef_nursery.html"
   );
   if (!access) return;
   photoState.userId = access.session?.user?.id || null;
   await loadTrainingMatrix();
+  recordsController = await initReefNurseryRecords({
+    root: els.reefRecordsPanel,
+    access,
+    onEdit: async (sessionId) => {
+      history.replaceState({}, "", `./reef_nursery.html?record=${encodeURIComponent(sessionId)}`);
+      await loadRecord(sessionId);
+    }
+  });
 
   setupFavoriteFormButton({
     button: els.favoriteReefNurseryForm,
@@ -109,7 +120,7 @@ async function init() {
 function initializeNewRecord() {
   editingSessionId = null;
   submissionId = crypto.randomUUID();
-  els.reefRecordNumber.value = "New record";
+  els.reefRecordNumber.textContent = "New record";
   els.reefTrainingDate.value = kenyaDate();
   els.reefParticipantRows.replaceChildren();
   addParticipantRow();
@@ -130,7 +141,7 @@ async function loadRecord(sessionId) {
 
   editingSessionId = data.session_id;
   submissionId = data.submission_id;
-  els.reefRecordNumber.value = data.record_number || "Existing record";
+  els.reefRecordNumber.textContent = data.record_number || "Existing record";
   els.reefTrainingDate.value = String(data.training_date || "").slice(0, 10);
   els.reefLocation.value = data.location || "";
   els.reefStartTime.value = String(data.start_time || "").slice(0, 5);
@@ -205,6 +216,7 @@ function setupTabs() {
 }
 
 function showTab(name) {
+  els.reefNurseryForm.classList.toggle("showing-records", name === "records");
   document.querySelectorAll("[data-reef-tab]").forEach((tab) => {
     const active = tab.dataset.reefTab === name;
     tab.setAttribute("aria-selected", String(active));
@@ -213,6 +225,7 @@ function showTab(name) {
   document.querySelectorAll("[data-reef-panel]").forEach((panel) => {
     panel.hidden = panel.dataset.reefPanel !== name;
   });
+  if (name === "records") void recordsController?.reload();
 }
 
 function addParticipantRow({ focus = false, participant = {} } = {}) {
@@ -554,7 +567,7 @@ async function submitSession(event) {
     const participantCount = Number(saved?.participant_count ?? record.participants.length);
     const photoCount = Number(saved?.photo_count ?? uploadedPhotos.length);
     const trainingActivityCount = Number(saved?.training_activity_count ?? 0);
-    const recordNumber = saved?.record_number || els.reefRecordNumber.value;
+    const recordNumber = saved?.record_number || els.reefRecordNumber.textContent;
     const photoSummary = photoCount
       ? ` and ${photoCount} ${photoCount === 1 ? "photo" : "photos"}`
       : "";
@@ -665,12 +678,10 @@ function validationError(message, tab, control) {
 }
 
 function clearForm({ preserveStatus = false } = {}) {
-  if (editingSessionId) {
-    window.location.href = "./reef_nursery.html";
-    return;
-  }
+  editingSessionId = null;
+  history.replaceState({}, "", "./reef_nursery.html");
   els.reefNurseryForm.reset();
-  els.reefRecordNumber.value = "New record";
+  els.reefRecordNumber.textContent = "New record";
   els.reefTrainingDate.value = kenyaDate();
   els.reefParticipantRows.replaceChildren();
   trainingDrafts.clear();
@@ -683,6 +694,9 @@ function clearForm({ preserveStatus = false } = {}) {
   addParticipantRow();
   handleSessionTypesChange();
   submissionId = crypto.randomUUID();
+  els.saveReefNursery.textContent = "Save Reef Nursery session";
+  els.clearReefNursery.textContent = "Clear";
+  document.title = "Reef Nursery - Seaweed Harvest";
   showTab("session");
   els.reefSessionTypes.classList.remove("missing-selection");
   updateFieldHighlights();

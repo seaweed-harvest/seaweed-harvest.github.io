@@ -31,6 +31,27 @@
   font-weight: 700;
 }
 
+.reef-record-meta {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.reef-record-meta span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.reef-record-meta strong {
+  color: var(--text);
+  font-size: 0.84rem;
+}
+
 .reef-photo-card-existing .reef-photo-view span {
   padding-right: 8px;
 }
@@ -232,6 +253,19 @@
 
 .reef-tab-panel[hidden] {
   display: none;
+}
+
+.reef-nursery-form.showing-records .reef-form-actions {
+  display: none;
+}
+
+.reef-embedded-records {
+  min-width: 0;
+  padding: 4px 0 0;
+}
+
+.reef-embedded-records .section-head p {
+  margin: 2px 0 0;
 }
 
 .reef-two-column-grid {
@@ -779,7 +813,48 @@
   }
 
   .reef-form-tabs {
-    margin-inline: -2px;
+    position: sticky;
+    z-index: 2200;
+    top: var(--app-header-height, 58px);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    margin-inline: 0;
+    padding: 5px;
+    overflow: visible;
+    border-color: var(--border);
+    background: rgba(242, 248, 246, 0.98);
+    box-shadow: 0 4px 8px rgba(18, 54, 47, 0.08);
+    backdrop-filter: blur(6px);
+  }
+
+  .reef-form-tabs button {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 5px 6px;
+    border: 1px solid var(--border-soft);
+    background: rgba(255, 255, 255, 0.72);
+    line-height: 1.2;
+    white-space: normal;
+  }
+
+  .reef-form-tabs button[aria-selected="true"] {
+    border-color: rgba(15, 118, 110, 0.42);
+    background: var(--panel);
+  }
+
+  .reef-nursery-panel {
+    padding: 12px;
+  }
+
+  .reef-nursery-form {
+    gap: 10px;
+  }
+
+  .reef-nursery-form fieldset {
+    gap: 9px;
+    padding: 10px;
   }
 
   .reef-participant-table-wrap {
@@ -849,6 +924,11 @@
 
   .reef-photo-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reef-embedded-records .section-head {
+    align-items: flex-start;
+    flex-direction: row;
   }
 
   .reef-matrix-dialog {

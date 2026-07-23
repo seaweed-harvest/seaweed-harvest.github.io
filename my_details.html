@@ -20,6 +20,17 @@
 
   <main class="app-shell my-details-shell">
     <section class="panel my-details-panel">
+      <section class="my-aggregator-section" aria-labelledby="myAggregatorHeading">
+        <div>
+          <h2 id="myAggregatorHeading">Active aggregator</h2>
+          <strong id="myActiveAggregator">Loading...</strong>
+          <span id="myAggregatorCode"></span>
+        </div>
+        <label id="myAggregatorSelectorField" hidden>Change aggregator
+          <select id="myAggregatorSelector"></select>
+        </label>
+        <p id="myAggregatorStatus" class="form-status" aria-live="polite"></p>
+      </section>
       <form id="myDetailsForm" class="my-details-form">
         <label id="myDetailsFarmerIdField" hidden>Farmer ID<input id="myDetailsFarmerId" type="text" readonly></label>
         <label>Name<input id="myDetailsName" type="text" autocomplete="name" minlength="2" maxlength="100" required></label>
@@ -59,6 +70,6 @@
     </section>
   </main>
 
-  <script type="module" src="./assets/js/my_details_page.js?v=19"></script>
+  <script type="module" src="./assets/js/my_details_page.js?v=20"></script>
 </body>
 </html>

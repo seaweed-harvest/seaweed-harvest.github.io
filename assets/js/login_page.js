@@ -15,6 +15,7 @@ import {
   updatePassword
 } from "./auth_client.js?v=22";
 import { transitionTo } from "./app_transition.js";
+import { loadOfflineCollectionAccess } from "./offline_store.js";
 
 const els = {};
 let activePasswordMode = "";
@@ -33,12 +34,24 @@ async function init() {
     "googleSignIn", "facebookSignIn", "showResetPassword", "passwordPanel",
     "passwordPanelTitle", "passwordForm", "accountDisplayName", "newPassword", "confirmPassword",
     "cancelPasswordUpdate", "resetPanel", "resetForm", "assistedResetForm",
-    "resetEmail", "assistedResetName", "assistedResetContact", "cancelResetPassword", "authStatus"
+    "resetEmail", "assistedResetName", "assistedResetContact", "cancelResetPassword", "authStatus",
+    "offlineCollectionLink"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
   bindEvents();
 
   const mode = new URLSearchParams(window.location.search).get("mode");
+  if (!navigator.onLine) {
+    const snapshot = await loadOfflineCollectionAccess().catch(() => null);
+    document.body.removeAttribute("data-auth-pending");
+    showPanel("login");
+    els.offlineCollectionLink.hidden = !snapshot;
+    setStatus(snapshot
+      ? `Offline mode is available for ${snapshot.displayName || snapshot.email || "this collector"}. Sign-in and account changes require an internet connection.`
+      : "Internet connection required for sign-in. Connect once on this device before using authenticated Collection access offline.");
+    return;
+  }
+
   const session = await currentSession();
   if ((mode === "invite" || mode === "recovery" || mode === "change") && session) {
     document.body.removeAttribute("data-auth-pending");
@@ -92,6 +105,10 @@ function bindEvents() {
 
 async function handleLogin(event) {
   event.preventDefault();
+  if (!navigator.onLine) {
+    setStatus("Internet connection required for sign-in.", "error");
+    return;
+  }
   setStatus("Signing in...");
   try {
     const result = await signInWithPassword(els.loginEmail.value.trim(), els.loginPassword.value);
@@ -140,6 +157,10 @@ async function handlePasswordUpdate(event) {
 
 async function handleReset(event) {
   event.preventDefault();
+  if (!navigator.onLine) {
+    setStatus("Internet connection required to send a reset link.", "error");
+    return;
+  }
   setStatus("Sending reset email...");
   try {
     await sendPasswordReset(els.resetEmail.value.trim());
@@ -151,6 +172,10 @@ async function handleReset(event) {
 
 async function handleAssistedReset(event) {
   event.preventDefault();
+  if (!navigator.onLine) {
+    setStatus("Internet connection required to send a password-help request.", "error");
+    return;
+  }
   setStatus("Sending request...");
   try {
     const result = await requestPasswordHelp(
@@ -165,6 +190,10 @@ async function handleAssistedReset(event) {
 }
 
 async function socialSignIn(provider) {
+  if (!navigator.onLine) {
+    setStatus("Internet connection required for social sign-in.", "error");
+    return;
+  }
   setStatus(`Opening ${provider}...`);
   try {
     await signInWithProvider(provider);
@@ -204,6 +233,7 @@ function showPanel(panel) {
   els.loginPanel.hidden = panel !== "login";
   els.passwordPanel.hidden = panel !== "password";
   els.resetPanel.hidden = panel !== "reset";
+  els.offlineCollectionLink.hidden = true;
   setStatus("");
 }
 

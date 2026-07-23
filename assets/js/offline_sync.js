@@ -29,7 +29,7 @@ export async function syncPendingCollections(options = {}) {
 
   for (const item of items) {
     try {
-      const result = await syncOutboxItem(item);
+      const result = await syncOutboxItem(item, options.currentUserId || null);
       syncedCount += 1;
       if (item.submissionId === options.submissionId) requestedResult = result;
     } catch (error) {
@@ -82,7 +82,13 @@ async function pendingResult(result = {}) {
   };
 }
 
-async function syncOutboxItem(savedItem) {
+async function syncOutboxItem(savedItem, currentUserId) {
+  if (savedItem.mode !== "public"
+    && savedItem.ownerUserId
+    && savedItem.ownerUserId !== currentUserId) {
+    throw originalCollectorError();
+  }
+
   let item = await updateOutboxItem(savedItem.submissionId, {
     status: "syncing",
     attempts: Number(savedItem.attempts || 0) + 1,
@@ -113,15 +119,33 @@ async function syncOutboxItem(savedItem) {
     ...item.payload,
     photo_urls: photos.map((photo) => photo.uploadedPath).filter(Boolean)
   };
-  const result = item.mode === "public"
-    ? await submitPublicCollection(payload, item)
-    : await callRpc("ag_submit_collection_v2", {
+  let result;
+  if (item.mode === "public") {
+    result = await submitPublicCollection(payload, item);
+  } else if (item.aggregatorId && item.ownerUserId) {
+    result = await callRpc("ag_submit_collection_for_aggregator_v1", {
+      p_submission_id: item.submissionId,
+      p_collection: payload,
+      p_aggregator_id: item.aggregatorId,
+      p_original_user_id: item.ownerUserId
+    });
+  } else {
+    result = await callRpc("ag_submit_collection_v2", {
       p_submission_id: item.submissionId,
       p_collection: payload
     });
+  }
 
   if (item.farmSizeUpdate && item.mode !== "public") {
-    await callRpc("ag_update_farmer_farm_size_from_collection", item.farmSizeUpdate);
+    if (item.aggregatorId && item.ownerUserId) {
+      await callRpc("ag_update_farmer_farm_size_for_aggregator_v1", {
+        ...item.farmSizeUpdate,
+        p_aggregator_id: item.aggregatorId,
+        p_original_user_id: item.ownerUserId
+      });
+    } else {
+      await callRpc("ag_update_farmer_farm_size_from_collection", item.farmSizeUpdate);
+    }
   }
   await markOutboxSynced(item.submissionId, result);
   return result;
@@ -174,6 +198,13 @@ function responseError(message, status) {
   const error = new Error(message);
   error.httpStatus = Number(status) || null;
   error.serverRejected = error.httpStatus >= 400 && error.httpStatus < 500 && error.httpStatus !== 408 && error.httpStatus !== 429;
+  return error;
+}
+
+function originalCollectorError() {
+  const error = new Error("Sign in as the collector who created this local record before syncing it.");
+  error.httpStatus = 403;
+  error.serverRejected = true;
   return error;
 }
 

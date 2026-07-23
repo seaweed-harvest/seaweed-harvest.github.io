@@ -213,6 +213,7 @@ async function syncAllLocalRecords() {
   try {
     const result = await syncPendingCollections({
       online: state.online,
+      currentUserId: state.profile?.id || null,
       onProgress: async (_submissionId, progress) => {
         operationFeedback.update({
           message: `${progress.processedCount}/${progress.totalCount} records checked.`

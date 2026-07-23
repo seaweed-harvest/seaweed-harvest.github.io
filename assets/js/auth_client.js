@@ -1,5 +1,6 @@
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.2/+esm";
+import { createClient } from "./vendor/supabase-js.esm.js";
 import { APP_CONFIG } from "./config.js";
+import { clearOfflineCollectionAccess } from "./offline_store.js";
 
 export const authClient = createClient(APP_CONFIG.supabase.url, APP_CONFIG.supabase.anonKey, {
   auth: {
@@ -58,6 +59,10 @@ export async function setActiveAggregator(aggregatorId) {
 }
 
 export async function requireAdminAccess(permission = "can_access_admin") {
+  if (!navigator.onLine) {
+    window.location.replace("./collection.html?online_required=1");
+    return null;
+  }
   const session = await currentSession();
   if (!session) {
     window.location.replace(`./login.html?return=${encodeURIComponent(currentPage())}`);
@@ -143,6 +148,10 @@ export async function requireCollectionAccess() {
 }
 
 export async function requireAuthenticatedAccount(returnPage = "my_details.html") {
+  if (!navigator.onLine) {
+    window.location.replace("./collection.html?online_required=1");
+    return null;
+  }
   const session = await currentSession();
   if (!session) {
     window.location.replace(`./login.html?return=${encodeURIComponent(returnPage)}`);
@@ -412,6 +421,7 @@ export async function updateMyDetails(details) {
 }
 
 export async function signOut() {
+  await clearOfflineCollectionAccess();
   const { error } = await authClient.auth.signOut();
   if (error) throw error;
   profilePromise = null;

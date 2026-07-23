@@ -1,7 +1,7 @@
 {
   "name": "Seaweed Harvest Collection",
   "short_name": "Seaweed Harvest",
-  "description": "Offline seaweed collection intake for Mawimbi.",
+  "description": "Offline seaweed collection and field records.",
   "start_url": "./collection.html",
   "scope": "./",
   "display": "standalone",
