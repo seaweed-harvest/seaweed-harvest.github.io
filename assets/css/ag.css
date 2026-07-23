@@ -5242,10 +5242,6 @@ body[data-registration-pending] .registration-flow {
   grid-column: 1 / span 3;
 }
 
-.process-measurement-third {
-  grid-column: span 2;
-}
-
 .process-field-label {
   min-height: 1.8em;
   display: flex;
@@ -5985,8 +5981,7 @@ label input[type="checkbox"] {
 
   .process-species-field,
   .process-measurement-half,
-  .process-measurement-half-first,
-  .process-measurement-third {
+  .process-measurement-half-first {
     grid-column: auto;
   }
 
