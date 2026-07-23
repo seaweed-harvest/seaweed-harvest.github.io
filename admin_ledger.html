@@ -43,15 +43,24 @@
 
     <section class="admin-content">
       <section class="panel admin-page-section">
-        <div class="section-head compact admin-section-title ledger-view-header">
-          <div class="ledger-title-and-tabs">
+        <div class="today-records-heading form-ledger-heading">
+          <div>
             <h2>Collection Ledger</h2>
-            <nav id="ledgerViewTabs" class="ledger-view-tabs" aria-label="Collection ledger views" role="tablist">
-              <button id="ledgerAllTab" type="button" role="tab" aria-controls="ledgerAllView" data-ledger-view="all">All records</button>
-              <button id="ledgerMonthlyTab" type="button" role="tab" aria-controls="ledgerMonthlyView" data-ledger-view="monthly">Monthly records</button>
-              <button id="ledgerCommunityTab" type="button" role="tab" aria-controls="ledgerCommunityView" data-ledger-view="community">Community records</button>
-            </nav>
+            <p class="field-hint">Filtered intake records, newest first.</p>
           </div>
+          <nav class="today-record-tabs form-ledger-category-tabs" aria-label="Record ledger category">
+            <a href="./records.html?category=site_sample">1. Site Water Samples</a>
+            <a href="./admin_ledger.html" aria-current="page">2. Intake Collection</a>
+            <a href="./records.html?category=stock">3. Stock Record</a>
+            <a href="./records.html?category=process">4. Process Record</a>
+          </nav>
+        </div>
+        <div class="form-ledger-view-heading">
+          <nav id="ledgerViewTabs" class="ledger-view-tabs" aria-label="Collection ledger views" role="tablist">
+            <button id="ledgerAllTab" type="button" role="tab" aria-controls="ledgerAllView" data-ledger-view="all">All records</button>
+            <button id="ledgerMonthlyTab" type="button" role="tab" aria-controls="ledgerMonthlyView" data-ledger-view="monthly">Monthly records</button>
+            <button id="ledgerCommunityTab" type="button" role="tab" aria-controls="ledgerCommunityView" data-ledger-view="community">Community records</button>
+          </nav>
           <span id="ledgerCount" class="status-pill">0 rows</span>
         </div>
         <div class="admin-card-body standalone">

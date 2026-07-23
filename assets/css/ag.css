@@ -2994,26 +2994,35 @@ button:disabled {
   background: var(--panel-soft);
 }
 
-.today-record-tabs button {
+.today-record-tabs button,
+.today-record-tabs a {
   min-height: 34px;
+  display: inline-flex;
+  align-items: center;
   padding: 0 12px;
   flex: 0 0 auto;
   border: 0;
   border-radius: 6px;
   background: transparent;
   color: var(--text-sec);
+  font-family: inherit;
   font-size: 0.8rem;
   font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
   white-space: nowrap;
 }
 
 .today-record-tabs button:hover,
-.today-record-tabs button:focus-visible {
+.today-record-tabs button:focus-visible,
+.today-record-tabs a:hover,
+.today-record-tabs a:focus-visible {
   background: rgba(15, 118, 110, 0.08);
   color: var(--accent);
 }
 
-.today-record-tabs button[aria-selected="true"] {
+.today-record-tabs button[aria-selected="true"],
+.today-record-tabs a[aria-current="page"] {
   background: var(--panel);
   color: var(--accent);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
@@ -5514,26 +5523,98 @@ body[data-registration-pending] .registration-flow {
   min-width: 0;
 }
 
-.form-ledger-category-tabs,
 .form-ledger-view-tabs {
   margin: 10px 0 12px;
 }
 
-.form-ledger-category-tabs a {
-  min-height: 38px;
-  display: inline-flex;
+.form-ledger-heading {
+  margin-bottom: 12px;
+}
+
+.form-ledger-heading .field-hint {
+  margin: 4px 0 0;
+}
+
+.form-ledger-view-heading {
+  min-width: 0;
+  display: flex;
   align-items: center;
-  padding: 7px 11px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  color: var(--accent);
-  font-weight: 600;
-  text-decoration: none;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.form-ledger-view-heading .form-ledger-view-tabs {
+  margin: 0;
+}
+
+.form-ledger-view-panel[hidden] {
+  display: none;
 }
 
 .form-ledger-filter-grid {
   grid-template-columns: repeat(2, minmax(150px, 220px)) minmax(220px, 1fr) auto auto;
   align-items: end;
+}
+
+.form-ledger-summary-filter-grid,
+.form-ledger-community-filter-grid {
+  grid-template-columns: repeat(2, minmax(170px, 260px)) auto;
+  align-items: end;
+}
+
+.form-ledger-metric-strip {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  margin: 12px 0 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel);
+}
+
+.form-ledger-metric {
+  min-width: 0;
+  padding: 10px 12px;
+  border-right: 1px solid var(--border-soft);
+}
+
+.form-ledger-metric:last-child {
+  border-right: 0;
+}
+
+.form-ledger-metric span,
+.form-ledger-metric strong {
+  display: block;
+}
+
+.form-ledger-metric span {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.form-ledger-metric strong {
+  margin-top: 3px;
+  color: var(--text);
+  font-size: 1.12rem;
+}
+
+.form-ledger-metric small {
+  color: var(--text-sec);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.form-ledger-summary-table {
+  width: max-content;
+  min-width: 100%;
+}
+
+.form-ledger-summary-table th,
+.form-ledger-summary-table td {
+  white-space: nowrap;
 }
 
 .form-ledger-note {
@@ -5593,6 +5674,14 @@ body[data-registration-pending] .registration-flow {
 
   .form-ledger-filter-grid > label:last-of-type {
     grid-column: 1 / -1;
+  }
+
+  .form-ledger-metric-strip {
+    grid-template-columns: repeat(3, minmax(120px, 1fr));
+  }
+
+  .form-ledger-metric:nth-child(3n) {
+    border-right: 0;
   }
 }
 
@@ -6600,9 +6689,37 @@ label input[type="checkbox"] {
     width: 100%;
   }
 
-  .today-record-tabs button {
+  .today-record-tabs button,
+  .today-record-tabs a {
     min-width: max-content;
     flex: 1 0 auto;
+  }
+
+  .form-ledger-view-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .form-ledger-view-heading .status-pill {
+    align-self: flex-start;
+  }
+
+  .form-ledger-summary-filter-grid,
+  .form-ledger-community-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-ledger-metric-strip {
+    grid-template-columns: repeat(2, minmax(110px, 1fr));
+  }
+
+  .form-ledger-metric,
+  .form-ledger-metric:nth-child(3n) {
+    border-right: 1px solid var(--border-soft);
+  }
+
+  .form-ledger-metric:nth-child(2n) {
+    border-right: 0;
   }
 
   .ledger-view-intro {
