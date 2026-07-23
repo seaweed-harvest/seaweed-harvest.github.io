@@ -13,7 +13,7 @@
     <div class="app-header-inner">
       <div><p class="eyebrow">Seaweed aggregation</p><h1>Admin</h1></div>
       <div class="header-actions admin-header-controls">
-        <nav class="app-nav" aria-label="Main navigation"><a href="./collection.html">Collection</a><a href="./today.html">Today's Intake</a><a href="./home.html">Home</a></nav>
+        <nav class="app-nav" aria-label="Main navigation"><a href="./collection.html">Collection</a><a href="./today.html?records=stock-record">Today's Intake</a><a href="./home.html">Home</a></nav>
       </div>
     </div>
   </header>
@@ -30,6 +30,7 @@
         <div class="section-head compact form-panel-toolbar">
           <h2>BioStim Stock Record</h2>
           <div class="form-panel-actions">
+            <a class="button-link compact-button" href="./today.html?records=stock-record">Today's Intake</a>
             <button id="favoritePackingForm" class="form-favorite-action" type="button" aria-pressed="false" aria-label="Add BioStim Stock Record to dashboard" title="Add BioStim Stock Record to dashboard">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" data-lucide="star" aria-hidden="true"><path d="m12 2.8 2.8 5.7 6.3.9-4.6 4.4 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.4 6.3-.9L12 2.8Z"></path></svg>
             </button>
@@ -41,7 +42,11 @@
             </button>
           </div>
         </div>
-        <form id="packingRecordForm" class="packing-record-form">
+        <div id="packingEntryTabs" class="today-record-tabs packing-entry-tabs" role="tablist" aria-label="Stock entry method">
+          <button id="packingSingleTab" type="button" role="tab" aria-selected="true" aria-controls="packingRecordForm" data-packing-entry-tab="single">Single entry</button>
+          <button id="packingBatchTab" type="button" role="tab" aria-selected="false" aria-controls="packingBatchForm" data-packing-entry-tab="batch">Batch entry</button>
+        </div>
+        <form id="packingRecordForm" class="packing-record-form" role="tabpanel" aria-labelledby="packingSingleTab" data-packing-entry-panel="single">
           <label class="packing-recorder-field form-recorder-field">
             <span>Recorded by</span>
             <input id="packingRecordedBy" type="text" maxlength="160" autocomplete="name">
@@ -108,7 +113,7 @@
                 <input id="packingDose" type="number" min="0.001" max="100000" step="0.001" inputmode="decimal" disabled>
               </label>
               <label class="packing-dose-unit-field">Unit
-                <select id="packingDoseUnit" aria-label="Chemical dose unit" disabled><option value="g/L">g/L</option><option value="mg/L">mg/L</option><option value="%">%</option></select>
+                <select id="packingDoseUnit" aria-label="Chemical dose unit" disabled><option value="g/container">g per container</option></select>
               </label>
               <label class="packing-dose-default-row">
                 <input id="packingDoseDefault" type="checkbox" disabled>
@@ -145,6 +150,70 @@
             <p id="packingRecordStatus" class="admin-status" aria-live="polite"></p>
           </div>
         </form>
+
+        <form id="packingBatchForm" class="packing-record-form packing-batch-form" role="tabpanel" aria-labelledby="packingBatchTab" data-packing-entry-panel="batch" hidden>
+          <label class="packing-recorder-field form-recorder-field">
+            <span>Recorded by</span>
+            <input id="packingBatchRecordedBy" type="text" maxlength="160" autocomplete="name" required>
+          </label>
+
+          <fieldset>
+            <legend>Container range</legend>
+            <label>First container number
+              <input id="packingBatchFirst" type="text" inputmode="numeric" pattern="[0-9]+" maxlength="18" autocomplete="off" required>
+            </label>
+            <label>Last container number
+              <input id="packingBatchLast" type="text" inputmode="numeric" pattern="[0-9]+" maxlength="18" autocomplete="off" required>
+            </label>
+            <label>Date
+              <input id="packingBatchDate" type="date" required>
+            </label>
+            <label>Species
+              <select id="packingBatchSpecies" required>
+                <option value="spinosum">Spinosum</option>
+                <option value="cottonii">Cottonii</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label>Volume per container
+              <span class="packing-measure-row">
+                <input id="packingBatchVolume" type="number" min="0.001" max="100000" step="0.001" inputmode="decimal" required>
+                <select id="packingBatchVolumeUnit" aria-label="Batch volume unit"><option value="L" selected>L</option><option value="mL">mL</option></select>
+              </span>
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Stabilisation</legend>
+            <label class="packing-batch-stabilizer-toggle">
+              <input id="packingBatchStabilizerAdded" type="checkbox">
+              <span>Stabiliser added</span>
+            </label>
+            <div id="packingBatchStabilizerFields" class="packing-stabilizer-fields" aria-disabled="true">
+              <label>Stabiliser per container
+                <input id="packingBatchDose" type="number" min="0" max="100000" step="0.001" inputmode="decimal" disabled>
+              </label>
+              <label>Unit
+                <select id="packingBatchDoseUnit" disabled><option value="g/container">g per container</option></select>
+              </label>
+            </div>
+          </fieldset>
+
+          <label class="packing-notes-field">Notes
+            <textarea id="packingBatchNotes" rows="2" maxlength="1000"></textarea>
+          </label>
+
+          <div class="packing-batch-summary" aria-live="polite">
+            <span>Containers to create</span>
+            <strong id="packingBatchCount">0</strong>
+          </div>
+
+          <div class="button-row packing-record-actions">
+            <button id="savePackingBatch" type="submit">Save batch</button>
+            <button id="clearPackingBatch" type="button">Clear</button>
+            <p id="packingBatchStatus" class="admin-status" aria-live="polite"></p>
+          </div>
+        </form>
       </section>
     </section>
   </main>
@@ -174,7 +243,7 @@
             <th scope="col">pH</th>
             <th scope="col" data-pdf-unit="mS/cm">EC</th>
             <th scope="col">Stabiliser Y/N</th>
-            <th id="printPackingDoseHeader" scope="col" data-pdf-unit="g/L">Dose</th>
+            <th id="printPackingDoseHeader" scope="col" data-pdf-unit="g/container">Dose</th>
             <th scope="col">Recorded by</th>
             <th scope="col">Notes</th>
           </tr>
@@ -189,6 +258,6 @@
     </article>
   </section>
   <script type="module" src="./assets/js/admin_page.js?v=27"></script>
-  <script type="module" src="./assets/js/stabilization_packing_form.js?v=10"></script>
+  <script type="module" src="./assets/js/stabilization_packing_form.js?v=11"></script>
 </body>
 </html>

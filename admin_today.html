@@ -45,12 +45,21 @@
 
     <section class="admin-content">
       <section class="panel admin-page-section">
-        <div class="section-head compact admin-section-title">
-          <h2>Today's Intake</h2>
-          <span id="todayIntakeCount" class="status-pill">0 rows</span>
+        <div class="today-records-heading admin-section-title">
+          <h2>Today's records</h2>
+          <div id="todayRecordTabs" class="today-record-tabs" role="tablist" aria-label="Today's record category">
+            <button id="todayIntakeTab" type="button" role="tab" aria-selected="true" aria-controls="todayIntakePanel" data-today-record-tab="intake">Intake Collection</button>
+            <button id="todayProcessRecordTab" type="button" role="tab" aria-selected="false" aria-controls="todayProcessRecordPanel" data-today-record-tab="process-record">Process Record</button>
+            <button id="todaySiteSampleTab" type="button" role="tab" aria-selected="false" aria-controls="todaySiteSamplePanel" data-today-record-tab="site-sample">Site Sample</button>
+            <button id="todayStockRecordTab" type="button" role="tab" aria-selected="false" aria-controls="todayStockRecordPanel" data-today-record-tab="stock-record">Stock Record</button>
+          </div>
         </div>
 
-        <div class="admin-card-body standalone">
+        <div id="todayIntakePanel" class="admin-card-body standalone today-record-panel" role="tabpanel" aria-labelledby="todayIntakeTab" data-today-record-panel="intake">
+          <div class="section-head compact">
+            <h3>Intake collection</h3>
+            <span id="todayIntakeCount" class="status-pill">0 rows</span>
+          </div>
           <div class="admin-toolbar admin-filter-grid intake-filter-grid">
             <label>
               Intake date
@@ -74,12 +83,12 @@
                 <tr>
                   <th id="todaySelectionHeader" class="selection-cell"><input id="todaySelectAll" type="checkbox" aria-label="Select all intake rows"></th>
                   <th><button type="button" data-today-sort="collected_at">Collected</button></th>
-                  <th><button type="button" data-today-sort="community_id">Community</button></th>
                   <th><button type="button" data-today-sort="farmer_id">Member</button></th>
-                  <th><button type="button" data-today-sort="sack_id">Sack ID</button></th>
                   <th><button type="button" data-today-sort="sack_weight_kg">Weight kg</button></th>
+                  <th><button type="button" data-today-sort="sack_id">Sack ID</button></th>
                   <th><button type="button" data-today-sort="seaweed_type">Type</button></th>
                   <th><button type="button" data-today-sort="seaweed_grade">Grade</button></th>
+                  <th><button type="button" data-today-sort="community_id">Community</button></th>
                   <th><button type="button" data-today-sort="price_per_kg">Price/kg</button></th>
                   <th><button type="button" data-today-sort="total_price">Total KSH</button></th>
                   <th><button type="button" data-today-sort="notes">Notes</button></th>
@@ -91,11 +100,136 @@
             </table>
           </div>
         </div>
+
+        <div id="todayProcessRecordPanel" class="admin-card-body standalone today-record-panel" role="tabpanel" aria-labelledby="todayProcessRecordTab" data-today-record-panel="process-record" hidden>
+          <div class="section-head compact">
+            <h3>Process records</h3>
+            <div class="button-row compact-actions">
+              <span id="todayProcessRecordCount" class="status-pill">0 rows</span>
+              <button id="reloadTodayProcessRecords" type="button">Reload</button>
+            </div>
+          </div>
+          <div id="todayProcessRecordActions" class="today-edit-actions" hidden>
+            <span id="todayProcessRecordSelectedCount" class="status-pill">0 selected</span>
+            <button id="todayProcessRecordStartEdit" type="button">Edit</button>
+            <button id="todayProcessRecordSaveEdits" type="button" hidden disabled>Save</button>
+            <button id="todayProcessRecordDiscardEdits" type="button" hidden>Discard changes</button>
+            <button id="todayProcessRecordDeleteSelected" class="danger-button" type="button">Delete selected</button>
+          </div>
+          <div class="responsive-table-wrap today-category-table-wrap">
+            <table class="management-table admin-data-table today-category-table">
+              <thead>
+                <tr>
+                  <th class="selection-cell"><input id="todayProcessRecordSelectAll" type="checkbox" aria-label="Select all process records"></th>
+                  <th>Time</th>
+                  <th>Record</th>
+                  <th>Species</th>
+                  <th>Received kg</th>
+                  <th>Blended kg</th>
+                  <th>Wet pulp kg</th>
+                  <th>Liquid L</th>
+                  <th>Dry pulp kg</th>
+                  <th>Lost kg</th>
+                  <th>Presses</th>
+                  <th>Recorded by</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="todayProcessRecordRows">
+                <tr><td colspan="13" class="empty-state">Open this tab to load process records.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p id="todayProcessRecordStatus" class="admin-status" aria-live="polite"></p>
+        </div>
+
+        <div id="todaySiteSamplePanel" class="admin-card-body standalone today-record-panel" role="tabpanel" aria-labelledby="todaySiteSampleTab" data-today-record-panel="site-sample" hidden>
+          <div class="section-head compact">
+            <h3>Site samples</h3>
+            <div class="button-row compact-actions">
+              <span id="todaySiteSampleCount" class="status-pill">0 rows</span>
+              <button id="reloadTodaySiteSamples" type="button">Reload</button>
+            </div>
+          </div>
+          <div id="todaySiteSampleActions" class="today-edit-actions" hidden>
+            <span id="todaySiteSampleSelectedCount" class="status-pill">0 selected</span>
+            <button id="todaySiteSampleStartEdit" type="button">Edit</button>
+            <button id="todaySiteSampleSaveEdits" type="button" hidden disabled>Save</button>
+            <button id="todaySiteSampleDiscardEdits" type="button" hidden>Discard changes</button>
+            <button id="todaySiteSampleDeleteSelected" class="danger-button" type="button">Delete selected</button>
+          </div>
+          <div class="responsive-table-wrap today-category-table-wrap">
+            <table class="management-table admin-data-table today-category-table">
+              <thead>
+                <tr>
+                  <th class="selection-cell"><input id="todaySiteSampleSelectAll" type="checkbox" aria-label="Select all site samples"></th>
+                  <th>Time</th>
+                  <th>Site</th>
+                  <th>Tide</th>
+                  <th>Temperature</th>
+                  <th>Salinity</th>
+                  <th>TDS</th>
+                  <th>EC</th>
+                  <th>E. coli sample</th>
+                  <th>Recorded by</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="todaySiteSampleRows">
+                <tr><td colspan="11" class="empty-state">Open this tab to load site samples.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p id="todaySiteSampleStatus" class="admin-status" aria-live="polite"></p>
+        </div>
+
+        <div id="todayStockRecordPanel" class="admin-card-body standalone today-record-panel" role="tabpanel" aria-labelledby="todayStockRecordTab" data-today-record-panel="stock-record" hidden>
+          <div class="section-head compact">
+            <h3>BioStim stock records</h3>
+            <div class="button-row compact-actions">
+              <span id="todayStockRecordCount" class="status-pill">0 rows</span>
+              <button id="reloadTodayStockRecords" type="button">Reload</button>
+            </div>
+          </div>
+          <div id="todayStockRecordActions" class="today-edit-actions" hidden>
+            <span id="todayStockRecordSelectedCount" class="status-pill">0 selected</span>
+            <button id="todayStockRecordStartEdit" type="button">Edit</button>
+            <button id="todayStockRecordSaveEdits" type="button" hidden disabled>Save</button>
+            <button id="todayStockRecordDiscardEdits" type="button" hidden>Discard changes</button>
+            <button id="todayStockRecordDeleteSelected" class="danger-button" type="button">Delete selected</button>
+          </div>
+          <div class="responsive-table-wrap today-category-table-wrap">
+            <table class="management-table admin-data-table today-category-table">
+              <thead>
+                <tr>
+                  <th class="selection-cell"><input id="todayStockRecordSelectAll" type="checkbox" aria-label="Select all stock records"></th>
+                  <th>Time</th>
+                  <th>Carton</th>
+                  <th>Entry</th>
+                  <th>Species</th>
+                  <th>Volume</th>
+                  <th>Stabiliser</th>
+                  <th>Dose g/container</th>
+                  <th>Salinity</th>
+                  <th>pH</th>
+                  <th>EC</th>
+                  <th>Recorded by</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="todayStockRecordRows">
+                <tr><td colspan="13" class="empty-state">Open this tab to load stock records.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p id="todayStockRecordStatus" class="admin-status" aria-live="polite"></p>
+        </div>
       </section>
     </section>
   </main>
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
-  <script type="module" src="./assets/js/admin_page.js?v=28"></script>
+  <script type="module" src="./assets/js/today_record_tabs.js?v=2"></script>
+  <script type="module" src="./assets/js/admin_page.js?v=29"></script>
 </body>
 </html>

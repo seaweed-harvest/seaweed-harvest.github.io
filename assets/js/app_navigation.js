@@ -18,6 +18,16 @@ export function setupAppNavigation(options = {}) {
   primary.className = "mobile-primary-nav";
   primary.setAttribute("aria-label", "Primary navigation");
 
+  const brand = document.createElement("a");
+  brand.className = "mobile-app-brand";
+  brand.href = dashboardHref;
+  brand.setAttribute("aria-label", "Home");
+  brand.title = "Home";
+  const brandImage = document.createElement("img");
+  brandImage.src = "./assets/images/seaweed-harvest-icon-192.png";
+  brandImage.alt = "";
+  brand.append(brandImage);
+
   const menuButton = primaryButton("button", "menu", "Menu");
   menuButton.classList.add("mobile-menu-toggle");
   menuButton.type = "button";
@@ -25,7 +35,7 @@ export function setupAppNavigation(options = {}) {
 
   const formsMenu = quickMenu("clipboard-list", "Forms", forms, currentFile, "forms");
   const recordsMenu = quickMenu("database", "Records", records, currentFile, "records");
-  primary.append(menuButton, formsMenu, recordsMenu);
+  primary.append(brand, menuButton, formsMenu, recordsMenu);
   actions.prepend(primary);
 
   let profileFallback = null;
@@ -263,7 +273,11 @@ function createNavigationDrawer(profile, dashboardHref, currentFile) {
 }
 
 function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
-  drawer.append(navigationLink({ label: "Dashboard", href: dashboardHref }, currentFile));
+  drawer.append(navigationLink({
+    label: "Dashboard",
+    href: dashboardHref,
+    className: "app-nav-desktop-only"
+  }, currentFile));
 
   if (hasPermission(profile, "can_view_map")) {
     drawer.append(navigationLink({ label: "Community Map", href: "./admin_map.html" }, currentFile));
@@ -278,7 +292,11 @@ function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
     { label: "Farmers", href: "./admin_member_registry.html", permission: "can_view_registry" },
     { label: "Admin Users", href: "./admin_users.html", permission: "can_manage_users" }
   ]);
-  if (registry.length) drawer.append(drawerGroup("User Registry", registry, currentFile));
+  if (registry.length) {
+    const group = drawerGroup("User Registry", registry, currentFile);
+    group.classList.add("app-nav-desktop-only");
+    drawer.append(group);
+  }
 
   const tools = permittedLinks(profile, [
     { label: "Tags", href: "./tags.html", permission: "can_access_admin" },
@@ -286,7 +304,11 @@ function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
     { label: "Pricing Matrix", href: "./admin_pricing.html", permission: "can_view_finance" },
     { label: "SMS Settings", href: "./admin_seaweedke.html", permission: "can_manage_sms_settings" }
   ]);
-  if (tools.length) drawer.append(drawerGroup("Tools", tools, currentFile));
+  if (tools.length) {
+    const group = drawerGroup("Tools", tools, currentFile);
+    group.classList.add("app-nav-desktop-only");
+    drawer.append(group);
+  }
 }
 
 function drawerGroup(label, links, currentFile, defaultOpen = false) {
@@ -329,6 +351,7 @@ function navigationLink(link, currentFile) {
   const anchor = document.createElement("a");
   anchor.href = link.href;
   anchor.textContent = link.label;
+  if (link.className) anchor.classList.add(...String(link.className).split(/\s+/).filter(Boolean));
   if (fileFromHref(link.href) === currentFile) anchor.setAttribute("aria-current", "page");
   return anchor;
 }
@@ -336,23 +359,28 @@ function navigationLink(link, currentFile) {
 function formLinks(profile) {
   const links = [
     { label: "Collection Form", href: "./collection.html" },
-    { label: "BioStim Stock Record", href: "./stabilization_packing.html" },
-    { label: "Site Water Sample", href: "./site_water_sample.html" }
+    { label: "Process Record", href: "./process_record.html", permission: "can_submit_collection" },
+    { label: "BioStim Stock Record", href: "./stabilization_packing.html", permission: "can_submit_collection" },
+    { label: "Site Water Sample", href: "./site_water_sample.html", permission: "can_submit_collection" }
   ];
   if (hasPermission(profile, "can_access_reef_nursery")) {
     links.push({ label: "Reef Nursery", href: "./reef_nursery.html" });
   }
-  return links;
+  return links.filter((link) => !link.permission || hasPermission(profile, link.permission));
 }
 
 function recordLinks(profile) {
-  const links = [{ label: "Today's Intake", href: hasPermission(profile, "can_view_data") ? "./admin_today.html" : "./today.html" }];
+  const links = [{
+    label: "Today's Intake",
+    href: hasPermission(profile, "can_view_data") ? "./admin_today.html" : "./today.html"
+  }];
   return links.concat(permittedLinks(profile, [
-    { label: "Reef Nursery Records", href: "./reef_nursery_records.html", permission: "can_access_reef_nursery" },
-    { label: "Collection Ledger", href: "./admin_ledger.html", permission: "can_view_data" },
-    { label: "Finance Review", href: "./admin_finance.html", permission: "can_view_finance" },
-    { label: "Receipts", href: "./admin_receipts.html", permission: "can_view_data" },
-    { label: "Notifications", href: "./admin_notifications.html", permission: "can_view_notifications" }
+    { label: "Record Ledgers", href: "./records.html", permission: "can_view_data", className: "app-nav-desktop-only" },
+    { label: "Reef Nursery Records", href: "./reef_nursery_records.html", permission: "can_access_reef_nursery", className: "app-nav-desktop-only" },
+    { label: "Collection Ledger", href: "./admin_ledger.html", permission: "can_view_data", className: "app-nav-desktop-only" },
+    { label: "Finance Review", href: "./admin_finance.html", permission: "can_view_finance", className: "app-nav-desktop-only" },
+    { label: "Receipts", href: "./admin_receipts.html", permission: "can_view_data", className: "app-nav-desktop-only" },
+    { label: "Notifications", href: "./admin_notifications.html", permission: "can_view_notifications", className: "app-nav-desktop-only" }
   ]));
 }
 

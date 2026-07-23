@@ -57,6 +57,8 @@ const packs = {
       "offline.restoreSkipped": " {count} already existed on this phone.",
       "offline.restoreInvalid": "This is not a valid Seaweed Harvest pending-record backup.",
       "aggregator.label": "Aggregator",
+      "collection.community": "Collection community",
+      "collection.selectCommunity": "Select community",
       "collector.name": "Collector name",
       "farmer.legend": "Farmer",
       "farmer.id": "Farmer ID",
@@ -80,6 +82,7 @@ const packs = {
       "harvest.transactionId": "Transaction ID",
       "harvest.dateTime": "Date / time",
       "harvest.gps": "GPS",
+      "harvest.gpsOptional": "GPS (optional)",
       "harvest.weight": "Weight kg",
       "harvest.seaweedType": "Seaweed type (common name)",
       "harvest.grade": "Grade",
@@ -257,6 +260,8 @@ const packs = {
       "offline.restoreSkipped": " Rekodi {count} tayari zilikuwa kwenye simu hii.",
       "offline.restoreInvalid": "Hii si nakala sahihi ya rekodi za Seaweed Harvest.",
       "aggregator.label": "Mnunuzi",
+      "collection.community": "Kikundi cha mapokezi",
+      "collection.selectCommunity": "Chagua kikundi",
       "collector.name": "Jina la mpokeaji",
       "farmer.legend": "Mkulima",
       "farmer.id": "Namba ya mkulima",
@@ -280,6 +285,7 @@ const packs = {
       "harvest.transactionId": "Namba ya rekodi",
       "harvest.dateTime": "Tarehe / saa",
       "harvest.gps": "GPS",
+      "harvest.gpsOptional": "GPS (si lazima)",
       "harvest.weight": "Uzito (kg)",
       "harvest.seaweedType": "Aina ya mwani (jina la kawaida)",
       "harvest.grade": "Daraja",
@@ -436,6 +442,7 @@ export function t(key, replacements = {}) {
 
 export function configuredFieldLabel(fieldKey, configuredLabel) {
   if (fieldKey === "sack_id") return t("harvest.sackIdOptional");
+  if (fieldKey === "gps") return t("harvest.gpsOptional");
   if (currentLanguage === "en") return configuredLabel;
   const key = {
     farmer_id: "farmer.id",

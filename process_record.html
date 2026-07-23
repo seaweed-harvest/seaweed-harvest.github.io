@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Process Record - Seaweed Harvest</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+</head>
+<body class="admin-console-page form-record-page process-record-page" data-auth-pending>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div><p class="eyebrow">Seaweed aggregation</p><h1>Process Record</h1></div>
+      <div class="header-actions admin-header-controls">
+        <nav class="app-nav" aria-label="Main navigation">
+          <a href="./collection.html">Collection</a>
+          <a href="./today.html?records=process-record">Today's Intake</a>
+          <a href="./home.html">Home</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell admin-shell admin-layout form-record-layout">
+    <aside id="processRecordSidebar" class="admin-sidebar form-page-sidebar" aria-label="Application menu"></aside>
+    <section class="admin-content admin-page-section form-page-content">
+      <section class="panel form-record-panel process-record-panel">
+        <div class="section-head compact form-panel-toolbar">
+          <div>
+            <h2>Process Record</h2>
+            <span id="processRecordNumber" class="field-hint">Record number assigned on save</span>
+          </div>
+          <div class="form-panel-actions">
+            <a class="button-link compact-button" href="./today.html?records=process-record">Today's Intake</a>
+            <button id="favoriteProcessForm" class="form-favorite-action" type="button" aria-pressed="false" aria-label="Add Process Record to dashboard" title="Add Process Record to dashboard">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" data-lucide="star" aria-hidden="true"><path d="m12 2.8 2.8 5.7 6.3.9-4.6 4.4 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.4 6.3-.9L12 2.8Z"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <form id="processRecordForm" class="process-record-form">
+          <label class="form-recorder-field">
+            <span>Recorded by</span>
+            <input id="processRecordedBy" type="text" maxlength="160" autocomplete="name" required>
+          </label>
+
+          <fieldset class="process-session-fields">
+            <legend>Processing session</legend>
+            <label>Date
+              <input id="processDate" type="date" required>
+            </label>
+            <label>Processing start time
+              <input id="processStartTime" type="time" required>
+            </label>
+            <label>Processing end time
+              <input id="processEndTime" type="time" required>
+            </label>
+            <label>Seaweed species
+              <select id="processSpecies" required>
+                <option value="spinosum">Spinosum</option>
+                <option value="cottonii">Cottonii</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+          </fieldset>
+
+          <fieldset class="process-measurement-fields">
+            <legend>Measured values</legend>
+            <label>Received seaweed total weight
+              <span class="packing-measure-row">
+                <input id="processReceivedKg" type="number" min="0" max="1000000" step="0.001" inputmode="decimal" aria-describedby="processReceivedHint">
+                <span class="input-unit">kg</span>
+              </span>
+              <span class="process-suggestion-line">
+                <small id="processReceivedHint" class="packing-field-hint">No collection total available for this date.</small>
+                <button id="useDailyCollectionTotal" class="text-action" type="button" hidden>Use daily total</button>
+              </span>
+            </label>
+            <label>Blended seaweed weight
+              <span class="packing-measure-row">
+                <input id="processBlendedKg" type="number" min="0" max="1000000" step="0.001" inputmode="decimal">
+                <span class="input-unit">kg</span>
+              </span>
+            </label>
+            <label>Wet pulp weight
+              <span class="packing-measure-row">
+                <input id="processWetPulpKg" type="number" min="0" max="1000000" step="0.001" inputmode="decimal">
+                <span class="input-unit">kg</span>
+              </span>
+            </label>
+            <label>Pressed liquid volume
+              <span class="packing-measure-row">
+                <input id="processPressedLiquidL" type="number" min="0" max="1000000" step="0.001" inputmode="decimal">
+                <span class="input-unit">L</span>
+              </span>
+            </label>
+            <label>Dry pulp weight
+              <span class="packing-measure-row">
+                <input id="processDryPulpKg" type="number" min="0" max="1000000" step="0.001" inputmode="decimal">
+                <span class="input-unit">kg</span>
+              </span>
+            </label>
+            <label>Lost seaweed weight
+              <span class="packing-measure-row">
+                <input id="processLostSeaweedKg" type="number" min="0" max="1000000" step="0.001" inputmode="decimal">
+                <span class="input-unit">kg</span>
+              </span>
+            </label>
+            <label>Number of presses
+              <input id="processPressCount" type="number" min="1" max="100000" step="1" inputmode="numeric">
+            </label>
+          </fieldset>
+
+          <section class="process-calculation-strip" aria-label="Calculated cross-checks">
+            <div title="Wet pulp weight divided by number of presses"><span>Average press batch</span><strong id="processAveragePress">-</strong></div>
+            <div title="Dry pulp weight divided by wet pulp weight"><span>Wet/dry extraction</span><strong id="processWetDryRatio">-</strong></div>
+            <div title="Dry pulp weight divided by received seaweed total weight"><span>Stock/product ratio</span><strong id="processStockProductRatio">-</strong></div>
+          </section>
+
+          <fieldset class="process-photo-field">
+            <legend>Sample photo</legend>
+            <input id="processPhoto" type="file" accept="image/*" capture="environment" aria-describedby="processPhotoHint">
+            <span id="processPhotoHint" class="packing-field-hint">One photo, compressed before upload.</span>
+            <figure id="processPhotoPreview" class="process-photo-preview" hidden>
+              <img id="processPhotoImage" alt="Selected process sample">
+              <figcaption><span id="processPhotoName"></span><button id="deleteProcessPhoto" type="button" class="danger-text-action">Delete photo</button></figcaption>
+            </figure>
+          </fieldset>
+
+          <label class="process-notes-field">Notes
+            <textarea id="processNotes" rows="2" maxlength="1000"></textarea>
+          </label>
+
+          <div class="button-row process-record-actions">
+            <button id="saveProcessRecord" type="submit">Save process record</button>
+            <button id="clearProcessRecord" type="button">Clear</button>
+            <p id="processRecordStatus" class="admin-status" aria-live="polite"></p>
+          </div>
+        </form>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="./assets/js/admin_page.js?v=30"></script>
+  <script type="module" src="./assets/js/process_record_form.js?v=2"></script>
+</body>
+</html>

@@ -10,8 +10,6 @@ const MEASUREMENT_IDS = [
 ];
 
 let submissionId = crypto.randomUUID();
-let nextSampleNumber = "1";
-let sampleNumberWasEdited = false;
 let gpsAccuracyMeters = null;
 let communities = [];
 
@@ -19,7 +17,7 @@ document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   [
-    "siteSampleForm", "siteSampleNumber", "siteSampleNumberHint", "siteSampledAt",
+    "siteSampleForm", "siteSampledAt",
     "siteSampleCommunity", "siteSampleGps", "siteSampleGpsHint", "captureSiteSampleGps",
     "siteSampleRecordedBy", "siteSampleTemperature", "siteSampleSalinity", "siteSampleSalinityUnit",
     "siteSampleTds", "siteSampleTdsUnit", "siteSampleEc", "siteSampleNotes", "saveSiteSample",
@@ -32,7 +30,7 @@ async function init() {
     button: els.printSiteSampleWorksheet,
     worksheet: els.siteSamplePrintWorksheet,
     rowCount: 10,
-    columnCount: 13,
+    columnCount: 10,
     prepare: prepareSiteSampleWorksheet
   });
 
@@ -55,20 +53,17 @@ async function init() {
   els.siteSampleForm.addEventListener("submit", submitSiteSample);
   els.clearSiteSample.addEventListener("click", clearForm);
   els.captureSiteSampleGps.addEventListener("click", captureGps);
-  els.siteSampleNumber.addEventListener("input", () => { sampleNumberWasEdited = true; });
   els.siteSampleGps.addEventListener("input", () => { gpsAccuracyMeters = null; });
   els.siteSampleForm.addEventListener("input", updateFieldHighlights);
   els.siteSampleForm.addEventListener("change", updateFieldHighlights);
 
   try {
-    const [communityRows, formContextResult] = await Promise.all([
-      selectRows(APP_CONFIG.tables.communities, "select=id,community_id,community_name&order=community_name.asc"),
-      authClient.rpc("ag_site_water_sample_form_context")
-    ]);
-    if (formContextResult.error) throw formContextResult.error;
+    const communityRows = await selectRows(
+      APP_CONFIG.tables.communities,
+      "select=id,community_id,community_name&order=community_name.asc"
+    );
     communities = communityRows;
     renderCommunities(communityRows);
-    applyFormContext(formContextResult.data);
     updateFieldHighlights();
     els.siteSampleCommunity.focus();
   } catch (error) {
@@ -106,8 +101,7 @@ async function submitSiteSample(event) {
     const { data, error } = await authClient.rpc("ag_submit_site_water_sample_record_v4", {
       p_submission_id: submissionId,
       p_record: {
-        auto_sample_number: !sampleNumberWasEdited,
-        sample_number: Number(els.siteSampleNumber.value),
+        auto_sample_number: true,
         tide_stage: selectedTideStage(),
         sampled_at: new Date(els.siteSampledAt.value).toISOString(),
         community_record_id: community.id,
@@ -127,10 +121,8 @@ async function submitSiteSample(event) {
       }
     });
     if (error) throw error;
-    const saved = Array.isArray(data) ? data[0] : data;
-    const sampleNumber = String(saved?.sample_number || els.siteSampleNumber.value);
-    resetInputs(String(saved?.next_sample_number || nextNumberAfter(sampleNumber)));
-    setStatus(`Sample ${sampleNumber} saved. Next sample ${nextSampleNumber} is ready.`);
+    resetInputs();
+    setStatus("Site sample saved.");
   } catch (error) {
     setStatus(error.message, "error");
   } finally {
@@ -145,18 +137,6 @@ function renderCommunities(rows) {
     els.siteSampleCommunity.append(new Option(`${row.community_id} - ${row.community_name}`, row.id));
   });
   if (rows.some((row) => row.id === current)) els.siteSampleCommunity.value = current;
-}
-
-function applyFormContext(value) {
-  const context = Array.isArray(value) ? value[0] : value;
-  nextSampleNumber = String(context?.next_sample_number || "1");
-  setNextSampleNumber();
-}
-
-function setNextSampleNumber() {
-  els.siteSampleNumber.value = nextSampleNumber;
-  sampleNumberWasEdited = false;
-  els.siteSampleNumberHint.textContent = "Next sample number. You can type over it.";
 }
 
 function selectedTideStage() {
@@ -216,10 +196,9 @@ function clearForm() {
   setStatus("");
 }
 
-function resetInputs(nextNumber = nextSampleNumber) {
+function resetInputs() {
   const recordedBy = els.siteSampleRecordedBy.value;
   const community = els.siteSampleCommunity.value;
-  nextSampleNumber = String(nextNumber || nextSampleNumber || "1");
   els.siteSampleForm.reset();
   els.siteSampleRecordedBy.value = recordedBy;
   els.siteSampleCommunity.value = community;
@@ -227,9 +206,8 @@ function resetInputs(nextNumber = nextSampleNumber) {
   els.siteSampleGpsHint.textContent = "Optional latitude, longitude";
   gpsAccuracyMeters = null;
   submissionId = crypto.randomUUID();
-  setNextSampleNumber();
   updateFieldHighlights();
-  els.siteSampleNumber.focus();
+  els.siteSampledAt.focus();
 }
 
 function prepareSiteSampleWorksheet() {
@@ -258,10 +236,6 @@ function numberOrNull(value) {
 
 function textOrNull(value) {
   return String(value || "").trim() || null;
-}
-
-function nextNumberAfter(value) {
-  return (BigInt(String(value || "0")) + 1n).toString();
 }
 
 function kenyaDateTime() {

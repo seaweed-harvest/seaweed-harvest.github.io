@@ -493,6 +493,8 @@ function requiredPermissionForPage() {
     "admin_monthly.html": "can_view_data",
     "admin_community.html": "can_view_data",
     "admin_ledger.html": "can_view_data",
+    "records.html": "can_view_data",
+    "process_record.html": "can_submit_collection",
     "stabilization_packing.html": "can_submit_collection",
     "site_water_sample.html": "can_submit_collection",
     "reef_nursery.html": "can_access_reef_nursery",
@@ -1983,12 +1985,12 @@ function renderTodayIntake() {
       <tr data-today-row="${escapeAttribute(id)}" class="${rowClasses}">
         <td class="selection-cell"${canEdit ? "" : " hidden"}><input type="checkbox" data-today-id="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(row.transaction_id || "intake row")}"${checked}${editing ? " disabled" : ""}></td>
         <td>${escapeHtml(formatDateTime(row.collected_at))}</td>
-        <td>${isEditing ? todaySelectControl(id, "community_id", draft.community_id, todayCommunityOptions(row)) : inlineCell([row.community_id, row.community_name_snapshot])}</td>
         <td>${isEditing ? todaySelectControl(id, "farmer_id", draft.farmer_id, todayMemberOptions(row)) : inlineCell([row.farmer_id, row.farmer_name_snapshot])}</td>
-        <td>${isEditing ? todayTextControl(id, "sack_id", draft.sack_id, "today-sack-editor", 80) : escapeHtml(row.sack_id || "-")}</td>
         <td>${isEditing ? todayNumberControl(id, "sack_weight_kg", draft.sack_weight_kg, "today-number-editor", 0.01, 0.01) : escapeHtml(formatKg(row.sack_weight_kg))}</td>
+        <td>${isEditing ? todayTextControl(id, "sack_id", draft.sack_id, "today-sack-editor", 80) : escapeHtml(row.sack_id || "-")}</td>
         <td>${isEditing ? todaySelectControl(id, "seaweed_type", draft.seaweed_type, todaySeaweedTypeOptions(row)) : escapeHtml(formatSeaweedType(row.seaweed_type))}</td>
         <td>${isEditing ? todaySelectControl(id, "grade_code", draft.grade_code, todayGradeOptions(row)) : escapeHtml(row.seaweed_grade || "-")}</td>
+        <td>${isEditing ? todaySelectControl(id, "community_id", draft.community_id, todayCommunityOptions(row)) : inlineCell([row.community_id, row.community_name_snapshot])}</td>
         <td>${isEditing ? todayNumberControl(id, "price_per_kg", draft.price_per_kg, "today-number-editor", 0.01, 0) : escapeHtml(formatMoney(row.price_per_kg))}</td>
         <td data-today-total="${escapeAttribute(id)}">${escapeHtml(formatMoney(isEditing ? todayDraftTotal(draft, row.total_price) : row.total_price))}</td>
         <td>${isEditing ? todayTextControl(id, "notes", draft.notes, "today-notes-editor", 1000) : escapeHtml(row.notes || "-")}</td>

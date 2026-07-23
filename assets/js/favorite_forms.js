@@ -7,6 +7,13 @@ export const FAVORITE_FORMS = [
     permission: "can_submit_collection"
   },
   {
+    key: "process_record",
+    label: "Process Record",
+    description: "Record processing weights, output, and production checks",
+    href: "./process_record.html",
+    permission: "can_submit_collection"
+  },
+  {
     key: "stabilization_packing",
     label: "BioStim Stock Record",
     description: "Record stabilisation, stock weight, and QC measurements",

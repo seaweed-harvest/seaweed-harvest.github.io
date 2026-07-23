@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v51";
+const CACHE_VERSION = "seaweed-harvest-collection-v59";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -6,10 +6,12 @@ const APP_SHELL = [
   "./login.html",
   "./collection.html",
   "./my_details.html",
+  "./process_record.html",
   "./stabilization_packing.html",
   "./site_water_sample.html",
   "./reef_nursery.html",
   "./reef_nursery_records.html",
+  "./records.html",
   "./today.html",
   "./reset_password.html",
   "./privacy.html",
@@ -29,10 +31,13 @@ const APP_SHELL = [
   "./assets/js/collection_form.js",
   "./assets/js/my_details_page.js",
   "./assets/js/dashboard_preferences.js",
+  "./assets/js/process_record_form.js",
+  "./assets/js/suggested_input.js",
   "./assets/js/stabilization_packing_form.js",
   "./assets/js/site_water_sample_form.js",
   "./assets/js/reef_nursery_form.js",
   "./assets/js/reef_nursery_records.js",
+  "./assets/js/records_page.js",
   "./assets/js/app_navigation.js",
   "./assets/js/favorite_forms.js",
   "./assets/js/print_worksheet.js",
@@ -42,6 +47,7 @@ const APP_SHELL = [
   "./assets/js/offline_sync.js",
   "./assets/js/operation_feedback.js",
   "./assets/js/today_page.js",
+  "./assets/js/today_record_tabs.js",
   "./assets/js/reset_password_page.js",
   "./assets/js/config.js",
   "./assets/js/fixed_table_scrollbar.js",

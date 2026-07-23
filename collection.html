@@ -92,6 +92,12 @@
         </div>
       </div>
       <form id="collectionForm" class="collection-form">
+        <label class="collection-community-field form-recorder-field">
+          <span data-i18n="collection.community">Collection community</span>
+          <select id="collectionCommunityId" required>
+            <option value="" data-i18n="collection.selectCommunity">Select community</option>
+          </select>
+        </label>
         <label class="collector-name-field form-recorder-field">
           <span data-i18n="collector.name">Collector name</span>
           <input id="collectorName" type="text" autocomplete="name" maxlength="100" required>
@@ -148,13 +154,14 @@
               <button id="assignFarmerId" type="button" hidden tabindex="-1">Assign ID number</button>
             </div>
             <datalist id="communityOptions"></datalist>
-            <input id="communityId" type="hidden">
-            <input id="communityName" type="hidden">
+            <input id="farmerCommunityId" type="hidden">
+            <input id="farmerCommunityName" type="hidden">
           </details>
         </fieldset>
 
         <fieldset class="harvest-fieldset">
           <legend data-i18n="harvest.legend">Harvest</legend>
+          <input id="transactionId" type="hidden">
           <label>
             <span data-i18n="harvest.sackIdOptional">Sack ID (optional)</span>
             <span class="input-action-row sack-id-row">
@@ -163,17 +170,13 @@
             </span>
           </label>
           <label>
-            <span data-i18n="harvest.transactionId">Transaction ID</span>
-            <input id="transactionId" type="text" readonly>
-          </label>
-          <label>
             <span data-i18n="harvest.dateTime">Date / time</span>
             <input id="collectedAt" type="datetime-local" required>
           </label>
           <label>
-            <span data-i18n="harvest.gps">GPS</span>
+            <span data-i18n="harvest.gpsOptional">GPS (optional)</span>
             <span class="input-action-row">
-              <input id="gpsSummary" type="text" data-recommended="true" readonly>
+              <input id="gpsSummary" type="text" readonly>
               <button id="captureGps" type="button">GPS</button>
             </span>
           </label>

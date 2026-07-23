@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Record Ledgers - Seaweed Harvest</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+</head>
+<body class="admin-console-page form-record-ledgers-page" data-auth-pending>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div><p class="eyebrow">Seaweed aggregation</p><h1>Records</h1></div>
+      <div class="header-actions admin-header-controls">
+        <nav class="app-nav" aria-label="Main navigation">
+          <a href="./collection.html">Collection</a>
+          <a href="./home.html">Home</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell admin-shell admin-layout">
+    <aside id="recordsSidebar" class="admin-sidebar" aria-label="Application menu"></aside>
+    <section class="admin-content">
+      <section class="panel admin-page-section form-ledger-panel">
+        <div class="section-head compact">
+          <div>
+            <h2>Record Ledgers</h2>
+            <p class="field-hint">Filtered operational records, newest first.</p>
+          </div>
+          <span id="formLedgerCount" class="status-pill">0 rows</span>
+        </div>
+
+        <nav id="formLedgerCategories" class="today-record-tabs form-ledger-category-tabs" aria-label="Record ledger category">
+          <a href="./admin_ledger.html">Collections</a>
+          <button type="button" data-ledger-category="process" aria-selected="true">Process Records</button>
+          <button type="button" data-ledger-category="site_sample" aria-selected="false">Site Water Samples</button>
+          <button type="button" data-ledger-category="stock" aria-selected="false">Stock Records</button>
+        </nav>
+
+        <div id="formLedgerViews" class="ledger-view-tabs form-ledger-view-tabs" role="tablist" aria-label="Record period view">
+          <button type="button" role="tab" data-ledger-mode="all" aria-selected="true">All records</button>
+          <button type="button" role="tab" data-ledger-mode="monthly" aria-selected="false">Monthly records</button>
+          <button type="button" role="tab" data-ledger-mode="community" aria-selected="false">Community records</button>
+        </div>
+
+        <div class="admin-toolbar admin-filter-grid form-ledger-filter-grid">
+          <label id="formLedgerFromField">From
+            <input id="formLedgerFrom" type="date">
+          </label>
+          <label id="formLedgerToField">To
+            <input id="formLedgerTo" type="date">
+          </label>
+          <label id="formLedgerMonthField" hidden>Month
+            <input id="formLedgerMonth" type="month">
+          </label>
+          <label id="formLedgerCommunityField" hidden>Community
+            <select id="formLedgerCommunity"><option value="">All communities</option></select>
+          </label>
+          <label>Search
+            <input id="formLedgerSearch" type="search" autocomplete="off" placeholder="Record, person, site or notes">
+          </label>
+          <button id="loadFormLedger" type="button">Load</button>
+          <button id="exportFormLedger" type="button">Export CSV</button>
+        </div>
+
+        <p id="formLedgerCommunityNote" class="form-ledger-note" hidden>
+          Community is not recorded on this form. Use All records or Monthly records.
+        </p>
+
+        <div class="ledger-pagination form-ledger-pagination">
+          <button id="previousFormLedgerPage" type="button">Previous</button>
+          <span id="formLedgerPageStatus" class="admin-status">Page 1</span>
+          <button id="nextFormLedgerPage" type="button">Next</button>
+        </div>
+
+        <div class="responsive-table-wrap form-ledger-table-wrap">
+          <table class="management-table admin-data-table form-ledger-table">
+            <thead id="formLedgerHead"></thead>
+            <tbody id="formLedgerRows">
+              <tr><td class="empty-state">Loading records...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p id="formLedgerStatus" class="admin-status" aria-live="polite"></p>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
+  <script type="module" src="./assets/js/admin_page.js?v=30"></script>
+  <script type="module" src="./assets/js/records_page.js?v=4"></script>
+</body>
+</html>
