@@ -500,7 +500,7 @@ function renderRows() {
         <td>${editing ? selectControl(id, "grade_code", draft.grade_code, gradeOptions(row)) : escapeHtml(displayGrade(row.grade_code))}</td>
         <td>${editing ? selectControl(id, "community_id", draft.community_id, communityOptions(row)) : escapeHtml(joinValues(row.community_id, row.community_name_snapshot))}</td>
         <td>${editing ? textControl(id, "recorded_by_name", draft.recorded_by_name, "today-collector-editor", 100) : escapeHtml(row.recorded_by_name || "-")}</td>
-        <td><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
+        <td class="transaction-id-column"><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
       </tr>
     `;
   }).join("");
@@ -531,7 +531,7 @@ function renderOlderRows() {
         <td>${escapeHtml(displayGrade(row.grade_code))}</td>
         <td>${escapeHtml(joinValues(row.community_id, row.community_name_snapshot))}</td>
         <td>${escapeHtml(row.recorded_by_name || "-")}</td>
-        <td><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
+        <td class="transaction-id-column"><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
       </tr>
     `;
   }).join("");

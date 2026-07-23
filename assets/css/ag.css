@@ -1160,6 +1160,10 @@ body.brand-transition-active {
   margin-bottom: 12px;
 }
 
+.today-intake-table .transaction-id-column {
+  white-space: nowrap;
+}
+
 .public-intake-panel .section-head h2 {
   margin-bottom: 2px;
 }

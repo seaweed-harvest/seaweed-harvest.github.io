@@ -1993,7 +1993,7 @@ function renderTodayIntake() {
         <td data-today-total="${escapeAttribute(id)}">${escapeHtml(formatMoney(isEditing ? todayDraftTotal(draft, row.total_price) : row.total_price))}</td>
         <td>${isEditing ? todayTextControl(id, "notes", draft.notes, "today-notes-editor", 1000) : escapeHtml(row.notes || "-")}</td>
         <td>${escapeHtml(collectorName(row) || "-")}</td>
-        <td><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
+        <td class="transaction-id-column"><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
       </tr>
     `;
   }).join("") || emptyRow(13, "No intake rows recorded for this date.");
