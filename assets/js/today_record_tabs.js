@@ -448,16 +448,23 @@ async function deleteSelected(config) {
   els[`${config.prefix}DeleteSelected`].disabled = true;
   setCategoryStatus(config, `Deleting ${label}...`);
   try {
+    const photoPaths = key === "process-record"
+      ? category.rows
+        .filter((row) => ids.includes(row.id) && row.photo_path)
+        .map((row) => row.photo_path)
+      : [];
+    if (photoPaths.length) {
+      const { error: photoError } = await authClient.storage
+        .from("process-record-photos")
+        .remove(photoPaths);
+      if (photoError) {
+        throw new Error(`The sample photo could not be removed. ${photoError.message}`);
+      }
+    }
     const result = await callRpc("ag_delete_daily_form_records", {
       p_record_type: config.rpcType,
       p_record_ids: ids
     });
-    const photoPaths = Array.isArray(result?.deleted_photo_paths)
-      ? result.deleted_photo_paths
-      : [];
-    if (photoPaths.length) {
-      await authClient.storage.from("process-record-photos").remove(photoPaths);
-    }
     state.loadedDate = null;
     await loadSupplementalRecords({ force: true });
     const count = Number(result?.deleted_count || ids.length);

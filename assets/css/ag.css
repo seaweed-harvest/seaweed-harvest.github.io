@@ -1024,7 +1024,7 @@ body.brand-transition-active {
 }
 
 .form-panel-toolbar {
-  min-height: 40px;
+  min-height: 38px;
   margin-bottom: 12px;
 }
 
@@ -1038,12 +1038,18 @@ body.brand-transition-active {
   gap: 6px;
 }
 
+.form-panel-actions > .button-link {
+  min-height: 38px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+}
+
 .form-favorite-action {
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
-  min-height: 44px;
-  padding: 10px;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 8px;
   display: inline-grid;
   place-items: center;
   color: #7b8b87;
@@ -1065,8 +1071,8 @@ body.brand-transition-active {
 }
 
 .form-favorite-action svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .form-favorite-action.is-favorite svg {
@@ -1074,10 +1080,10 @@ body.brand-transition-active {
 }
 
 .form-pdf-action {
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
-  min-height: 44px;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -6510,6 +6516,7 @@ label input[type="checkbox"] {
   .form-panel-toolbar.section-head.compact {
     align-items: center;
     flex-direction: row;
+    flex-wrap: wrap;
   }
 
   .form-panel-actions {
