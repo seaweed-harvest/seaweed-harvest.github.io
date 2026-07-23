@@ -4907,7 +4907,11 @@ body[data-registration-pending] .registration-flow {
 }
 
 .packing-notes-field {
-  max-width: none;
+  max-width: 760px;
+}
+
+.packing-notes-field textarea {
+  min-height: 60px;
 }
 
 .packing-record-type-field {
@@ -4985,6 +4989,8 @@ body[data-registration-pending] .registration-flow {
 .packing-record-form select,
 .packing-record-form textarea {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 40px;
   padding: 8px 10px;
   border: 1px solid var(--border);
@@ -5018,16 +5024,27 @@ body[data-registration-pending] .registration-flow {
 
 .packing-stabilizer-choice {
   display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 16px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.packing-stabilizer-control {
+  grid-template-columns: repeat(2, 54px);
+  padding: 2px;
+}
+
+.packing-stabilizer-control span {
+  min-height: 28px;
+  padding: 4px 8px;
 }
 
 .packing-stabilizer-fields {
   display: grid;
-  grid-template-columns: minmax(220px, 0.8fr) minmax(320px, 1.2fr);
-  gap: 10px 16px;
+  grid-template-columns: minmax(180px, 260px) minmax(180px, 1fr) 100px auto;
+  gap: 10px;
   align-items: end;
+  max-width: 1000px;
   padding-top: 2px;
   transition: opacity 120ms ease;
 }
@@ -5037,13 +5054,15 @@ body[data-registration-pending] .registration-flow {
 }
 
 .packing-stabilizer-fields .packing-dose-default-row {
-  grid-column: 2;
+  grid-column: auto;
+  align-self: end;
+  margin-bottom: 5px;
 }
 
 .packing-qc-grid {
   display: grid;
-  grid-template-columns: minmax(260px, 1.35fr) repeat(2, minmax(160px, 0.8fr));
-  gap: 10px 16px;
+  grid-template-columns: minmax(0, 720px);
+  gap: 10px;
   align-items: end;
 }
 
@@ -5457,10 +5476,14 @@ label input[type="checkbox"] {
     width: 100%;
   }
 
+  .packing-stabilizer-control {
+    width: fit-content;
+  }
+
   .packing-stabilizer-choice {
-    display: grid;
-    align-items: stretch;
-    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .packing-stabilizer-fields,
@@ -5470,6 +5493,7 @@ label input[type="checkbox"] {
 
   .packing-stabilizer-fields .packing-dose-default-row {
     grid-column: auto;
+    margin-bottom: 0;
   }
 
   .receipt-result-grid,
@@ -6110,12 +6134,20 @@ label input[type="checkbox"] {
   }
 
   .scan-action-row,
-  .sack-id-row {
+  .scan-action-row {
     grid-template-columns: 1fr;
   }
 
   .input-action-row button {
     width: 100%;
+  }
+
+  .sack-id-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .sack-id-row button {
+    width: auto;
   }
 
   .registry-card-summary {
@@ -6322,7 +6354,7 @@ label input[type="checkbox"] {
     height: 195mm;
     max-height: 195mm;
     flex-direction: column;
-    gap: 2mm;
+    gap: 1mm;
     overflow: hidden;
     break-inside: avoid-page;
     page-break-inside: avoid;
@@ -6332,13 +6364,13 @@ label input[type="checkbox"] {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: end;
-    padding-bottom: 1.5mm;
+    padding-bottom: 1mm;
     border-bottom: 1.5pt solid #000;
   }
 
   .ag-print-header p {
     grid-column: 1 / -1;
-    margin: 0 0 0.5mm;
+    margin: 0 0 0.25mm;
     font-size: 6.5pt;
     font-weight: 700;
     text-transform: uppercase;
@@ -6357,7 +6389,7 @@ label input[type="checkbox"] {
   .ag-print-meta,
   .ag-print-footer {
     display: grid;
-    gap: 3mm;
+    gap: 2mm;
   }
 
   .ag-print-meta {
@@ -6387,11 +6419,11 @@ label input[type="checkbox"] {
 
   .ag-print-meta strong,
   .ag-print-footer strong {
-    min-height: 5mm;
+    min-height: 3.5mm;
     overflow: hidden;
     border-bottom: 0.7pt solid #333;
     font-size: 8pt;
-    line-height: 4.5mm;
+    line-height: 3.2mm;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -6413,7 +6445,7 @@ label input[type="checkbox"] {
   }
 
   .ag-print-table thead th {
-    height: 9mm;
+    height: 8mm;
     font-size: 6pt;
     line-height: 1.05;
     text-align: left;
@@ -6421,8 +6453,21 @@ label input[type="checkbox"] {
     vertical-align: middle;
   }
 
+  .ag-print-table thead th[data-pdf-unit]::after {
+    display: block;
+    margin-top: 0.6mm;
+    content: attr(data-pdf-unit);
+    font-size: 5pt;
+    font-weight: 400;
+    text-transform: none;
+  }
+
   .ag-print-table tbody tr {
     height: 10.2mm;
+  }
+
+  .ag-print-table tbody[data-print-rows="20"] tr {
+    height: 7.2mm;
   }
 
   .ag-print-table tbody th {
@@ -6431,29 +6476,30 @@ label input[type="checkbox"] {
   }
 
   .ag-print-collection-table col:nth-child(1) { width: 3%; }
-  .ag-print-collection-table col:nth-child(2) { width: 6%; }
-  .ag-print-collection-table col:nth-child(3) { width: 8%; }
-  .ag-print-collection-table col:nth-child(4) { width: 14%; }
-  .ag-print-collection-table col:nth-child(5) { width: 14%; }
-  .ag-print-collection-table col:nth-child(6) { width: 8%; }
-  .ag-print-collection-table col:nth-child(7) { width: 8%; }
+  .ag-print-collection-table col:nth-child(2) { width: 7%; }
+  .ag-print-collection-table col:nth-child(3) { width: 5%; }
+  .ag-print-collection-table col:nth-child(4) { width: 7%; }
+  .ag-print-collection-table col:nth-child(5) { width: 12%; }
+  .ag-print-collection-table col:nth-child(6) { width: 12%; }
+  .ag-print-collection-table col:nth-child(7) { width: 7%; }
   .ag-print-collection-table col:nth-child(8) { width: 7%; }
-  .ag-print-collection-table col:nth-child(9) { width: 5%; }
-  .ag-print-collection-table col:nth-child(10) { width: 7%; }
-  .ag-print-collection-table col:nth-child(11) { width: 8%; }
-  .ag-print-collection-table col:nth-child(12) { width: 12%; }
+  .ag-print-collection-table col:nth-child(9) { width: 7%; }
+  .ag-print-collection-table col:nth-child(10) { width: 5%; }
+  .ag-print-collection-table col:nth-child(11) { width: 7%; }
+  .ag-print-collection-table col:nth-child(12) { width: 7%; }
+  .ag-print-collection-table col:nth-child(13) { width: 7%; }
+  .ag-print-collection-table col:nth-child(14) { width: 10%; }
 
   .ag-print-packing-table col:nth-child(1) { width: 3%; }
-  .ag-print-packing-table col:nth-child(2) { width: 11%; }
-  .ag-print-packing-table col:nth-child(3) { width: 9%; }
-  .ag-print-packing-table col:nth-child(4) { width: 7%; }
-  .ag-print-packing-table col:nth-child(5) { width: 4%; }
-  .ag-print-packing-table col:nth-child(6) { width: 6%; }
-  .ag-print-packing-table col:nth-child(7) { width: 7%; }
-  .ag-print-packing-table col:nth-child(8) { width: 5%; }
-  .ag-print-packing-table col:nth-child(9) { width: 5%; }
+  .ag-print-packing-table col:nth-child(2) { width: 7%; }
+  .ag-print-packing-table col:nth-child(3) { width: 13%; }
+  .ag-print-packing-table col:nth-child(4) { width: 10%; }
+  .ag-print-packing-table col:nth-child(5) { width: 7%; }
+  .ag-print-packing-table col:nth-child(6) { width: 8%; }
+  .ag-print-packing-table col:nth-child(7) { width: 5%; }
+  .ag-print-packing-table col:nth-child(8) { width: 6%; }
+  .ag-print-packing-table col:nth-child(9) { width: 7%; }
   .ag-print-packing-table col:nth-child(10) { width: 8%; }
-  .ag-print-packing-table col:nth-child(11) { width: 7%; }
-  .ag-print-packing-table col:nth-child(12) { width: 5%; }
-  .ag-print-packing-table col:nth-child(13) { width: 23%; }
+  .ag-print-packing-table col:nth-child(11) { width: 9%; }
+  .ag-print-packing-table col:nth-child(12) { width: 17%; }
 }

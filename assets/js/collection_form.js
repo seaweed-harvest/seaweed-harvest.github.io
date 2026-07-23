@@ -11,7 +11,7 @@ import {
   initCollectionLanguage,
   t,
   unitLabel
-} from "./collection_language.js?v=20";
+} from "./collection_language.js?v=21";
 import {
   clearOfflineCollectionAccess,
   initialiseOfflineStore,
@@ -459,7 +459,6 @@ function cacheElements() {
     "printCollectionWorksheet",
     "collectionPrintWorksheet",
     "printCollectionAggregator",
-    "printCollectionDate",
     "printCollectionCollector",
     "collectorName",
     "collectionWebsite",
@@ -535,8 +534,8 @@ function bindEvents() {
   setupPdfWorksheet({
     button: els.printCollectionWorksheet,
     worksheet: els.collectionPrintWorksheet,
-    rowCount: 12,
-    columnCount: 12,
+    rowCount: 20,
+    columnCount: 14,
     prepare: prepareCollectionWorksheet
   });
   els.pendingRecordsBandSync.addEventListener("click", () => syncOutbox({ announce: true }));
@@ -615,14 +614,7 @@ function prepareCollectionWorksheet() {
     || activeAggregator?.organisation_name
     || "";
   setPrintValue(els.printCollectionAggregator, aggregator === "-" ? "" : aggregator);
-  setPrintValue(els.printCollectionDate, paperDate(els.collectedAt.value));
   setPrintValue(els.printCollectionCollector, els.collectorName.value);
-}
-
-function paperDate(value) {
-  const date = String(value || "").slice(0, 10);
-  const [year, month, day] = date.split("-");
-  return year && month && day ? `${day}/${month}/${year}` : "";
 }
 
 async function loadFormData() {
@@ -1644,7 +1636,7 @@ function buildPayload(photoPaths = []) {
     community_id: nullableText(els.communityId.value),
     community_record_id: community?.id || null,
     community_name_snapshot: community?.community_name || null,
-    sack_id: null,
+    sack_id: normalizedSackId() || null,
     collected_at: collectedAt.toISOString(),
     gps_latitude: state.gps?.latitude ?? null,
     gps_longitude: state.gps?.longitude ?? null,
@@ -2021,10 +2013,10 @@ function applyRuntimeSettings(gradePrices) {
       ? els.collectionPhotosField
       : control?.closest("label");
     if (!control || !label) return;
-    const visible = setting.field_key === "sack_weight_kg" || Boolean(setting.visible);
+    const visible = ["sack_id", "sack_weight_kg"].includes(setting.field_key) || Boolean(setting.visible);
     label.hidden = !visible;
     label.style.order = String(setting.display_order || 0);
-    const required = visible && Boolean(setting.required);
+    const required = visible && control !== els.sackId && Boolean(setting.required);
     control.required = control === els.collectionPhotos ? false : required;
     if (control === els.collectionPhotos) label.dataset.photoRequired = String(required);
     control.disabled = !visible;

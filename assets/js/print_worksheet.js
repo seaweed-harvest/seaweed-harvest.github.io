@@ -104,28 +104,31 @@ function renderWorksheet(pdf, worksheet) {
   pdf.setDrawColor(30, 30, 30);
   pdf.setLineWidth(0.25);
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(6.5);
-  pdf.text(eyebrow.toUpperCase(), margin, 9);
-  pdf.setFontSize(14);
-  pdf.text(title, margin, 16);
+  pdf.setFontSize(6.2);
+  pdf.text(eyebrow.toUpperCase(), margin, 7);
+  pdf.setFontSize(13);
+  pdf.text(title, margin, 13);
   pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(7);
-  pdf.text(hint, pageWidth - margin, 16, { align: "right", maxWidth: usableWidth * 0.45 });
-  pdf.line(margin, 19, pageWidth - margin, 19);
+  pdf.setFontSize(6.5);
+  pdf.text(hint, pageWidth - margin, 13, { align: "right", maxWidth: usableWidth * 0.45 });
+  pdf.line(margin, 15.5, pageWidth - margin, 15.5);
 
-  renderMeta(pdf, worksheet.querySelector(".ag-print-meta"), margin, 22, usableWidth);
+  renderMeta(pdf, worksheet.querySelector(".ag-print-meta"), margin, 20, usableWidth);
 
   const table = worksheet.querySelector(".ag-print-table");
-  const headers = [...table.querySelectorAll("thead th")].map(cleanText);
+  const headers = [...table.querySelectorAll("thead th")].map((header) => ({
+    label: cleanText(header),
+    unit: String(header.dataset.pdfUnit || "").trim()
+  }));
   const bodyRows = [...table.querySelectorAll("tbody tr")];
   const widths = normalisedWidths(table.dataset.pdfWidths, headers.length, usableWidth);
-  const tableTop = 33;
-  const tableBottom = pageHeight - 21;
-  const headerHeight = 12;
+  const tableTop = 24;
+  const tableBottom = pageHeight - 12;
+  const headerHeight = 9;
   const rowHeight = (tableBottom - tableTop - headerHeight) / Math.max(bodyRows.length, 1);
   renderTable(pdf, headers, bodyRows, widths, margin, tableTop, headerHeight, rowHeight);
 
-  renderFooter(pdf, worksheet.querySelector(".ag-print-footer"), margin, pageHeight - 14, usableWidth);
+  renderFooter(pdf, worksheet.querySelector(".ag-print-footer"), margin, pageHeight - 7.5, usableWidth);
 }
 
 function renderMeta(pdf, container, x, y, width) {
@@ -134,13 +137,7 @@ function renderMeta(pdf, container, x, y, width) {
   const cellWidth = width / entries.length;
   entries.forEach((entry, index) => {
     const cellX = x + (index * cellWidth);
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(6.2);
-    pdf.text(cleanText(entry.querySelector("span")).toUpperCase(), cellX, y);
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(8);
-    pdf.text(cleanText(entry.querySelector("strong")), cellX, y + 5, { maxWidth: cellWidth - 3 });
-    pdf.line(cellX, y + 6, cellX + cellWidth - 3, y + 6);
+    renderLabeledLine(pdf, entry, cellX, y, cellWidth - 3);
   });
 }
 
@@ -151,8 +148,15 @@ function renderTable(pdf, headers, bodyRows, widths, x, y, headerHeight, rowHeig
     pdf.rect(cellX, y, width, headerHeight);
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(5.5);
-    const lines = pdf.splitTextToSize(header.toUpperCase(), Math.max(width - 2, 2)).slice(0, 3);
+    const lines = pdf
+      .splitTextToSize(header.label.toUpperCase(), Math.max(width - 2, 2))
+      .slice(0, header.unit ? 2 : 3);
     pdf.text(lines, cellX + 1, y + 3.5);
+    if (header.unit) {
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(4.8);
+      pdf.text(header.unit, cellX + 1, y + headerHeight - 1.2, { maxWidth: Math.max(width - 2, 2) });
+    }
     cellX += width;
   });
 
@@ -184,15 +188,23 @@ function renderFooter(pdf, container, x, y, width) {
   let cellX = x;
   entries.forEach((entry, index) => {
     const cellWidth = width * (ratios[index] / ratioTotal);
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(6.2);
-    pdf.text(cleanText(entry.querySelector("span")).toUpperCase(), cellX, y);
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(8);
-    pdf.text(cleanText(entry.querySelector("strong")), cellX, y + 5, { maxWidth: cellWidth - 4 });
-    pdf.line(cellX, y + 6, cellX + cellWidth - 4, y + 6);
+    renderLabeledLine(pdf, entry, cellX, y, cellWidth - 4);
     cellX += cellWidth;
   });
+}
+
+function renderLabeledLine(pdf, entry, x, y, width) {
+  const label = `${cleanText(entry.querySelector("span")).toUpperCase()} `;
+  const value = cleanText(entry.querySelector("strong"));
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(6.2);
+  pdf.text(label, x, y);
+  const labelWidth = pdf.getTextWidth(label);
+  const lineX = Math.min(x + labelWidth + 1, x + Math.max(width - 12, 1));
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(7.2);
+  if (value) pdf.text(value, lineX + 1, y, { maxWidth: Math.max((x + width) - lineX - 1, 2) });
+  pdf.line(lineX, y + 1.1, x + width, y + 1.1);
 }
 
 function normalisedWidths(value, count, totalWidth) {

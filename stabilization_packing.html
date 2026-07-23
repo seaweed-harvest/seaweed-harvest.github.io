@@ -89,7 +89,7 @@
             <legend>Stabilisation</legend>
             <div class="packing-stabilizer-choice">
               <span class="packing-field-label">Stabiliser added?</span>
-              <div class="packing-record-type-control" role="radiogroup" aria-label="Stabiliser added">
+              <div class="packing-record-type-control packing-stabilizer-control" role="radiogroup" aria-label="Stabiliser added">
                 <label>
                   <input id="packingStabilizerYes" type="radio" name="packingStabilizerAdded" value="yes" required>
                   <span>Yes</span>
@@ -101,14 +101,14 @@
               </div>
             </div>
             <div id="packingStabilizerFields" class="packing-stabilizer-fields" aria-disabled="true">
-              <label>Chemical
+              <label class="packing-chemical-field">Chemical
                 <input id="packingChemical" type="text" value="Sodium benzoate" readonly>
               </label>
-              <label>Chemical dose
-                <span class="packing-measure-row">
-                  <input id="packingDose" type="number" min="0.001" max="100000" step="0.001" inputmode="decimal" data-recommended="true" disabled>
-                  <select id="packingDoseUnit" aria-label="Chemical dose unit" disabled><option value="g/L">g/L</option><option value="mg/L">mg/L</option><option value="%">%</option></select>
-                </span>
+              <label class="packing-dose-field">Chemical dose
+                <input id="packingDose" type="number" min="0.001" max="100000" step="0.001" inputmode="decimal" data-recommended="true" disabled>
+              </label>
+              <label class="packing-dose-unit-field">Unit
+                <select id="packingDoseUnit" aria-label="Chemical dose unit" disabled><option value="g/L">g/L</option><option value="mg/L">mg/L</option><option value="%">%</option></select>
               </label>
               <label class="packing-dose-default-row">
                 <input id="packingDoseDefault" type="checkbox" disabled>
@@ -136,7 +136,7 @@
           </fieldset>
 
           <label class="packing-notes-field">Notes
-            <textarea id="packingNotes" rows="3" maxlength="1000"></textarea>
+            <textarea id="packingNotes" rows="2" maxlength="1000"></textarea>
           </label>
 
           <div class="button-row packing-record-actions">
@@ -156,32 +156,30 @@
         <span>Blank production sheet for handwritten stock records.</span>
       </header>
       <div class="ag-print-meta">
-        <div><span>Date</span><strong id="printPackingDate"></strong></div>
         <div><span>Recorded by</span><strong id="printPackingRecordedBy"></strong></div>
         <div><span>Chemical</span><strong id="printPackingChemical">Sodium benzoate</strong></div>
       </div>
-      <table class="ag-print-table ag-print-packing-table" data-pdf-widths="3,10,8,7,4,7,4,4,7,6,5,5,30">
+      <table class="ag-print-table ag-print-packing-table" data-pdf-widths="3,7,13,10,7,8,5,6,7,8,9,17">
         <colgroup>
-          <col><col><col><col><col><col><col><col><col><col><col><col><col>
+          <col><col><col><col><col><col><col><col><col><col><col><col>
         </colgroup>
         <thead>
           <tr>
             <th scope="col">No.</th>
+            <th scope="col">Date</th>
             <th scope="col">Carton serial</th>
             <th scope="col">Species</th>
-            <th scope="col">Weight</th>
-            <th scope="col">Unit</th>
-            <th scope="col">Salinity</th>
-            <th scope="col">Unit</th>
+            <th id="printPackingWeightHeader" scope="col" data-pdf-unit="kg">Weight</th>
+            <th id="printPackingSalinityHeader" scope="col" data-pdf-unit="PSU">Salinity</th>
             <th scope="col">pH</th>
-            <th scope="col">EC mS/cm</th>
+            <th scope="col" data-pdf-unit="mS/cm">EC</th>
             <th scope="col">Stabiliser Y/N</th>
-            <th scope="col">Dose</th>
-            <th scope="col">Unit</th>
+            <th id="printPackingDoseHeader" scope="col" data-pdf-unit="g/L">Dose</th>
+            <th scope="col">Recorded by</th>
             <th scope="col">Notes</th>
           </tr>
         </thead>
-        <tbody data-print-rows="12" data-print-columns="13"></tbody>
+        <tbody data-print-rows="20" data-print-columns="12"></tbody>
       </table>
       <footer class="ag-print-footer">
         <div><span>Entered into system by</span><strong></strong></div>
@@ -191,6 +189,6 @@
     </article>
   </section>
   <script type="module" src="./assets/js/admin_page.js?v=27"></script>
-  <script type="module" src="./assets/js/stabilization_packing_form.js?v=8"></script>
+  <script type="module" src="./assets/js/stabilization_packing_form.js?v=9"></script>
 </body>
 </html>

@@ -155,10 +155,13 @@
 
         <fieldset class="harvest-fieldset">
           <legend data-i18n="harvest.legend">Harvest</legend>
-          <div hidden aria-hidden="true">
-            <input id="sackId" type="hidden">
-            <button id="scanSackId" type="button" tabindex="-1">Scan</button>
-          </div>
+          <label>
+            <span data-i18n="harvest.sackId">Sack ID</span>
+            <span class="input-action-row sack-id-row">
+              <input id="sackId" type="text" inputmode="text" autocomplete="off" placeholder="B-####">
+              <button id="scanSackId" type="button" data-i18n="action.scan">Scan</button>
+            </span>
+          </label>
           <label>
             <span data-i18n="harvest.transactionId">Transaction ID</span>
             <input id="transactionId" type="text" readonly>
@@ -306,31 +309,32 @@
       </header>
       <div class="ag-print-meta">
         <div><span data-i18n="aggregator.label">Aggregator</span><strong id="printCollectionAggregator"></strong></div>
-        <div><span data-i18n="print.collectionDate">Collection date</span><strong id="printCollectionDate"></strong></div>
-        <div><span data-i18n="collector.name">Collector name</span><strong id="printCollectionCollector"></strong></div>
+        <div><span data-i18n="print.recordedBy">Recorded by</span><strong id="printCollectionCollector"></strong></div>
         <div><span data-i18n="print.sheetReference">Sheet reference</span><strong></strong></div>
       </div>
-      <table class="ag-print-table ag-print-collection-table" data-pdf-widths="3,6,8,14,14,8,8,7,5,7,8,12">
+      <table class="ag-print-table ag-print-collection-table" data-pdf-widths="3,7,5,7,12,12,7,7,7,5,7,7,7,10">
         <colgroup>
-          <col><col><col><col><col><col><col><col><col><col><col><col>
+          <col><col><col><col><col><col><col><col><col><col><col><col><col><col>
         </colgroup>
         <thead>
           <tr>
             <th scope="col" data-i18n="print.number">No.</th>
+            <th scope="col" data-i18n="print.date">Date</th>
             <th scope="col" data-i18n="print.time">Time</th>
             <th scope="col" data-i18n="farmer.id">Farmer ID</th>
             <th scope="col" data-i18n="print.farmerName">Farmer name</th>
             <th scope="col" data-i18n="print.community">Community</th>
             <th scope="col" data-i18n="harvest.sackId">Sack ID</th>
             <th scope="col" data-i18n="print.type">Type</th>
-            <th scope="col" data-i18n="harvest.weight">Weight kg</th>
+            <th scope="col" data-i18n="print.weight" data-pdf-unit="kg">Weight</th>
             <th scope="col" data-i18n="harvest.grade">Grade</th>
-            <th scope="col" data-i18n="print.pricePerKg">Price/kg</th>
-            <th scope="col" data-i18n="print.totalKsh">Total KSH</th>
+            <th scope="col" data-i18n="print.price" data-pdf-unit="KSH/kg">Price</th>
+            <th scope="col" data-i18n="print.total" data-pdf-unit="KSH">Total</th>
+            <th scope="col" data-i18n="print.recordedBy">Recorded by</th>
             <th scope="col" data-i18n="harvest.notes">Notes</th>
           </tr>
         </thead>
-        <tbody data-print-rows="12" data-print-columns="12"></tbody>
+        <tbody data-print-rows="20" data-print-columns="14"></tbody>
       </table>
       <footer class="ag-print-footer">
         <div><span data-i18n="print.enteredBy">Entered into system by</span><strong></strong></div>
@@ -341,6 +345,6 @@
   </section>
 
   <script src="./assets/js/vendor/jsQR.js"></script>
-  <script type="module" src="./assets/js/collection_form.js?v=28"></script>
+  <script type="module" src="./assets/js/collection_form.js?v=30"></script>
 </body>
 </html>

@@ -21,15 +21,15 @@ async function init() {
     "packingEc", "packingStabilizerYes", "packingStabilizerNo", "packingStabilizerFields",
     "packingChemical", "packingDose", "packingDoseUnit", "packingDoseDefault", "packingNotes",
     "savePackingRecord", "clearPackingRecord", "favoritePackingForm", "printPackingWorksheet", "packingRecordStatus",
-    "packingPrintWorksheet", "printPackingDate",
-    "printPackingRecordedBy", "printPackingChemical"
+    "packingPrintWorksheet", "printPackingRecordedBy", "printPackingChemical",
+    "printPackingWeightHeader", "printPackingSalinityHeader", "printPackingDoseHeader"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
   setupPdfWorksheet({
     button: els.printPackingWorksheet,
     worksheet: els.packingPrintWorksheet,
-    rowCount: 12,
-    columnCount: 13,
+    rowCount: 20,
+    columnCount: 12,
     prepare: preparePackingWorksheet
   });
 
@@ -278,9 +278,11 @@ function doseDefaultKey() {
 }
 
 function preparePackingWorksheet() {
-  setPrintValue(els.printPackingDate, paperDate(els.packedOn.value));
   setPrintValue(els.printPackingRecordedBy, els.packingRecordedBy.value);
   setPrintValue(els.printPackingChemical, els.packingChemical.value);
+  els.printPackingWeightHeader.dataset.pdfUnit = els.packingWeightUnit.value || "kg";
+  els.printPackingSalinityHeader.dataset.pdfUnit = els.packingSalinityUnit.value || "PSU";
+  els.printPackingDoseHeader.dataset.pdfUnit = els.packingDoseUnit.value || "g/L";
 }
 
 function resetInputs(nextSerial = nextCartonSerial) {
@@ -326,11 +328,6 @@ function kenyaDate() {
   }).formatToParts(new Date());
   const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${value.year}-${value.month}-${value.day}`;
-}
-
-function paperDate(value) {
-  const [year, month, day] = String(value || "").split("-");
-  return year && month && day ? `${day}/${month}/${year}` : "";
 }
 
 function setStatus(message, status = "") {
