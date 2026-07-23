@@ -116,25 +116,45 @@ function initialiseFeedbackWidget() {
           <button class="site-feedback-submit" type="submit">${copy.submit}</button>
         </div>
       </form>
+    </dialog>
+    <dialog class="site-feedback-celebration" aria-labelledby="siteFeedbackCelebrationTitle">
+      <div class="site-feedback-confetti" aria-hidden="true">
+        <i></i><i></i><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
+      <div class="site-feedback-celebration-content">
+        <div class="site-feedback-celebration-symbol" aria-hidden="true">🎉</div>
+        <p class="site-feedback-celebration-kicker">First suggestion unlocked</p>
+        <h2 id="siteFeedbackCelebrationTitle">You did it Jenn!</h2>
+        <p>Your first submission!</p>
+        <strong>Woooooooo!</strong>
+        <button class="site-feedback-celebration-close" type="button">Take a bow</button>
+      </div>
     </dialog>`;
   document.body.append(root);
 
   const dialog = root.querySelector(".site-feedback-dialog");
+  const celebration = root.querySelector(".site-feedback-celebration");
   const form = root.querySelector(".site-feedback-form");
   const launcher = root.querySelector(".site-feedback-launcher");
   const close = root.querySelector(".site-feedback-close");
   const cancel = root.querySelector(".site-feedback-cancel");
+  const celebrationClose = root.querySelector(".site-feedback-celebration-close");
   const name = form.elements.submitterName;
   name.value = storedValue(NAME_KEY) || signedInName() || "";
 
   launcher.addEventListener("click", () => openDialog(dialog));
   close.addEventListener("click", () => closeDialog(dialog));
   cancel.addEventListener("click", () => closeDialog(dialog));
+  celebrationClose.addEventListener("click", () => closeCelebration(celebration));
   dialog.addEventListener("click", (event) => {
     if (event.target === dialog) closeDialog(dialog);
   });
+  celebration.addEventListener("click", (event) => {
+    if (event.target === celebration) closeCelebration(celebration);
+  });
   form.addEventListener("submit", submitFeedback);
-  widget = { root, dialog, form, launcher, copy };
+  widget = { root, dialog, celebration, form, launcher, copy };
   flushFeedbackQueue();
 }
 
@@ -170,7 +190,12 @@ async function submitFeedback(event) {
     if (!response.ok) throw new Error(response.error || copy.error);
     form.elements.message.value = "";
     setStatus(status, copy.sent, "success");
-    window.setTimeout(() => closeDialog(widget.dialog), 1400);
+    if (response.celebration === "jenn-first-improvement") {
+      closeDialog(widget.dialog, { restoreFocus: false });
+      showCelebration(widget.celebration);
+    } else {
+      window.setTimeout(() => closeDialog(widget.dialog), 1400);
+    }
   } catch (error) {
     if (!navigator.onLine || isNetworkError(error)) {
       enqueueFeedback(payload);
@@ -242,7 +267,10 @@ async function flushFeedbackQueue() {
     const remaining = [];
     for (const payload of queue) {
       try {
-        await sendFeedback(payload);
+        const response = await sendFeedback(payload);
+        if (response.celebration === "jenn-first-improvement") {
+          showCelebration(widget?.celebration);
+        }
       } catch (error) {
         remaining.push(payload);
         if (isNetworkError(error)) {
@@ -336,9 +364,22 @@ function openDialog(dialog) {
   dialog.querySelector("textarea")?.focus();
 }
 
-function closeDialog(dialog) {
+function closeDialog(dialog, { restoreFocus = true } = {}) {
   if (typeof dialog.close === "function") dialog.close();
   else dialog.removeAttribute("open");
+  if (restoreFocus) widget?.launcher.focus();
+}
+
+function showCelebration(dialog) {
+  if (!dialog || dialog.open) return;
+  if (typeof dialog.showModal === "function") dialog.showModal();
+  else dialog.setAttribute("open", "");
+  dialog.querySelector(".site-feedback-celebration-close")?.focus();
+}
+
+function closeCelebration(dialog) {
+  if (typeof dialog?.close === "function") dialog.close();
+  else dialog?.removeAttribute("open");
   widget?.launcher.focus();
 }
 
@@ -408,8 +449,34 @@ function injectStyles() {
     .site-feedback-actions button{min-height:40px;padding:8px 14px;border:1px solid var(--sf-line);border-radius:6px;background:#fff;color:var(--sf-ink);font:inherit;font-weight:700;cursor:pointer}
     .site-feedback-actions .site-feedback-submit{border-color:var(--sf-teal);background:var(--sf-teal);color:#fff}
     .site-feedback-actions button:disabled{cursor:wait;opacity:.58}
+    .site-feedback-celebration{width:min(460px,calc(100vw - 28px));padding:0;overflow:hidden;border:3px solid #087f78;border-radius:8px;background:#fff;color:var(--sf-ink);box-shadow:0 22px 70px rgba(10,54,50,.32)}
+    .site-feedback-celebration::backdrop{background:rgba(8,45,42,.62)}
+    .site-feedback-celebration-content{position:relative;z-index:2;display:grid;justify-items:center;gap:8px;padding:28px 24px 24px;text-align:center}
+    .site-feedback-celebration-symbol{width:92px;height:92px;display:grid;place-items:center;border:4px solid #f2c94c;border-radius:50%;background:#fff7cf;font-size:3.4rem;line-height:1;box-shadow:0 0 0 10px #e8f6f3,0 0 0 14px #ef765f}
+    .site-feedback-celebration-kicker{margin:14px 0 0;color:#a04335;font-size:.77rem;font-weight:800;text-transform:uppercase}
+    .site-feedback-celebration h2{margin:0;color:#075d58;font-size:2rem;line-height:1.1;letter-spacing:0}
+    .site-feedback-celebration p:not(.site-feedback-celebration-kicker){margin:2px 0 0;font-size:1.1rem;font-weight:700}
+    .site-feedback-celebration strong{display:block;margin:2px 0 8px;color:#d14e38;font-size:1.65rem;line-height:1.1}
+    .site-feedback-celebration-close{min-height:42px;padding:8px 17px;border:1px solid #087f78;border-radius:6px;background:#087f78;color:#fff;font:inherit;font-weight:800;cursor:pointer}
+    .site-feedback-confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+    .site-feedback-confetti i{position:absolute;top:-18px;width:9px;height:24px;background:#ef765f;transform:rotate(12deg)}
+    .site-feedback-confetti i:nth-child(2n){width:13px;height:13px;border-radius:50%;background:#f2c94c}
+    .site-feedback-confetti i:nth-child(3n){background:#16a085}
+    .site-feedback-confetti i:nth-child(4n){background:#3f8fd2}
+    .site-feedback-confetti i:nth-child(1){left:5%;animation-delay:-.3s}
+    .site-feedback-confetti i:nth-child(2){left:13%;animation-delay:-1.2s}
+    .site-feedback-confetti i:nth-child(3){left:22%;animation-delay:-.7s}
+    .site-feedback-confetti i:nth-child(4){left:31%;animation-delay:-1.8s}
+    .site-feedback-confetti i:nth-child(5){left:40%;animation-delay:-.1s}
+    .site-feedback-confetti i:nth-child(6){left:49%;animation-delay:-1.4s}
+    .site-feedback-confetti i:nth-child(7){left:58%;animation-delay:-.9s}
+    .site-feedback-confetti i:nth-child(8){left:67%;animation-delay:-2s}
+    .site-feedback-confetti i:nth-child(9){left:75%;animation-delay:-.5s}
+    .site-feedback-confetti i:nth-child(10){left:83%;animation-delay:-1.6s}
+    .site-feedback-confetti i:nth-child(11){left:90%;animation-delay:-.2s}
+    .site-feedback-confetti i:nth-child(12){left:96%;animation-delay:-1.1s}
     @media(max-width:600px){.site-feedback-launcher{right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px))}.site-feedback-form{padding:17px}.site-feedback-dialog{max-height:calc(100dvh - 20px)}}
-    @media(prefers-reduced-motion:no-preference){.site-feedback-launcher{transition:transform .16s ease,background-color .16s ease}}
+    @media(prefers-reduced-motion:no-preference){.site-feedback-launcher{transition:transform .16s ease,background-color .16s ease}.site-feedback-celebration[open] .site-feedback-celebration-symbol{animation:sf-celebration-pop .75s cubic-bezier(.2,1.45,.45,1)}.site-feedback-celebration[open] .site-feedback-confetti i{animation:sf-confetti-fall 2.7s linear infinite}.site-feedback-celebration[open] strong{animation:sf-woo .7s ease-in-out .35s both}@keyframes sf-celebration-pop{0%{opacity:0;transform:scale(.25) rotate(-18deg)}70%{transform:scale(1.14) rotate(8deg)}100%{opacity:1;transform:scale(1) rotate(0)}}@keyframes sf-confetti-fall{0%{transform:translateY(-25px) rotate(0)}100%{transform:translateY(520px) rotate(620deg)}}@keyframes sf-woo{0%{opacity:0;transform:scale(.7)}70%{transform:scale(1.16)}100%{opacity:1;transform:scale(1)}}}
     @media print{.site-feedback-widget{display:none!important}}
   `;
   document.head.append(styles);

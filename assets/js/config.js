@@ -1,4 +1,4 @@
-import "./site_feedback.js?v=1";
+import "./site_feedback.js?v=2";
 
 export const APP_CONFIG = {
   appName: "Seaweed Aggregation",
