@@ -1,12 +1,10 @@
 import { APP_CONFIG } from "./config.js";
 import { callPublicRpc, callRpc, selectRows } from "./supabase_client.js";
 import {
-  createPendingBackup,
   deleteOutboxItem,
   getOutboxItem,
   initialiseOfflineStore,
   listOutboxItems,
-  restorePendingBackup,
   updateOutboxItem
 } from "./offline_store.js";
 import { syncPendingCollections } from "./offline_sync.js";
@@ -73,10 +71,6 @@ async function init() {
     "olderPendingSelectAll",
     "olderPendingRows",
     "publicTodayStatus",
-    "todayDownloadBackup",
-    "todayRestoreBackup",
-    "todayRestoreInput",
-    "todayRecoveryStatus",
     "todayOperationFeedback"
   ].forEach((id) => { els[id] = document.getElementById(id); });
   operationFeedback = createOperationFeedback(els.todayOperationFeedback);
@@ -101,9 +95,6 @@ async function init() {
   els.todaySyncAll.addEventListener("click", syncAllLocalRecords);
   els.olderPendingSync.addEventListener("click", syncAllLocalRecords);
   els.olderPendingDelete.addEventListener("click", deleteSelectedRecords);
-  els.todayDownloadBackup.addEventListener("click", downloadPendingBackup);
-  els.todayRestoreBackup.addEventListener("click", () => els.todayRestoreInput.click());
-  els.todayRestoreInput.addEventListener("change", restorePendingBackupFile);
 
   await initialiseLocalIntake();
   await initialiseNativeNetwork();
@@ -260,57 +251,6 @@ async function syncAllLocalRecords() {
     state.syncing = false;
     updateLocalSyncUi();
   }
-}
-
-async function downloadPendingBackup() {
-  try {
-    const backup = await createPendingBackup();
-    if (!backup.pendingCount) {
-      setRecoveryStatus("There are no unsynced records to back up.");
-      return;
-    }
-    const filename = `seaweed-harvest-pending-${new Date().toISOString().slice(0, 10)}.json`;
-    const contents = JSON.stringify(backup);
-    if (globalThis.SeaweedNative?.isNative && globalThis.SeaweedNative?.saveBackup) {
-      await globalThis.SeaweedNative.saveBackup(filename, contents);
-      setRecoveryStatus("Pending-record backup saved.");
-      return;
-    }
-    const blob = new Blob([contents], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.append(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setRecoveryStatus("Pending-record backup downloaded.");
-  } catch (error) {
-    setRecoveryStatus(error.message || "Backup could not be created.", "error");
-  }
-}
-
-async function restorePendingBackupFile() {
-  const file = els.todayRestoreInput.files?.[0];
-  if (!file) return;
-  try {
-    if (file.size > 100 * 1024 * 1024) throw new Error("The backup file is too large.");
-    const backup = JSON.parse(await file.text());
-    const result = await restorePendingBackup(backup);
-    await refreshLocalRows();
-    const skipped = result.skipped ? ` ${result.skipped} already existed on this device.` : "";
-    setRecoveryStatus(`Restored ${result.imported} pending record(s).${skipped}`);
-  } catch (error) {
-    setRecoveryStatus(error.message || "This is not a valid Seaweed Harvest pending-record backup.", "error");
-  } finally {
-    els.todayRestoreInput.value = "";
-  }
-}
-
-function setRecoveryStatus(message, type = "") {
-  els.todayRecoveryStatus.textContent = message || "";
-  els.todayRecoveryStatus.dataset.status = type;
 }
 
 async function loadToday() {

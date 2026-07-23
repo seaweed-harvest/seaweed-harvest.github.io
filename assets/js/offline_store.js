@@ -92,8 +92,13 @@ export async function clearOfflineCollectionAccess() {
 
 export async function saveCollectionToOutbox(record) {
   const now = new Date().toISOString();
+  const payload = {
+    ...(record.payload || {}),
+    sack_id: resolvedSackId(record)
+  };
   const saved = {
     ...record,
+    payload,
     status: "pending",
     attempts: 0,
     lastError: null,
@@ -259,6 +264,26 @@ async function pruneSyncedHistory(database = null) {
     index >= MAX_SYNCED_HISTORY || new Date(item.syncedAt || item.updatedAt).getTime() < cutoff
   ));
   await Promise.all(expired.map((item) => deleteRecord(OUTBOX_STORE, item.submissionId, database)));
+}
+
+function resolvedSackId(record) {
+  const existing = normalizeSackId(record?.payload?.sack_id);
+  if (existing) return existing;
+  if (record?.createdAt) return null;
+
+  const fieldValue = typeof document === "undefined"
+    ? ""
+    : document.getElementById("sackId")?.value;
+  return normalizeSackId(fieldValue);
+}
+
+function normalizeSackId(value) {
+  const raw = String(value || "").trim().toUpperCase().replace(/\s+/g, "");
+  if (!raw) return null;
+  if (/^\d+$/.test(raw)) return `B-${raw.padStart(4, "0")}`;
+  const match = raw.match(/^B-?(\d+)$/);
+  if (match) return `B-${match[1].padStart(4, "0")}`;
+  return raw;
 }
 
 function openDatabase() {

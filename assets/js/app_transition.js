@@ -1,6 +1,9 @@
 const SPLASH_IMAGE = "./assets/images/seaweed-harvest-splash.gif";
 const LAUNCH_SESSION_KEY = "seaweed-harvest:launch-splash-shown";
+const SPLASH_STYLE_ID = "seaweed-harvest-splash-centering";
 const REDUCED_MOTION = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+
+installSplashCenteringStyle();
 
 export async function completeLaunchSplash() {
   const root = document.documentElement;
@@ -38,6 +41,21 @@ export async function transitionTo(destination) {
   window.location.replace(destination);
 }
 
+function installSplashCenteringStyle() {
+  if (document.getElementById(SPLASH_STYLE_ID)) return;
+
+  const style = document.createElement("style");
+  style.id = SPLASH_STYLE_ID;
+  style.textContent = `
+    .app-launch-splash img,
+    .brand-transition img {
+      object-position: center;
+      transform: translateY(clamp(-32px, -3dvh, -20px));
+    }
+  `;
+  document.head.append(style);
+}
+
 function ensureTransitionOverlay() {
   const existing = document.getElementById("authSuccessTransition");
   if (existing) return existing;
@@ -64,4 +82,3 @@ function restartAnimation(image) {
 function wait(durationMs) {
   return new Promise((resolve) => setTimeout(resolve, durationMs));
 }
-
