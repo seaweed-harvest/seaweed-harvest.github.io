@@ -1,3 +1,5 @@
+import "./site_feedback.js?v=1";
+
 export const APP_CONFIG = {
   appName: "Seaweed Aggregation",
   backendContext: "v1_Ag_System",
