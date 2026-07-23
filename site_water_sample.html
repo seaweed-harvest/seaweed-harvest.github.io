@@ -67,12 +67,12 @@
             <label>Community
               <select id="siteSampleCommunity" required><option value="">Select community</option></select>
             </label>
-            <label>GPS fix
+            <label>GPS fix <span class="packing-field-hint">(optional)</span>
               <span class="packing-measure-row site-sample-gps-row">
-                <input id="siteSampleGps" type="text" inputmode="decimal" autocomplete="off" placeholder="-4.646000, 39.381000" aria-describedby="siteSampleGpsHint" required>
+                <input id="siteSampleGps" type="text" inputmode="decimal" autocomplete="off" placeholder="-4.646000, 39.381000" aria-describedby="siteSampleGpsHint">
                 <button id="captureSiteSampleGps" type="button">GPS</button>
               </span>
-              <span id="siteSampleGpsHint" class="packing-field-hint">Latitude, longitude</span>
+              <span id="siteSampleGpsHint" class="packing-field-hint">Optional latitude, longitude</span>
             </label>
           </fieldset>
 
@@ -149,6 +149,6 @@
     </article>
   </section>
   <script type="module" src="./assets/js/admin_page.js?v=27"></script>
-  <script type="module" src="./assets/js/site_water_sample_form.js?v=4"></script>
+  <script type="module" src="./assets/js/site_water_sample_form.js?v=5"></script>
 </body>
 </html>

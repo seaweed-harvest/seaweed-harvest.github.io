@@ -80,8 +80,9 @@ async function submitSiteSample(event) {
   event.preventDefault();
   if (!els.siteSampleForm.reportValidity()) return;
 
-  const gps = parseGps(els.siteSampleGps.value);
-  if (!gps) {
+  const gpsText = String(els.siteSampleGps.value || "").trim();
+  const gps = gpsText ? parseGps(gpsText) : null;
+  if (gpsText && !gps) {
     els.siteSampleGps.setCustomValidity("Enter latitude and longitude separated by a comma.");
     els.siteSampleGps.reportValidity();
     els.siteSampleGps.setCustomValidity("");
@@ -102,7 +103,7 @@ async function submitSiteSample(event) {
   els.saveSiteSample.disabled = true;
   setStatus("Saving...");
   try {
-    const { data, error } = await authClient.rpc("ag_submit_site_water_sample_record_v3", {
+    const { data, error } = await authClient.rpc("ag_submit_site_water_sample_record_v4", {
       p_submission_id: submissionId,
       p_record: {
         auto_sample_number: !sampleNumberWasEdited,
@@ -111,9 +112,9 @@ async function submitSiteSample(event) {
         sampled_at: new Date(els.siteSampledAt.value).toISOString(),
         community_record_id: community.id,
         community_id: community.community_id,
-        gps_latitude: gps.latitude,
-        gps_longitude: gps.longitude,
-        gps_accuracy_m: gpsAccuracyMeters,
+        gps_latitude: gps?.latitude ?? null,
+        gps_longitude: gps?.longitude ?? null,
+        gps_accuracy_m: gps ? gpsAccuracyMeters : null,
         recorded_by_name: textOrNull(els.siteSampleRecordedBy.value),
         temperature_c: numberOrNull(els.siteSampleTemperature.value),
         salinity_value: numberOrNull(els.siteSampleSalinity.value),
@@ -186,7 +187,7 @@ function captureGps() {
     },
     (error) => {
       els.captureSiteSampleGps.disabled = false;
-      els.siteSampleGpsHint.textContent = "Latitude, longitude";
+      els.siteSampleGpsHint.textContent = "Optional latitude, longitude";
       setStatus(gpsErrorMessage(error), "error");
     },
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
@@ -223,7 +224,7 @@ function resetInputs(nextNumber = nextSampleNumber) {
   els.siteSampleRecordedBy.value = recordedBy;
   els.siteSampleCommunity.value = community;
   els.siteSampledAt.value = kenyaDateTime();
-  els.siteSampleGpsHint.textContent = "Latitude, longitude";
+  els.siteSampleGpsHint.textContent = "Optional latitude, longitude";
   gpsAccuracyMeters = null;
   submissionId = crypto.randomUUID();
   setNextSampleNumber();
