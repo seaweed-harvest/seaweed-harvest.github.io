@@ -431,6 +431,7 @@ function isOnline() {
 
 function applyCollectionAccessMode() {
   els.assignFarmerId.hidden = true;
+  els.sackId.required = false;
   const gradeField = els.seaweedGrade.closest("label");
   if (gradeField) gradeField.hidden = false;
   els.seaweedGrade.disabled = false;

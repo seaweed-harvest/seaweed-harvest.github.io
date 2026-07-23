@@ -76,6 +76,7 @@ const packs = {
       "quick.farmSize": "Farm size:",
       "harvest.legend": "Harvest",
       "harvest.sackId": "Sack ID",
+      "harvest.sackIdOptional": "Sack ID (optional)",
       "harvest.transactionId": "Transaction ID",
       "harvest.dateTime": "Date / time",
       "harvest.gps": "GPS",
@@ -275,6 +276,7 @@ const packs = {
       "quick.farmSize": "Ukubwa wa shamba:",
       "harvest.legend": "Mavuno",
       "harvest.sackId": "Namba ya gunia",
+      "harvest.sackIdOptional": "Namba ya gunia (si lazima)",
       "harvest.transactionId": "Namba ya rekodi",
       "harvest.dateTime": "Tarehe / saa",
       "harvest.gps": "GPS",
@@ -433,6 +435,7 @@ export function t(key, replacements = {}) {
 }
 
 export function configuredFieldLabel(fieldKey, configuredLabel) {
+  if (fieldKey === "sack_id") return t("harvest.sackIdOptional");
   if (currentLanguage === "en") return configuredLabel;
   const key = {
     farmer_id: "farmer.id",
