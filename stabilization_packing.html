@@ -44,7 +44,7 @@
         <form id="packingRecordForm" class="packing-record-form">
           <label class="packing-recorder-field form-recorder-field">
             <span>Recorded by</span>
-            <input id="packingRecordedBy" type="text" maxlength="160" autocomplete="name" required>
+            <input id="packingRecordedBy" type="text" maxlength="160" autocomplete="name">
           </label>
 
           <fieldset>
@@ -63,7 +63,7 @@
               </div>
             </div>
             <label>Carton serial
-              <input id="cartonSerial" type="text" inputmode="numeric" pattern="[0-9]+" maxlength="30" autocomplete="off" list="existingCartonSerials" aria-describedby="cartonSerialHint" required>
+              <input id="cartonSerial" type="text" inputmode="numeric" pattern="[0-9]+" maxlength="30" autocomplete="off" list="existingCartonSerials" aria-describedby="cartonSerialHint">
               <span id="cartonSerialHint" class="packing-field-hint">Next carton number. You can type over it.</span>
             </label>
             <datalist id="existingCartonSerials"></datalist>
@@ -71,16 +71,16 @@
               <input id="packedOn" type="date" required>
             </label>
             <label>Species
-              <select id="packingSpecies" required>
+              <select id="packingSpecies">
                 <option value="spinosum">Spinosum</option>
                 <option value="cottonii">Cottonii</option>
                 <option value="other">Other</option>
               </select>
             </label>
-            <label>Weight
+            <label>Volume
               <span class="packing-measure-row">
                 <input id="packingWeight" type="number" min="0.001" max="100000" step="0.001" inputmode="decimal" required>
-                <select id="packingWeightUnit" aria-label="Weight unit"><option value="kg">kg</option><option value="g">g</option></select>
+                <select id="packingWeightUnit" aria-label="Volume unit"><option value="L" selected>L</option><option value="mL">mL</option></select>
               </span>
             </label>
           </fieldset>
@@ -91,11 +91,11 @@
               <span class="packing-field-label">Stabiliser added?</span>
               <div class="packing-record-type-control packing-stabilizer-control" role="radiogroup" aria-label="Stabiliser added">
                 <label>
-                  <input id="packingStabilizerYes" type="radio" name="packingStabilizerAdded" value="yes" required>
+                  <input id="packingStabilizerYes" type="radio" name="packingStabilizerAdded" value="yes">
                   <span>Yes</span>
                 </label>
                 <label>
-                  <input id="packingStabilizerNo" type="radio" name="packingStabilizerAdded" value="no" required>
+                  <input id="packingStabilizerNo" type="radio" name="packingStabilizerAdded" value="no">
                   <span>No</span>
                 </label>
               </div>
@@ -105,7 +105,7 @@
                 <input id="packingChemical" type="text" value="Sodium benzoate" readonly>
               </label>
               <label class="packing-dose-field">Chemical dose
-                <input id="packingDose" type="number" min="0.001" max="100000" step="0.001" inputmode="decimal" data-recommended="true" disabled>
+                <input id="packingDose" type="number" min="0.001" max="100000" step="0.001" inputmode="decimal" disabled>
               </label>
               <label class="packing-dose-unit-field">Unit
                 <select id="packingDoseUnit" aria-label="Chemical dose unit" disabled><option value="g/L">g/L</option><option value="mg/L">mg/L</option><option value="%">%</option></select>
@@ -122,15 +122,15 @@
             <div class="packing-qc-grid">
               <label>Salinity
                 <span class="packing-measure-row">
-                  <input id="packingSalinity" type="number" min="0" max="100" step="0.01" inputmode="decimal" data-recommended="true">
+                  <input id="packingSalinity" type="number" min="0" max="100" step="0.01" inputmode="decimal">
                   <select id="packingSalinityUnit" aria-label="Salinity unit"><option value="PSU">PSU</option><option value="ppt">ppt</option></select>
                 </span>
               </label>
               <label>pH
-                <input id="packingPh" type="number" min="0" max="14" step="0.01" inputmode="decimal" data-recommended="true">
+                <input id="packingPh" type="number" min="0" max="14" step="0.01" inputmode="decimal">
               </label>
               <label>EC (mS/cm)
-                <input id="packingEc" type="number" min="0" max="500" step="0.01" inputmode="decimal" data-recommended="true">
+                <input id="packingEc" type="number" min="0" max="500" step="0.01" inputmode="decimal">
               </label>
             </div>
           </fieldset>
@@ -169,7 +169,7 @@
             <th scope="col">Date</th>
             <th scope="col">Carton serial</th>
             <th scope="col">Species</th>
-            <th id="printPackingWeightHeader" scope="col" data-pdf-unit="kg">Weight</th>
+            <th id="printPackingWeightHeader" scope="col" data-pdf-unit="L">Volume</th>
             <th id="printPackingSalinityHeader" scope="col" data-pdf-unit="PSU">Salinity</th>
             <th scope="col">pH</th>
             <th scope="col" data-pdf-unit="mS/cm">EC</th>
@@ -189,6 +189,6 @@
     </article>
   </section>
   <script type="module" src="./assets/js/admin_page.js?v=27"></script>
-  <script type="module" src="./assets/js/stabilization_packing_form.js?v=9"></script>
+  <script type="module" src="./assets/js/stabilization_packing_form.js?v=10"></script>
 </body>
 </html>

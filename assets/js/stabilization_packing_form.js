@@ -99,7 +99,6 @@ async function submitRecord(event) {
   event.preventDefault();
   if (!els.packingRecordForm.reportValidity()) return;
   const stabilizerAdded = selectedStabilizerAdded();
-  if (stabilizerAdded === null) return;
 
   els.savePackingRecord.disabled = true;
   setStatus("Saving...");
@@ -119,7 +118,7 @@ async function submitRecord(event) {
         salinity_unit: els.packingSalinityUnit.value,
         ph_value: numberOrNull(els.packingPh.value),
         electrical_conductivity_ms_cm: numberOrNull(els.packingEc.value),
-        stabilizer_added: stabilizerAdded,
+        stabilizer_added: stabilizerAdded ?? false,
         chemical_dose_value: stabilizerAdded ? numberOrNull(els.packingDose.value) : null,
         chemical_dose_unit: els.packingDoseUnit.value,
         notes: textOrNull(els.packingNotes.value)
@@ -185,7 +184,7 @@ function updateStabilizerControls() {
   els.packingDose.disabled = !enabled;
   els.packingDoseUnit.disabled = !enabled;
   els.packingDoseDefault.disabled = !enabled;
-  els.packingDose.required = enabled;
+  els.packingDose.required = false;
   if (selected !== false) {
     applyDoseDefault();
   } else {
@@ -280,7 +279,7 @@ function doseDefaultKey() {
 function preparePackingWorksheet() {
   setPrintValue(els.printPackingRecordedBy, els.packingRecordedBy.value);
   setPrintValue(els.printPackingChemical, els.packingChemical.value);
-  els.printPackingWeightHeader.dataset.pdfUnit = els.packingWeightUnit.value || "kg";
+  els.printPackingWeightHeader.dataset.pdfUnit = els.packingWeightUnit.value || "L";
   els.printPackingSalinityHeader.dataset.pdfUnit = els.packingSalinityUnit.value || "PSU";
   els.printPackingDoseHeader.dataset.pdfUnit = els.packingDoseUnit.value || "g/L";
 }
