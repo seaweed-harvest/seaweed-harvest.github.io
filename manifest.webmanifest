@@ -1,5 +1,6 @@
 {
-  "name": "Seaweed Harvest Collection",
+  "id": "./collection.html",
+  "name": "Seaweed Harvest",
   "short_name": "Seaweed Harvest",
   "description": "Offline seaweed collection and field records.",
   "start_url": "./collection.html",
@@ -19,7 +20,13 @@
       "src": "./assets/images/seaweed-harvest-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/images/seaweed-harvest-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "./assets/images/seaweed-harvest-icon.svg",

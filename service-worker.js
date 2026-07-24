@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v68";
+const CACHE_VERSION = "seaweed-harvest-collection-v69";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -24,7 +24,9 @@ const APP_SHELL = [
   "./assets/images/seaweed-harvest-icon.svg",
   "./assets/images/seaweed-harvest-icon-192.png",
   "./assets/images/seaweed-harvest-icon-512.png",
+  "./assets/images/seaweed-harvest-icon-maskable-512.png",
   "./assets/images/seaweed-harvest-apple-touch-icon.png",
+  "./assets/js/pwa_bootstrap.js",
   "./assets/js/auth_client.js",
   "./assets/js/vendor/supabase-js.esm.js",
   "./assets/js/login_page.js",
