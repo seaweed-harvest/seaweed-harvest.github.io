@@ -12,7 +12,7 @@ def read(relative_path):
 class FormRecordReportingStaticTest(unittest.TestCase):
     def setUp(self):
         self.records = read("records.html")
-        self.collection = read("admin_ledger.html")
+        self.legacy_collection = read("admin_ledger.html")
         self.script = read("assets/js/records_page.js")
         self.reporting = read(
             "supabase/migrations/20260723290000_form_record_reporting.sql"
@@ -25,10 +25,16 @@ class FormRecordReportingStaticTest(unittest.TestCase):
             "3. Stock Record",
             "4. Process Record",
         )
-        for page in (self.records, self.collection):
-            self.assertIn('class="today-records-heading form-ledger-heading"', page)
-            positions = [page.index(label) for label in expected]
-            self.assertEqual(positions, sorted(positions))
+        self.assertIn('class="today-records-heading form-ledger-heading"', self.records)
+        positions = [self.records.index(label) for label in expected]
+        self.assertEqual(positions, sorted(positions))
+        self.assertIn('data-ledger-category="intake"', self.records)
+        self.assertNotIn('href="./admin_ledger.html">2. Intake Collection</a>', self.records)
+
+    def test_legacy_collection_route_preserves_filters_and_redirects(self):
+        self.assertIn('new URL("./records.html"', self.legacy_collection)
+        self.assertIn('target.searchParams.set("category", "intake")', self.legacy_collection)
+        self.assertIn("window.location.replace(target.href)", self.legacy_collection)
 
     def test_each_operational_form_has_monthly_reporting_and_calendar(self):
         self.assertIn('id="formLedgerMonthlyPanel"', self.records)

@@ -51,7 +51,21 @@ def main():
         )
         assert abs(heading_layout["tabsRight"] - heading_layout["panelRight"]) <= 24, heading_layout
 
+        driver.find_element(By.CSS_SELECTOR, '[data-ledger-category="intake"]').click()
+        wait.until(lambda current: current.find_element(
+            By.ID, "collectionLedgerWorkspace"
+        ).is_displayed())
+        assert "records.html" in driver.current_url
+        assert "category=intake" in driver.current_url
+        assert not driver.find_element(By.ID, "formLedgerWorkspace").is_displayed()
+        intake_desktop = pathlib.Path(tempfile.gettempdir()) / "record-ledgers-intake-desktop.png"
+        driver.save_screenshot(str(intake_desktop))
+        screenshots.append(intake_desktop)
+
         driver.find_element(By.CSS_SELECTOR, '[data-ledger-category="stock"]').click()
+        wait.until(lambda current: current.find_element(
+            By.ID, "formLedgerWorkspace"
+        ).is_displayed())
         wait.until(lambda current: "Stock records" in current.find_element(
             By.ID, "formLedgerMonthlyTitle"
         ).text)

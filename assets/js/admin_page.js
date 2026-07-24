@@ -245,7 +245,7 @@ function cacheElements() {
 }
 
 function hasAdminDataView() {
-  return Boolean(els.adminConnectionStatus);
+  return Boolean(els.adminConnectionStatus || els.ledgerViewTabs);
 }
 
 function setDefaultControls() {
@@ -401,6 +401,7 @@ function bindEvents() {
 }
 
 function setupFixedTableScrollbar() {
+  if (document.querySelector(".fixed-table-scrollbar")) return;
   const dock = document.createElement("div");
   const dockContent = document.createElement("div");
   dock.className = "fixed-table-scrollbar";
@@ -1098,11 +1099,12 @@ function syncCommunitySummaryUrl() {
 
 function communityRecordsUrl(communityId) {
   const params = new URLSearchParams({
+    category: "intake",
     view: "all",
     community: String(communityId || ""),
     period: "all"
   });
-  return `./admin_ledger.html?${params.toString()}`;
+  return `./records.html?${params.toString()}`;
 }
 
 async function loadMonthly(options = {}) {
@@ -2980,7 +2982,7 @@ function setConnectionStatus(text, extraClass = "") {
 function writeErrorMessage(error) {
   const message = error?.message || String(error);
   if (/401|403|permission|policy|row-level|JWT/i.test(message)) {
-    return `${message}. Collection Ledger is using the public reporting RPC for this prototype stage.`;
+    return `${message}. The intake collection ledger is using the public reporting RPC for this prototype stage.`;
   }
   return message;
 }

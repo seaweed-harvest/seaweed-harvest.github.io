@@ -132,7 +132,7 @@ const REPORTS = {
 };
 
 const state = {
-  category: "process",
+  category: "intake",
   mode: "all",
   rows: [],
   total: 0,
@@ -162,6 +162,7 @@ document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   [
+    "collectionLedgerWorkspace", "formLedgerWorkspace",
     "formLedgerCount", "formLedgerCategories", "formLedgerViews", "formLedgerCommunityTab",
     "formLedgerAllPanel", "formLedgerMonthlyPanel", "formLedgerCommunityPanel",
     "formLedgerFrom", "formLedgerTo", "formLedgerSearch", "loadFormLedger",
@@ -213,10 +214,18 @@ function bindEvents() {
   els.formLedgerCategories.addEventListener("click", (event) => {
     const button = event.target.closest("[data-ledger-category]");
     if (!button || state.loading) return;
+    if (state.category === "intake") {
+      const currentView = new URLSearchParams(window.location.search).get("view");
+      if (["all", "monthly", "community"].includes(currentView)) state.mode = currentView;
+    }
     state.category = button.dataset.ledgerCategory;
     if (state.category !== "site_sample" && state.mode === "community") state.mode = "all";
     resetPages();
     updateControls();
+    if (state.category === "intake") {
+      activateIntakeView();
+      return;
+    }
     syncUrl();
     void loadCurrentView();
   });
@@ -289,7 +298,7 @@ function setDateDefaults() {
 
 function readUrlState() {
   const params = new URLSearchParams(window.location.search);
-  if (["process", "site_sample", "stock"].includes(params.get("category"))) {
+  if (["intake", "process", "site_sample", "stock"].includes(params.get("category"))) {
     state.category = params.get("category");
   }
   if (["all", "monthly", "community"].includes(params.get("view"))) {
@@ -312,6 +321,11 @@ function updateControls() {
   els.formLedgerCategories.querySelectorAll("[data-ledger-category]").forEach((button) => {
     button.setAttribute("aria-selected", String(button.dataset.ledgerCategory === state.category));
   });
+  const intakeSelected = state.category === "intake";
+  els.collectionLedgerWorkspace.hidden = !intakeSelected;
+  els.formLedgerWorkspace.hidden = intakeSelected;
+  if (intakeSelected) return;
+
   els.formLedgerViews.querySelectorAll("[data-ledger-mode]").forEach((button) => {
     button.setAttribute("aria-selected", String(button.dataset.ledgerMode === state.mode));
   });
@@ -326,6 +340,7 @@ function updateControls() {
 }
 
 async function loadCurrentView() {
+  if (state.category === "intake") return;
   if (state.mode === "monthly") await loadMonthlyReport();
   else if (state.mode === "community") await loadCommunityReport();
   else await loadAllRecords();
@@ -881,6 +896,10 @@ function renderPageStatus(page, total, status, previous, next) {
 function syncUrl() {
   const url = new URL(window.location.href);
   url.searchParams.set("category", state.category);
+  if (state.category === "intake") {
+    window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+    return;
+  }
   url.searchParams.set("view", state.mode);
   if (state.mode === "monthly") url.searchParams.set("year", els.formLedgerYear.value);
   else url.searchParams.delete("year");
@@ -899,6 +918,17 @@ function syncUrl() {
     url.searchParams.delete("search");
   }
   window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+}
+
+function activateIntakeView() {
+  const view = ["all", "monthly", "community"].includes(state.mode) ? state.mode : "all";
+  const url = new URL(window.location.href);
+  url.searchParams.set("category", "intake");
+  url.searchParams.set("view", view);
+  window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+  els.collectionLedgerWorkspace
+    .querySelector(`[data-ledger-view="${view}"]`)
+    ?.click();
 }
 
 function setLoading(loading) {
