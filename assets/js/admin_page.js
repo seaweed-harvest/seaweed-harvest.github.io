@@ -270,6 +270,11 @@ function setDefaultControls() {
   if (els.ledgerMonth && /^\d{4}-\d{2}$/.test(params.get("month") || "")) els.ledgerMonth.value = params.get("month");
   if (els.ledgerStartDate && /^\d{4}-\d{2}-\d{2}$/.test(params.get("from") || "")) els.ledgerStartDate.value = params.get("from");
   if (els.ledgerEndDate && /^\d{4}-\d{2}-\d{2}$/.test(params.get("to") || "")) els.ledgerEndDate.value = params.get("to");
+  if (els.ledgerPeriodPreset && !params.get("period")) {
+    if (els.ledgerMonth?.value) els.ledgerPeriodPreset.value = "month";
+    else if (els.ledgerStartDate?.value || els.ledgerEndDate?.value) els.ledgerPeriodPreset.value = "custom";
+  }
+  normalizeLedgerDateFilterControls();
   if (els.ledgerSearch && params.get("search")) els.ledgerSearch.value = params.get("search");
   if (els.ledgerViewTabs) setLedgerView(params.get("view") || "all", { syncUrl: false });
   if (els.todayIntakeDate) els.todayIntakeDate.value = kenyaDateInputValue(now);
@@ -311,6 +316,15 @@ function bindEvents() {
     setLedgerView(button.dataset.ledgerView);
   });
   els.ledgerViewTabs?.addEventListener("keydown", handleLedgerViewKeydown);
+  els.ledgerPeriodPreset?.addEventListener("change", normalizeLedgerDateFilterControls);
+  els.ledgerMonth?.addEventListener("change", () => {
+    if (els.ledgerMonth.value) els.ledgerPeriodPreset.value = "month";
+    normalizeLedgerDateFilterControls();
+  });
+  [els.ledgerStartDate, els.ledgerEndDate].forEach((control) => control?.addEventListener("change", () => {
+    if (els.ledgerStartDate.value || els.ledgerEndDate.value) els.ledgerPeriodPreset.value = "custom";
+    normalizeLedgerDateFilterControls();
+  }));
   els.applyLedgerFilters?.addEventListener("click", applyLedgerFilters);
   els.ledgerSearch?.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
@@ -1480,6 +1494,24 @@ function clearLedgerCommunityFilter() {
   state.selectedLedgerCommunityIds.clear();
   renderLedgerCommunityOptions();
   syncLedgerCommunityControl();
+}
+
+function normalizeLedgerDateFilterControls() {
+  if (!els.ledgerPeriodPreset) return;
+  const preset = els.ledgerPeriodPreset.value;
+  if (preset === "month") {
+    if (!els.ledgerMonth.value) els.ledgerMonth.value = monthInputValue(new Date());
+    els.ledgerStartDate.value = "";
+    els.ledgerEndDate.value = "";
+    return;
+  }
+  if (preset === "custom") {
+    els.ledgerMonth.value = "";
+    return;
+  }
+  els.ledgerMonth.value = "";
+  els.ledgerStartDate.value = "";
+  els.ledgerEndDate.value = "";
 }
 
 function applyLedgerFilters() {
