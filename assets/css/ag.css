@@ -338,60 +338,6 @@ p {
   color: inherit;
 }
 
-.cascadia-product-footer {
-  width: min(1500px, calc(100% - 28px));
-  margin: 8px auto 24px;
-  display: flex;
-  justify-content: center;
-}
-
-.cascadia-product-footer a {
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--text-sec);
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.cascadia-product-footer img {
-  width: 142px;
-  height: 72px;
-  display: block;
-  border-radius: 6px;
-  object-fit: cover;
-}
-
-.cascadia-product-footer span {
-  max-width: 120px;
-  line-height: 1.25;
-}
-
-.auth-page .cascadia-product-footer {
-  width: min(440px, calc(100% - 28px));
-  margin-top: -36px;
-}
-
-@media (max-width: 600px) {
-  .cascadia-product-footer img {
-    width: 118px;
-    height: 60px;
-  }
-
-  .cascadia-product-footer span {
-    max-width: 104px;
-    font-size: 0.66rem;
-  }
-}
-
-@media print {
-  .cascadia-product-footer {
-    display: none !important;
-  }
-}
-
 .eyebrow {
   margin: 0 0 3px;
   color: var(--text-muted);
