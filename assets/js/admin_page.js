@@ -64,7 +64,6 @@ const state = {
   ledgerDirection: "desc",
   ledgerView: "all",
   selectedLedgerCommunityIds: new Set(),
-  ledgerReloadTimer: null,
   ledgerLoadSequence: 0,
   selectedLedgerIds: new Set(),
   editingLedgerIds: new Set(),
@@ -225,6 +224,7 @@ function cacheElements() {
     "ledgerCommunityOptions",
     "ledgerGrade",
     "ledgerSearch",
+    "applyLedgerFilters",
     "exportLedgerCsv",
     "ledgerPrevPage",
     "ledgerNextPage",
@@ -311,14 +311,12 @@ function bindEvents() {
     setLedgerView(button.dataset.ledgerView);
   });
   els.ledgerViewTabs?.addEventListener("keydown", handleLedgerViewKeydown);
-  [
-    els.ledgerPeriodPreset,
-    els.ledgerMonth,
-    els.ledgerStartDate,
-    els.ledgerEndDate,
-    els.ledgerGrade
-  ].forEach((control) => control?.addEventListener("change", () => scheduleLedgerReload()));
-  els.ledgerSearch?.addEventListener("input", () => scheduleLedgerReload(350));
+  els.applyLedgerFilters?.addEventListener("click", applyLedgerFilters);
+  els.ledgerSearch?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    applyLedgerFilters();
+  });
   els.ledgerCommunitySearch?.addEventListener("input", renderLedgerCommunityOptions);
   els.ledgerCommunityOptions?.addEventListener("change", handleLedgerCommunityFilterChange);
   els.ledgerCommunityClear?.addEventListener("click", clearLedgerCommunityFilter);
@@ -1475,7 +1473,6 @@ function handleLedgerCommunityFilterChange(event) {
   if (checkbox.checked) state.selectedLedgerCommunityIds.add(checkbox.value);
   else state.selectedLedgerCommunityIds.delete(checkbox.value);
   syncLedgerCommunityControl();
-  scheduleLedgerReload(150);
 }
 
 function clearLedgerCommunityFilter() {
@@ -1483,17 +1480,14 @@ function clearLedgerCommunityFilter() {
   state.selectedLedgerCommunityIds.clear();
   renderLedgerCommunityOptions();
   syncLedgerCommunityControl();
-  scheduleLedgerReload();
 }
 
-function scheduleLedgerReload(delay = 0) {
+function applyLedgerFilters() {
   if (!els.ledgerRows || state.editingLedgerIds.size) return;
-  window.clearTimeout(state.ledgerReloadTimer);
-  state.ledgerReloadTimer = window.setTimeout(() => {
-    state.ledgerPage = 0;
-    syncLedgerUrl();
-    loadLedger();
-  }, delay);
+  state.ledgerPage = 0;
+  syncLedgerUrl();
+  if (els.ledgerCommunityFilter) els.ledgerCommunityFilter.open = false;
+  loadLedger();
 }
 
 function openLedgerMonthFromEvent(event) {
@@ -2505,7 +2499,7 @@ function updateLedgerSelectionUi() {
   }
   [
     els.ledgerPeriodPreset, els.ledgerMonth, els.ledgerStartDate, els.ledgerEndDate,
-    els.ledgerGrade, els.ledgerSearch, els.exportLedgerCsv
+    els.ledgerGrade, els.ledgerSearch, els.applyLedgerFilters, els.exportLedgerCsv
   ].forEach((control) => { if (control) control.disabled = editing; });
   els.ledgerCommunityFilter?.classList.toggle("is-disabled", editing);
   els.ledgerCommunityFilter?.querySelectorAll("input, button").forEach((control) => { control.disabled = editing; });

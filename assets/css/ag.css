@@ -3100,13 +3100,20 @@ body:not([data-today-record-category="intake"]) [data-today-intake-only] {
 .ledger-filter-grid input[type="date"],
 .ledger-filter-grid input[type="month"],
 .ledger-community-filter > summary,
-.ledger-filter-grid > button {
+.ledger-filter-buttons button {
   min-height: 34px;
   height: 34px;
   padding-right: 10px;
   padding-left: 10px;
   border-radius: 7px;
   font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.ledger-filter-buttons {
+  display: flex;
+  align-items: end;
+  gap: 8px;
 }
 
 .ledger-filter-actions {
@@ -3200,7 +3207,7 @@ body:not([data-today-record-category="intake"]) [data-today-intake-only] {
   position: absolute;
   top: calc(100% + 5px);
   right: 0;
-  z-index: 40;
+  z-index: 1300;
   padding: 8px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -6651,6 +6658,15 @@ label input[type="checkbox"] {
 
   .ledger-filter-grid {
     grid-template-columns: 1fr;
+  }
+
+  .ledger-filter-buttons,
+  .ledger-filter-buttons button {
+    width: 100%;
+  }
+
+  .ledger-filter-buttons button {
+    flex: 1 1 0;
   }
 
   .ledger-filter-actions {

@@ -105,7 +105,10 @@
                     <option value="C">C</option>
                   </select>
                 </label>
-                <button id="exportLedgerCsv" type="button">Export CSV</button>
+                <div class="ledger-filter-buttons">
+                  <button id="applyLedgerFilters" type="button">Apply filters</button>
+                  <button id="exportLedgerCsv" type="button">Export CSV</button>
+                </div>
               </div>
               <div class="ledger-filter-actions">
                 <label>
@@ -333,7 +336,7 @@
             <label>Search
               <input id="formLedgerSearch" type="search" autocomplete="off" placeholder="Record, person, site or notes">
             </label>
-            <button id="loadFormLedger" type="button">Load</button>
+            <button id="loadFormLedger" type="button">Apply filters</button>
             <button id="exportFormLedger" type="button">Export CSV</button>
           </div>
 
@@ -367,7 +370,7 @@
             <label id="formLedgerMonthlyCommunityField" hidden>Community
               <select id="formLedgerMonthlyCommunity"><option value="">All communities</option></select>
             </label>
-            <button id="loadFormLedgerMonthly" type="button">Load</button>
+            <button id="loadFormLedgerMonthly" type="button">Apply filters</button>
           </div>
           <div id="formLedgerMonthlyMetrics" class="form-ledger-metric-strip" aria-label="Monthly record summary"></div>
           <div class="responsive-table-wrap">
@@ -428,7 +431,7 @@
             <label>To
               <input id="formLedgerCommunityTo" type="date">
             </label>
-            <button id="loadFormLedgerCommunity" type="button">Load</button>
+            <button id="loadFormLedgerCommunity" type="button">Apply filters</button>
           </div>
           <div id="formLedgerCommunityMetrics" class="form-ledger-metric-strip" aria-label="Community record summary"></div>
           <div class="responsive-table-wrap">
