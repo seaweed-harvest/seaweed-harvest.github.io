@@ -1,6 +1,7 @@
 const MOBILE_NAV_QUERY = "(max-width: 980px)";
 const SIDEBAR_PINNED_KEY = "seaweed_ag:admin_sidebar_pinned";
 const SIDEBAR_GROUP_KEY_PREFIX = "seaweed_ag:admin_menu:";
+const PROTECTED_OWNER_EMAIL = "bmichael@cascadiaseaweed.com";
 
 export function setupAppNavigation(options = {}) {
   const header = options.header || document.querySelector(".app-header");
@@ -285,6 +286,9 @@ function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
 
   drawer.append(drawerGroup("Forms", formLinks(profile), currentFile, true));
   drawer.append(drawerGroup("Records", recordLinks(profile), currentFile));
+  if (isProtectedOwner(profile)) {
+    drawer.append(navigationLink({ label: "Suggestions", href: "./admin_suggestions.html" }, currentFile));
+  }
 
   const registry = permittedLinks(profile, [
     { label: "Aggregators", href: "./admin_aggregators.html", permission: "can_access_admin" },
@@ -390,6 +394,10 @@ function permittedLinks(profile, links) {
 function hasPermission(profile, permission) {
   if (permission === "can_access_reef_nursery") return Boolean(profile?.can_access_reef_nursery);
   return profile?.app_role === "system_admin" || Boolean(profile?.[permission]);
+}
+
+function isProtectedOwner(profile) {
+  return String(profile?.email || "").trim().toLowerCase() === PROTECTED_OWNER_EMAIL;
 }
 
 function dashboardRoute(profile) {

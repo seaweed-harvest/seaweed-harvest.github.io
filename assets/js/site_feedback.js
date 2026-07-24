@@ -4,6 +4,9 @@ const QUEUE_KEY = "seaweed:site-feedback:outbox:v1";
 const CLIENT_KEY = "seaweed:site-feedback:client:v1";
 const NAME_KEY = "seaweed:site-feedback:name:v1";
 const MAX_MESSAGE_LENGTH = 2000;
+const MAX_PHOTO_BYTES = 700 * 1024;
+const PHOTO_TARGET_BYTES = 550 * 1024;
+const PHOTO_MAX_EDGE = 1920;
 
 const COPY = {
   en: {
@@ -18,6 +21,11 @@ const COPY = {
     message: "Your suggestion",
     messagePlaceholder: "What could work better?",
     name: "Your name (optional)",
+    photo: "Photo or screenshot (optional)",
+    photoHint: "One image. Compressed before sending.",
+    photoReady: "Screenshot ready.",
+    photoError: "That image could not be prepared. Try another photo or screenshot.",
+    removePhoto: "Remove image",
     quote: "Better ideas start with a question.",
     cancel: "Cancel",
     submit: "Send suggestion",
@@ -39,6 +47,11 @@ const COPY = {
     message: "Pendekezo lako",
     messagePlaceholder: "Nini kinaweza kuboreshwa?",
     name: "Jina lako (si lazima)",
+    photo: "Picha au picha ya skrini (si lazima)",
+    photoHint: "Picha moja. Itapunguzwa kabla ya kutumwa.",
+    photoReady: "Picha iko tayari.",
+    photoError: "Picha hiyo haikuweza kutayarishwa. Jaribu picha nyingine.",
+    removePhoto: "Ondoa picha",
     quote: "Mawazo bora huanza na swali.",
     cancel: "Ghairi",
     submit: "Tuma pendekezo",
@@ -106,6 +119,15 @@ function initialiseFeedbackWidget() {
           <span>${copy.name} / ${COPY.sw.name}</span>
           <input name="submitterName" type="text" maxlength="100" autocomplete="name">
         </label>
+        <label class="site-feedback-photo-field">
+          <span>${copy.photo} / ${COPY.sw.photo}</span>
+          <input name="feedbackPhoto" type="file" accept="image/*" capture="environment">
+          <small>${copy.photoHint}</small>
+        </label>
+        <div class="site-feedback-photo-preview" hidden>
+          <img alt="Selected suggestion screenshot">
+          <button class="site-feedback-photo-remove" type="button">${copy.removePhoto}</button>
+        </div>
         <label class="site-feedback-honeypot" aria-hidden="true">
           <span>Website</span>
           <input name="website" type="text" tabindex="-1" autocomplete="off">
@@ -140,6 +162,8 @@ function initialiseFeedbackWidget() {
   const close = root.querySelector(".site-feedback-close");
   const cancel = root.querySelector(".site-feedback-cancel");
   const celebrationClose = root.querySelector(".site-feedback-celebration-close");
+  const photoInput = form.elements.feedbackPhoto;
+  const photoRemove = form.querySelector(".site-feedback-photo-remove");
   const name = form.elements.submitterName;
   name.value = storedValue(NAME_KEY) || signedInName() || "";
 
@@ -147,6 +171,8 @@ function initialiseFeedbackWidget() {
   close.addEventListener("click", () => closeDialog(dialog));
   cancel.addEventListener("click", () => closeDialog(dialog));
   celebrationClose.addEventListener("click", () => closeCelebration(celebration));
+  photoInput.addEventListener("change", prepareFeedbackPhoto);
+  photoRemove.addEventListener("click", clearFeedbackPhoto);
   dialog.addEventListener("click", (event) => {
     if (event.target === dialog) closeDialog(dialog);
   });
@@ -154,7 +180,7 @@ function initialiseFeedbackWidget() {
     if (event.target === celebration) closeCelebration(celebration);
   });
   form.addEventListener("submit", submitFeedback);
-  widget = { root, dialog, celebration, form, launcher, copy };
+  widget = { root, dialog, celebration, form, launcher, copy, photo: null, photoUrl: null };
   flushFeedbackQueue();
 }
 
@@ -178,7 +204,8 @@ async function submitFeedback(event) {
     feedbackType: form.elements.feedbackType.value,
     message,
     submitterName,
-    website: form.elements.website.value
+    website: form.elements.website.value,
+    photoDataUrl: widget.photo?.dataUrl || null
   });
 
   submit.disabled = true;
@@ -189,6 +216,7 @@ async function submitFeedback(event) {
     const response = await sendFeedback(payload);
     if (!response.ok) throw new Error(response.error || copy.error);
     form.elements.message.value = "";
+    clearFeedbackPhoto();
     setStatus(status, copy.sent, "success");
     if (response.celebration === "jenn-first-improvement") {
       closeDialog(widget.dialog, { restoreFocus: false });
@@ -200,6 +228,7 @@ async function submitFeedback(event) {
     if (!navigator.onLine || isNetworkError(error)) {
       enqueueFeedback(payload);
       form.elements.message.value = "";
+      clearFeedbackPhoto();
       setStatus(status, copy.queued, "queued");
       window.setTimeout(() => closeDialog(widget.dialog), 1800);
     } else {
@@ -211,7 +240,133 @@ async function submitFeedback(event) {
   }
 }
 
-function buildPayload({ feedbackType, message, submitterName, website }) {
+async function prepareFeedbackPhoto(event) {
+  if (!widget) return;
+  const file = event.currentTarget.files?.[0];
+  if (!file) {
+    clearFeedbackPhoto();
+    return;
+  }
+  const status = widget.form.querySelector(".site-feedback-status");
+  setStatus(status, "Preparing screenshot...", "");
+  try {
+    const blob = await compressFeedbackPhoto(file);
+    const dataUrl = await blobToDataUrl(blob);
+    clearFeedbackPhoto({ resetInput: false });
+    widget.photo = { blob, dataUrl, name: file.name || "screenshot.jpg" };
+    widget.photoUrl = URL.createObjectURL(blob);
+    const preview = widget.form.querySelector(".site-feedback-photo-preview");
+    preview.querySelector("img").src = widget.photoUrl;
+    preview.hidden = false;
+    setStatus(status, widget.copy.photoReady, "success");
+  } catch (error) {
+    clearFeedbackPhoto();
+    setStatus(status, error.message || widget.copy.photoError, "error");
+  }
+}
+
+function clearFeedbackPhoto({ resetInput = true } = {}) {
+  if (!widget) return;
+  if (widget.photoUrl) URL.revokeObjectURL(widget.photoUrl);
+  widget.photo = null;
+  widget.photoUrl = null;
+  const preview = widget.form.querySelector(".site-feedback-photo-preview");
+  if (preview) {
+    preview.hidden = true;
+    const image = preview.querySelector("img");
+    if (image) image.removeAttribute("src");
+  }
+  if (resetInput && widget.form.elements.feedbackPhoto) {
+    widget.form.elements.feedbackPhoto.value = "";
+  }
+}
+
+async function compressFeedbackPhoto(file) {
+  if (!String(file.type || "").startsWith("image/")) {
+    throw new Error("Choose an image file.");
+  }
+  const source = await decodeFeedbackImage(file);
+  let width = source.width;
+  let height = source.height;
+  const initialScale = Math.min(1, PHOTO_MAX_EDGE / Math.max(width, height));
+  width = Math.max(1, Math.round(width * initialScale));
+  height = Math.max(1, Math.round(height * initialScale));
+
+  try {
+    for (let resize = 0; resize < 5; resize += 1) {
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d", { alpha: false });
+      if (!context) throw new Error("This browser could not prepare the image.");
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, width, height);
+      context.drawImage(source.image, 0, 0, width, height);
+
+      for (const quality of [0.86, 0.76, 0.66, 0.56, 0.46]) {
+        const blob = await canvasToJpegBlob(canvas, quality);
+        if (blob.size <= PHOTO_TARGET_BYTES || (quality === 0.46 && blob.size <= MAX_PHOTO_BYTES)) {
+          return blob;
+        }
+      }
+      width = Math.max(1, Math.round(width * 0.82));
+      height = Math.max(1, Math.round(height * 0.82));
+    }
+  } finally {
+    source.close?.();
+  }
+  throw new Error("The screenshot is still larger than 700 KB. Try a smaller image.");
+}
+
+async function decodeFeedbackImage(file) {
+  if ("createImageBitmap" in window) {
+    const bitmap = await createImageBitmap(file);
+    return {
+      image: bitmap,
+      width: bitmap.width,
+      height: bitmap.height,
+      close: () => bitmap.close()
+    };
+  }
+  const url = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = () => reject(new Error("The selected image could not be opened."));
+      image.src = url;
+    });
+    return {
+      image,
+      width: image.naturalWidth,
+      height: image.naturalHeight,
+      close: () => URL.revokeObjectURL(url)
+    };
+  } catch (error) {
+    URL.revokeObjectURL(url);
+    throw error;
+  }
+}
+
+function canvasToJpegBlob(canvas, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("The screenshot could not be compressed."));
+    }, "image/jpeg", quality);
+  });
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("The screenshot could not be read."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function buildPayload({ feedbackType, message, submitterName, website, photoDataUrl }) {
   const sourceApp = detectSourceApp();
   return {
     submission_id: crypto.randomUUID(),
@@ -224,6 +379,7 @@ function buildPayload({ feedbackType, message, submitterName, website }) {
     locale: activeLanguage(),
     client_token: clientToken(),
     user_agent: navigator.userAgent.slice(0, 500),
+    photo_data_url: photoDataUrl,
     website
   };
 }
@@ -289,7 +445,8 @@ async function flushFeedbackQueue() {
 function enqueueFeedback(payload) {
   const queue = feedbackQueue();
   if (!queue.some((item) => item.submission_id === payload.submission_id)) queue.push(payload);
-  saveFeedbackQueue(queue.slice(-20));
+  const queueLimit = payload.photo_data_url ? 5 : 20;
+  saveFeedbackQueue(queue.slice(-queueLimit));
 }
 
 function feedbackQueue() {
@@ -424,8 +581,8 @@ function injectStyles() {
   const styles = document.createElement("style");
   styles.id = "siteFeedbackStyles";
   styles.textContent = `
-    .site-feedback-widget{--sf-teal:#087f78;--sf-ink:#123c38;--sf-line:#b9d9d5;--sf-soft:#f4fbfa;position:relative;z-index:1600}
-    .site-feedback-launcher{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));width:40px;height:40px;padding:0;border:1px solid #fff;border-radius:50%;display:grid;place-items:center;background:var(--sf-teal);color:#fff;box-shadow:0 5px 18px rgba(19,75,70,.24);cursor:pointer;z-index:1601}
+    .site-feedback-widget{--sf-teal:#087f78;--sf-ink:#123c38;--sf-line:#b9d9d5;--sf-soft:#f4fbfa;position:relative;z-index:2400}
+    .site-feedback-launcher{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));width:40px;height:40px;padding:0;border:1px solid #fff;border-radius:50%;display:grid;place-items:center;background:var(--sf-teal);color:#fff;box-shadow:0 5px 18px rgba(19,75,70,.24);cursor:pointer;z-index:2401}
     .site-feedback-launcher:hover,.site-feedback-launcher:focus-visible{background:#056c66;transform:translateY(-1px)}
     .site-feedback-launcher svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
     .site-feedback-dialog{width:min(430px,calc(100vw - 28px));max-height:min(680px,calc(100vh - 28px));padding:0;border:1px solid var(--sf-line);border-radius:8px;background:#fff;color:var(--sf-ink);box-shadow:0 18px 55px rgba(10,54,50,.24)}
@@ -440,6 +597,11 @@ function injectStyles() {
     .site-feedback-form select,.site-feedback-form textarea,.site-feedback-form input{box-sizing:border-box;width:100%;min-height:42px;padding:10px 12px;border:1px solid var(--sf-line);border-radius:6px;background:#fff;color:#102f2c;font:inherit;font-size:.95rem;font-weight:400;text-transform:none;letter-spacing:0}
     .site-feedback-form textarea{min-height:112px;resize:vertical}
     .site-feedback-form select:focus,.site-feedback-form textarea:focus,.site-feedback-form input:focus{outline:2px solid rgba(8,127,120,.22);border-color:var(--sf-teal)}
+    .site-feedback-photo-field small{color:#718784;font-size:.75rem;font-weight:500;text-transform:none}
+    .site-feedback-photo-preview{min-width:0;display:grid;grid-template-columns:76px minmax(0,1fr);align-items:center;gap:10px;padding:8px;border:1px solid var(--sf-line);border-radius:6px;background:var(--sf-soft)}
+    .site-feedback-photo-preview[hidden]{display:none}
+    .site-feedback-photo-preview img{width:76px;height:58px;object-fit:cover;border-radius:4px;background:#fff}
+    .site-feedback-photo-preview button{justify-self:start;min-height:36px;padding:6px 10px;border:1px solid var(--sf-line);border-radius:6px;background:#fff;color:var(--sf-ink);font:inherit;font-size:.8rem;font-weight:700;cursor:pointer}
     .site-feedback-honeypot{position:absolute!important;left:-9999px!important;width:1px!important;height:1px!important;overflow:hidden!important}
     .site-feedback-status{min-height:1.3em;margin:0;font-size:.88rem;color:#476b67}
     .site-feedback-status[data-state=success]{color:#08724e}

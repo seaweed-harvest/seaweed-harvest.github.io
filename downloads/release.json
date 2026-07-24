@@ -1,15 +1,15 @@
 {
   "appId": "io.github.seaweedharvest.collection",
-  "versionName": "1.0.25",
-  "versionCode": 26,
-  "builtAt": "2026-07-24T04:25:51.599Z",
+  "versionName": "1.0.26",
+  "versionCode": 27,
+  "builtAt": "2026-07-24T07:37:09.287Z",
   "files": [
     {
       "type": "apk",
-      "filename": "Seaweed-Harvest-1.0.25.apk",
-      "bytes": 8950834,
-      "sha256": "bd7d7bc23ca30bfecc2d116d325771d3e8be9b5e9fa666a68e828b491d2ee9be",
-      "url": "https://seaweed-harvest.com/downloads/Seaweed-Harvest-1.0.25.apk"
+      "filename": "Seaweed-Harvest-1.0.26.apk",
+      "bytes": 9224388,
+      "sha256": "a3bed1df81a7cdfb66d777a0ad6bf33ba6191c25d16286bbfc4f28ef62c7f5c0",
+      "url": "https://seaweed-harvest.com/downloads/Seaweed-Harvest-1.0.26.apk"
     }
   ]
 }

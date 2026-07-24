@@ -813,9 +813,8 @@
   }
 
   .reef-form-tabs {
-    position: sticky;
-    z-index: 2200;
-    top: var(--app-header-height, 58px);
+    position: relative;
+    z-index: 1;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 4px;
@@ -824,8 +823,7 @@
     overflow: visible;
     border-color: var(--border);
     background: rgba(242, 248, 246, 0.98);
-    box-shadow: 0 4px 8px rgba(18, 54, 47, 0.08);
-    backdrop-filter: blur(6px);
+    box-shadow: none;
   }
 
   .reef-form-tabs button {
@@ -929,6 +927,74 @@
   .reef-embedded-records .section-head {
     align-items: flex-start;
     flex-direction: row;
+  }
+
+  .reef-embedded-records {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .reef-records-table-wrap {
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .reef-records-table,
+  .reef-records-table tbody,
+  .reef-records-table tr,
+  .reef-records-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .reef-records-table {
+    min-width: 0;
+  }
+
+  .reef-records-table thead {
+    display: none;
+  }
+
+  .reef-records-table tr {
+    display: grid;
+    gap: 7px;
+    margin-bottom: 8px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--panel);
+  }
+
+  .reef-records-table td,
+  .reef-records-table .reef-select-column {
+    width: 100%;
+    height: auto;
+    min-height: 24px;
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 8px;
+    padding: 0;
+    border: 0;
+    white-space: normal;
+  }
+
+  .reef-records-table td::before {
+    content: attr(data-label);
+    color: var(--text-sec);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .reef-records-table .reef-select-column {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .reef-records-table .reef-select-column::before {
+    display: none;
   }
 
   .reef-matrix-dialog {

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Suggestions - Seaweed Harvest</title>
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Seaweed Harvest">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/images/seaweed-harvest-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
+  <link rel="stylesheet" href="./assets/css/ag.css">
+  <script type="module" src="./assets/js/pwa_bootstrap.js"></script>
+</head>
+<body class="admin-console-page suggestions-page" data-auth-pending>
+  <header class="app-header unified-app-header">
+    <div class="app-header-inner">
+      <div>
+        <p class="eyebrow">Seaweed Harvest</p>
+        <h1>Suggestions</h1>
+      </div>
+      <div class="header-actions"></div>
+    </div>
+  </header>
+
+  <main class="app-shell admin-shell admin-layout">
+    <aside id="suggestionsSidebar" class="admin-sidebar" aria-label="Application menu"></aside>
+    <section class="admin-content admin-page-section">
+      <section class="panel suggestions-panel">
+        <div class="section-head compact">
+          <div>
+            <h2>Suggestions</h2>
+            <p class="field-hint">Private review queue for feedback sent from Seaweed Harvest.</p>
+          </div>
+          <span id="suggestionsCount" class="status-pill">0 suggestions</span>
+        </div>
+
+        <div class="suggestions-filters">
+          <label>
+            Search
+            <input id="suggestionsSearch" type="search" placeholder="Message, page or person" autocomplete="off">
+          </label>
+          <label>
+            Status
+            <select id="suggestionsStatusFilter">
+              <option value="open" selected>Open suggestions</option>
+              <option value="">Open and closed</option>
+              <option value="new">New</option>
+              <option value="reviewing">Reviewing</option>
+              <option value="planned">Planned</option>
+              <option value="closed">Closed</option>
+            </select>
+          </label>
+          <button id="loadSuggestions" type="button">Load</button>
+        </div>
+
+        <p id="suggestionsPageStatus" class="admin-status" role="status" aria-live="polite"></p>
+        <div id="suggestionsList" class="suggestions-list"></div>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="suggestionPhotoDialog" class="suggestion-photo-dialog" aria-labelledby="suggestionPhotoTitle">
+    <div class="suggestion-photo-dialog-panel">
+      <div class="section-head compact">
+        <h2 id="suggestionPhotoTitle">Suggestion screenshot</h2>
+        <button id="closeSuggestionPhoto" type="button">Close</button>
+      </div>
+      <img id="suggestionPhotoImage" alt="Suggestion screenshot">
+    </div>
+  </dialog>
+
+  <script type="module" src="./assets/js/admin_suggestions.js?v=1"></script>
+</body>
+</html>

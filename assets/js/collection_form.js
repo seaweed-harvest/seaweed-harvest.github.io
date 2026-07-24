@@ -28,7 +28,7 @@ import {
 import { syncPendingCollections } from "./offline_sync.js";
 import { completeLaunchSplash } from "./app_transition.js";
 import { createOperationFeedback } from "./operation_feedback.js";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=7";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=8";
 import { setupFavoriteFormButton } from "./favorite_forms.js";
 import { setPrintValue, setupPdfWorksheet } from "./print_worksheet.js";
 
@@ -463,7 +463,15 @@ function cacheElements() {
     "collectionPrintWorksheet",
     "printCollectionAggregator",
     "printCollectionCollector",
+    "collectionCommunitySearch",
+    "collectionCommunityOptions",
     "collectionCommunityId",
+    "collectionCommunityMatch",
+    "addCollectionCommunityName",
+    "collectionCommunityDialog",
+    "collectionCommunityDialogForm",
+    "manualCollectionCommunityName",
+    "cancelCollectionCommunityName",
     "collectorName",
     "collectionWebsite",
     "farmerId",
@@ -568,7 +576,15 @@ function bindEvents() {
   els.manualFarmerFarmSizeUnit.addEventListener("change", updateQuickReference);
   els.manualCommunityInput.addEventListener("input", syncManualCommunity);
   els.manualCommunityInput.addEventListener("change", syncManualCommunity);
-  els.collectionCommunityId.addEventListener("change", rememberCollectionCommunity);
+  els.collectionCommunitySearch.addEventListener("input", syncCollectionCommunity);
+  els.collectionCommunitySearch.addEventListener("change", syncCollectionCommunity);
+  els.addCollectionCommunityName.addEventListener("click", openCollectionCommunityDialog);
+  els.collectionCommunityDialogForm.addEventListener("submit", useManualCollectionCommunityName);
+  els.cancelCollectionCommunityName.addEventListener("click", closeCollectionCommunityDialog);
+  els.collectionCommunityDialog.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeCollectionCommunityDialog();
+  });
   els.assignFarmerId.addEventListener("click", assignNextFarmerId);
   els.sackId.addEventListener("change", () => {
     els.sackId.value = normalizedSackId();
@@ -698,28 +714,39 @@ function applyFormData(formData) {
 }
 
 function renderCommunityOptions() {
+  els.collectionCommunityOptions.innerHTML = state.communities.map((community) => {
+    const label = communityLabel(community);
+    return `<option value="${escapeAttribute(label)}">${escapeHtml(community.community_name || "")}</option>`;
+  }).join("");
   els.communityOptions.innerHTML = state.communities.map((community) => {
     const label = communityLabel(community);
     return `<option value="${escapeAttribute(label)}"></option>`;
   }).join("");
-  els.collectionCommunityId.replaceChildren(new Option(t("collection.selectCommunity"), ""));
-  state.communities.forEach((community) => {
-    els.collectionCommunityId.append(new Option(communityLabel(community), community.community_id));
-  });
   restoreCollectionCommunity();
   syncFarmerCommunityName();
+}
+
+function syncCollectionCommunity() {
+  const community = findExactCommunityFromText(els.collectionCommunitySearch.value);
+  els.collectionCommunityId.value = community?.community_id || "";
+  els.collectionCommunityMatch.textContent = community
+    ? `Registry match: ${communityLabel(community)}`
+    : t("collection.communityHint");
+  rememberCollectionCommunity();
 }
 
 function rememberCollectionCommunity() {
   try {
     const communityId = String(els.collectionCommunityId.value || "").trim();
-    if (!communityId) {
+    const communityName = String(els.collectionCommunitySearch.value || "").trim();
+    if (!communityId && !communityName) {
       localStorage.removeItem(COLLECTION_COMMUNITY_STORAGE_KEY);
       return;
     }
     localStorage.setItem(COLLECTION_COMMUNITY_STORAGE_KEY, JSON.stringify({
       date: collectionDateValue(),
-      communityId
+      communityId,
+      communityName
     }));
   } catch {
     // The selected community remains active for this open form when storage is unavailable.
@@ -732,6 +759,14 @@ function restoreCollectionCommunity() {
     const exists = state.communities.some((community) => community.community_id === saved?.communityId);
     if (saved?.date === collectionDateValue() && exists) {
       els.collectionCommunityId.value = saved.communityId;
+      els.collectionCommunitySearch.value = communityLabel(communityById(saved.communityId));
+      syncCollectionCommunity();
+      return;
+    }
+    if (saved?.date === collectionDateValue() && saved?.communityName) {
+      els.collectionCommunityId.value = "";
+      els.collectionCommunitySearch.value = String(saved.communityName);
+      syncCollectionCommunity();
       return;
     }
     localStorage.removeItem(COLLECTION_COMMUNITY_STORAGE_KEY);
@@ -741,9 +776,44 @@ function restoreCollectionCommunity() {
 }
 
 function suggestCollectionCommunity(communityId) {
-  if (els.collectionCommunityId.value || !communityById(communityId)) return;
-  els.collectionCommunityId.value = communityId;
+  const community = communityById(communityId);
+  if (els.collectionCommunitySearch.value || !community) return;
+  els.collectionCommunitySearch.value = communityLabel(community);
+  syncCollectionCommunity();
+}
+
+function openCollectionCommunityDialog() {
+  els.manualCollectionCommunityName.value = els.collectionCommunityId.value
+    ? ""
+    : String(els.collectionCommunitySearch.value || "").trim();
+  if (typeof els.collectionCommunityDialog.showModal === "function") {
+    els.collectionCommunityDialog.showModal();
+  } else {
+    els.collectionCommunityDialog.setAttribute("open", "");
+  }
+  requestAnimationFrame(() => els.manualCollectionCommunityName.focus());
+}
+
+function useManualCollectionCommunityName(event) {
+  event.preventDefault();
+  const name = String(els.manualCollectionCommunityName.value || "").trim().replace(/\s+/g, " ");
+  if (!name) {
+    els.manualCollectionCommunityName.focus();
+    return;
+  }
+  els.collectionCommunitySearch.value = name;
+  els.collectionCommunityId.value = "";
+  els.collectionCommunityMatch.textContent = t("collection.communityHint");
   rememberCollectionCommunity();
+  closeCollectionCommunityDialog();
+}
+
+function closeCollectionCommunityDialog() {
+  if (typeof els.collectionCommunityDialog.close === "function") {
+    els.collectionCommunityDialog.close();
+  } else {
+    els.collectionCommunityDialog.removeAttribute("open");
+  }
 }
 
 async function lookupFarmer() {
@@ -1675,6 +1745,8 @@ function startNewCollection() {
 
 function buildPayload(photoPaths = []) {
   const community = selectedCollectionCommunity();
+  const communityName = community?.community_name
+    || nullableText(els.collectionCommunitySearch.value);
   const weight = requiredNumber(els.sackWeightKg.value, t("harvest.weight"));
   const seaweedType = nullableText(els.seaweedType.value) || state.defaultSeaweedType;
   const gradeCode = requiredText(els.seaweedGrade.value, t("harvest.grade")).toUpperCase();
@@ -1690,7 +1762,7 @@ function buildPayload(photoPaths = []) {
     farmer_name_snapshot: farmerNameSnapshot,
     community_id: nullableText(community?.community_id),
     community_record_id: community?.id || null,
-    community_name_snapshot: community?.community_name || null,
+    community_name_snapshot: communityName,
     sack_id: normalizedSackId() || null,
     collected_at: collectedAt.toISOString(),
     gps_latitude: state.gps?.latitude ?? null,
@@ -1726,8 +1798,10 @@ function validateCollectionPricing(payload) {
 function clearForm(options = {}) {
   const collectorName = String(els.collectorName.value || "").trim();
   const collectionCommunityId = els.collectionCommunityId.value;
+  const collectionCommunityName = els.collectionCommunitySearch.value;
   els.collectionForm.reset();
   els.collectionCommunityId.value = collectionCommunityId;
+  els.collectionCommunitySearch.value = collectionCommunityName;
   els.collectorName.value = collectorName || localStorage.getItem(COLLECTOR_NAME_STORAGE_KEY) || "";
   els.collectionWebsite.value = "";
   state.selectedFarmer = null;
@@ -1748,6 +1822,7 @@ function clearForm(options = {}) {
   state.submissionId = crypto.randomUUID();
   ensureTransactionId();
   syncFarmerCommunityName();
+  syncCollectionCommunity();
   rememberCollectionCommunity();
   updateQuickReference();
   updateCustomCalculations();
@@ -2002,6 +2077,17 @@ function findCommunityFromText(value) {
     const name = String(community.community_name || "").toUpperCase();
     const label = communityLabel(community).toUpperCase();
     return text === id || text === name || text === label || label.includes(text);
+  }) || null;
+}
+
+function findExactCommunityFromText(value) {
+  const text = String(value || "").trim().toUpperCase();
+  if (!text) return null;
+  return state.communities.find((community) => {
+    const id = String(community.community_id || "").toUpperCase();
+    const name = String(community.community_name || "").toUpperCase();
+    const label = communityLabel(community).toUpperCase();
+    return text === id || text === name || text === label;
   }) || null;
 }
 

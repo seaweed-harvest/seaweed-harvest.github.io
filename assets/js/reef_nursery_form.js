@@ -1,7 +1,7 @@
 import { APP_CONFIG } from "./config.js";
 import { authClient, requireAggregatorAccess } from "./auth_client.js?v=23";
 import { setupFavoriteFormButton } from "./favorite_forms.js";
-import { initReefNurseryRecords } from "./reef_nursery_records.js?v=3";
+import { initReefNurseryRecords } from "./reef_nursery_records.js?v=4";
 
 const els = {};
 const PHOTO_BUCKET = "reef-nursery-photos";
@@ -30,6 +30,8 @@ let trainingMatrixEditor = [];
 let submissionId = crypto.randomUUID();
 let editingSessionId = null;
 let recordsController = null;
+let reefAccess = null;
+let recordsControllerPromise = null;
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -93,16 +95,9 @@ async function init() {
     "reef_nursery.html"
   );
   if (!access) return;
+  reefAccess = access;
   photoState.userId = access.session?.user?.id || null;
   await loadTrainingMatrix();
-  recordsController = await initReefNurseryRecords({
-    root: els.reefRecordsPanel,
-    access,
-    onEdit: async (sessionId) => {
-      history.replaceState({}, "", `./reef_nursery.html?record=${encodeURIComponent(sessionId)}`);
-      await loadRecord(sessionId);
-    }
-  });
 
   setupFavoriteFormButton({
     button: els.favoriteReefNurseryForm,
@@ -225,7 +220,34 @@ function showTab(name) {
   document.querySelectorAll("[data-reef-panel]").forEach((panel) => {
     panel.hidden = panel.dataset.reefPanel !== name;
   });
-  if (name === "records") void recordsController?.reload();
+  if (name === "records") void ensureRecordsController();
+}
+
+async function ensureRecordsController() {
+  if (recordsController) {
+    await recordsController.reload();
+    return recordsController;
+  }
+  if (recordsControllerPromise) return recordsControllerPromise;
+  if (!reefAccess) return null;
+
+  recordsControllerPromise = initReefNurseryRecords({
+    root: els.reefRecordsPanel,
+    access: reefAccess,
+    onEdit: async (sessionId) => {
+      history.replaceState({}, "", `./reef_nursery.html?record=${encodeURIComponent(sessionId)}`);
+      await loadRecord(sessionId);
+    }
+  }).then((controller) => {
+    recordsController = controller;
+    return controller;
+  }).catch((error) => {
+    setStatus(error.message || "Previous records could not be loaded.", "error");
+    return null;
+  }).finally(() => {
+    recordsControllerPromise = null;
+  });
+  return recordsControllerPromise;
 }
 
 function addParticipantRow({ focus = false, participant = {} } = {}) {

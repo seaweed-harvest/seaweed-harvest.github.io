@@ -122,11 +122,11 @@ function renderRows() {
       row.dataset.sessionId = record.session_id;
       row.innerHTML = `
         <td class="reef-select-column"><input type="checkbox" data-select-record value="${escapeHtml(record.session_id)}" aria-label="Select ${escapeHtml(record.record_number)}"></td>
-        <td><strong>${escapeHtml(record.record_number)}</strong></td>
-        <td>${escapeHtml(formatDate(record.training_date))}</td>
-        <td>${escapeHtml(record.trainer_name || "-")}</td>
-        <td>${escapeHtml(LOCATION_LABELS[record.location] || record.location || "-")}</td>
-        <td>${escapeHtml(formatSessionTypes(record.session_types))}</td>`;
+        <td data-label="Record"><strong>${escapeHtml(record.record_number)}</strong></td>
+        <td data-label="Date">${escapeHtml(formatDate(record.training_date))}</td>
+        <td data-label="Trainer">${escapeHtml(record.trainer_name || "-")}</td>
+        <td data-label="Location">${escapeHtml(LOCATION_LABELS[record.location] || record.location || "-")}</td>
+        <td data-label="Session">${escapeHtml(formatSessionTypes(record.session_types))}</td>`;
       els.reefRecordsRows.append(row);
     });
   }

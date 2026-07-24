@@ -4,7 +4,7 @@ import { dataModeLabel, selectRows } from "./supabase_client.js";
 import { currentAccessToken, requireAdminAccess, setupAccountControls } from "./auth_client.js?v=23";
 import { applyDashboardPreferences } from "./dashboard_preferences.js";
 import { renderFavoriteForms } from "./favorite_forms.js";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=7";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=8";
 import { moonEvents } from "./moon_calendar.js";
 
 const TABLES = {
