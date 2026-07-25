@@ -1,4 +1,4 @@
-const SPLASH_IMAGE = "./assets/images/seaweed-harvest-splash.gif";
+const SPLASH_IMAGE = "./assets/images/seaweed-harvest-logo.png";
 const LAUNCH_SESSION_KEY = "seaweed-harvest:launch-splash-shown";
 const SPLASH_STYLE_ID = "seaweed-harvest-splash-centering";
 const REDUCED_MOTION = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;

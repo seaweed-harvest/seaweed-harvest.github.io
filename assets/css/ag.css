@@ -185,16 +185,16 @@ p {
 
 @media (min-width: 981px) {
   .unified-app-header .app-header-inner > :first-child:not(.header-actions) {
-    width: 190px;
-    flex-basis: 190px;
-    padding-left: 190px;
+    width: 224px;
+    flex-basis: 224px;
+    padding-left: 224px;
   }
 
   .unified-app-header .app-header-inner > :first-child:not(.header-actions)::before {
-    width: 180px;
-    height: 50px;
+    width: 214px;
+    height: 54px;
     border-radius: 0;
-    background: url("../images/seaweed-harvest-logo.svg") left center / contain no-repeat;
+    background: url("../images/seaweed-harvest-logo.png") left center / contain no-repeat;
     box-shadow: none;
   }
 }
@@ -432,7 +432,7 @@ body.brand-transition-active {
   .auth-brand-logo-animated,
   .app-launch-splash img,
   .brand-transition img {
-    content: url("../images/seaweed-harvest-logo.svg");
+    content: url("../images/seaweed-harvest-logo.png");
   }
 }
 
