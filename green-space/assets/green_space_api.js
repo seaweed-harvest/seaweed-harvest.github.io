@@ -15,25 +15,25 @@ export async function loadProjects(clientToken = null) {
 }
 
 export async function loadLedger(clientToken = null) {
-  if (clientToken) {
-    return submitGreenSpaceRecord({
-      action: "ledger",
-      client_token: clientToken,
-      website: ""
-    });
-  }
-  return rpc("girls_public_ledger", {
-    p_search: null,
-    p_entry_type: null,
-    p_week: null,
-    p_limit: 1000,
-    p_offset: 0
+  if (!clientToken) throw new Error("Open a Green Space project before loading its records.");
+  return submitGreenSpaceRecord({
+    action: "project_ledger",
+    client_token: clientToken,
+    website: ""
   });
+}
+
+export async function loadAdminLedger(accessToken) {
+  return submitGreenSpaceRecord({
+    action: "ledger",
+    client_token: crypto.randomUUID(),
+    website: ""
+  }, accessToken);
 }
 
 export async function manageLedgerRecord({
   action,
-  clientToken,
+  accessToken,
   greenSpaceId,
   recordId,
   recordType,
@@ -42,14 +42,14 @@ export async function manageLedgerRecord({
 }) {
   return submitGreenSpaceRecord({
     action,
-    client_token: clientToken,
+    client_token: crypto.randomUUID(),
     green_space_id: greenSpaceId,
     record_id: recordId,
     record_type: recordType,
     is_published: isPublished,
     changes,
     website: ""
-  });
+  }, accessToken);
 }
 
 export async function loadProjectPhotos(greenSpaceId) {
@@ -58,10 +58,10 @@ export async function loadProjectPhotos(greenSpaceId) {
   });
 }
 
-export async function submitGreenSpaceRecord(payload) {
+export async function submitGreenSpaceRecord(payload, accessToken = null) {
   return request(`${SUPABASE_URL}/functions/v1/green-space-log`, {
     method: "POST",
-    headers: publicHeaders(),
+    headers: publicHeaders(accessToken),
     body: JSON.stringify(payload)
   });
 }
@@ -143,10 +143,10 @@ async function request(url, init) {
   }
 }
 
-function publicHeaders() {
+function publicHeaders(accessToken = null) {
   return {
     apikey: SUPABASE_ANON_KEY,
-    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    Authorization: `Bearer ${accessToken || SUPABASE_ANON_KEY}`,
     "Content-Type": "application/json"
   };
 }

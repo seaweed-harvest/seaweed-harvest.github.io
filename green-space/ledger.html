@@ -4,10 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#176b52">
+  <meta name="robots" content="noindex,nofollow">
   <title>Reflection Ledger</title>
-  <link rel="stylesheet" href="./assets/green_space.css?v=4">
+  <link rel="stylesheet" href="./assets/green_space.css?v=5">
 </head>
-<body>
+<body data-auth-pending>
   <header class="girls-header">
     <div class="girls-header-inner">
       <a class="girls-brand" href="./" aria-label="Green Space Log">
@@ -19,7 +20,7 @@
       <nav class="girls-nav" aria-label="Green Space Log navigation">
         <a href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"></path><path d="M13.5 4.5 19 10"></path><path d="m13 11 6.5-6.5a2.12 2.12 0 0 1 3 3L16 14l-4 1 1-4Z"></path></svg><span>Form</span></a>
         <a href="./map.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"></path><path d="M9 3v15"></path><path d="M15 6v15"></path></svg><span>Map</span></a>
-        <a href="./ledger.html" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18"></path><path d="M3 12h18"></path><path d="M3 19h18"></path><path d="M8 5v14"></path></svg><span>Ledger</span></a>
+        <a class="girls-ledger-nav" href="./ledger.html" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18"></path><path d="M3 12h18"></path><path d="M3 19h18"></path><path d="M8 5v14"></path></svg><span>Ledger</span></a>
       </nav>
     </div>
   </header>
@@ -27,7 +28,13 @@
   <main class="girls-main girls-wide-main">
     <header class="girls-page-heading girls-heading-row">
       <div><p class="girls-eyebrow">Shared class view</p><h1>Reflection Ledger</h1></div>
-      <span id="girlsLedgerCount" class="girls-count">0 entries</span>
+      <div class="girls-heading-actions">
+        <span id="girlsLedgerCount" class="girls-count">0 entries</span>
+        <div id="girlsLedgerAccount" class="girls-ledger-account" hidden>
+          <span id="girlsLedgerAccountName"></span>
+          <button id="girlsLedgerSignOut" type="button">Sign out</button>
+        </div>
+      </div>
     </header>
 
     <section class="girls-ledger-tools" aria-label="Ledger filters">
@@ -124,7 +131,7 @@
   </dialog>
 
   <script type="module" src="../assets/js/fixed_table_scrollbar.js?v=1"></script>
-  <script type="module" src="./assets/green_space_ledger.js?v=4"></script>
+  <script type="module" src="./assets/green_space_ledger.js?v=5"></script>
   <script type="module" src="../assets/js/site_feedback.js?v=5"></script>
 </body>
 </html>

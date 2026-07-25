@@ -21,7 +21,8 @@ const permissionDefinitions = [
   ["can_view_user_activity", "View recent activity", "View login and administrator action history. The page shows the newest 20 events."],
   ["can_view_notifications", "View notification content", "Includes recipient names, masked phone numbers, message text and delivery history."],
   ["can_manage_notifications", "Manage notification delivery", "Retry or cancel messages and perform notification operations that may incur costs."],
-  ["can_manage_sms_settings", "Configure SMS settings", "Change SMS provider mode, cost limits, retries and balance settings."]
+  ["can_manage_sms_settings", "Configure SMS settings", "Change SMS provider mode, cost limits, retries and balance settings."],
+  ["can_manage_green_space", "Manage Green Space ledger", "View, edit, publish, unpublish and delete Green Space project records."]
 ];
 
 const permissionDependencies = [
@@ -41,6 +42,7 @@ const roleLabels = {
   community_viewer: "Community viewer",
   farmer_viewer: "Farmer",
   read_only_auditor: "Read-only auditor",
+  green_space_teacher: "Green Space teacher",
   system_admin: "System admin"
 };
 
@@ -671,6 +673,7 @@ function rolePreset(role) {
   if (role === "finance_admin") Object.assign(values, { can_access_admin: true, can_view_dashboard: true, can_view_map: true, can_view_data: true, can_view_finance: true, can_manage_pricing: true, can_export_data: true, can_view_notifications: true });
   if (role === "field_collector") values.can_submit_collection = true;
   if (role === "read_only_auditor") Object.assign(values, { can_access_admin: true, can_view_dashboard: true, can_view_registry: true, can_view_map: true, can_view_data: true, can_view_finance: true, can_view_notifications: true });
+  if (role === "green_space_teacher") values.can_manage_green_space = true;
   return values;
 }
 

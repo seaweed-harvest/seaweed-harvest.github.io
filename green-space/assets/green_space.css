@@ -65,6 +65,10 @@ a {
   display: none !important;
 }
 
+body[data-auth-pending] .girls-main {
+  visibility: hidden;
+}
+
 .girls-header {
   position: sticky;
   top: 0;
@@ -197,6 +201,29 @@ a {
   gap: 16px;
 }
 
+.girls-heading-actions,
+.girls-ledger-account {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.girls-ledger-account {
+  padding-left: 8px;
+  color: var(--girls-muted);
+  font-size: 0.76rem;
+}
+
+.girls-ledger-account button {
+  min-height: 30px;
+  padding: 5px 10px;
+  color: var(--girls-green-dark);
+  background: white;
+  border: 1px solid var(--girls-line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
 .girls-count,
 .girls-entry-badge,
 .girls-word-count {
@@ -259,6 +286,26 @@ a {
   font-size: 0.8rem;
   font-weight: 750;
   cursor: pointer;
+}
+
+.girls-mode-options [data-entry-mode="project"] {
+  order: 1;
+}
+
+.girls-mode-options [data-entry-mode="observation"] {
+  order: 2;
+}
+
+.girls-mode-options [data-entry-mode="weekly_reflection"] {
+  order: 3;
+}
+
+.girls-mode-options [data-entry-mode="final_reflection"] {
+  order: 4;
+}
+
+.girls-mode-options [data-entry-mode="photos"] {
+  order: 5;
 }
 
 .girls-mode-options button:hover,
@@ -1703,6 +1750,10 @@ body.has-fixed-table-scrollbar {
 }
 
 @media (max-width: 760px) {
+  .girls-ledger-nav {
+    display: none !important;
+  }
+
   .girls-header-inner {
     width: 100%;
     min-height: 62px;

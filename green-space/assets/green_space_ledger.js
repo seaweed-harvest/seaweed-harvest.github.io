@@ -1,11 +1,14 @@
 import {
-  loadLedger,
-  loadProjects,
+  loadAdminLedger,
   manageLedgerRecord,
   publicPhotoUrl
-} from "./green_space_api.js?v=4";
-
-const CLIENT_TOKEN_KEY = "girls:client-token";
+} from "./green_space_api.js?v=5";
+import {
+  authClient,
+  currentProfile,
+  currentSession,
+  signOut
+} from "../../assets/js/auth_client.js?v=25";
 
 const state = {
   rows: [],
@@ -16,7 +19,9 @@ const state = {
   pageSize: 50,
   sortKey: "date",
   sortDirection: "desc",
-  busy: false
+  busy: false,
+  accessToken: null,
+  profile: null
 };
 
 const els = {
@@ -50,12 +55,27 @@ const els = {
   editFields: document.getElementById("girlsEditFields"),
   editStatus: document.getElementById("girlsEditStatus"),
   closeEdit: document.getElementById("girlsCloseEdit"),
-  cancelEdit: document.getElementById("girlsCancelEdit")
+  cancelEdit: document.getElementById("girlsCancelEdit"),
+  account: document.getElementById("girlsLedgerAccount"),
+  accountName: document.getElementById("girlsLedgerAccountName"),
+  signOut: document.getElementById("girlsLedgerSignOut")
 };
 
 document.addEventListener("DOMContentLoaded", initialise, { once: true });
 
 async function initialise() {
+  if (window.matchMedia("(max-width: 760px)").matches) {
+    window.location.replace("./");
+    return;
+  }
+  const access = await requireLedgerAccess();
+  if (!access) return;
+  state.accessToken = access.session.access_token;
+  state.profile = access.profile;
+  els.accountName.textContent = access.profile.display_name || access.profile.email || "Teacher";
+  els.account.hidden = false;
+  els.signOut.addEventListener("click", signOutOfLedger);
+  document.body.removeAttribute("data-auth-pending");
   [els.search, els.type, els.week].forEach((control) => control.addEventListener("input", applyFilters));
   els.export.addEventListener("click", exportCsv);
   els.previous.addEventListener("click", () => changePage(-1));
@@ -88,15 +108,10 @@ async function reloadLedger(message = "") {
   setBusy(true);
   els.status.textContent = message || "Loading entries...";
   try {
-    const token = clientToken();
-    const [rows, projects] = await Promise.all([
-      loadLedger(token),
-      loadProjects(token)
-    ]);
-    const coverByProject = new Map(projects.map((project) => [project.id, project.photo_path]));
+    const rows = await loadAdminLedger(state.accessToken);
     state.rows = rows.map((row) => ({
       ...row,
-      cover_photo_path: coverByProject.get(row.green_space_id) || null
+      cover_photo_path: row.cover_photo_path || null
     }));
     state.selected.clear();
     applyFilters();
@@ -213,7 +228,7 @@ function renderSelectionToolbar() {
   const rows = selectedRows();
   els.selectionToolbar.hidden = !rows.length;
   els.selectionCount.textContent = `${rows.length} selected`;
-  const editable = rows.length === 1 && !(rows[0].entry_type === "final_reflection" && rows[0].is_final_submitted);
+  const editable = rows.length === 1;
   els.editSelected.disabled = !editable || state.busy;
   els.publishSelected.disabled = state.busy || rows.every((row) => row.is_published);
   els.unpublishSelected.disabled = state.busy || rows.every((row) => !row.is_published);
@@ -303,7 +318,7 @@ async function saveEditedRow(event) {
   try {
     await manageLedgerRecord({
       action: "record_update",
-      clientToken: clientToken(),
+      accessToken: state.accessToken,
       greenSpaceId: row.green_space_id,
       recordId: row.id,
       recordType: row.entry_type,
@@ -328,7 +343,7 @@ async function setSelectedPublication(isPublished) {
     for (const row of rows) {
       await manageLedgerRecord({
         action: "record_publish",
-        clientToken: clientToken(),
+        accessToken: state.accessToken,
         greenSpaceId: row.green_space_id,
         recordId: row.id,
         recordType: row.entry_type,
@@ -362,7 +377,7 @@ async function deleteSelectedRows() {
       if (deletedProjects.has(row.green_space_id)) continue;
       await manageLedgerRecord({
         action: "record_delete",
-        clientToken: clientToken(),
+        accessToken: state.accessToken,
         greenSpaceId: row.green_space_id,
         recordId: row.id,
         recordType: row.entry_type
@@ -629,13 +644,54 @@ function csvCell(value) {
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
-function clientToken() {
-  let token = localStorage.getItem(CLIENT_TOKEN_KEY);
-  if (!token) {
-    token = crypto.randomUUID();
-    localStorage.setItem(CLIENT_TOKEN_KEY, token);
+async function requireLedgerAccess() {
+  try {
+    const session = await currentSession();
+    if (!session) {
+      redirectToLogin();
+      return null;
+    }
+    const { data: userData, error: userError } = await authClient.auth.getUser();
+    if (userError || !userData.user) {
+      redirectToLogin();
+      return null;
+    }
+    if (userData.user.user_metadata?.must_change_password) {
+      window.location.replace(
+        "../login.html?mode=change&return=green-space%2Fledger.html"
+      );
+      return null;
+    }
+    const profile = await currentProfile(true);
+    const allowed = profile?.account_status === "active"
+      && (
+        profile.app_role === "system_admin"
+        || profile.app_role === "green_space_teacher"
+        || profile.is_protected_owner
+        || profile.can_manage_green_space
+      );
+    if (!allowed) {
+      window.location.replace("../access_pending.html");
+      return null;
+    }
+    return { session, profile };
+  } catch {
+    redirectToLogin();
+    return null;
   }
-  return token;
+}
+
+function redirectToLogin() {
+  window.location.replace("../login.html?return=green-space%2Fledger.html");
+}
+
+async function signOutOfLedger() {
+  els.signOut.disabled = true;
+  try {
+    await signOut();
+  } finally {
+    redirectToLogin();
+  }
 }
 
 function clean(value) {

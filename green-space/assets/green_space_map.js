@@ -1,4 +1,4 @@
-import { loadProjectPhotos, loadProjects, publicPhotoUrl } from "./green_space_api.js?v=4";
+import { loadProjectPhotos, loadProjects, publicPhotoUrl } from "./green_space_api.js?v=5";
 
 const state = {
   projects: [],

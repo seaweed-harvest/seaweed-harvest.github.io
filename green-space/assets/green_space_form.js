@@ -7,7 +7,7 @@ import {
   setProjectCover,
   submitGreenSpaceRecord,
   uploadProjectPhoto
-} from "./green_space_api.js?v=4";
+} from "./green_space_api.js?v=5";
 
 const LAST_PROJECT_KEY = "girls:last-project-id";
 const CLIENT_TOKEN_KEY = "girls:client-token";
