@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#176b52">
   <meta name="description" content="Green-space observation and reflection form.">
   <title>Green Space Log</title>
-  <link rel="stylesheet" href="./assets/green_space.css?v=8">
+  <link rel="stylesheet" href="./assets/green_space.css?v=9">
 </head>
 <body>
   <header class="girls-header">
@@ -123,6 +123,30 @@
             <span>Date and time</span>
             <input id="girlsObservationDateTime" type="datetime-local">
           </label>
+        </div>
+        <div id="girlsObservationTimer" class="girls-observation-timer" data-state="ready" aria-labelledby="girlsObservationTimerLabel">
+          <div class="girls-observation-timer-heading">
+            <strong id="girlsObservationTimerLabel">Focus timer</strong>
+            <span>Optional</span>
+          </div>
+          <label class="girls-observation-timer-minutes">
+            <input id="girlsObservationTimerMinutes" type="number" min="1" max="120" step="1" value="10" inputmode="numeric" aria-label="Timer duration in minutes">
+            <span>min</span>
+          </label>
+          <output id="girlsObservationTimerReadout" class="girls-observation-timer-readout" for="girlsObservationTimerMinutes">10:00</output>
+          <div class="girls-observation-timer-actions">
+            <button id="girlsObservationTimerToggle" class="girls-observation-timer-action" type="button" aria-label="Start timer" title="Start timer">
+              <svg class="girls-observation-timer-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"></path></svg>
+              <svg class="girls-observation-timer-pause" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M9 5v14"></path><path d="M15 5v14"></path></svg>
+            </button>
+            <button id="girlsObservationTimerReset" class="girls-observation-timer-action" type="button" aria-label="Reset timer" title="Reset timer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v6h6"></path></svg>
+            </button>
+          </div>
+          <span id="girlsObservationTimerStatus" class="girls-observation-timer-status" role="status" aria-live="polite">Ready</span>
+          <div class="girls-observation-timer-track" aria-hidden="true">
+            <span id="girlsObservationTimerProgress"></span>
+          </div>
         </div>
         <label class="girls-field">
           <span>What did you notice?</span>
@@ -301,7 +325,7 @@
     </div>
   </dialog>
 
-  <script type="module" src="./assets/green_space_form.js?v=9"></script>
+  <script type="module" src="./assets/green_space_form.js?v=10"></script>
   <script type="module" src="../assets/js/site_feedback.js?v=5"></script>
 </body>
 </html>

@@ -35,6 +35,12 @@ const state = {
   gps: null,
   finalAction: "draft",
   finalLocked: false,
+  observationTimerDuration: 10 * 60,
+  observationTimerRemaining: 10 * 60,
+  observationTimerEndsAt: null,
+  observationTimerHandle: null,
+  observationTimerRunning: false,
+  observationTimerStarted: false,
   submitting: false
 };
 
@@ -48,6 +54,9 @@ async function initialise() {
     "girlsEditProject", "girlsParticipantName", "girlsGreenSpaceName", "girlsIntentions", "girlsLocationDescription",
     "girlsVisitSchedule", "girlsShowOnMap", "girlsShowParticipantName", "girlsShowParticipantNameOption",
     "girlsProgramDetails", "girlsObservationWeek", "girlsObservationDateTime", "girlsObservationNotes",
+    "girlsObservationTimer", "girlsObservationTimerMinutes", "girlsObservationTimerReadout",
+    "girlsObservationTimerToggle", "girlsObservationTimerReset", "girlsObservationTimerStatus",
+    "girlsObservationTimerProgress",
     "girlsObservationHeading", "girlsCancelObservationEdit",
     "girlsTakeObservationPhoto", "girlsChooseObservationPhoto", "girlsObservationCameraPhoto",
     "girlsObservationGalleryPhoto", "girlsObservationPhotoPreview",
@@ -102,8 +111,13 @@ async function initialise() {
     .forEach((field) => field.addEventListener("input", renderWordCount));
   els.girlsObservationDateTime.addEventListener("change", selectSuggestedObservationWeek);
   els.girlsReflectionWeek.addEventListener("change", renderWeeklyReference);
+  els.girlsObservationTimerMinutes.addEventListener("change", resetObservationTimer);
+  els.girlsObservationTimerToggle.addEventListener("click", toggleObservationTimer);
+  els.girlsObservationTimerReset.addEventListener("click", resetObservationTimer);
+  document.addEventListener("visibilitychange", updateObservationTimer);
 
   els.girlsObservationDateTime.value = localDateTimeValue(new Date());
+  resetObservationTimer();
   setMode("project");
   renderWordCount();
   await refreshProjects();
@@ -273,6 +287,110 @@ function selectSuggestedObservationWeek() {
   const value = els.girlsObservationDateTime.value;
   const observedAt = value ? new Date(value) : new Date();
   els.girlsObservationWeek.value = String(suggestedWeek(observedAt));
+}
+
+function observationTimerSeconds() {
+  const parsed = Number.parseInt(els.girlsObservationTimerMinutes.value, 10);
+  const minutes = Number.isFinite(parsed) ? Math.min(120, Math.max(1, parsed)) : 10;
+  els.girlsObservationTimerMinutes.value = String(minutes);
+  return minutes * 60;
+}
+
+function toggleObservationTimer() {
+  if (state.observationTimerRunning) {
+    pauseObservationTimer();
+    return;
+  }
+  startObservationTimer();
+}
+
+function startObservationTimer() {
+  if (state.observationTimerRemaining <= 0) resetObservationTimer();
+  state.observationTimerStarted = true;
+  state.observationTimerRunning = true;
+  state.observationTimerEndsAt = Date.now() + state.observationTimerRemaining * 1000;
+  clearInterval(state.observationTimerHandle);
+  state.observationTimerHandle = window.setInterval(updateObservationTimer, 250);
+  renderObservationTimer();
+}
+
+function pauseObservationTimer() {
+  updateObservationTimer();
+  if (!state.observationTimerRunning) return;
+  clearInterval(state.observationTimerHandle);
+  state.observationTimerHandle = null;
+  state.observationTimerEndsAt = null;
+  state.observationTimerRunning = false;
+  renderObservationTimer();
+}
+
+function resetObservationTimer() {
+  clearInterval(state.observationTimerHandle);
+  state.observationTimerDuration = observationTimerSeconds();
+  state.observationTimerRemaining = state.observationTimerDuration;
+  state.observationTimerEndsAt = null;
+  state.observationTimerHandle = null;
+  state.observationTimerRunning = false;
+  state.observationTimerStarted = false;
+  renderObservationTimer();
+}
+
+function updateObservationTimer() {
+  if (!state.observationTimerRunning || !state.observationTimerEndsAt) return;
+  state.observationTimerRemaining = Math.max(
+    0,
+    Math.ceil((state.observationTimerEndsAt - Date.now()) / 1000)
+  );
+  if (state.observationTimerRemaining === 0) {
+    clearInterval(state.observationTimerHandle);
+    state.observationTimerHandle = null;
+    state.observationTimerEndsAt = null;
+    state.observationTimerRunning = false;
+  }
+  renderObservationTimer();
+}
+
+function renderObservationTimer() {
+  if (!els.girlsObservationTimer) return;
+  const complete = state.observationTimerStarted
+    && state.observationTimerRemaining === 0;
+  const paused = state.observationTimerStarted
+    && !state.observationTimerRunning
+    && !complete;
+  const stateName = complete
+    ? "complete"
+    : state.observationTimerRunning
+      ? "running"
+      : paused
+        ? "paused"
+        : "ready";
+  const minutes = Math.floor(state.observationTimerRemaining / 60);
+  const seconds = state.observationTimerRemaining % 60;
+  const progress = state.observationTimerDuration > 0
+    ? state.observationTimerRemaining / state.observationTimerDuration
+    : 0;
+
+  els.girlsObservationTimer.dataset.state = stateName;
+  els.girlsObservationTimerReadout.textContent = `${minutes}:${String(seconds).padStart(2, "0")}`;
+  els.girlsObservationTimerStatus.textContent = {
+    ready: "Ready",
+    running: "Timing",
+    paused: "Paused",
+    complete: "Time complete"
+  }[stateName];
+  els.girlsObservationTimerProgress.style.transform = `scaleX(${Math.max(0, Math.min(1, progress))})`;
+  els.girlsObservationTimerMinutes.disabled = state.observationTimerRunning;
+  const toggleLabel = state.observationTimerRunning
+    ? "Pause timer"
+    : paused
+      ? "Resume timer"
+      : "Start timer";
+  els.girlsObservationTimerToggle.setAttribute("aria-label", toggleLabel);
+  els.girlsObservationTimerToggle.title = toggleLabel;
+  els.girlsObservationTimerToggle.querySelector(".girls-observation-timer-play").hidden =
+    state.observationTimerRunning;
+  els.girlsObservationTimerToggle.querySelector(".girls-observation-timer-pause").hidden =
+    !state.observationTimerRunning;
 }
 
 function selectSuggestedReflectionWeek() {
@@ -907,6 +1025,7 @@ function resetObservationEditor() {
   state.editingObservationId = null;
   state.observationExistingPhotoPath = null;
   clearObservationPhoto();
+  resetObservationTimer();
   els.girlsObservationHeading.textContent = "Add observation";
   els.girlsObservationNotes.value = "";
   els.girlsObservationDateTime.value = localDateTimeValue(new Date());
