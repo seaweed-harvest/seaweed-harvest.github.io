@@ -571,7 +571,7 @@ function renderCompetencyRow(activity, participants) {
       : "Applies to all participants")
     : (overrideCount
       ? `${overrideCount} individual participant ${overrideCount === 1 ? "result" : "results"}`
-      : "Select an all-participants result or use + for individuals");
+      : "");
   const wrapper = document.createElement("article");
   wrapper.className = "reef-competency-task";
   wrapper.dataset.competencyActivity = activity.id;
@@ -579,7 +579,7 @@ function renderCompetencyRow(activity, participants) {
     <div class="reef-competency-row" role="row">
       <div class="reef-competency-task-name" role="cell">
         <strong>${escapeHtml(activity.label)}</strong>
-        <small>${resultSummary}</small>
+        ${resultSummary ? `<small>${resultSummary}</small>` : ""}
       </div>
       ${COMPETENCY_LEVELS.map((level) => renderCompetencyLevel(activity, level, participants, draft)).join("")}
       ${hasResult

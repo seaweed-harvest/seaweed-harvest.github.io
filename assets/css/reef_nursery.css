@@ -1143,10 +1143,16 @@
   }
 
   .reef-participant-table-wrap {
+    order: 1;
     max-height: none;
     overflow: visible;
     border: 0;
     background: transparent;
+  }
+
+  .reef-participant-toolbar {
+    order: 2;
+    padding-top: 2px;
   }
 
   .reef-participant-table {
