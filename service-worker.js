@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v75";
+const CACHE_VERSION = "seaweed-harvest-collection-v76";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -16,6 +16,7 @@ const APP_SHELL = [
   "./admin_suggestions.html",
   "./reset_password.html",
   "./privacy.html",
+  "./favicon.ico",
   "./manifest.webmanifest",
   "./assets/css/ag.css",
   "./assets/css/site_water_sample.css",
