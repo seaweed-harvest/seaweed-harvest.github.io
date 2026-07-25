@@ -432,8 +432,7 @@ a {
 
 .girls-field small,
 .girls-form-section > small,
-.girls-tools-section small,
-#girlsProjectPickerHint {
+.girls-tools-section small {
   color: var(--girls-muted);
   font-size: 0.76rem;
   line-height: 1.4;
@@ -446,6 +445,10 @@ a {
 
 .girls-field-grid.three {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.girls-field-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .girls-field-spacer {
@@ -628,27 +631,6 @@ a {
   white-space: nowrap;
 }
 
-.girls-consent {
-  margin-top: 24px;
-  padding: 14px;
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr);
-  align-items: start;
-  gap: 10px;
-  background: var(--girls-coral-soft);
-  border: 1px solid #efb4a8;
-  border-radius: 7px;
-  font-size: 0.84rem;
-  line-height: 1.45;
-}
-
-.girls-consent input {
-  width: 18px;
-  height: 18px;
-  margin: 1px 0 0;
-  accent-color: var(--girls-green);
-}
-
 .girls-honeypot {
   position: absolute;
   left: -10000px;
@@ -692,6 +674,159 @@ a {
 .girls-form-status.is-error {
   color: var(--girls-danger);
   font-weight: 700;
+}
+
+.girls-observation-history {
+  margin-top: 32px;
+  padding-top: 24px;
+  display: grid;
+  gap: 16px;
+  border-top: 1px solid var(--girls-line);
+}
+
+.girls-empty-copy {
+  margin: 0;
+  padding: 14px 0;
+  color: var(--girls-muted);
+  font-size: 0.82rem;
+}
+
+.girls-observation-log {
+  border-top: 1px solid var(--girls-line);
+}
+
+.girls-observation-row {
+  padding: 14px 0;
+  display: grid;
+  gap: 9px;
+  border-bottom: 1px solid var(--girls-line);
+  outline: none;
+}
+
+.girls-observation-row:focus {
+  background: #f3faf7;
+  box-shadow: inset 3px 0 var(--girls-green);
+}
+
+.girls-observation-row header,
+.girls-observation-row header > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.girls-observation-row header {
+  justify-content: space-between;
+}
+
+.girls-observation-row header span,
+.girls-observation-row time {
+  color: var(--girls-muted);
+  font-size: 0.76rem;
+}
+
+.girls-observation-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px;
+}
+
+.girls-observation-body p {
+  margin: 0;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.girls-observation-body img {
+  width: 90px;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border: 1px solid var(--girls-line);
+  border-radius: 5px;
+}
+
+.girls-calendar-section {
+  display: grid;
+  gap: 12px;
+}
+
+.girls-calendar-section h3 {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.girls-observation-calendars {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.girls-calendar-month {
+  padding: 14px;
+  border: 1px solid var(--girls-line);
+  border-radius: 7px;
+}
+
+.girls-calendar-month h4 {
+  margin: 0 0 11px;
+  font-size: 0.86rem;
+}
+
+.girls-calendar-weekdays,
+.girls-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.girls-calendar-weekdays span {
+  padding: 3px 0 6px;
+  color: var(--girls-muted);
+  font-size: 0.62rem;
+  font-weight: 750;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.girls-calendar-grid > span,
+.girls-calendar-grid > button {
+  min-width: 0;
+  min-height: 38px;
+  padding: 4px;
+  display: grid;
+  place-items: center;
+  color: var(--girls-ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  font-size: 0.72rem;
+}
+
+.girls-calendar-grid > button {
+  position: relative;
+  background: var(--girls-mint);
+  border-color: var(--girls-mint-strong);
+  cursor: pointer;
+}
+
+.girls-calendar-grid > button:hover,
+.girls-calendar-grid > button:focus-visible {
+  border-color: var(--girls-green);
+  outline: none;
+}
+
+.girls-calendar-grid > button strong {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  min-width: 14px;
+  color: var(--girls-green-dark);
+  font-size: 0.56rem;
+  line-height: 1;
+}
+
+.girls-calendar-grid .is-empty {
+  visibility: hidden;
 }
 
 .girls-map-section,
@@ -1260,6 +1395,11 @@ body.has-fixed-table-scrollbar {
 
   .girls-field-grid.three {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .girls-field-grid.two,
+  .girls-observation-calendars {
+    grid-template-columns: 1fr;
   }
 
   .girls-field-spacer {

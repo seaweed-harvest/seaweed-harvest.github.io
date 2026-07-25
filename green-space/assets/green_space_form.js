@@ -1,4 +1,9 @@
-import { loadLedger, loadProjects, submitGreenSpaceRecord } from "./green_space_api.js";
+import {
+  loadLedger,
+  loadProjects,
+  publicPhotoUrl,
+  submitGreenSpaceRecord
+} from "./green_space_api.js";
 
 const LAST_PROJECT_KEY = "girls:last-project-id";
 const CLIENT_TOKEN_KEY = "girls:client-token";
@@ -10,6 +15,7 @@ const state = {
   mode: "project",
   projects: [],
   ledger: null,
+  observationRows: [],
   finalReviewRows: [],
   photoFile: null,
   activePhotoUrl: null,
@@ -23,18 +29,19 @@ document.addEventListener("DOMContentLoaded", initialise, { once: true });
 
 async function initialise() {
   [
-    "girlsReflectionForm", "girlsProjectPickerField", "girlsProjectPicker", "girlsProjectPickerHint",
+    "girlsReflectionForm", "girlsProjectPicker",
     "girlsParticipantName", "girlsGreenSpaceName", "girlsIntentions", "girlsLocationDescription",
-    "girlsVisitSchedule", "girlsObservationWeek", "girlsObservationDate", "girlsStartTime",
-    "girlsEndTime", "girlsObservationNotes", "girlsReflectionWeek", "girlsWeeklyReflection",
+    "girlsVisitSchedule", "girlsObservationWeek", "girlsObservationDateTime", "girlsObservationNotes",
+    "girlsReflectionWeek", "girlsWeeklyReflection",
     "girlsWeeklyHaiku", "girlsFinalReviewStatus", "girlsFinalReviewList", "girlsFavouriteHaiku",
-    "girlsFinalFormat", "girlsSynthesis", "girlsKeyLearnings", "girlsOverallReflection", "girlsFinalWordCount",
+    "girlsSynthesis", "girlsKeyLearnings", "girlsOverallReflection", "girlsFinalWordCount",
     "girlsLocationTools", "girlsCaptureGps", "girlsCaptureGpsLabel", "girlsGpsReadout", "girlsLatitude", "girlsLongitude",
     "girlsPhotoTools", "girlsTakePhoto", "girlsChoosePhoto", "girlsCameraPhoto", "girlsGalleryPhoto",
     "girlsPhotoStatus", "girlsPhotoPreview", "girlsPhotoViewer", "girlsPhotoViewerImage",
     "girlsPhotoViewerName", "girlsClosePhotoViewer",
-    "girlsPublicConsent", "girlsWebsite", "girlsSubmit", "girlsFormStatus", "girlsSuccessDialog",
-    "girlsCloseSuccess", "girlsSuccessMessage", "girlsSuccessCode", "girlsAddAnother"
+    "girlsWebsite", "girlsSubmit", "girlsFormStatus", "girlsObservationHistory",
+    "girlsObservationHistoryStatus", "girlsObservationLog", "girlsObservationCalendars",
+    "girlsSuccessDialog", "girlsCloseSuccess", "girlsSuccessMessage", "girlsSuccessCode", "girlsAddAnother"
   ].forEach((id) => {
     els[id] = document.getElementById(id);
   });
@@ -54,12 +61,7 @@ async function initialise() {
     closePhotoViewer();
   });
   els.girlsPhotoViewer.addEventListener("close", releasePhotoViewerUrl);
-  els.girlsProjectPicker.addEventListener("change", () => {
-    if (els.girlsProjectPicker.value) {
-      localStorage.setItem(LAST_PROJECT_KEY, els.girlsProjectPicker.value);
-    }
-    if (state.mode === "final_reflection") renderFinalReview();
-  });
+  els.girlsObservationCalendars.addEventListener("click", focusObservationDate);
   els.girlsFinalReviewList.addEventListener("click", selectFavouriteHaiku);
   els.girlsReflectionForm.addEventListener("submit", submitForm);
   els.girlsCloseSuccess.addEventListener("click", closeSuccessDialog);
@@ -67,7 +69,7 @@ async function initialise() {
   [els.girlsSynthesis, els.girlsKeyLearnings, els.girlsOverallReflection]
     .forEach((field) => field.addEventListener("input", renderWordCount));
 
-  els.girlsObservationDate.value = localDateValue(new Date());
+  els.girlsObservationDateTime.value = localDateTimeValue(new Date());
   setMode("project");
   renderWordCount();
   await refreshProjects();
@@ -77,13 +79,10 @@ async function refreshProjects(selectedId = localStorage.getItem(LAST_PROJECT_KE
   try {
     state.projects = await loadProjects();
     renderProjectOptions(selectedId);
-    els.girlsProjectPickerHint.textContent = state.projects.length
-      ? `${state.projects.length} shared green ${state.projects.length === 1 ? "space" : "spaces"} available.`
-      : "Start the first project using Project setup.";
   } catch (error) {
     state.projects = [];
     renderProjectOptions(null);
-    els.girlsProjectPickerHint.textContent = error.message;
+    setStatus(error.message || "The project could not be loaded.", true);
   }
 }
 
@@ -95,13 +94,17 @@ function renderProjectOptions(selectedId) {
     return String(a.green_space_name).localeCompare(String(b.green_space_name));
   });
   els.girlsProjectPicker.innerHTML = [
-    '<option value="">Select green space</option>',
+    '<option value="">No project started</option>',
     ...projects.map((project) => (
       `<option value="${escapeAttribute(project.id)}">${escapeHtml(project.participant_name)} - ${escapeHtml(project.green_space_name)} (${escapeHtml(project.public_code)})</option>`
     ))
   ].join("");
-  if (rememberedId && projects.some((project) => project.id === rememberedId)) {
-    els.girlsProjectPicker.value = rememberedId;
+  const activeId = projects.some((project) => project.id === rememberedId)
+    ? rememberedId
+    : projects[0]?.id || "";
+  els.girlsProjectPicker.value = activeId;
+  if (activeId) {
+    localStorage.setItem(LAST_PROJECT_KEY, activeId);
   }
 }
 
@@ -116,15 +119,16 @@ function setMode(mode) {
   document.querySelectorAll("[data-mode-panel]").forEach((panel) => {
     panel.hidden = panel.dataset.modePanel !== mode;
   });
-  els.girlsProjectPickerField.hidden = mode === "project";
-  els.girlsLocationTools.hidden = !["project", "observation"].includes(mode);
+  els.girlsLocationTools.hidden = mode !== "project";
   els.girlsPhotoTools.hidden = !["project", "observation"].includes(mode);
+  els.girlsObservationHistory.hidden = mode !== "observation";
   els.girlsSubmit.textContent = {
     project: "Start my log",
-    observation: "Log observation",
+    observation: "Add observation",
     weekly_reflection: "Save distillation + haiku",
     final_reflection: "Save final reflection"
   }[mode];
+  if (mode === "observation") renderObservationHistory();
   if (mode === "final_reflection") renderFinalReview();
   setStatus("");
 }
@@ -278,13 +282,15 @@ async function submitForm(event) {
     }
     setStatus("Saving...");
     const result = await submitGreenSpaceRecord(payload);
-    if (state.mode !== "project") state.ledger = null;
+    const savedMode = state.mode;
+    if (savedMode !== "project") state.ledger = null;
     if (state.mode === "project" && result.project?.id) {
       localStorage.setItem(LAST_PROJECT_KEY, result.project.id);
       await refreshProjects(result.project.id);
     }
     showSuccess(result);
     resetAfterSave();
+    if (savedMode === "observation") await renderObservationHistory();
     setStatus("Saved.");
   } catch (error) {
     setStatus(error.message || "The entry could not be saved.", true);
@@ -295,10 +301,6 @@ async function submitForm(event) {
 }
 
 function buildPayload() {
-  if (!els.girlsPublicConsent.checked) {
-    throw focusError("Confirm that the entry can appear on the shared map and ledger.", els.girlsPublicConsent);
-  }
-
   const base = {
     action: state.mode === "project" ? "project" : "entry",
     entry_type: state.mode,
@@ -328,15 +330,26 @@ function buildPayload() {
     };
   }
 
-  const greenSpaceId = required(els.girlsProjectPicker, "Select the green space for this entry.");
+  const greenSpaceId = clean(els.girlsProjectPicker.value);
+  if (!greenSpaceId) {
+    throw new Error("Complete Project Start before adding observations or reflections.");
+  }
   const payload = { ...base, green_space_id: greenSpaceId };
   if (state.mode === "observation") {
+    const observedAt = required(
+      els.girlsObservationDateTime,
+      "Enter the observation date and time."
+    );
+    const [observedOn, startTime] = observedAt.split("T");
+    if (!observedOn || !startTime) {
+      throw focusError("Enter the observation date and time.", els.girlsObservationDateTime);
+    }
     return {
       ...payload,
       week_number: Number(els.girlsObservationWeek.value),
-      observed_on: required(els.girlsObservationDate, "Select the observation date."),
-      start_time: required(els.girlsStartTime, "Enter the observation start time."),
-      end_time: required(els.girlsEndTime, "Enter the observation finish time."),
+      observed_on: observedOn,
+      start_time: startTime.slice(0, 5),
+      end_time: null,
       observations: required(els.girlsObservationNotes, "Record what you noticed.")
     };
   }
@@ -352,7 +365,7 @@ function buildPayload() {
     ...payload,
     week_number: 8,
     favourite_haiku: required(els.girlsFavouriteHaiku, "Choose or enter a favourite haiku."),
-    final_format: required(els.girlsFinalFormat, "Select the final reflection format."),
+    final_format: null,
     synthesis: required(els.girlsSynthesis, "Write the synthesis of observations."),
     key_learnings: required(els.girlsKeyLearnings, "Write the key learnings and examples."),
     overall_reflection: required(els.girlsOverallReflection, "Write the overall reflection.")
@@ -360,7 +373,6 @@ function buildPayload() {
 }
 
 function resetAfterSave() {
-  els.girlsPublicConsent.checked = false;
   els.girlsWebsite.value = "";
   clearPhoto();
   state.gps = null;
@@ -375,14 +387,12 @@ function resetAfterSave() {
     ].forEach((field) => { field.value = ""; });
   } else if (state.mode === "observation") {
     els.girlsObservationNotes.value = "";
-    els.girlsStartTime.value = "";
-    els.girlsEndTime.value = "";
+    els.girlsObservationDateTime.value = localDateTimeValue(new Date());
   } else if (state.mode === "weekly_reflection") {
     els.girlsWeeklyReflection.value = "";
     els.girlsWeeklyHaiku.value = "";
   } else {
     els.girlsFavouriteHaiku.value = "";
-    els.girlsFinalFormat.value = "classic_reflection";
     els.girlsSynthesis.value = "";
     els.girlsKeyLearnings.value = "";
     els.girlsOverallReflection.value = "";
@@ -390,12 +400,147 @@ function resetAfterSave() {
   }
 }
 
+async function renderObservationHistory() {
+  const projectId = clean(els.girlsProjectPicker.value);
+  state.observationRows = [];
+  els.girlsObservationLog.innerHTML = "";
+  els.girlsObservationCalendars.innerHTML = "";
+  if (!projectId) {
+    els.girlsObservationHistoryStatus.textContent = "Project Start required";
+    els.girlsObservationLog.innerHTML = '<p class="girls-empty-copy">Complete Project Start before adding observations.</p>';
+    return;
+  }
+
+  els.girlsObservationHistoryStatus.textContent = "Loading...";
+  try {
+    if (!state.ledger) state.ledger = await loadLedger();
+    if (state.mode !== "observation" || clean(els.girlsProjectPicker.value) !== projectId) return;
+    state.observationRows = state.ledger
+      .filter((row) => row.green_space_id === projectId && row.entry_type === "observation")
+      .sort(compareObservationRows);
+    const count = state.observationRows.length;
+    els.girlsObservationHistoryStatus.textContent = `${count} ${count === 1 ? "observation" : "observations"}`;
+    renderObservationLog();
+    renderObservationCalendars();
+  } catch (error) {
+    els.girlsObservationHistoryStatus.textContent = "Could not load";
+    els.girlsObservationLog.innerHTML = `<p class="girls-empty-copy">${escapeHtml(error.message || "The observation log could not be loaded.")}</p>`;
+  }
+}
+
+function renderObservationLog() {
+  if (!state.observationRows.length) {
+    els.girlsObservationLog.innerHTML = '<p class="girls-empty-copy">No observations have been added yet.</p>';
+    return;
+  }
+  els.girlsObservationLog.innerHTML = state.observationRows.map((row) => `
+    <article class="girls-observation-row" data-observation-date="${escapeAttribute(row.observed_on || "")}" tabindex="-1">
+      <header>
+        <div>
+          <strong>${escapeHtml(formatObservationDate(row.observed_on))}</strong>
+          <span>${row.week_number ? `Week ${escapeHtml(row.week_number)}` : ""}</span>
+        </div>
+        <time>${escapeHtml(formatObservationTime(row.start_time))}</time>
+      </header>
+      <div class="girls-observation-body">
+        <p>${escapeHtml(row.observations || "")}</p>
+        ${row.photo_path ? `<img src="${escapeAttribute(publicPhotoUrl(row.photo_path))}" alt="Observation photo from ${escapeAttribute(formatObservationDate(row.observed_on))}" loading="lazy">` : ""}
+      </div>
+    </article>
+  `).join("");
+}
+
+function renderObservationCalendars() {
+  const rowsByMonth = new Map();
+  state.observationRows.forEach((row) => {
+    const date = clean(row.observed_on);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+    const month = date.slice(0, 7);
+    if (!rowsByMonth.has(month)) rowsByMonth.set(month, []);
+    rowsByMonth.get(month).push(row);
+  });
+  if (!rowsByMonth.size) {
+    els.girlsObservationCalendars.innerHTML = '<p class="girls-empty-copy">Months will appear after the first observation.</p>';
+    return;
+  }
+  els.girlsObservationCalendars.innerHTML = [...rowsByMonth.entries()]
+    .sort(([first], [second]) => second.localeCompare(first))
+    .map(([month, rows]) => renderCalendarMonth(month, rows))
+    .join("");
+}
+
+function renderCalendarMonth(month, rows) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const counts = new Map();
+  rows.forEach((row) => {
+    const date = clean(row.observed_on);
+    counts.set(date, (counts.get(date) || 0) + 1);
+  });
+  const firstWeekday = (new Date(year, monthNumber - 1, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(year, monthNumber, 0).getDate();
+  const cells = Array.from({ length: firstWeekday }, () => '<span class="is-empty" aria-hidden="true"></span>');
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = `${month}-${String(day).padStart(2, "0")}`;
+    const count = counts.get(date) || 0;
+    cells.push(count
+      ? `<button type="button" data-calendar-date="${date}" title="${count} ${count === 1 ? "observation" : "observations"}"><span>${day}</span><strong>${count}</strong></button>`
+      : `<span><span>${day}</span></span>`);
+  }
+  const title = new Intl.DateTimeFormat("en-AU", { month: "long", year: "numeric" })
+    .format(new Date(year, monthNumber - 1, 1));
+  return `
+    <section class="girls-calendar-month">
+      <h4>${escapeHtml(title)}</h4>
+      <div class="girls-calendar-weekdays" aria-hidden="true">
+        <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+      </div>
+      <div class="girls-calendar-grid">${cells.join("")}</div>
+    </section>
+  `;
+}
+
+function focusObservationDate(event) {
+  const button = event.target.closest("[data-calendar-date]");
+  if (!button) return;
+  const row = els.girlsObservationLog.querySelector(
+    `[data-observation-date="${CSS.escape(button.dataset.calendarDate)}"]`
+  );
+  row?.scrollIntoView({ behavior: "smooth", block: "center" });
+  row?.focus?.({ preventScroll: true });
+}
+
+function compareObservationRows(first, second) {
+  const firstValue = `${first.observed_on || ""}T${first.start_time || "00:00"}`;
+  const secondValue = `${second.observed_on || ""}T${second.start_time || "00:00"}`;
+  return secondValue.localeCompare(firstValue);
+}
+
+function formatObservationDate(value) {
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return "Date not recorded";
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  }).format(date);
+}
+
+function formatObservationTime(value) {
+  if (!value) return "";
+  const [hours, minutes] = String(value).split(":").map(Number);
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return "";
+  return new Intl.DateTimeFormat("en-AU", {
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(new Date(2000, 0, 1, hours, minutes));
+}
+
 async function renderFinalReview() {
   const projectId = els.girlsProjectPicker.value;
   state.finalReviewRows = [];
   els.girlsFinalReviewList.innerHTML = "";
   if (!projectId) {
-    els.girlsFinalReviewStatus.textContent = "Select your green space to review its distillations and haiku.";
+    els.girlsFinalReviewStatus.textContent = "Complete Project Start to review saved distillations and haiku.";
     return;
   }
 
@@ -410,7 +555,7 @@ async function renderFinalReview() {
       els.girlsFinalReviewStatus.textContent = "No weekly distillations or haiku have been saved yet.";
       return;
     }
-    els.girlsFinalReviewStatus.textContent = `${state.finalReviewRows.length} of 6 weekly entries available.`;
+    els.girlsFinalReviewStatus.textContent = `${state.finalReviewRows.length} of 7 weekly entries available.`;
     els.girlsFinalReviewList.innerHTML = state.finalReviewRows.map((row, index) => `
       <article class="girls-review-row">
         <header>
@@ -439,7 +584,9 @@ function showSuccess(result) {
   const isProject = Boolean(result.project);
   els.girlsSuccessMessage.textContent = isProject
     ? "Your green space is ready. Use the code below when discussing the project."
-    : "Your reflection entry has been added to the shared ledger.";
+    : state.mode === "observation"
+      ? "Your observation has been saved."
+      : "Your reflection has been saved.";
   els.girlsSuccessCode.hidden = !isProject;
   els.girlsSuccessCode.textContent = result.project?.public_code || "";
   if (typeof els.girlsSuccessDialog.showModal === "function") {
@@ -593,9 +740,9 @@ function randomUuid() {
   });
 }
 
-function localDateValue(date) {
+function localDateTimeValue(date) {
   const offset = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
 function clean(value) {

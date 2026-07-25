@@ -46,23 +46,19 @@
       <fieldset class="girls-mode-picker">
         <legend>What are you recording?</legend>
         <div class="girls-mode-options">
-          <button type="button" class="is-active" data-entry-mode="project" aria-pressed="true">Preliminaries</button>
-          <button type="button" data-entry-mode="observation" aria-pressed="false">Observation</button>
+          <button type="button" class="is-active" data-entry-mode="project" aria-pressed="true">Project Start</button>
+          <button type="button" data-entry-mode="observation" aria-pressed="false">Add observation</button>
           <button type="button" data-entry-mode="weekly_reflection" aria-pressed="false">Distil + haiku</button>
           <button type="button" data-entry-mode="final_reflection" aria-pressed="false">Final reflection</button>
         </div>
       </fieldset>
 
-      <label id="girlsProjectPickerField" class="girls-field" hidden>
-        <span>Your green space</span>
-        <select id="girlsProjectPicker">
-          <option value="">Select green space</option>
-        </select>
-        <small id="girlsProjectPickerHint">Projects saved on this device appear first.</small>
-      </label>
+      <select id="girlsProjectPicker" hidden aria-hidden="true" tabindex="-1">
+        <option value="">No project started</option>
+      </select>
 
       <section class="girls-form-section" data-mode-panel="project">
-        <h2>Project setup</h2>
+        <h2>Project Start</h2>
         <label class="girls-field">
           <span>Name or initials</span>
           <input id="girlsParticipantName" type="text" maxlength="80" autocomplete="name" placeholder="e.g. Alex P">
@@ -87,27 +83,18 @@
       </section>
 
       <section class="girls-form-section" data-mode-panel="observation" hidden>
-        <h2>Visit observation</h2>
-        <div class="girls-field-grid three">
+        <h2>Add observation</h2>
+        <div class="girls-field-grid two">
           <label class="girls-field">
             <span>Week</span>
             <select id="girlsObservationWeek">
-              <option value="2">Week 2</option><option value="3">Week 3</option><option value="4">Week 4</option>
+              <option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option><option value="4">Week 4</option>
               <option value="5">Week 5</option><option value="6">Week 6</option><option value="7">Week 7</option>
             </select>
           </label>
           <label class="girls-field">
-            <span>Date</span>
-            <input id="girlsObservationDate" type="date">
-          </label>
-          <span class="girls-field girls-field-spacer" aria-hidden="true"></span>
-          <label class="girls-field">
-            <span>Start time</span>
-            <input id="girlsStartTime" type="time">
-          </label>
-          <label class="girls-field">
-            <span>Finish time</span>
-            <input id="girlsEndTime" type="time">
+            <span>Date and time</span>
+            <input id="girlsObservationDateTime" type="datetime-local">
           </label>
         </div>
         <label class="girls-field">
@@ -121,7 +108,7 @@
         <label class="girls-field girls-week-field">
           <span>Week</span>
           <select id="girlsReflectionWeek">
-            <option value="2">Week 2</option><option value="3">Week 3</option><option value="4">Week 4</option>
+            <option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option><option value="4">Week 4</option>
             <option value="5">Week 5</option><option value="6">Week 6</option><option value="7">Week 7</option>
           </select>
         </label>
@@ -150,22 +137,13 @@
           <span id="girlsFinalWordCount" class="girls-word-count">0 words</span>
         </div>
         <section class="girls-final-review" aria-labelledby="girlsFinalReviewHeading">
-          <h3 id="girlsFinalReviewHeading">Review your six weeks</h3>
-          <p id="girlsFinalReviewStatus">Select your green space to review its distillations and haiku.</p>
+          <h3 id="girlsFinalReviewHeading">Review your weekly entries</h3>
+          <p id="girlsFinalReviewStatus">Your saved distillations and haiku will appear here.</p>
           <div id="girlsFinalReviewList" class="girls-review-list"></div>
         </section>
         <label class="girls-field">
           <span>Favourite haiku</span>
           <textarea id="girlsFavouriteHaiku" class="girls-haiku-input" rows="4" maxlength="1000" placeholder="Choose one above or enter it here"></textarea>
-        </label>
-        <label class="girls-field">
-          <span>Reflection format</span>
-          <select id="girlsFinalFormat">
-            <option value="classic_reflection">Classic reflection</option>
-            <option value="prose">Prose</option>
-            <option value="haibun">Haibun - prose with a concluding haiku</option>
-            <option value="other_artistic_medium">Other artistic medium</option>
-          </select>
         </label>
         <label class="girls-field">
           <span>Synthesis of observations</span>
@@ -215,17 +193,24 @@
         <small>Do not photograph identifiable people without permission.</small>
       </section>
 
-      <label class="girls-consent">
-        <input id="girlsPublicConsent" type="checkbox">
-        <span>I understand this entry, photo and green-space location will appear on the shared map and ledger.</span>
-      </label>
-
       <label class="girls-honeypot" aria-hidden="true">Website<input id="girlsWebsite" type="text" tabindex="-1" autocomplete="off"></label>
 
       <div class="girls-submit-row">
         <button id="girlsSubmit" class="girls-primary-action" type="submit">Start my log</button>
         <span id="girlsFormStatus" class="girls-form-status" role="status" aria-live="polite"></span>
       </div>
+
+      <section id="girlsObservationHistory" class="girls-observation-history" hidden>
+        <div class="girls-section-heading">
+          <h2>Observation log</h2>
+          <span id="girlsObservationHistoryStatus" class="girls-count">0 observations</span>
+        </div>
+        <div id="girlsObservationLog" class="girls-observation-log"></div>
+        <section class="girls-calendar-section" aria-labelledby="girlsCalendarHeading">
+          <h3 id="girlsCalendarHeading">Observation calendar</h3>
+          <div id="girlsObservationCalendars" class="girls-observation-calendars"></div>
+        </section>
+      </section>
     </form>
   </main>
 

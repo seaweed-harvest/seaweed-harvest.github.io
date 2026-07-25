@@ -222,7 +222,6 @@ function contentSections(row) {
   }
   return [
     { label: "Favourite haiku", value: row.favourite_haiku },
-    { label: "Reflection format", value: finalFormatLabel(row.final_format) },
     { label: "Synthesis of observations", value: row.synthesis },
     { label: "Key learnings", value: row.key_learnings },
     { label: "Overall reflection", value: row.overall_reflection }
@@ -245,9 +244,9 @@ function exportCsv() {
   if (!state.filtered.length) return;
   const headers = [
     "Date", "Student", "Green space", "Project code", "Entry type", "Week",
-    "Start time", "Finish time", "GPS", "Intentions", "Location description",
+    "Time", "GPS", "Intentions", "Location description",
     "Visit schedule", "Observations", "Weekly distillation", "Haiku",
-    "Favourite haiku", "Reflection format", "Synthesis", "Key learnings",
+    "Favourite haiku", "Synthesis", "Key learnings",
     "Overall reflection", "Photo URL"
   ];
   const rows = state.filtered.map((row) => [
@@ -258,7 +257,6 @@ function exportCsv() {
     entryLabel(row.entry_type),
     row.week_number || "",
     row.start_time || "",
-    row.end_time || "",
     coordinatePair(row),
     row.intentions || "",
     row.location_description || "",
@@ -267,7 +265,6 @@ function exportCsv() {
     row.weekly_reflection || "",
     row.haiku || "",
     row.favourite_haiku || "",
-    finalFormatLabel(row.final_format),
     row.synthesis || "",
     row.key_learnings || "",
     row.overall_reflection || "",
@@ -291,25 +288,15 @@ function photoIndicator() {
 
 function entryLabel(type) {
   return {
-    project: "Project setup",
+    project: "Project Start",
     observation: "Observation",
     weekly_reflection: "Distillation + haiku",
     final_reflection: "Final reflection"
   }[type] || type || "-";
 }
 
-function finalFormatLabel(value) {
-  return {
-    classic_reflection: "Classic reflection",
-    prose: "Prose",
-    haibun: "Haibun",
-    other_artistic_medium: "Other artistic medium"
-  }[value] || value || "";
-}
-
 function timeRange(row) {
-  if (!row.start_time && !row.end_time) return "-";
-  return [formatTime(row.start_time), formatTime(row.end_time)].filter(Boolean).join("-");
+  return formatTime(row.start_time) || "-";
 }
 
 function coordinatePair(row) {
