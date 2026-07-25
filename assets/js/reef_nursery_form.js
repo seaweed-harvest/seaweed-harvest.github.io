@@ -19,8 +19,8 @@ const TRAINING_SECTION_KEYS = [
 ];
 const COMPETENCY_LEVELS = [
   { value: "needs_support", label: "Needs support" },
-  { value: "with_supervision", label: "With supervision" },
-  { value: "independent", label: "Independent" }
+  { value: "with_supervision", label: "Can complete with supervision" },
+  { value: "independent", label: "Can complete independently" }
 ];
 const photoState = {
   files: [],
@@ -71,6 +71,7 @@ async function init() {
   els.reefParticipantRows.addEventListener("click", handleParticipantAction);
   els.reefParticipantRows.addEventListener("input", handleParticipantInput);
   els.reefParticipantRows.addEventListener("change", handleParticipantInput);
+  els.reefParticipantRows.addEventListener("keydown", handleParticipantKeydown);
   els.reefSessionTypes.addEventListener("change", handleSessionTypesChange);
   els.reefTrainingSections.addEventListener("change", updateTrainingDraft);
   els.reefTrainingSections.addEventListener("input", updateTrainingDraft);
@@ -321,11 +322,35 @@ function handleParticipantAction(event) {
 }
 
 function handleParticipantInput() {
+  updateParticipantCount();
   renderCompetencyAssessment();
 }
 
+function handleParticipantKeydown(event) {
+  if (
+    event.key !== "Tab"
+    || event.shiftKey
+    || event.ctrlKey
+    || event.altKey
+    || event.metaKey
+    || !event.target.matches('[data-participant-field="gender"]')
+  ) return;
+
+  const row = event.target.closest("tr");
+  const rows = [...els.reefParticipantRows.rows];
+  if (row !== rows.at(-1) || !participantRowHasValue(row)) return;
+
+  event.preventDefault();
+  addParticipantRow({ focus: true });
+}
+
+function participantRowHasValue(row) {
+  return [...row.querySelectorAll("[data-participant-field]")]
+    .some((control) => String(control.value || "").trim());
+}
+
 function updateParticipantCount() {
-  const count = els.reefParticipantRows.rows.length;
+  const count = [...els.reefParticipantRows.rows].filter(participantRowHasValue).length;
   els.reefParticipantCount.textContent = `${count} ${count === 1 ? "participant" : "participants"}`;
 }
 
@@ -471,7 +496,7 @@ function competencyDraft(activity) {
       sectionKey: activity.section_key,
       assessed: false,
       groupLevel: "",
-      expanded: false,
+      expandedLevel: "",
       overrides: new Map()
     });
   }
@@ -535,74 +560,133 @@ function renderCompetencyRow(activity, participants) {
   const overrideCount = [...draft.overrides.entries()]
     .filter(([participantKey, level]) => participants.some((participant) => participant.key === participantKey) && level)
     .length;
+  const hasResult = Boolean(draft.groupLevel || overrideCount);
   const wrapper = document.createElement("article");
   wrapper.className = "reef-competency-task";
   wrapper.dataset.competencyActivity = activity.id;
   wrapper.innerHTML = `
     <div class="reef-competency-row" role="row">
       <div class="reef-competency-task-name" role="cell">
-        <label>
-          <input type="checkbox" data-competency-include ${draft.assessed ? "checked" : ""}>
-          <span>${escapeHtml(activity.label)}</span>
-        </label>
-        <small>${overrideCount ? `All participants, with ${overrideCount} individual ${overrideCount === 1 ? "result" : "results"}` : "Applies to all participants"}</small>
+        <strong>${escapeHtml(activity.label)}</strong>
+        <small>${draft.groupLevel
+          ? (overrideCount ? `All participants, with ${overrideCount} individual ${overrideCount === 1 ? "result" : "results"}` : "Applies to all participants")
+          : "Select the result for all participants"}</small>
       </div>
-      ${COMPETENCY_LEVELS.map((level) => `
-        <label class="reef-competency-level" role="cell">
-          <input type="radio" name="competency-${escapeHtml(activity.id)}" value="${escapeHtml(level.value)}"
-            data-competency-group-level ${draft.groupLevel === level.value ? "checked" : ""} ${draft.assessed ? "" : "disabled"}>
-          <span>${escapeHtml(level.label)}</span>
-        </label>`).join("")}
-      <button class="reef-competency-expand" type="button" data-toggle-competency-overrides
-        aria-expanded="${String(draft.expanded)}"
-        aria-label="Add individual results for ${escapeHtml(activity.label)}"
-        title="${participants.length ? "Add individual results" : "Add participant names first"}"
-        ${participants.length ? "" : "disabled"}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
-      </button>
+      ${COMPETENCY_LEVELS.map((level) => renderCompetencyLevel(activity, level, participants, draft)).join("")}
+      ${hasResult
+        ? `<button class="reef-competency-clear" type="button" data-clear-competency
+            aria-label="Clear result for ${escapeHtml(activity.label)}" title="Clear this assessment">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+          </button>`
+        : '<span class="reef-competency-clear-space" aria-hidden="true"></span>'}
     </div>
-    <div class="reef-competency-overrides" ${draft.expanded ? "" : "hidden"}>
-      <p>Record only participants whose result differs from the all-participants result.</p>
-      <div class="reef-competency-participants">
-        ${participants.map((participant) => renderCompetencyParticipant(activity, participant, draft)).join("")}
-      </div>
-    </div>`;
+    ${renderCompetencyParticipantPicker(participants, draft)}`;
   return wrapper;
 }
 
-function renderCompetencyParticipant(activity, participant, draft) {
-  const hasOverride = draft.overrides.has(participant.key);
-  const selectedLevel = draft.overrides.get(participant.key) || "";
-  const reference = participant.reference ? ` (${participant.reference})` : "";
+function renderCompetencyLevel(activity, level, participants, draft) {
+  const count = [...draft.overrides.entries()]
+    .filter(([participantKey, value]) => (
+      value === level.value
+      && participants.some((participant) => participant.key === participantKey)
+    )).length;
+  const pickerOpen = draft.expandedLevel === level.value;
   return `
-    <div class="reef-competency-participant" data-competency-participant="${escapeHtml(participant.key)}">
-      <label class="reef-competency-participant-name">
-        <input type="checkbox" data-competency-override-enabled ${hasOverride ? "checked" : ""} ${draft.assessed ? "" : "disabled"}>
-        <span>${escapeHtml(participant.name)}${escapeHtml(reference)}</span>
+    <div class="reef-competency-level" role="cell">
+      <label class="reef-competency-level-choice">
+        <input type="radio" name="competency-${escapeHtml(activity.id)}" value="${escapeHtml(level.value)}"
+          data-competency-group-level ${draft.groupLevel === level.value ? "checked" : ""}>
+        <span>${escapeHtml(level.label)}</span>
       </label>
-      <div class="reef-competency-participant-levels" role="radiogroup" aria-label="Individual result for ${escapeHtml(participant.name)}">
-        ${COMPETENCY_LEVELS.map((level) => `
-          <label>
-            <input type="radio"
-              name="competency-${escapeHtml(activity.id)}-${escapeHtml(participant.key)}"
-              value="${escapeHtml(level.value)}"
-              data-competency-override-level
-              ${selectedLevel === level.value ? "checked" : ""}
-              ${draft.assessed && hasOverride ? "" : "disabled"}>
-            <span>${escapeHtml(level.label)}</span>
-          </label>`).join("")}
+      <button class="reef-competency-person-trigger${count ? " has-results" : ""}" type="button"
+        data-open-competency-level="${escapeHtml(level.value)}"
+        aria-expanded="${String(pickerOpen)}"
+        aria-label="${count
+          ? `${count} individual ${count === 1 ? "result" : "results"} for ${escapeHtml(level.label)}`
+          : `Add individual results for ${escapeHtml(level.label)}`}"
+        title="${participants.length ? `Add participants: ${escapeHtml(level.label)}` : "Add participant names first"}"
+        ${participants.length ? "" : "disabled"}>
+        ${count
+          ? `<span aria-hidden="true">${count}</span>`
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>'}
+      </button>
+    </div>`;
+}
+
+function renderCompetencyParticipantPicker(participants, draft) {
+  if (!draft.expandedLevel) return "";
+  const level = COMPETENCY_LEVELS.find((item) => item.value === draft.expandedLevel);
+  if (!level) return "";
+  return `
+    <div class="reef-competency-overrides">
+      <div class="reef-competency-picker-head">
+        <p><strong>${escapeHtml(level.label)}:</strong> select individual participants.</p>
+        <button type="button" data-close-competency-picker aria-label="Close participant selection" title="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+        </button>
+      </div>
+      <div class="reef-competency-participants">
+        ${participants.map((participant) => {
+          const selectedLevel = draft.overrides.get(participant.key) || "";
+          const selected = selectedLevel === level.value;
+          const currentLevel = COMPETENCY_LEVELS.find((item) => item.value === selectedLevel);
+          const reference = participant.reference ? ` (${participant.reference})` : "";
+          return `
+            <button class="reef-competency-participant${selected ? " is-selected" : ""}" type="button"
+              data-competency-participant="${escapeHtml(participant.key)}"
+              data-set-competency-participant="${escapeHtml(level.value)}"
+              aria-pressed="${String(selected)}">
+              <span>${escapeHtml(participant.name)}${escapeHtml(reference)}</span>
+              <small>${selected ? "Selected" : (currentLevel ? currentLevel.label : "Add")}</small>
+            </button>`;
+        }).join("")}
       </div>
     </div>`;
 }
 
 function handleCompetencyAction(event) {
-  const button = event.target.closest("[data-toggle-competency-overrides]");
-  if (!button) return;
-  const task = button.closest("[data-competency-activity]");
-  const draft = competencyDrafts.get(task?.dataset.competencyActivity);
+  const task = event.target.closest("[data-competency-activity]");
+  if (!task) return;
+  const draft = competencyDrafts.get(task.dataset.competencyActivity);
   if (!draft) return;
-  draft.expanded = !draft.expanded;
-  renderCompetencyAssessment();
+
+  if (event.target.closest("[data-clear-competency]")) {
+    draft.assessed = false;
+    draft.groupLevel = "";
+    draft.expandedLevel = "";
+    draft.overrides.clear();
+    renderCompetencyAssessment();
+    return;
+  }
+
+  if (event.target.closest("[data-close-competency-picker]")) {
+    draft.expandedLevel = "";
+    renderCompetencyAssessment();
+    return;
+  }
+
+  const levelButton = event.target.closest("[data-open-competency-level]");
+  if (levelButton) {
+    if (!draft.groupLevel) {
+      setStatus("Choose the all-participants result before adding individual results.", "error");
+      task.querySelector('[data-competency-group-level]')?.focus();
+      return;
+    }
+    const level = levelButton.dataset.openCompetencyLevel;
+    draft.expandedLevel = draft.expandedLevel === level ? "" : level;
+    renderCompetencyAssessment();
+    return;
+  }
+
+  const participantButton = event.target.closest("[data-set-competency-participant]");
+  if (participantButton) {
+    const participantKey = participantButton.dataset.competencyParticipant;
+    const level = participantButton.dataset.setCompetencyParticipant;
+    if (draft.overrides.get(participantKey) === level) draft.overrides.delete(participantKey);
+    else draft.overrides.set(participantKey, level);
+    draft.assessed = true;
+    renderCompetencyAssessment();
+  }
 }
 
 function handleCompetencyChange(event) {
@@ -611,22 +695,9 @@ function handleCompetencyChange(event) {
   const draft = competencyDrafts.get(task.dataset.competencyActivity);
   if (!draft) return;
 
-  if (event.target.matches("[data-competency-include]")) {
-    draft.assessed = event.target.checked;
-    if (!draft.assessed) draft.overrides.clear();
-  }
   if (event.target.matches("[data-competency-group-level]")) {
     draft.assessed = true;
     draft.groupLevel = event.target.value;
-  }
-  const participant = event.target.closest("[data-competency-participant]");
-  const participantKey = participant?.dataset.competencyParticipant;
-  if (participantKey && event.target.matches("[data-competency-override-enabled]")) {
-    if (event.target.checked) draft.overrides.set(participantKey, draft.overrides.get(participantKey) || "");
-    else draft.overrides.delete(participantKey);
-  }
-  if (participantKey && event.target.matches("[data-competency-override-level]")) {
-    draft.overrides.set(participantKey, event.target.value);
   }
   renderCompetencyAssessment();
 }
@@ -651,7 +722,7 @@ function loadCompetencyDrafts(value) {
         );
       }
     });
-    draft.expanded = draft.overrides.size > 0;
+    draft.expandedLevel = "";
   });
   renderCompetencyAssessment();
 }
@@ -1044,10 +1115,10 @@ function validatedPracticalCompetencies(participantEntries, { requireComplete = 
       if (!participant) continue;
       if (!COMPETENCY_LEVELS.some((item) => item.value === level)) {
         if (!requireComplete) continue;
-        draft.expanded = true;
+        draft.expandedLevel = draft.groupLevel || COMPETENCY_LEVELS[0].value;
         renderCompetencyAssessment();
         const participantControl = els.reefCompetencySections.querySelector(
-          `[data-competency-activity="${activity.id}"] [data-competency-participant="${participantKey}"] [data-competency-override-level]`
+          `[data-competency-activity="${activity.id}"] [data-competency-participant="${participantKey}"]`
         );
         return validationError(
           `Choose the individual competency level for ${participant.participant_name}.`,

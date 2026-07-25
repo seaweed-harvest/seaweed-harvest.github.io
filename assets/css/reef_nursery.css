@@ -601,52 +601,41 @@
   padding: 9px 10px;
 }
 
-.reef-nursery-form .reef-competency-task-name label,
-.reef-nursery-form .reef-competency-participant-name {
-  min-width: 0;
-  display: flex;
-  grid-template-columns: none;
-  align-items: flex-start;
-  gap: 8px;
+.reef-competency-task-name strong {
   color: var(--text);
   font-size: 0.8rem;
   font-weight: 600;
   line-height: 1.3;
-  text-transform: none;
-}
-
-.reef-competency-task-name input,
-.reef-competency-participant-name input {
-  flex: 0 0 15px;
-  width: 15px;
-  height: 15px;
-  min-height: 15px;
-  margin-top: 1px;
-  padding: 0;
 }
 
 .reef-competency-task-name small {
-  padding-left: 23px;
   color: var(--text-sec);
   font-size: 0.68rem;
   font-weight: 500;
 }
 
-.reef-nursery-form .reef-competency-level {
+.reef-competency-level {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px;
+  border-left: 1px solid var(--border-soft);
+}
+
+.reef-nursery-form .reef-competency-level-choice {
   min-width: 0;
   display: grid;
   grid-template-columns: none;
   place-items: center;
-  padding: 8px;
-  border-left: 1px solid var(--border-soft);
   color: var(--text-sec);
   font-size: 0.72rem;
   font-weight: 500;
   text-transform: none;
 }
 
-.reef-competency-level input,
-.reef-competency-participant-levels input {
+.reef-competency-level-choice input {
   width: 16px;
   height: 16px;
   min-height: 16px;
@@ -654,7 +643,7 @@
   padding: 0;
 }
 
-.reef-competency-level span {
+.reef-competency-level-choice span {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -666,7 +655,34 @@
   border: 0;
 }
 
-.reef-competency-expand {
+.reef-competency-person-trigger,
+.reef-competency-clear,
+.reef-competency-picker-head button {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+}
+
+.reef-competency-person-trigger svg,
+.reef-competency-clear svg,
+.reef-competency-picker-head button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.reef-competency-person-trigger.has-results {
+  border-color: var(--accent);
+  background: var(--panel-soft);
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.reef-competency-clear {
   align-self: center;
   justify-self: center;
   width: 32px;
@@ -677,14 +693,11 @@
   padding: 0;
 }
 
-.reef-competency-expand svg {
-  width: 16px;
-  height: 16px;
-  transition: transform 140ms ease;
-}
-
-.reef-competency-expand[aria-expanded="true"] svg {
-  transform: rotate(45deg);
+.reef-competency-clear-space {
+  width: 32px;
+  height: 32px;
+  align-self: center;
+  justify-self: center;
 }
 
 .reef-competency-overrides {
@@ -695,11 +708,14 @@
   background: #f7fbfa;
 }
 
-.reef-competency-overrides[hidden] {
-  display: none;
+.reef-competency-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.reef-competency-overrides > p {
+.reef-competency-picker-head p {
   margin: 0;
   color: var(--text-sec);
   font-size: 0.72rem;
@@ -707,36 +723,46 @@
 
 .reef-competency-participants {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
 }
 
 .reef-competency-participant {
-  display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(390px, 1.5fr);
+  min-width: 0;
+  min-height: 38px;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   padding: 7px 8px;
   border: 1px solid var(--border-soft);
   background: var(--panel);
+  color: var(--text);
+  font-size: 0.76rem;
+  text-align: left;
 }
 
-.reef-competency-participant-levels {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.reef-nursery-form .reef-competency-participant-levels label {
+.reef-competency-participant span {
   min-width: 0;
-  display: flex;
-  grid-template-columns: none;
-  align-items: center;
-  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reef-competency-participant small {
+  flex: 0 0 auto;
   color: var(--text-sec);
-  font-size: 0.7rem;
-  font-weight: 500;
-  line-height: 1.2;
-  text-transform: none;
+  font-size: 0.66rem;
+}
+
+.reef-competency-participant.is-selected {
+  border-color: var(--accent);
+  background: #edf8f6;
+}
+
+.reef-competency-participant.is-selected small {
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .reef-prepared-section {
@@ -1171,9 +1197,9 @@
     padding: 0;
   }
 
-  .reef-nursery-form .reef-competency-level {
-    min-height: 54px;
-    align-content: center;
+  .reef-competency-level {
+    min-height: 74px;
+    flex-direction: column;
     gap: 5px;
     padding: 5px 3px;
     border: 1px solid var(--border-soft);
@@ -1181,7 +1207,7 @@
     text-align: center;
   }
 
-  .reef-competency-level span {
+  .reef-competency-level-choice span {
     position: static;
     width: auto;
     height: auto;
@@ -1191,24 +1217,15 @@
     white-space: normal;
   }
 
-  .reef-competency-expand {
+  .reef-competency-clear,
+  .reef-competency-clear-space {
     width: 38px;
-    height: 54px;
-    min-height: 54px;
+    height: 74px;
+    min-height: 74px;
   }
 
-  .reef-competency-participant {
+  .reef-competency-participants {
     grid-template-columns: 1fr;
-    gap: 7px;
-  }
-
-  .reef-competency-participant-levels {
-    padding-left: 23px;
-  }
-
-  .reef-nursery-form .reef-competency-participant-levels label {
-    align-items: flex-start;
-    flex-direction: column;
   }
 
   .reef-photo-action {
