@@ -548,7 +548,7 @@
 }
 
 .reef-competency-table {
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--panel);
@@ -588,6 +588,10 @@
   border-top: 1px solid var(--border-soft);
 }
 
+.reef-competency-task {
+  position: relative;
+}
+
 .reef-competency-task.missing-competency-selection {
   background: #fff8e8;
   box-shadow: inset 3px 0 #d99919;
@@ -615,6 +619,7 @@
 }
 
 .reef-competency-level {
+  position: relative;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -701,11 +706,27 @@
 }
 
 .reef-competency-overrides {
+  position: fixed;
+  z-index: 80;
+  top: 0;
+  left: 0;
+  width: min(320px, calc(100vw - 16px));
+  max-height: min(300px, calc(100vh - 16px));
   display: grid;
   gap: 8px;
   padding: 10px;
-  border-top: 1px solid var(--border);
-  background: #f7fbfa;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel);
+  box-shadow: 0 12px 28px rgba(15, 46, 43, 0.18);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.reef-competency-overrides.is-positioned {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .reef-competency-picker-head {
@@ -723,7 +744,7 @@
 
 .reef-competency-participants {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 6px;
 }
 
