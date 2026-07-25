@@ -10,20 +10,14 @@ const PHOTO_MAX_EDGE = 1920;
 
 const COPY = {
   en: {
-    button: "Suggest an improvement",
-    title: "Suggest an improvement",
-    type: "Type",
-    types: {
-      improvement: "Improvement",
-      change: "Change request",
-      problem: "Problem or fix"
-    },
+    button: "Make a suggestion",
+    title: "Make a suggestion",
     message: "Your suggestion",
     messagePlaceholder: "What could work better?",
     name: "Your name (optional)",
     photo: "Photo or screenshot (optional)",
-    photoHint: "One image. Compressed before sending.",
-    photoReady: "Screenshot ready.",
+    photoHint: "Choose from your photo library or take a new photo. Compressed before sending.",
+    photoReady: "Photo ready.",
     photoError: "That image could not be prepared. Try another photo or screenshot.",
     removePhoto: "Remove image",
     quote: "Better ideas start with a question.",
@@ -36,19 +30,13 @@ const COPY = {
     required: "Write a short suggestion before sending."
   },
   sw: {
-    button: "Pendekeza maboresho",
-    title: "Pendekeza maboresho",
-    type: "Aina",
-    types: {
-      improvement: "Maboresho",
-      change: "Ombi la mabadiliko",
-      problem: "Tatizo au suluhisho"
-    },
+    button: "Toa pendekezo",
+    title: "Toa pendekezo",
     message: "Pendekezo lako",
     messagePlaceholder: "Nini kinaweza kuboreshwa?",
     name: "Jina lako (si lazima)",
     photo: "Picha au picha ya skrini (si lazima)",
-    photoHint: "Picha moja. Itapunguzwa kabla ya kutumwa.",
+    photoHint: "Chagua kwenye picha zako au piga picha mpya. Itapunguzwa kabla ya kutumwa.",
     photoReady: "Picha iko tayari.",
     photoError: "Picha hiyo haikuweza kutayarishwa. Jaribu picha nyingine.",
     removePhoto: "Ondoa picha",
@@ -104,14 +92,6 @@ function initialiseFeedbackWidget() {
           </button>
         </header>
         <label>
-          <span>${copy.type} / ${COPY.sw.type}</span>
-          <select name="feedbackType">
-            <option value="improvement">${copy.types.improvement}</option>
-            <option value="change">${copy.types.change}</option>
-            <option value="problem">${copy.types.problem}</option>
-          </select>
-        </label>
-        <label>
           <span>${copy.message} / ${COPY.sw.message}</span>
           <textarea name="message" rows="5" maxlength="${MAX_MESSAGE_LENGTH}" placeholder="${copy.messagePlaceholder}" required></textarea>
         </label>
@@ -121,7 +101,7 @@ function initialiseFeedbackWidget() {
         </label>
         <label class="site-feedback-photo-field">
           <span>${copy.photo} / ${COPY.sw.photo}</span>
-          <input name="feedbackPhoto" type="file" accept="image/*" capture="environment">
+          <input name="feedbackPhoto" type="file" accept="image/*">
           <small>${copy.photoHint}</small>
         </label>
         <div class="site-feedback-photo-preview" hidden>
@@ -201,7 +181,7 @@ async function submitFeedback(event) {
   const submitterName = String(form.elements.submitterName.value || "").trim();
   if (submitterName) storeValue(NAME_KEY, submitterName);
   const payload = buildPayload({
-    feedbackType: form.elements.feedbackType.value,
+    feedbackType: "improvement",
     message,
     submitterName,
     website: form.elements.website.value,
@@ -320,13 +300,17 @@ async function compressFeedbackPhoto(file) {
 
 async function decodeFeedbackImage(file) {
   if ("createImageBitmap" in window) {
-    const bitmap = await createImageBitmap(file);
-    return {
-      image: bitmap,
-      width: bitmap.width,
-      height: bitmap.height,
-      close: () => bitmap.close()
-    };
+    try {
+      const bitmap = await createImageBitmap(file);
+      return {
+        image: bitmap,
+        width: bitmap.width,
+        height: bitmap.height,
+        close: () => bitmap.close()
+      };
+    } catch {
+      // Safari can expose createImageBitmap but still require image-element decoding for HEIC photos.
+    }
   }
   const url = URL.createObjectURL(file);
   try {

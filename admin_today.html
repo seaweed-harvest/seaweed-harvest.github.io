@@ -62,6 +62,10 @@
             <button id="todayProcessRecordTab" type="button" role="tab" aria-selected="false" aria-controls="todayProcessRecordPanel" data-today-record-tab="process-record">4. Process Record</button>
           </div>
         </div>
+        <div class="today-shared-date">
+          <label for="todayIntakeDate">Record date</label>
+          <input id="todayIntakeDate" type="date">
+        </div>
 
         <div id="todayIntakePanel" class="admin-card-body standalone today-record-panel" role="tabpanel" aria-labelledby="todayIntakeTab" data-today-record-panel="intake">
           <div class="section-head compact">
@@ -69,10 +73,6 @@
             <span id="todayIntakeCount" class="status-pill">0 rows</span>
           </div>
           <div class="admin-toolbar admin-filter-grid intake-filter-grid">
-            <label>
-              Intake date
-              <input id="todayIntakeDate" type="date">
-            </label>
             <button id="reloadTodayIntake" type="button">Load</button>
             <span id="todayIntakeStatus" class="admin-status" aria-live="polite"></span>
           </div>
@@ -90,15 +90,15 @@
               <thead>
                 <tr>
                   <th id="todaySelectionHeader" class="selection-cell"><input id="todaySelectAll" type="checkbox" aria-label="Select all intake rows"></th>
-                  <th><button type="button" data-today-sort="collected_at">Collected</button></th>
-                  <th><button type="button" data-today-sort="farmer_id">Member</button></th>
+                  <th><button type="button" data-today-sort="collected_at">Time</button></th>
+                  <th><button type="button" data-today-sort="farmer_id">Farmer</button></th>
                   <th><button type="button" data-today-sort="sack_weight_kg">Weight kg</button></th>
+                  <th><button type="button" data-today-sort="total_price">Total KSH</button></th>
                   <th><button type="button" data-today-sort="sack_id">Sack ID</button></th>
                   <th><button type="button" data-today-sort="seaweed_type">Type</button></th>
                   <th><button type="button" data-today-sort="seaweed_grade">Grade</button></th>
                   <th><button type="button" data-today-sort="community_id">Community</button></th>
                   <th><button type="button" data-today-sort="price_per_kg">Price/kg</button></th>
-                  <th><button type="button" data-today-sort="total_price">Total KSH</button></th>
                   <th><button type="button" data-today-sort="notes">Notes</button></th>
                   <th><button type="button" data-today-sort="recorded_by_name">Recorded by</button></th>
                   <th class="transaction-id-column"><button type="button" data-today-sort="transaction_id">Transaction ID</button></th>
@@ -237,7 +237,7 @@
   </main>
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
-  <script type="module" src="./assets/js/today_record_tabs.js?v=2"></script>
-  <script type="module" src="./assets/js/admin_page.js?v=29"></script>
+  <script type="module" src="./assets/js/today_record_tabs.js?v=3"></script>
+  <script type="module" src="./assets/js/admin_page.js?v=32"></script>
 </body>
 </html>

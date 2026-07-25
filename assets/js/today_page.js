@@ -75,10 +75,11 @@ async function init() {
   ].forEach((id) => { els[id] = document.getElementById(id); });
   operationFeedback = createOperationFeedback(els.todayOperationFeedback);
 
-  els.todayIntakeDate.textContent = new Intl.DateTimeFormat("en-KE", {
-    dateStyle: "long",
-    timeZone: "Africa/Nairobi"
-  }).format(new Date());
+  if (!els.todayIntakeDate.value) els.todayIntakeDate.value = selectedRecordDate();
+  els.todayIntakeDate.addEventListener("change", () => {
+    updateSelectedDateInUrl();
+    void loadToday();
+  });
   els.todayEditorName.value = String(localStorage.getItem(COLLECTOR_NAME_STORAGE_KEY) || "").trim();
   els.todayEditorName.addEventListener("change", rememberEditorName);
   els.reloadPublicToday.addEventListener("click", loadToday);
@@ -275,7 +276,9 @@ async function loadToday() {
   setStatus("Loading...");
   try {
     const [rows, communities, seaweedTypes, grades] = await Promise.all([
-      state.authenticated ? callRpc("ag_public_mawimbi_today_intake") : Promise.resolve([]),
+      state.authenticated
+        ? callRpc("ag_sec_admin_today_intake", { p_intake_date: selectedRecordDate() })
+        : Promise.resolve([]),
       callPublicRpc("ag_public_mawimbi_communities"),
       selectRows("ag_public_seaweed_type_settings", "select=*&order=display_order.asc"),
       selectRows("ag_public_grade_price_settings", "select=*&order=display_order.asc")
@@ -297,7 +300,7 @@ async function loadToday() {
     els.todayConnectionStatus.className = "status-pill";
     setStatus(state.authenticated
       ? "Loaded."
-      : "Showing records saved on this device today.");
+      : "Showing records saved on this device for the selected date.");
   } catch (error) {
     const stillOnline = navigator.onLine;
     state.online = stillOnline;
@@ -325,9 +328,9 @@ async function refreshLocalRows() {
   state.pendingCount = pendingItems.length;
   const visibleTodayItems = state.authenticated ? pendingItems : items;
   state.localRows = visibleTodayItems.map(localItemToRow)
-    .filter((row) => isTodayInNairobi(row.collected_at));
+    .filter((row) => isSelectedDateInNairobi(row.collected_at));
   const pendingRows = pendingItems.map(localItemToRow);
-  state.olderLocalRows = pendingRows.filter((row) => !isTodayInNairobi(row.collected_at));
+  state.olderLocalRows = pendingRows.filter((row) => !isSelectedDateInNairobi(row.collected_at));
   combineTodayRows();
   renderRows();
   updateLocalSyncUi();
@@ -342,6 +345,7 @@ function localItemToRow(item) {
     collected_at: payload.collected_at || item.createdAt,
     farmer_name_snapshot: payload.farmer_name_snapshot || item.summary?.farmer || null,
     sack_weight_kg: payload.sack_weight_kg ?? item.summary?.weightKg ?? null,
+    total_price: payload.total_price ?? null,
     seaweed_type: payload.seaweed_type || null,
     grade_code: payload.grade_code || payload.seaweed_grade || item.summary?.grade || null,
     community_id: payload.community_id || null,
@@ -396,10 +400,10 @@ function syncStatusHtml(row) {
   return '<span class="status-pill offline-status-waiting">Stored locally</span>';
 }
 
-function isTodayInNairobi(value) {
+function isSelectedDateInNairobi(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return false;
-  return nairobiDateKey(date) === nairobiDateKey(new Date());
+  return nairobiDateKey(date) === selectedRecordDate();
 }
 
 function nairobiDateKey(date) {
@@ -411,12 +415,25 @@ function nairobiDateKey(date) {
   }).format(date);
 }
 
+function selectedRecordDate() {
+  if (els.todayIntakeDate?.value) return els.todayIntakeDate.value;
+  const requested = new URLSearchParams(window.location.search).get("date");
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(requested || ""))) return requested;
+  return nairobiDateKey(new Date());
+}
+
+function updateSelectedDateInUrl() {
+  const url = new URL(window.location.href);
+  url.searchParams.set("date", selectedRecordDate());
+  window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
 function renderRows() {
   els.publicTodayCount.textContent = `${state.rows.length} row${state.rows.length === 1 ? "" : "s"}`;
   if (!state.rows.length) {
-    els.publicTodayRows.innerHTML = `<tr><td colspan="10" class="empty-state">${state.authenticated
-      ? "No Mawimbi intake has been recorded today."
-      : "No collection records have been saved on this device today."}</td></tr>`;
+    els.publicTodayRows.innerHTML = `<tr><td colspan="11" class="empty-state">${state.authenticated
+      ? "No intake has been recorded for this date."
+      : "No collection records have been saved on this device for this date."}</td></tr>`;
     renderOlderRows();
     updateSelectionUi();
     return;
@@ -436,6 +453,7 @@ function renderRows() {
         <td>${escapeHtml(formatTime(row.collected_at))}</td>
         <td>${editing ? textControl(id, "farmer_name_snapshot", draft.farmer_name_snapshot, "today-farmer-editor", 150) : escapeHtml(row.farmer_name_snapshot || "-")}</td>
         <td>${editing ? numberControl(id, "sack_weight_kg", draft.sack_weight_kg, 0.01, 0.01) : escapeHtml(formatNumber(row.sack_weight_kg))}</td>
+        <td>${escapeHtml(formatNumber(row.total_price))}</td>
         <td>${editing ? selectControl(id, "seaweed_type", draft.seaweed_type, seaweedTypeOptions(row)) : escapeHtml(titleCase(row.seaweed_type))}</td>
         <td>${editing ? selectControl(id, "grade_code", draft.grade_code, gradeOptions(row)) : escapeHtml(displayGrade(row.grade_code))}</td>
         <td>${editing ? selectControl(id, "community_id", draft.community_id, communityOptions(row)) : escapeHtml(joinValues(row.community_id, row.community_name_snapshot))}</td>
@@ -467,6 +485,7 @@ function renderOlderRows() {
         <td>${escapeHtml(formatDateTime(row.collected_at))}</td>
         <td>${escapeHtml(row.farmer_name_snapshot || "-")}</td>
         <td>${escapeHtml(formatNumber(row.sack_weight_kg))}</td>
+        <td>${escapeHtml(formatNumber(row.total_price))}</td>
         <td>${escapeHtml(titleCase(row.seaweed_type))}</td>
         <td>${escapeHtml(displayGrade(row.grade_code))}</td>
         <td>${escapeHtml(joinValues(row.community_id, row.community_name_snapshot))}</td>

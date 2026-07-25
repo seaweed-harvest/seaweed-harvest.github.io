@@ -52,13 +52,14 @@
           <button id="todayProcessRecordTab" type="button" role="tab" aria-selected="false" aria-controls="todayProcessRecordPanel" data-today-record-tab="process-record">4. Process Record</button>
         </div>
       </div>
+      <div class="today-shared-date">
+        <label for="todayIntakeDate">Record date</label>
+        <input id="todayIntakeDate" type="date">
+      </div>
 
       <div id="todayIntakePanel" class="today-record-panel" role="tabpanel" aria-labelledby="todayIntakeTab" data-today-record-panel="intake">
       <div class="section-head compact">
-        <div>
-          <h3>Intake collection</h3>
-          <p id="todayIntakeDate" class="field-hint"></p>
-        </div>
+        <h3>Intake collection</h3>
         <div class="button-row compact-actions">
           <span id="publicTodayCount" class="status-pill">0 rows</span>
           <button id="todaySyncAll" type="button" hidden>Sync all local records</button>
@@ -89,6 +90,7 @@
               <th>Time</th>
               <th>Farmer</th>
               <th>Weight kg</th>
+              <th>Total KSH</th>
               <th>Type</th>
               <th>Grade</th>
               <th>Community</th>
@@ -97,7 +99,7 @@
             </tr>
           </thead>
           <tbody id="publicTodayRows">
-            <tr><td colspan="10" class="empty-state">Loading today's intake...</td></tr>
+            <tr><td colspan="11" class="empty-state">Loading intake records...</td></tr>
           </tbody>
         </table>
       </div>
@@ -253,6 +255,7 @@
               <th>Collected</th>
               <th>Farmer</th>
               <th>Weight kg</th>
+              <th>Total KSH</th>
               <th>Type</th>
               <th>Grade</th>
               <th>Community</th>
@@ -277,7 +280,7 @@
   </section>
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
-  <script type="module" src="./assets/js/today_record_tabs.js?v=2"></script>
-  <script type="module" src="./assets/js/today_page.js?v=5"></script>
+  <script type="module" src="./assets/js/today_record_tabs.js?v=3"></script>
+  <script type="module" src="./assets/js/today_page.js?v=7"></script>
 </body>
 </html>

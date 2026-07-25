@@ -95,7 +95,6 @@ function renderSuggestions() {
     article.innerHTML = `
       <header class="suggestion-item-head">
         <div>
-          <span class="suggestion-type suggestion-type-${escapeHtml(row.feedback_type)}">${escapeHtml(typeLabel(row.feedback_type))}</span>
           <strong>${escapeHtml(row.source_page || "Unknown page")}</strong>
         </div>
         <time datetime="${escapeHtml(row.created_at)}">${escapeHtml(formatDateTime(row.created_at))}</time>
@@ -123,6 +122,7 @@ function renderSuggestions() {
           </select>
         </label>
         <button type="button" data-save-suggestion>Save</button>
+        <button class="danger-button" type="button" data-delete-suggestion>Delete</button>
       </div>`;
     els.suggestionsList.append(article);
   });
@@ -132,6 +132,11 @@ async function handleSuggestionAction(event) {
   const photoButton = event.target.closest("[data-view-suggestion-photo]");
   if (photoButton) {
     await showPhoto(photoButton.dataset.viewSuggestionPhoto);
+    return;
+  }
+  const deleteButton = event.target.closest("[data-delete-suggestion]");
+  if (deleteButton) {
+    await deleteSuggestion(deleteButton);
     return;
   }
   const saveButton = event.target.closest("[data-save-suggestion]");
@@ -151,6 +156,35 @@ async function handleSuggestionAction(event) {
   }
   await loadSuggestions();
   setStatus("Suggestion updated.", "success");
+}
+
+async function deleteSuggestion(button) {
+  const item = button.closest("[data-suggestion-id]");
+  const row = state.rows.find((candidate) => String(candidate.id) === item?.dataset.suggestionId);
+  if (!item || !row) return;
+
+  const confirmed = window.confirm(
+    `Delete this suggestion from ${row.submitter_name || row.submitter_email || "Anonymous"}?\n\n`
+      + "The suggestion and its private photo will be permanently removed."
+  );
+  if (!confirmed) return;
+
+  button.disabled = true;
+  setStatus("Deleting suggestion...");
+  const { data, error } = await authClient.functions.invoke("site-feedback", {
+    body: {
+      action: "delete",
+      feedback_id: item.dataset.suggestionId
+    }
+  });
+  button.disabled = false;
+  if (error || !data?.ok) {
+    setStatus(data?.error || error?.message || "Suggestion could not be deleted.", "error");
+    return;
+  }
+
+  await loadSuggestions();
+  setStatus("Suggestion deleted.", "success");
 }
 
 async function showPhoto(path) {
@@ -187,10 +221,6 @@ function reviewOptions(selected) {
     ["review_required", "Review required"],
     ["flagged", "Flagged"]
   ].map(([value, label]) => `<option value="${value}"${value === selected ? " selected" : ""}>${label}</option>`).join("");
-}
-
-function typeLabel(value) {
-  return { improvement: "Improvement", change: "Change", problem: "Problem" }[value] || value || "Suggestion";
 }
 
 function reviewLabel(value) {

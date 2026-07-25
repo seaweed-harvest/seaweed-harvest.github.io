@@ -2012,15 +2012,15 @@ function renderTodayIntake() {
     return `
       <tr data-today-row="${escapeAttribute(id)}" class="${rowClasses}">
         <td class="selection-cell"${canEdit ? "" : " hidden"}><input type="checkbox" data-today-id="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(row.transaction_id || "intake row")}"${checked}${editing ? " disabled" : ""}></td>
-        <td>${escapeHtml(formatDateTime(row.collected_at))}</td>
+        <td>${escapeHtml(formatTime(row.collected_at))}</td>
         <td>${isEditing ? todaySelectControl(id, "farmer_id", draft.farmer_id, todayMemberOptions(row)) : inlineCell([row.farmer_id, row.farmer_name_snapshot])}</td>
         <td>${isEditing ? todayNumberControl(id, "sack_weight_kg", draft.sack_weight_kg, "today-number-editor", 0.01, 0.01) : escapeHtml(formatKg(row.sack_weight_kg))}</td>
+        <td data-today-total="${escapeAttribute(id)}">${escapeHtml(formatMoney(isEditing ? todayDraftTotal(draft, row.total_price) : row.total_price))}</td>
         <td>${isEditing ? todayTextControl(id, "sack_id", draft.sack_id, "today-sack-editor", 80) : escapeHtml(row.sack_id || "-")}</td>
         <td>${isEditing ? todaySelectControl(id, "seaweed_type", draft.seaweed_type, todaySeaweedTypeOptions(row)) : escapeHtml(formatSeaweedType(row.seaweed_type))}</td>
         <td>${isEditing ? todaySelectControl(id, "grade_code", draft.grade_code, todayGradeOptions(row)) : escapeHtml(row.seaweed_grade || "-")}</td>
         <td>${isEditing ? todaySelectControl(id, "community_id", draft.community_id, todayCommunityOptions(row)) : inlineCell([row.community_id, row.community_name_snapshot])}</td>
         <td>${isEditing ? todayNumberControl(id, "price_per_kg", draft.price_per_kg, "today-number-editor", 0.01, 0) : escapeHtml(formatMoney(row.price_per_kg))}</td>
-        <td data-today-total="${escapeAttribute(id)}">${escapeHtml(formatMoney(isEditing ? todayDraftTotal(draft, row.total_price) : row.total_price))}</td>
         <td>${isEditing ? todayTextControl(id, "notes", draft.notes, "today-notes-editor", 1000) : escapeHtml(row.notes || "-")}</td>
         <td>${escapeHtml(collectorName(row) || "-")}</td>
         <td class="transaction-id-column"><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
@@ -2412,11 +2412,11 @@ function renderLedger() {
         <td>${isEditing ? ledgerSelectControl(id, "farmer_id", draft.farmer_id, todayMemberOptions(row)) : inlineCell([row.farmer_id, row.farmer_name_snapshot])}</td>
         <td>${isEditing ? ledgerTextControl(id, "sack_id", draft.sack_id, "today-sack-editor", 80) : escapeHtml(row.sack_id || "-")}</td>
         <td>${isEditing ? ledgerNumberControl(id, "sack_weight_kg", draft.sack_weight_kg, "today-number-editor", 0.01, 0.01) : escapeHtml(formatKg(row.sack_weight_kg))}</td>
+        <td data-ledger-total="${escapeAttribute(id)}">${escapeHtml(formatMoney(isEditing ? todayDraftTotal(draft, row.total_price) : row.total_price))}</td>
         <td>${isEditing ? ledgerSelectControl(id, "seaweed_type", draft.seaweed_type, todaySeaweedTypeOptions(row)) : escapeHtml(formatSeaweedType(row.seaweed_type))}</td>
         <td>${escapeHtml(formatDataLabel(row.product_form || "wet"))}</td>
         <td>${isEditing ? ledgerSelectControl(id, "grade_code", draft.grade_code, todayGradeOptions(row)) : escapeHtml(row.seaweed_grade || "-")}</td>
         <td>${isEditing ? ledgerNumberControl(id, "price_per_kg", draft.price_per_kg, "today-number-editor", 0.01, 0) : escapeHtml(formatMoney(row.price_per_kg))}</td>
-        <td data-ledger-total="${escapeAttribute(id)}">${escapeHtml(formatMoney(isEditing ? todayDraftTotal(draft, row.total_price) : row.total_price))}</td>
         <td>${escapeHtml(formatCoordinatePair(row.gps_latitude, row.gps_longitude))}</td>
         <td>${escapeHtml(photoCount(row.photo_urls))}</td>
         <td>${isEditing ? ledgerTextControl(id, "notes", draft.notes, "today-notes-editor", 1000) : escapeHtml(row.notes || "-")}</td>
@@ -3107,6 +3107,18 @@ function formatDateTime(value) {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit"
+  });
+}
+
+function formatTime(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleTimeString("en-KE", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Africa/Nairobi"
   });
 }
 

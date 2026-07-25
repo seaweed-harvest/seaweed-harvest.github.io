@@ -49,6 +49,9 @@ function init() {
   els.todayRecordTabs = document.getElementById("todayRecordTabs");
   els.todayIntakeDate = document.getElementById("todayIntakeDate");
   if (!els.todayRecordTabs) return;
+  if (els.todayIntakeDate?.matches("input[type='date']") && !els.todayIntakeDate.value) {
+    els.todayIntakeDate.value = initialRecordDate();
+  }
 
   Object.values(CATEGORY_CONFIG).forEach((config) => {
     [
@@ -73,6 +76,7 @@ function init() {
   els.todayRecordTabs.addEventListener("keydown", handleTabKeydown);
   if (els.todayIntakeDate?.matches("input[type='date']")) {
     els.todayIntakeDate.addEventListener("change", () => {
+      updateDateInUrl();
       state.loadedDate = null;
       clearAllEditStates();
       if (state.active !== "intake") void loadSupplementalRecords();
@@ -696,6 +700,20 @@ function recordDate() {
   return new Intl.DateTimeFormat("en-CA", {
     year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Africa/Nairobi"
   }).format(new Date());
+}
+
+function initialRecordDate() {
+  const requested = new URLSearchParams(window.location.search).get("date");
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(requested || ""))) return requested;
+  return new Intl.DateTimeFormat("en-CA", {
+    year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Africa/Nairobi"
+  }).format(new Date());
+}
+
+function updateDateInUrl() {
+  const url = new URL(window.location.href);
+  url.searchParams.set("date", recordDate());
+  window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
 function keyForConfig(config) {
