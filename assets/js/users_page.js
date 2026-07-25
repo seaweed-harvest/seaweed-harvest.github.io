@@ -22,7 +22,7 @@ const permissionDefinitions = [
   ["can_view_notifications", "View notification content", "Includes recipient names, masked phone numbers, message text and delivery history."],
   ["can_manage_notifications", "Manage notification delivery", "Retry or cancel messages and perform notification operations that may incur costs."],
   ["can_manage_sms_settings", "Configure SMS settings", "Change SMS provider mode, cost limits, retries and balance settings."],
-  ["can_manage_green_space", "Manage Green Space ledger", "View, edit, publish, unpublish and delete Green Space project records."]
+  ["can_manage_green_space", "Manage Green Space ledger", "View, edit, publish, unpublish and delete Green Space records only. This does not grant access to other Sandbox forms."]
 ];
 
 const permissionDependencies = [
@@ -89,6 +89,7 @@ function bindEvents() {
     applyRolePreset("invite", els.inviteRole.value);
     renderDashboardInputs("invite", els.inviteRole.value);
     configureFarmerRoleFields("invite");
+    renderAggregatorInputs("invite", selectedAggregatorIds("invite"));
   });
   els.editUserRole.addEventListener("change", () => {
     applyRolePreset("edit", els.editUserRole.value);
@@ -604,17 +605,30 @@ function renderCommunityOptions() {
 
 function renderAggregatorInputs(prefix, selectedIds = [], allAggregators = false) {
   const container = prefix === "invite" ? els.inviteAggregators : els.editAggregators;
-  const selected = new Set((selectedIds || []).map(String));
-  if (allAggregators) {
+  const role = prefix === "invite" ? els.inviteRole.value : els.editUserRole.value;
+  const greenSpaceOnly = role === "green_space_teacher";
+  const rows = greenSpaceOnly
+    ? state.aggregators.filter((row) => String(row.aggregator_code || "").toUpperCase() === "SANDBOX")
+    : state.aggregators;
+  const selected = greenSpaceOnly
+    ? new Set(rows.map((row) => String(row.id)))
+    : new Set((selectedIds || []).map(String));
+  if (allAggregators && !greenSpaceOnly) {
     container.innerHTML = '<label class="aggregator-access-option"><input type="checkbox" checked disabled> All current and future aggregators</label>';
     return;
   }
-  container.innerHTML = state.aggregators.map((row) => `
+  container.innerHTML = rows.map((row) => `
     <label class="aggregator-access-option">
-      <input type="checkbox" data-aggregator-access="${prefix}" value="${escapeHtml(row.id)}" ${selected.has(String(row.id)) ? "checked" : ""}>
+      <input type="checkbox" data-aggregator-access="${prefix}" value="${escapeHtml(row.id)}" ${selected.has(String(row.id)) ? "checked" : ""} ${greenSpaceOnly ? "disabled" : ""}>
       ${escapeHtml(row.aggregator_code)} - ${escapeHtml(row.organisation_name)}
     </label>
-  `).join("") || '<span class="admin-status">No manageable aggregators.</span>';
+  `).join("") || '<span class="admin-status">The Green Space Sandbox is not available to this administrator.</span>';
+  if (greenSpaceOnly && rows.length) {
+    container.insertAdjacentHTML(
+      "beforeend",
+      '<span class="field-help">Green Space teachers are limited to the Green Space form and ledger within SANDBOX.</span>'
+    );
+  }
 }
 
 function selectedAggregatorIds(prefix) {
