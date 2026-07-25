@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#176b52">
+  <title>Reflection Ledger - GIRLS</title>
+  <link rel="stylesheet" href="./assets/girls.css">
+</head>
+<body>
+  <header class="girls-header">
+    <div class="girls-header-inner">
+      <a class="girls-brand" href="./" aria-label="GIRLS Green Space Reflection">
+        <span class="girls-brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10"></path><path d="M10 20c5.5-2.5 4-9 4-9s-6.5 1-6 7"></path><path d="M9.5 9.5C8 5 3 5 3 5s0 5 4.5 6.5"></path><path d="M14 11c.5-4 4-5 7-5 0 3-1.5 6-5 7"></path></svg>
+        </span>
+        <span><strong>GIRLS</strong><small>Green Space Reflection</small></span>
+      </a>
+      <nav class="girls-nav" aria-label="GIRLS navigation">
+        <a href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"></path><path d="M13.5 4.5 19 10"></path><path d="m13 11 6.5-6.5a2.12 2.12 0 0 1 3 3L16 14l-4 1 1-4Z"></path></svg><span>Form</span></a>
+        <a href="./map.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"></path><path d="M9 3v15"></path><path d="M15 6v15"></path></svg><span>Map</span></a>
+        <a href="./ledger.html" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18"></path><path d="M3 12h18"></path><path d="M3 19h18"></path><path d="M8 5v14"></path></svg><span>Ledger</span></a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="girls-main girls-wide-main">
+    <header class="girls-page-heading girls-heading-row">
+      <div><p class="girls-eyebrow">Shared class view</p><h1>Reflection Ledger</h1></div>
+      <span id="girlsLedgerCount" class="girls-count">0 entries</span>
+    </header>
+
+    <section class="girls-ledger-tools" aria-label="Ledger filters">
+      <label class="girls-field">
+        <span>Search</span>
+        <input id="girlsLedgerSearch" type="search" placeholder="Student, code or green space">
+      </label>
+      <label class="girls-field">
+        <span>Entry</span>
+        <select id="girlsLedgerType">
+          <option value="">All entries</option>
+          <option value="project">Project setup</option>
+          <option value="observation">Observation</option>
+          <option value="weekly_reflection">Weekly reflection</option>
+          <option value="final_reflection">Final reflection</option>
+        </select>
+      </label>
+      <label class="girls-field">
+        <span>Week</span>
+        <select id="girlsLedgerWeek">
+          <option value="">All weeks</option>
+          <option value="2">Week 2</option><option value="3">Week 3</option><option value="4">Week 4</option>
+          <option value="5">Week 5</option><option value="6">Week 6</option><option value="7">Week 7</option><option value="8">Week 8</option>
+        </select>
+      </label>
+      <button id="girlsExportLedger" class="girls-secondary-action girls-export-action" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg>
+        Export CSV
+      </button>
+    </section>
+
+    <section class="girls-ledger-section">
+      <div class="girls-table-wrap">
+        <table class="girls-ledger-table">
+          <thead><tr><th>Date</th><th>Student</th><th>Green space</th><th>Entry</th><th>Week</th><th>Time</th><th>Photo</th><th>Preview</th></tr></thead>
+          <tbody id="girlsLedgerRows"><tr><td colspan="8">Loading entries...</td></tr></tbody>
+        </table>
+      </div>
+      <p id="girlsLedgerStatus" class="girls-table-status" role="status"></p>
+    </section>
+  </main>
+
+  <dialog id="girlsEntryDialog" class="girls-dialog girls-entry-dialog">
+    <div class="girls-dialog-panel">
+      <div class="girls-dialog-heading">
+        <div><span id="girlsEntryType" class="girls-entry-badge"></span><h2 id="girlsEntryTitle"></h2></div>
+        <button id="girlsCloseEntry" type="button" aria-label="Close">&times;</button>
+      </div>
+      <dl id="girlsEntryMeta" class="girls-entry-meta"></dl>
+      <img id="girlsEntryPhoto" class="girls-entry-photo" alt="" hidden>
+      <div id="girlsEntryContent" class="girls-entry-content"></div>
+    </div>
+  </dialog>
+
+  <script type="module" src="./assets/girls_ledger.js"></script>
+</body>
+</html>

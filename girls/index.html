@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#176b52">
+  <meta name="description" content="GIRLS green-space observation and reflection form.">
+  <title>Green Space Reflection - GIRLS</title>
+  <link rel="stylesheet" href="./assets/girls.css">
+</head>
+<body>
+  <header class="girls-header">
+    <div class="girls-header-inner">
+      <a class="girls-brand" href="./" aria-label="GIRLS Green Space Reflection">
+        <span class="girls-brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M7 20h10"></path><path d="M10 20c5.5-2.5 4-9 4-9s-6.5 1-6 7"></path><path d="M9.5 9.5C8 5 3 5 3 5s0 5 4.5 6.5"></path><path d="M14 11c.5-4 4-5 7-5 0 3-1.5 6-5 7"></path>
+          </svg>
+        </span>
+        <span><strong>GIRLS</strong><small>Green Space Reflection</small></span>
+      </a>
+      <nav class="girls-nav" aria-label="GIRLS navigation">
+        <a href="./" aria-current="page">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"></path><path d="M13.5 4.5 19 10"></path><path d="m13 11 6.5-6.5a2.12 2.12 0 0 1 3 3L16 14l-4 1 1-4Z"></path></svg>
+          <span>Form</span>
+        </a>
+        <a href="./map.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"></path><path d="M9 3v15"></path><path d="M15 6v15"></path></svg>
+          <span>Map</span>
+        </a>
+        <a href="./ledger.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18"></path><path d="M3 12h18"></path><path d="M3 19h18"></path><path d="M8 5v14"></path></svg>
+          <span>Ledger</span>
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="girls-main girls-form-main">
+    <header class="girls-page-heading">
+      <p class="girls-eyebrow">Six-week observation project</p>
+      <h1>Green Space Reflection</h1>
+    </header>
+
+    <form id="girlsReflectionForm" class="girls-form" novalidate>
+      <fieldset class="girls-mode-picker">
+        <legend>What are you recording?</legend>
+        <div class="girls-mode-options">
+          <button type="button" class="is-active" data-entry-mode="project" aria-pressed="true">Start project</button>
+          <button type="button" data-entry-mode="observation" aria-pressed="false">Observation</button>
+          <button type="button" data-entry-mode="weekly_reflection" aria-pressed="false">Weekly reflection</button>
+          <button type="button" data-entry-mode="final_reflection" aria-pressed="false">Final reflection</button>
+        </div>
+      </fieldset>
+
+      <label id="girlsProjectPickerField" class="girls-field" hidden>
+        <span>Your green space</span>
+        <select id="girlsProjectPicker">
+          <option value="">Select green space</option>
+        </select>
+        <small id="girlsProjectPickerHint">Projects saved on this device appear first.</small>
+      </label>
+
+      <section class="girls-form-section" data-mode-panel="project">
+        <h2>Project setup</h2>
+        <label class="girls-field">
+          <span>Name or initials</span>
+          <input id="girlsParticipantName" type="text" maxlength="80" autocomplete="name" placeholder="e.g. Ruby M">
+        </label>
+        <label class="girls-field">
+          <span>Green-space name</span>
+          <input id="girlsGreenSpaceName" type="text" maxlength="120" placeholder="e.g. Campus fig tree">
+        </label>
+        <label class="girls-field">
+          <span>Intentions</span>
+          <textarea id="girlsIntentions" rows="3" maxlength="1000" placeholder="What would you like to notice or learn?"></textarea>
+          <small>About 2-3 sentences.</small>
+        </label>
+        <label class="girls-field">
+          <span>Location and description</span>
+          <textarea id="girlsLocationDescription" rows="4" maxlength="2000" placeholder="Where is it, what does it look like, and why did you choose it?"></textarea>
+        </label>
+        <label class="girls-field">
+          <span>Visit schedule</span>
+          <input id="girlsVisitSchedule" type="text" maxlength="500" placeholder="e.g. Monday and Thursday, 9:00-9:15 am">
+        </label>
+      </section>
+
+      <section class="girls-form-section" data-mode-panel="observation" hidden>
+        <h2>Visit observation</h2>
+        <div class="girls-field-grid three">
+          <label class="girls-field">
+            <span>Week</span>
+            <select id="girlsObservationWeek">
+              <option value="2">Week 2</option><option value="3">Week 3</option><option value="4">Week 4</option>
+              <option value="5">Week 5</option><option value="6">Week 6</option><option value="7">Week 7</option>
+            </select>
+          </label>
+          <label class="girls-field">
+            <span>Date</span>
+            <input id="girlsObservationDate" type="date">
+          </label>
+          <span class="girls-field girls-field-spacer" aria-hidden="true"></span>
+          <label class="girls-field">
+            <span>Start time</span>
+            <input id="girlsStartTime" type="time">
+          </label>
+          <label class="girls-field">
+            <span>Finish time</span>
+            <input id="girlsEndTime" type="time">
+          </label>
+        </div>
+        <label class="girls-field">
+          <span>What did you notice?</span>
+          <textarea id="girlsObservationNotes" rows="7" maxlength="4000" placeholder="Record what you saw, heard, smelled and touched. Taste only when appropriate and safe."></textarea>
+        </label>
+      </section>
+
+      <section class="girls-form-section" data-mode-panel="weekly_reflection" hidden>
+        <h2>Weekly distillation</h2>
+        <label class="girls-field girls-week-field">
+          <span>Week</span>
+          <select id="girlsReflectionWeek">
+            <option value="2">Week 2</option><option value="3">Week 3</option><option value="4">Week 4</option>
+            <option value="5">Week 5</option><option value="6">Week 6</option><option value="7">Week 7</option>
+          </select>
+        </label>
+        <label class="girls-field">
+          <span>What stood out this week?</span>
+          <textarea id="girlsWeeklyReflection" rows="8" maxlength="4000" placeholder="Distil what you noticed across your visits and connect it to your intention where useful."></textarea>
+        </label>
+      </section>
+
+      <section class="girls-form-section" data-mode-panel="final_reflection" hidden>
+        <div class="girls-section-heading">
+          <h2>Week 8 synthesis</h2>
+          <span id="girlsFinalWordCount" class="girls-word-count">0 words</span>
+        </div>
+        <label class="girls-field">
+          <span>Synthesis of observations</span>
+          <textarea id="girlsSynthesis" rows="5" maxlength="5000"></textarea>
+        </label>
+        <label class="girls-field">
+          <span>Key learnings</span>
+          <textarea id="girlsKeyLearnings" rows="5" maxlength="5000" placeholder="State what you learnt and include examples."></textarea>
+        </label>
+        <label class="girls-field">
+          <span>Overall reflection</span>
+          <textarea id="girlsOverallReflection" rows="5" maxlength="5000"></textarea>
+        </label>
+        <small>The assignment guide is 200-300 words across these three fields.</small>
+      </section>
+
+      <section id="girlsLocationTools" class="girls-form-section girls-tools-section">
+        <div class="girls-section-heading">
+          <h2>Location</h2>
+          <button id="girlsCaptureGps" class="girls-secondary-action" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3"></path><path d="M12 19v3"></path><path d="m4.93 4.93 2.12 2.12"></path><path d="m16.95 16.95 2.12 2.12"></path><path d="M2 12h3"></path><path d="M19 12h3"></path><path d="m4.93 19.07 2.12-2.12"></path><path d="m16.95 7.05 2.12-2.12"></path></svg>
+            <span id="girlsCaptureGpsLabel">Use GPS</span>
+          </button>
+        </div>
+        <input id="girlsGpsReadout" type="text" value="No location captured" readonly aria-label="Captured GPS location">
+        <input id="girlsLatitude" type="hidden">
+        <input id="girlsLongitude" type="hidden">
+        <small>Capture the green space, not a private home address.</small>
+      </section>
+
+      <section id="girlsPhotoTools" class="girls-form-section girls-tools-section">
+        <h2>Photo</h2>
+        <div class="girls-photo-layout">
+          <label class="girls-photo-button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4 16 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l1.5-3h5Z"></path><circle cx="12" cy="13" r="3"></circle></svg>
+            Take or choose photo
+            <input id="girlsPhoto" type="file" accept="image/*" capture="environment">
+          </label>
+          <div id="girlsPhotoPreview" class="girls-photo-preview" hidden>
+            <img id="girlsPhotoPreviewImage" alt="Selected green-space photo preview">
+            <button id="girlsRemovePhoto" type="button" aria-label="Remove selected photo">Remove</button>
+          </div>
+        </div>
+        <small>Do not photograph identifiable people without permission.</small>
+      </section>
+
+      <label class="girls-consent">
+        <input id="girlsPublicConsent" type="checkbox">
+        <span>I understand this entry, photo and green-space location will appear on the shared GIRLS map and ledger.</span>
+      </label>
+
+      <label class="girls-honeypot" aria-hidden="true">Website<input id="girlsWebsite" type="text" tabindex="-1" autocomplete="off"></label>
+
+      <div class="girls-submit-row">
+        <button id="girlsSubmit" class="girls-primary-action" type="submit">Save project</button>
+        <span id="girlsFormStatus" class="girls-form-status" role="status" aria-live="polite"></span>
+      </div>
+    </form>
+  </main>
+
+  <dialog id="girlsSuccessDialog" class="girls-dialog">
+    <div class="girls-dialog-panel">
+      <div class="girls-dialog-heading">
+        <h2>Saved</h2>
+        <button id="girlsCloseSuccess" type="button" aria-label="Close">&times;</button>
+      </div>
+      <p id="girlsSuccessMessage"></p>
+      <strong id="girlsSuccessCode" class="girls-project-code" hidden></strong>
+      <div class="girls-dialog-actions">
+        <button id="girlsAddAnother" type="button">Add another entry</button>
+        <a href="./map.html">View map</a>
+      </div>
+    </div>
+  </dialog>
+
+  <script type="module" src="./assets/girls_form.js"></script>
+</body>
+</html>
