@@ -2,7 +2,7 @@ import {
   loadAdminLedger,
   manageLedgerRecord,
   publicPhotoUrl
-} from "./green_space_api.js?v=5";
+} from "./green_space_api.js?v=6";
 import {
   authClient,
   currentProfile,
@@ -609,10 +609,18 @@ function timeRange(row) {
 }
 
 function coordinatePair(row) {
-  const latitude = Number(row.latitude);
-  const longitude = Number(row.longitude);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return "-";
+  const entryLatitude = coordinateValue(row.latitude);
+  const entryLongitude = coordinateValue(row.longitude);
+  const latitude = entryLatitude ?? coordinateValue(row.project_latitude);
+  const longitude = entryLongitude ?? coordinateValue(row.project_longitude);
+  if (latitude === null || longitude === null) return "-";
   return `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+}
+
+function coordinateValue(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
 function formatDate(value) {

@@ -7,7 +7,7 @@ import {
   setProjectCover,
   submitGreenSpaceRecord,
   uploadProjectPhoto
-} from "./green_space_api.js?v=5";
+} from "./green_space_api.js?v=6";
 
 const LAST_PROJECT_KEY = "girls:last-project-id";
 const CLIENT_TOKEN_KEY = "girls:client-token";
@@ -46,7 +46,8 @@ async function initialise() {
   [
     "girlsReflectionForm", "girlsProjectPicker",
     "girlsEditProject", "girlsParticipantName", "girlsGreenSpaceName", "girlsIntentions", "girlsLocationDescription",
-    "girlsVisitSchedule", "girlsObservationWeek", "girlsObservationDateTime", "girlsObservationNotes",
+    "girlsVisitSchedule", "girlsShowOnMap", "girlsShowParticipantName", "girlsShowParticipantNameOption",
+    "girlsProgramDetails", "girlsObservationWeek", "girlsObservationDateTime", "girlsObservationNotes",
     "girlsObservationHeading", "girlsCancelObservationEdit",
     "girlsTakeObservationPhoto", "girlsChooseObservationPhoto", "girlsObservationCameraPhoto",
     "girlsObservationGalleryPhoto", "girlsObservationPhotoPreview",
@@ -70,6 +71,7 @@ async function initialise() {
     button.addEventListener("click", () => setMode(button.dataset.entryMode));
   });
   els.girlsEditProject.addEventListener("click", editProjectStart);
+  els.girlsShowOnMap.addEventListener("change", syncMapSharingControls);
   els.girlsCaptureGps.addEventListener("click", captureGps);
   els.girlsTakePhoto.addEventListener("click", () => els.girlsCameraPhoto.click());
   els.girlsChoosePhoto.addEventListener("click", () => els.girlsGalleryPhoto.click());
@@ -160,6 +162,7 @@ function setMode(mode) {
   });
   els.girlsLocationTools.hidden = mode !== "project";
   els.girlsObservationHistory.hidden = mode !== "observation";
+  els.girlsProgramDetails.hidden = mode !== "project";
   els.girlsFinalSubmit.hidden = mode !== "final_reflection" || state.finalLocked;
   els.girlsSubmit.hidden = mode === "final_reflection" && state.finalLocked;
   els.girlsSubmit.textContent = {
@@ -193,7 +196,10 @@ function populateProjectForm() {
   const project = activeProject();
   els.girlsSubmit.textContent = project ? "Save Project Start" : "Start my log";
   if (!project) {
+    els.girlsShowOnMap.checked = true;
+    els.girlsShowParticipantName.checked = false;
     setProjectEditing(true);
+    syncMapSharingControls();
     return;
   }
   els.girlsParticipantName.value = project.participant_name || "";
@@ -201,6 +207,8 @@ function populateProjectForm() {
   els.girlsIntentions.value = project.intentions || "";
   els.girlsLocationDescription.value = project.location_description || "";
   els.girlsVisitSchedule.value = project.visit_schedule || "";
+  els.girlsShowOnMap.checked = project.show_on_map !== false;
+  els.girlsShowParticipantName.checked = project.show_participant_name === true;
   const latitude = Number(project.latitude);
   const longitude = Number(project.longitude);
   if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
@@ -233,10 +241,20 @@ function setProjectEditing(editing) {
     field.setAttribute("aria-readonly", String(field.readOnly));
   });
   els.girlsCaptureGps.disabled = Boolean(project) && !state.projectEditing;
+  els.girlsShowOnMap.disabled = Boolean(project) && !state.projectEditing;
+  syncMapSharingControls();
   els.girlsEditProject.hidden = !project || state.projectEditing || !project.can_manage;
   if (state.mode === "project") {
     els.girlsSubmit.hidden = Boolean(project) && !state.projectEditing;
   }
+}
+
+function syncMapSharingControls() {
+  const project = activeProject();
+  const projectLocked = Boolean(project) && !state.projectEditing;
+  const nameUnavailable = !els.girlsShowOnMap.checked;
+  els.girlsShowParticipantName.disabled = projectLocked || nameUnavailable;
+  els.girlsShowParticipantNameOption.classList.toggle("is-unavailable", nameUnavailable);
 }
 
 function suggestedWeek(targetDate = new Date()) {
@@ -721,7 +739,9 @@ function buildPayload(photoDataUrl = null) {
       green_space_name: greenSpaceName,
       intentions,
       location_description: locationDescription,
-      visit_schedule: visitSchedule
+      visit_schedule: visitSchedule,
+      show_on_map: els.girlsShowOnMap.checked,
+      show_participant_name: els.girlsShowOnMap.checked && els.girlsShowParticipantName.checked
     };
   }
 

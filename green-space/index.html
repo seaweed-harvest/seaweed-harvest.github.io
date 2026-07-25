@@ -6,15 +6,15 @@
   <meta name="theme-color" content="#176b52">
   <meta name="description" content="Green-space observation and reflection form.">
   <title>Green Space Log</title>
-  <link rel="stylesheet" href="./assets/green_space.css?v=6">
+  <link rel="stylesheet" href="./assets/green_space.css?v=7">
 </head>
 <body>
   <header class="girls-header">
     <div class="girls-header-inner">
       <a class="girls-brand" href="./" aria-label="Green Space Log">
         <span class="girls-brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M7 20h10"></path><path d="M10 20c5.5-2.5 4-9 4-9s-6.5 1-6 7"></path><path d="M9.5 9.5C8 5 3 5 3 5s0 5 4.5 6.5"></path><path d="M14 11c.5-4 4-5 7-5 0 3-1.5 6-5 7"></path>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 20h16"></path><path d="M12 20v-8"></path><path d="m12 15-3-3"></path><path d="m12 13 3-3"></path><path d="M12 3c-4.2 0-7 2.9-7 6.2C5 12.8 8 15 12 15s7-2.2 7-5.8C19 5.9 16.2 3 12 3Z"></path>
           </svg>
         </span>
         <span><strong>Green Space Log</strong><small>Observation &amp; Reflection</small></span>
@@ -95,6 +95,18 @@
           <span>Visit schedule</span>
           <input id="girlsVisitSchedule" type="text" maxlength="500" placeholder="e.g. Monday and Thursday, 9:00-9:15 am">
         </label>
+        <fieldset class="girls-sharing-options">
+          <legend>Map sharing</legend>
+          <label>
+            <input id="girlsShowOnMap" type="checkbox" checked>
+            <span>Show this project on the shared map</span>
+          </label>
+          <label id="girlsShowParticipantNameOption">
+            <input id="girlsShowParticipantName" type="checkbox">
+            <span>Show my name with the project</span>
+          </label>
+          <small>Your name is hidden by default.</small>
+        </fieldset>
       </section>
 
       <section class="girls-form-section" data-mode-panel="observation" hidden>
@@ -238,6 +250,19 @@
         <span id="girlsFormStatus" class="girls-form-status" role="status" aria-live="polite"></span>
       </div>
 
+      <details id="girlsProgramDetails" class="girls-program-details">
+        <summary>About the project program</summary>
+        <div>
+          <p>Choose one green space and return to it regularly over six weeks.</p>
+          <ul>
+            <li>Start your project with a location, intentions and visit plan.</li>
+            <li>Add short observations and optional photos as the place changes.</li>
+            <li>Distil each week's observations and draft a haiku.</li>
+            <li>Finish with a 200-300 word reflection in Week 8.</li>
+          </ul>
+        </div>
+      </details>
+
       <section id="girlsObservationHistory" class="girls-observation-history" hidden>
         <div class="girls-section-heading">
           <h2>Observation log</h2>
@@ -277,7 +302,7 @@
     </div>
   </dialog>
 
-  <script type="module" src="./assets/green_space_form.js?v=6"></script>
+  <script type="module" src="./assets/green_space_form.js?v=7"></script>
   <script type="module" src="../assets/js/site_feedback.js?v=5"></script>
 </body>
 </html>

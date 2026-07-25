@@ -6,14 +6,14 @@
   <meta name="theme-color" content="#176b52">
   <title>Green Space Map</title>
   <link rel="stylesheet" href="../assets/vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="./assets/green_space.css?v=5">
+  <link rel="stylesheet" href="./assets/green_space.css?v=7">
 </head>
 <body>
   <header class="girls-header">
     <div class="girls-header-inner">
       <a class="girls-brand" href="./" aria-label="Green Space Log">
         <span class="girls-brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10"></path><path d="M10 20c5.5-2.5 4-9 4-9s-6.5 1-6 7"></path><path d="M9.5 9.5C8 5 3 5 3 5s0 5 4.5 6.5"></path><path d="M14 11c.5-4 4-5 7-5 0 3-1.5 6-5 7"></path></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"></path><path d="M12 20v-8"></path><path d="m12 15-3-3"></path><path d="m12 13 3-3"></path><path d="M12 3c-4.2 0-7 2.9-7 6.2C5 12.8 8 15 12 15s7-2.2 7-5.8C19 5.9 16.2 3 12 3Z"></path></svg>
         </span>
         <span><strong>Green Space Log</strong><small>Observation &amp; Reflection</small></span>
       </a>
@@ -47,17 +47,14 @@
       <div class="girls-list-body">
         <label class="girls-compact-search">
           <span>Search green spaces</span>
-          <input id="girlsMapSearch" type="search" placeholder="Name, code or place">
+          <input id="girlsMapSearch" type="search" placeholder="Project or place">
         </label>
         <div class="girls-table-wrap map-table-wrap">
           <table class="girls-map-list-table">
             <thead>
               <tr>
                 <th>Green space</th>
-                <th>Participant</th>
-                <th>Code</th>
-                <th>Entries</th>
-                <th>Latest entry</th>
+                <th>Student</th>
               </tr>
             </thead>
             <tbody id="girlsMapList"></tbody>
@@ -93,7 +90,7 @@
 
   <script src="../assets/vendor/leaflet/leaflet.js"></script>
   <script type="module" src="../assets/js/fixed_table_scrollbar.js?v=1"></script>
-  <script type="module" src="./assets/green_space_map.js?v=5"></script>
+  <script type="module" src="./assets/green_space_map.js?v=7"></script>
   <script type="module" src="../assets/js/site_feedback.js?v=5"></script>
 </body>
 </html>

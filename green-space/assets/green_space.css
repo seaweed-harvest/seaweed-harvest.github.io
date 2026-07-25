@@ -13,7 +13,7 @@
   --girls-yellow: #f4c95d;
   --girls-line: #c9ddd6;
   --girls-surface: #ffffff;
-  --girls-page: #f4faf7;
+  --girls-page: #edf5f2;
   --girls-danger: #b33a2b;
   --girls-shadow: 0 8px 24px rgba(18, 66, 53, 0.08);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -103,8 +103,9 @@ body[data-auth-pending] .girls-main {
   display: grid;
   place-items: center;
   color: white;
-  background: var(--girls-green);
+  background: #126a55;
   border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(15, 81, 62, 0.18);
 }
 
 .girls-brand-mark svg {
@@ -410,6 +411,47 @@ body[data-auth-pending] .girls-main {
   background: #f2f7f5;
   border-color: #d3e3de;
   cursor: default;
+}
+
+.girls-sharing-options {
+  margin: 2px 0 0;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+  background: #f7faf9;
+  border: 1px solid var(--girls-line);
+  border-radius: 7px;
+}
+
+.girls-sharing-options legend {
+  padding: 0 5px;
+  color: #345d52;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.girls-sharing-options label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.84rem;
+}
+
+.girls-sharing-options input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: var(--girls-green);
+}
+
+.girls-sharing-options label.is-unavailable {
+  opacity: 0.52;
+}
+
+.girls-sharing-options small {
+  color: var(--girls-muted);
+  font-size: 0.74rem;
 }
 
 .girls-gps-tools .girls-secondary-action:disabled {
@@ -976,6 +1018,40 @@ body[data-auth-pending] .girls-main {
   font-weight: 700;
 }
 
+.girls-program-details {
+  margin-top: 18px;
+  background: #f7faf9;
+  border: 1px solid var(--girls-line);
+  border-radius: 7px;
+}
+
+.girls-program-details summary {
+  min-height: 44px;
+  padding: 10px 13px;
+  display: flex;
+  align-items: center;
+  color: var(--girls-green-dark);
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.girls-program-details > div {
+  padding: 0 14px 14px;
+  color: var(--girls-muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.girls-program-details p {
+  margin: 0 0 8px;
+}
+
+.girls-program-details ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
 .girls-observation-history {
   margin-top: 32px;
   padding-top: 24px;
@@ -1206,8 +1282,8 @@ body[data-auth-pending] .girls-main {
 
 .girls-map {
   width: 100%;
-  height: min(62vh, 610px);
-  min-height: 390px;
+  height: min(56vh, 540px);
+  min-height: 360px;
   background: #dcefeb;
 }
 
@@ -1289,7 +1365,7 @@ body[data-auth-pending] .girls-main {
 
 .girls-map-list-table {
   width: 100%;
-  min-width: 760px;
+  min-width: 420px;
   border-collapse: collapse;
   color: var(--girls-muted);
   font-size: 0.8rem;
@@ -1352,35 +1428,45 @@ body[data-auth-pending] .girls-main {
 }
 
 .girls-map-popup {
-  min-width: 180px;
+  width: 220px;
+  max-width: 100%;
   display: grid;
-  gap: 4px;
+  gap: 8px;
 }
 
 .girls-map-popup strong {
-  font-size: 0.92rem;
+  font-size: 0.96rem;
+  line-height: 1.25;
 }
 
-.girls-map-popup span,
-.girls-map-popup small {
+.girls-map-popup .girls-map-participant {
   color: var(--girls-muted);
+  font-size: 0.74rem;
 }
 
-.girls-map-popup blockquote {
-  margin: 5px 0;
-  padding: 6px 8px;
+.girls-map-haiku {
+  margin: 0;
+  padding: 9px 11px;
+  display: grid;
+  gap: 2px;
   color: var(--girls-green-dark);
   background: var(--girls-mint);
   border-left: 3px solid var(--girls-green);
-  white-space: pre-wrap;
+  font-size: 0.8rem;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.girls-map-haiku span {
+  display: block;
 }
 
 .girls-map-popup img {
   width: 100%;
-  max-height: 130px;
-  margin-bottom: 5px;
+  aspect-ratio: 16 / 10;
+  display: block;
   object-fit: cover;
-  border-radius: 5px;
+  border-radius: 6px;
 }
 
 .girls-map-cover {
@@ -1393,17 +1479,10 @@ body[data-auth-pending] .girls-main {
   cursor: pointer;
 }
 
-.girls-map-gallery-link {
-  min-height: 32px;
-  margin-top: 4px;
-  padding: 5px 9px;
-  color: var(--girls-green-dark);
-  background: white;
-  border: 1px solid var(--girls-line);
-  border-radius: 5px;
-  font-size: 0.74rem;
-  font-weight: 750;
-  cursor: pointer;
+.girls-map-cover:hover,
+.girls-map-cover:focus-visible {
+  outline: 3px solid rgba(23, 107, 82, 0.2);
+  outline-offset: 2px;
 }
 
 .girls-map-gallery-dialog {
@@ -1921,8 +2000,8 @@ body.has-fixed-table-scrollbar {
   }
 
   .girls-map {
-    height: 52vh;
-    min-height: 360px;
+    height: min(52vh, 470px);
+    min-height: 320px;
   }
 
   .girls-list-section {
@@ -1940,6 +2019,10 @@ body.has-fixed-table-scrollbar {
 
   .girls-list-body {
     padding: 0 14px 14px;
+  }
+
+  .girls-map-list-table {
+    min-width: 0;
   }
 
   .girls-compact-search input {

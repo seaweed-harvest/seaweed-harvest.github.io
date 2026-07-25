@@ -1,4 +1,4 @@
-import { loadProjectPhotos, loadProjects, publicPhotoUrl } from "./green_space_api.js?v=5";
+import { loadProjectPhotos, loadProjects, publicPhotoUrl } from "./green_space_api.js?v=6";
 
 const state = {
   projects: [],
@@ -42,7 +42,7 @@ async function initialise() {
   } catch (error) {
     els.status.hidden = false;
     els.status.textContent = error.message;
-    els.list.innerHTML = `<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;
+    els.list.innerHTML = `<tr><td colspan="2">${escapeHtml(error.message)}</td></tr>`;
   }
 }
 
@@ -52,7 +52,14 @@ function renderMap() {
     els.status.textContent = "The map library could not load.";
     return;
   }
-  state.map = window.L.map(els.map, { scrollWheelZoom: true }).setView([-27.55, 153.05], 9);
+  state.map = window.L.map(els.map, {
+    scrollWheelZoom: false,
+    doubleClickZoom: false,
+    bounceAtZoomLimits: false,
+    zoomSnap: 1,
+    zoomDelta: 1,
+    preferCanvas: true
+  }).setView([-27.55, 153.05], 9);
   window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -79,7 +86,7 @@ function renderMap() {
   } else {
     state.map.fitBounds(
       state.projects.map((project) => [Number(project.latitude), Number(project.longitude)]),
-      { padding: [36, 36], maxZoom: 15 }
+      { padding: [32, 32], maxZoom: 14, animate: false }
     );
   }
   els.status.hidden = true;
@@ -92,9 +99,7 @@ function renderList() {
     if (!query) return true;
     return [
       project.participant_name,
-      project.green_space_name,
-      project.public_code,
-      project.location_description
+      project.green_space_name
     ].some((value) => clean(value).toLowerCase().includes(query));
   });
 
@@ -102,12 +107,9 @@ function renderList() {
   els.list.innerHTML = rows.map((project) => `
     <tr class="girls-map-list-row" tabindex="0" data-project-id="${escapeAttribute(project.id)}" aria-label="Focus ${escapeAttribute(project.green_space_name)} on the map">
       <td><strong>${escapeHtml(project.green_space_name)}</strong></td>
-      <td>${escapeHtml(project.participant_name)}</td>
-      <td>${escapeHtml(project.public_code)}</td>
-      <td>${Number(project.entry_count || 0)}</td>
-      <td>${project.latest_entry_at ? formatDate(project.latest_entry_at) : "Project setup"}</td>
+      <td>${project.participant_name ? escapeHtml(project.participant_name) : "Not shared"}</td>
     </tr>
-  `).join("") || '<tr><td colspan="5">No green spaces match this search.</td></tr>';
+  `).join("") || '<tr><td colspan="2">No green spaces match this search.</td></tr>';
 }
 
 function focusFromList(event) {
@@ -117,15 +119,15 @@ function focusFromList(event) {
   event.preventDefault();
   const marker = state.markers.get(row.dataset.projectId);
   if (!marker || !state.map) return;
-  state.map.flyTo(marker.getLatLng(), Math.max(state.map.getZoom(), 15), { duration: 0.4 });
-  window.setTimeout(() => marker.openPopup(), 350);
-  els.map.scrollIntoView({ behavior: "smooth", block: "center" });
+  state.map.setView(marker.getLatLng(), Math.max(state.map.getZoom(), 14), { animate: false });
+  marker.openPopup();
+  els.map.scrollIntoView({ behavior: "auto", block: "center" });
 }
 
 function greenSpaceIcon() {
   return window.L.divIcon({
     className: "",
-    html: '<span class="girls-map-marker" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10"></path><path d="M10 20c5.5-2.5 4-9 4-9s-6.5 1-6 7"></path><path d="M9.5 9.5C8 5 3 5 3 5s0 5 4.5 6.5"></path><path d="M14 11c.5-4 4-5 7-5 0 3-1.5 6-5 7"></path></svg></span>',
+    html: '<span class="girls-map-marker" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"></path><path d="M12 20v-8"></path><path d="m12 15-3-3"></path><path d="m12 13 3-3"></path><path d="M12 3c-4.2 0-7 2.9-7 6.2C5 12.8 8 15 12 15s7-2.2 7-5.8C19 5.9 16.2 3 12 3Z"></path></svg></span>',
     iconSize: [36, 36],
     iconAnchor: [18, 18],
     popupAnchor: [0, -16]
@@ -136,17 +138,29 @@ function projectPopup(project) {
   const photo = project.photo_path
     ? `<button type="button" class="girls-map-cover" data-open-project-gallery="${escapeAttribute(project.id)}" aria-label="Open photos for ${escapeAttribute(project.green_space_name)}"><img src="${escapeAttribute(publicPhotoUrl(project.photo_path))}" alt="${escapeAttribute(project.green_space_name)} cover photo"></button>`
     : "";
+  const participant = project.participant_name
+    ? `<span class="girls-map-participant">${escapeHtml(project.participant_name)}</span>`
+    : "";
+  const haiku = project.favourite_haiku
+    ? `<blockquote class="girls-map-haiku">${haikuLines(project.favourite_haiku)}</blockquote>`
+    : "";
   return `
     <div class="girls-map-popup">
       ${photo}
       <strong>${escapeHtml(project.green_space_name)}</strong>
-      <span>${escapeHtml(project.participant_name)} - ${escapeHtml(project.public_code)}</span>
-      ${project.favourite_haiku ? `<blockquote>${escapeHtml(project.favourite_haiku)}</blockquote>` : ""}
-      <small>${Number(project.entry_count || 0)} reflection ${Number(project.entry_count || 0) === 1 ? "entry" : "entries"}</small>
-      <small>${Number(project.latitude).toFixed(4)}, ${Number(project.longitude).toFixed(4)}</small>
-      <button type="button" class="girls-map-gallery-link" data-open-project-gallery="${escapeAttribute(project.id)}">View photos</button>
+      ${participant}
+      ${haiku}
     </div>
   `;
+}
+
+function haikuLines(value) {
+  return clean(value)
+    .split(/\s*\/\s*|\r?\n/)
+    .map((line) => clean(line))
+    .filter(Boolean)
+    .map((line) => `<span>${escapeHtml(line)}</span>`)
+    .join("");
 }
 
 async function openGalleryFromMap(event) {
@@ -186,16 +200,6 @@ function openMapPhoto(event) {
 function hasCoordinates(project) {
   return Number.isFinite(Number(project.latitude))
     && Number.isFinite(Number(project.longitude));
-}
-
-function formatDate(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return new Intl.DateTimeFormat("en-AU", {
-    day: "numeric",
-    month: "short",
-    year: "numeric"
-  }).format(date);
 }
 
 function clean(value) {
