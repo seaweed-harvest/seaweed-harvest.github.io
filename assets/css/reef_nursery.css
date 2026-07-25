@@ -52,6 +52,32 @@
   font-size: 0.84rem;
 }
 
+.reef-record-meta .reef-record-state {
+  margin-left: auto;
+  color: var(--accent);
+  font-size: 0.66rem;
+}
+
+.reef-record-meta .reef-record-state[data-record-status="draft"],
+.reef-record-status.is-draft {
+  border-color: #e0bd75;
+  background: #fff8e8;
+  color: #8a5a00;
+}
+
+.reef-record-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-soft);
+  color: var(--text-sec);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
 .reef-photo-card-existing .reef-photo-view span {
   padding-right: 8px;
 }

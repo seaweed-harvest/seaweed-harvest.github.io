@@ -1,7 +1,7 @@
 import { APP_CONFIG } from "./config.js";
 import { authClient, requireAggregatorAccess } from "./auth_client.js?v=23";
 import { setupFavoriteFormButton } from "./favorite_forms.js";
-import { initReefNurseryRecords } from "./reef_nursery_records.js?v=4";
+import { initReefNurseryRecords } from "./reef_nursery_records.js?v=5";
 
 const els = {};
 const PHOTO_BUCKET = "reef-nursery-photos";
@@ -35,6 +35,7 @@ let trainingMatrix = [];
 let trainingMatrixEditor = [];
 let submissionId = crypto.randomUUID();
 let editingSessionId = null;
+let currentRecordStatus = "unsaved";
 let recordsController = null;
 let reefAccess = null;
 let recordsControllerPromise = null;
@@ -43,7 +44,8 @@ document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   [
-    "reefNurseryForm", "reefNurseryTabs", "reefRecordNumber", "reefTrainingDate",
+    "reefNurseryForm", "reefNurseryTabs", "reefRecordNumber", "reefRecordStatus",
+    "reefTrainingDate",
     "reefLocation", "reefStartTime", "reefFinishTime", "reefTrainerName",
     "reefSupportingStaff", "reefSessionTypes", "reefOtherSessionTypeField",
     "reefOtherSessionType",
@@ -55,6 +57,7 @@ async function init() {
     "reefParticipantCount", "addReefParticipant", "reefSeaweedHealth",
     "reefSeedWeight", "reefSeedWeightUnit", "reefHarvestWeight",
     "reefHarvestWeightUnit", "reefEquipmentReplaced", "saveReefNursery",
+    "submitReefNursery",
     "reefTakePhoto", "reefChoosePhotos", "reefCameraPhoto", "reefGalleryPhotos",
     "reefPhotoStatus", "reefPhotoPreview", "reefDropboxLink", "reefDropboxPending",
     "reefPhotoViewer", "reefPhotoViewerImage", "reefPhotoViewerName",
@@ -93,6 +96,7 @@ async function init() {
     closePhotoViewer();
   });
   els.reefPhotoViewer.addEventListener("close", releasePhotoViewerUrl);
+  els.saveReefNursery.addEventListener("click", saveDraft);
   els.reefNurseryForm.addEventListener("submit", submitSession);
   els.clearReefNursery.addEventListener("click", clearForm);
   els.reefStartNewRecord.addEventListener("click", () => clearForm());
@@ -124,8 +128,10 @@ async function init() {
 
 function initializeNewRecord() {
   editingSessionId = null;
+  currentRecordStatus = "unsaved";
   submissionId = crypto.randomUUID();
   els.reefRecordNumber.textContent = "New record";
+  updateRecordActions();
   els.reefTrainingDate.value = kenyaDate();
   els.reefParticipantRows.replaceChildren();
   competencyDrafts.clear();
@@ -136,16 +142,18 @@ function initializeNewRecord() {
 
 async function loadRecord(sessionId) {
   setStatus("Loading Reef Nursery record...");
-  els.saveReefNursery.disabled = true;
-  const { data, error } = await authClient.rpc("ag_reef_nursery_session_detail", {
+  setSaveActionsDisabled(true);
+  const { data, error } = await authClient.rpc("ag_reef_nursery_session_detail_v2", {
     p_session_id: sessionId
   });
   if (error || !data) {
+    setSaveActionsDisabled(false);
     setStatus(error?.message || "The Reef Nursery record could not be loaded.", "error");
     return;
   }
 
   editingSessionId = data.session_id;
+  currentRecordStatus = data.record_status || "submitted";
   submissionId = data.submission_id;
   els.reefRecordNumber.textContent = data.record_number || "Existing record";
   els.reefTrainingDate.value = String(data.training_date || "").slice(0, 10);
@@ -194,14 +202,14 @@ async function loadRecord(sessionId) {
   }));
   renderPhotoPreview();
 
-  els.saveReefNursery.textContent = "Save changes";
+  updateRecordActions();
   els.clearReefNursery.textContent = "Cancel edit";
   document.title = `${data.record_number || "Reef Nursery"} - Seaweed Harvest`;
   showTab("session");
   updateParticipantCount();
   updateFieldHighlights();
-  els.saveReefNursery.disabled = false;
-  setStatus(`${data.record_number} loaded for editing.`);
+  setSaveActionsDisabled(false);
+  setStatus(`${data.record_number} ${currentRecordStatus === "draft" ? "draft" : "record"} loaded.`);
 }
 
 function setupTabs() {
@@ -324,7 +332,7 @@ function updateParticipantCount() {
 async function loadTrainingMatrix() {
   const { data, error } = await authClient.rpc("ag_get_reef_training_matrix");
   if (error) {
-    els.saveReefNursery.disabled = true;
+    setSaveActionsDisabled(true);
     els.openReefTrainingMatrix.disabled = true;
     els.reefTrainingEmpty.textContent = "Training matrix unavailable. Reload the page to try again.";
     setStatus(error.message || "The training matrix could not be loaded.", "error");
@@ -332,7 +340,7 @@ async function loadTrainingMatrix() {
   }
   trainingMatrix = normalizeTrainingMatrix(data);
   if (trainingMatrix.length !== TRAINING_SECTION_KEYS.length) {
-    els.saveReefNursery.disabled = true;
+    setSaveActionsDisabled(true);
     els.reefTrainingEmpty.textContent = "Training matrix incomplete. Ask an administrator to review it.";
     setStatus("The training matrix is incomplete.", "error");
   }
@@ -798,18 +806,28 @@ function escapeHtml(value) {
 
 async function submitSession(event) {
   event.preventDefault();
-  const record = validatedRecord();
+  const record = validatedRecord({ requireComplete: true });
   if (!record) return;
+  await persistSession(record, { submitAndReset: true });
+}
 
-  els.saveReefNursery.disabled = true;
+async function saveDraft() {
+  const requireComplete = currentRecordStatus === "submitted";
+  const record = validatedRecord({ requireComplete });
+  if (!record) return;
+  await persistSession(record, { submitAndReset: false });
+}
+
+async function persistSession(record, { submitAndReset }) {
+  setSaveActionsDisabled(true);
   let uploadedPhotos = [];
-  setStatus(photoState.files.length ? "Preparing photos..." : "Saving...");
+  let uploadsAttached = false;
+  const savingDraft = !submitAndReset && currentRecordStatus !== "submitted";
+  setStatus(photoState.files.length
+    ? "Preparing photos..."
+    : (savingDraft ? "Saving draft..." : "Saving session..."));
   try {
     uploadedPhotos = await prepareAndUploadPhotos();
-    setStatus("Saving Reef Nursery session...");
-    const rpcName = editingSessionId
-      ? "ag_update_reef_nursery_session"
-      : "ag_submit_reef_nursery_session";
     const rpcPayload = {
       p_session: record.session,
       p_participants: record.participants,
@@ -818,11 +836,32 @@ async function submitSession(event) {
       p_training_delivered: record.trainingDelivered,
       p_practical_competencies: record.practicalCompetencies
     };
-    if (editingSessionId) rpcPayload.p_session_id = editingSessionId;
-    else rpcPayload.p_submission_id = submissionId;
+
+    let rpcName;
+    if (savingDraft) {
+      rpcName = "ag_save_reef_nursery_draft";
+      rpcPayload.p_session_id = editingSessionId;
+      rpcPayload.p_submission_id = submissionId;
+    } else {
+      rpcName = editingSessionId
+        ? "ag_update_reef_nursery_session"
+        : "ag_submit_reef_nursery_session";
+      if (editingSessionId) rpcPayload.p_session_id = editingSessionId;
+      else rpcPayload.p_submission_id = submissionId;
+    }
+
     const { data, error } = await authClient.rpc(rpcName, rpcPayload);
     if (error) throw error;
+    uploadsAttached = true;
     const saved = Array.isArray(data) ? data[0] : data;
+    const savedSessionId = saved?.session_id || editingSessionId;
+    if (submitAndReset && editingSessionId && currentRecordStatus === "draft") {
+      const { error: submitError } = await authClient.rpc("ag_mark_reef_nursery_submitted", {
+        p_session_id: editingSessionId
+      });
+      if (submitError) throw submitError;
+    }
+
     const participantCount = Number(saved?.participant_count ?? record.participants.length);
     const photoCount = Number(saved?.photo_count ?? uploadedPhotos.length);
     const trainingActivityCount = Number(saved?.training_activity_count ?? 0);
@@ -837,46 +876,67 @@ async function submitSession(event) {
     const competencySummary = competencyCount
       ? `, ${competencyCount} practical ${competencyCount === 1 ? "assessment" : "assessments"}`
       : "";
-    if (editingSessionId) {
-      await loadRecord(editingSessionId);
-      setStatus(`${recordNumber} updated with ${participantCount} ${participantCount === 1 ? "participant" : "participants"}${trainingSummary}${competencySummary}${photoSummary}.`);
-    } else {
+
+    if (submitAndReset) {
       clearForm({ preserveStatus: true });
-      setStatus(`${recordNumber} saved with ${participantCount} ${participantCount === 1 ? "participant" : "participants"}${trainingSummary}${competencySummary}${photoSummary}.`);
+      setStatus(`${recordNumber} submitted with ${participantCount} ${participantCount === 1 ? "participant" : "participants"}${trainingSummary}${competencySummary}${photoSummary}. A new record is ready.`);
+    } else if (savedSessionId) {
+      history.replaceState(
+        {},
+        "",
+        `./reef_nursery.html?record=${encodeURIComponent(savedSessionId)}`
+      );
+      await loadRecord(savedSessionId);
+      if (savingDraft) {
+        setStatus(`${recordNumber} draft saved. You can continue editing it here or reopen it from Previous records.`);
+      } else {
+        setStatus(`${recordNumber} updated with ${participantCount} ${participantCount === 1 ? "participant" : "participants"}${trainingSummary}${competencySummary}${photoSummary}.`);
+      }
+    } else {
+      setStatus(`${recordNumber} updated with ${participantCount} ${participantCount === 1 ? "participant" : "participants"}${trainingSummary}${competencySummary}${photoSummary}.`);
     }
   } catch (error) {
-    await removeUploadedPhotos(uploadedPhotos.map((photo) => photo.manifest.storage_path));
+    if (!uploadsAttached) {
+      await removeUploadedPhotos(uploadedPhotos.map((photo) => photo.manifest.storage_path));
+    }
     setStatus(error.message || "The Reef Nursery session could not be saved.", "error");
   } finally {
-    els.saveReefNursery.disabled = false;
+    setSaveActionsDisabled(false);
   }
 }
 
-function validatedRecord() {
-  const required = [
-    [els.reefTrainingDate, "Training date", "session"],
-    [els.reefStartTime, "Start time", "session"],
-    [els.reefFinishTime, "Finish time", "session"]
-  ];
-  for (const [control, label, tab] of required) {
-    if (String(control.value || "").trim()) continue;
-    return validationError(`${label} is required.`, tab, control);
-  }
+function setSaveActionsDisabled(disabled) {
+  els.saveReefNursery.disabled = disabled;
+  els.submitReefNursery.disabled = disabled;
+}
 
-  if (els.reefFinishTime.value <= els.reefStartTime.value) {
-    return validationError("Finish time must be after start time.", "session", els.reefFinishTime);
+function validatedRecord({ requireComplete = true } = {}) {
+  if (requireComplete) {
+    const required = [
+      [els.reefTrainingDate, "Training date", "session"],
+      [els.reefStartTime, "Start time", "session"],
+      [els.reefFinishTime, "Finish time", "session"]
+    ];
+    for (const [control, label, tab] of required) {
+      if (String(control.value || "").trim()) continue;
+      return validationError(`${label} is required before submission.`, tab, control);
+    }
+
+    if (els.reefFinishTime.value <= els.reefStartTime.value) {
+      return validationError("Finish time must be after start time.", "session", els.reefFinishTime);
+    }
   }
 
   const sessionTypes = [...els.reefNurseryForm.querySelectorAll('[name="reefSessionType"]:checked')]
     .map((control) => control.value);
-  if (!sessionTypes.length) {
+  if (requireComplete && !sessionTypes.length) {
     els.reefSessionTypes.classList.add("missing-selection");
-    return validationError("Select at least one type of session.", "session", els.reefSessionTypes);
+    return validationError("Select at least one type of session before submission.", "session", els.reefSessionTypes);
   }
 
   const otherSelected = sessionTypes.includes("other");
-  if (otherSelected && !els.reefOtherSessionType.value.trim()) {
-    return validationError("Enter the other session type.", "session", els.reefOtherSessionType);
+  if (requireComplete && otherSelected && !els.reefOtherSessionType.value.trim()) {
+    return validationError("Enter the other session type before submission.", "session", els.reefOtherSessionType);
   }
 
   const trainingDelivered = [];
@@ -899,12 +959,15 @@ function validatedRecord() {
     ...participant
   }) => participant);
   const firstMissingParticipant = participants.findIndex((participant) => !participant.participant_name);
-  if (firstMissingParticipant >= 0) {
+  if (requireComplete && firstMissingParticipant >= 0) {
     const input = participantEntries[firstMissingParticipant].row
       .querySelector('[data-participant-field="name"]');
     return validationError("Participant name is required for every row.", "participants", input);
   }
-  const practicalCompetencies = validatedPracticalCompetencies(participantEntries);
+  const practicalCompetencies = validatedPracticalCompetencies(
+    participantEntries,
+    { requireComplete }
+  );
   if (practicalCompetencies === null) return null;
 
   return {
@@ -946,7 +1009,7 @@ function collectParticipantEntries() {
   ));
 }
 
-function validatedPracticalCompetencies(participantEntries) {
+function validatedPracticalCompetencies(participantEntries, { requireComplete = true } = {}) {
   const activities = deliveredCompetencyActivities();
   const participantOrderByKey = new Map(
     participantEntries.map((participant, index) => [participant.participantKey, {
@@ -964,6 +1027,7 @@ function validatedPracticalCompetencies(participantEntries) {
       `[data-competency-activity="${activity.id}"]`
     );
     if (!COMPETENCY_LEVELS.some((level) => level.value === draft.groupLevel)) {
+      if (!requireComplete) continue;
       task?.classList.add("missing-competency-selection");
       const control = task?.querySelector("[data-competency-group-level]")
         || els.reefCompetencySections;
@@ -979,6 +1043,7 @@ function validatedPracticalCompetencies(participantEntries) {
       const participant = participantOrderByKey.get(participantKey);
       if (!participant) continue;
       if (!COMPETENCY_LEVELS.some((item) => item.value === level)) {
+        if (!requireComplete) continue;
         draft.expanded = true;
         renderCompetencyAssessment();
         const participantControl = els.reefCompetencySections.querySelector(
@@ -1016,6 +1081,7 @@ function validationError(message, tab, control) {
 
 function clearForm({ preserveStatus = false } = {}) {
   editingSessionId = null;
+  currentRecordStatus = "unsaved";
   history.replaceState({}, "", "./reef_nursery.html");
   els.reefNurseryForm.reset();
   els.reefRecordNumber.textContent = "New record";
@@ -1032,13 +1098,25 @@ function clearForm({ preserveStatus = false } = {}) {
   addParticipantRow();
   handleSessionTypesChange();
   submissionId = crypto.randomUUID();
-  els.saveReefNursery.textContent = "Save Reef Nursery session";
+  updateRecordActions();
   els.clearReefNursery.textContent = "Clear";
   document.title = "Reef Nursery - Seaweed Harvest";
   showTab("session");
   els.reefSessionTypes.classList.remove("missing-selection");
   updateFieldHighlights();
   if (!preserveStatus) setStatus("");
+}
+
+function updateRecordActions() {
+  const submitted = currentRecordStatus === "submitted";
+  els.reefRecordStatus.textContent = submitted
+    ? "Submitted"
+    : (currentRecordStatus === "draft" ? "Draft" : "Unsaved");
+  els.reefRecordStatus.dataset.recordStatus = currentRecordStatus;
+  els.saveReefNursery.textContent = submitted ? "Save changes" : "Save draft";
+  els.submitReefNursery.textContent = submitted
+    ? "Save and start new"
+    : "Submit and start new";
 }
 
 function updateFieldHighlights() {

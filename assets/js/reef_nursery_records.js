@@ -83,7 +83,7 @@ export async function initReefNurseryRecords(options = {}) {
 async function loadRecords() {
   setStatus("Loading records...");
   setLoading(true);
-  const { data, error } = await authClient.rpc("ag_reef_nursery_records", {
+  const { data, error } = await authClient.rpc("ag_reef_nursery_records_v2", {
     p_search: state.search || null,
     p_sort: state.sort,
     p_direction: state.direction,
@@ -114,7 +114,7 @@ function renderRows() {
   els.reefRecordsRows.replaceChildren();
   if (!state.rows.length) {
     const row = document.createElement("tr");
-    row.innerHTML = '<td class="reef-records-empty" colspan="6">No Reef Nursery records found.</td>';
+    row.innerHTML = '<td class="reef-records-empty" colspan="7">No Reef Nursery records found.</td>';
     els.reefRecordsRows.append(row);
   } else {
     state.rows.forEach((record) => {
@@ -123,6 +123,7 @@ function renderRows() {
       row.innerHTML = `
         <td class="reef-select-column"><input type="checkbox" data-select-record value="${escapeHtml(record.session_id)}" aria-label="Select ${escapeHtml(record.record_number)}"></td>
         <td data-label="Record"><strong>${escapeHtml(record.record_number)}</strong></td>
+        <td data-label="Status"><span class="reef-record-status ${record.record_status === "draft" ? "is-draft" : "is-submitted"}">${record.record_status === "draft" ? "Draft" : "Submitted"}</span></td>
         <td data-label="Date">${escapeHtml(formatDate(record.training_date))}</td>
         <td data-label="Trainer">${escapeHtml(record.trainer_name || "-")}</td>
         <td data-label="Location">${escapeHtml(LOCATION_LABELS[record.location] || record.location || "-")}</td>

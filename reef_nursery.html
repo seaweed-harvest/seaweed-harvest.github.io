@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Reef Nursery - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/reef_nursery.css?v=2">
+  <link rel="stylesheet" href="./assets/css/reef_nursery.css?v=3">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -65,6 +65,7 @@
               <div class="reef-record-meta" aria-label="Record number">
                 <span>Record number</span>
                 <strong id="reefRecordNumber">New record</strong>
+                <span id="reefRecordStatus" class="status-pill reef-record-state">Unsaved</span>
               </div>
               <label>Training date
                 <input id="reefTrainingDate" type="date" required>
@@ -241,6 +242,7 @@
                     <tr>
                       <th class="reef-select-column"><input id="selectAllReefRecords" type="checkbox" aria-label="Select all records on this page"></th>
                       <th><button type="button" data-sort="record_number">Record number <span aria-hidden="true"></span></button></th>
+                      <th>Status</th>
                       <th><button type="button" data-sort="training_date">Date <span aria-hidden="true"></span></button></th>
                       <th><button type="button" data-sort="trainer_name">Trainer name <span aria-hidden="true"></span></button></th>
                       <th><button type="button" data-sort="location">Location <span aria-hidden="true"></span></button></th>
@@ -259,7 +261,8 @@
           </section>
 
           <div class="button-row reef-form-actions">
-            <button id="saveReefNursery" type="submit">Save Reef Nursery session</button>
+            <button id="saveReefNursery" type="button">Save draft</button>
+            <button id="submitReefNursery" type="submit">Submit and start new</button>
             <button id="clearReefNursery" type="button">Clear</button>
             <p id="reefNurseryStatus" class="admin-status" aria-live="polite"></p>
           </div>
@@ -295,6 +298,6 @@
     </form>
   </dialog>
   <script type="module" src="./assets/js/admin_page.js?v=27"></script>
-  <script type="module" src="./assets/js/reef_nursery_form.js?v=10"></script>
+  <script type="module" src="./assets/js/reef_nursery_form.js?v=11"></script>
 </body>
 </html>
