@@ -499,6 +499,220 @@
   color: #b42318;
 }
 
+.reef-competency-help {
+  margin: 0;
+  color: var(--text-sec);
+  font-size: 0.82rem;
+}
+
+.reef-competency-sections {
+  display: grid;
+  gap: 18px;
+}
+
+.reef-competency-section {
+  display: grid;
+  gap: 8px;
+}
+
+.reef-competency-section h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.reef-competency-table {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel);
+}
+
+.reef-competency-head,
+.reef-competency-row {
+  display: grid;
+  grid-template-columns: minmax(250px, 1fr) repeat(3, minmax(98px, 128px)) 42px;
+  align-items: stretch;
+}
+
+.reef-competency-head {
+  min-height: 38px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-soft);
+}
+
+.reef-competency-head > span {
+  display: grid;
+  place-items: center;
+  padding: 6px 8px;
+  color: var(--text-sec);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.reef-competency-head > span:first-child {
+  place-items: center start;
+  text-align: left;
+}
+
+.reef-competency-task + .reef-competency-task {
+  border-top: 1px solid var(--border-soft);
+}
+
+.reef-competency-task.missing-competency-selection {
+  background: #fff8e8;
+  box-shadow: inset 3px 0 #d99919;
+}
+
+.reef-competency-task-name {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  padding: 9px 10px;
+}
+
+.reef-nursery-form .reef-competency-task-name label,
+.reef-nursery-form .reef-competency-participant-name {
+  min-width: 0;
+  display: flex;
+  grid-template-columns: none;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-transform: none;
+}
+
+.reef-competency-task-name input,
+.reef-competency-participant-name input {
+  flex: 0 0 15px;
+  width: 15px;
+  height: 15px;
+  min-height: 15px;
+  margin-top: 1px;
+  padding: 0;
+}
+
+.reef-competency-task-name small {
+  padding-left: 23px;
+  color: var(--text-sec);
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+.reef-nursery-form .reef-competency-level {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: none;
+  place-items: center;
+  padding: 8px;
+  border-left: 1px solid var(--border-soft);
+  color: var(--text-sec);
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: none;
+}
+
+.reef-competency-level input,
+.reef-competency-participant-levels input {
+  width: 16px;
+  height: 16px;
+  min-height: 16px;
+  margin: 0;
+  padding: 0;
+}
+
+.reef-competency-level span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.reef-competency-expand {
+  align-self: center;
+  justify-self: center;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+}
+
+.reef-competency-expand svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 140ms ease;
+}
+
+.reef-competency-expand[aria-expanded="true"] svg {
+  transform: rotate(45deg);
+}
+
+.reef-competency-overrides {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid var(--border);
+  background: #f7fbfa;
+}
+
+.reef-competency-overrides[hidden] {
+  display: none;
+}
+
+.reef-competency-overrides > p {
+  margin: 0;
+  color: var(--text-sec);
+  font-size: 0.72rem;
+}
+
+.reef-competency-participants {
+  display: grid;
+  gap: 6px;
+}
+
+.reef-competency-participant {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(390px, 1.5fr);
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border: 1px solid var(--border-soft);
+  background: var(--panel);
+}
+
+.reef-competency-participant-levels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.reef-nursery-form .reef-competency-participant-levels label {
+  min-width: 0;
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-sec);
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1.2;
+  text-transform: none;
+}
+
 .reef-prepared-section {
   min-height: 160px;
   align-content: start;
@@ -914,6 +1128,61 @@
 
   .reef-participant-table td:last-child::before {
     display: none;
+  }
+
+  .reef-competency-head {
+    display: none;
+  }
+
+  .reef-competency-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) 38px;
+    gap: 7px;
+    padding: 10px;
+  }
+
+  .reef-competency-task-name {
+    grid-column: 1 / -1;
+    padding: 0;
+  }
+
+  .reef-nursery-form .reef-competency-level {
+    min-height: 54px;
+    align-content: center;
+    gap: 5px;
+    padding: 5px 3px;
+    border: 1px solid var(--border-soft);
+    border-radius: 6px;
+    text-align: center;
+  }
+
+  .reef-competency-level span {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  .reef-competency-expand {
+    width: 38px;
+    height: 54px;
+    min-height: 54px;
+  }
+
+  .reef-competency-participant {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .reef-competency-participant-levels {
+    padding-left: 23px;
+  }
+
+  .reef-nursery-form .reef-competency-participant-levels label {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .reef-photo-action {

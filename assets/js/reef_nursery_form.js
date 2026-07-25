@@ -17,6 +17,11 @@ const TRAINING_SECTION_KEYS = [
   "mooring_inspection_maintenance",
   "nursery_deployment_recovery"
 ];
+const COMPETENCY_LEVELS = [
+  { value: "needs_support", label: "Needs support" },
+  { value: "with_supervision", label: "With supervision" },
+  { value: "independent", label: "Independent" }
+];
 const photoState = {
   files: [],
   existing: [],
@@ -25,6 +30,7 @@ const photoState = {
   activePhotoIsObjectUrl: false
 };
 const trainingDrafts = new Map();
+const competencyDrafts = new Map();
 let trainingMatrix = [];
 let trainingMatrixEditor = [];
 let submissionId = crypto.randomUUID();
@@ -45,7 +51,7 @@ async function init() {
     "reefTrainingEmpty", "openReefTrainingMatrix", "reefTrainingMatrixDialog",
     "reefTrainingMatrixForm", "reefTrainingMatrixEditor", "reefTrainingMatrixStatus",
     "closeReefTrainingMatrix", "cancelReefTrainingMatrix", "saveReefTrainingMatrix",
-    "reefParticipantRows",
+    "reefParticipantRows", "reefCompetencyEmpty", "reefCompetencySections",
     "reefParticipantCount", "addReefParticipant", "reefSeaweedHealth",
     "reefSeedWeight", "reefSeedWeightUnit", "reefHarvestWeight",
     "reefHarvestWeightUnit", "reefEquipmentReplaced", "saveReefNursery",
@@ -60,9 +66,13 @@ async function init() {
   configureDropboxLink();
   els.addReefParticipant.addEventListener("click", () => addParticipantRow({ focus: true }));
   els.reefParticipantRows.addEventListener("click", handleParticipantAction);
+  els.reefParticipantRows.addEventListener("input", handleParticipantInput);
+  els.reefParticipantRows.addEventListener("change", handleParticipantInput);
   els.reefSessionTypes.addEventListener("change", handleSessionTypesChange);
   els.reefTrainingSections.addEventListener("change", updateTrainingDraft);
   els.reefTrainingSections.addEventListener("input", updateTrainingDraft);
+  els.reefCompetencySections.addEventListener("click", handleCompetencyAction);
+  els.reefCompetencySections.addEventListener("change", handleCompetencyChange);
   els.openReefTrainingMatrix.addEventListener("click", openTrainingMatrixEditor);
   els.closeReefTrainingMatrix.addEventListener("click", closeTrainingMatrixEditor);
   els.cancelReefTrainingMatrix.addEventListener("click", closeTrainingMatrixEditor);
@@ -118,6 +128,7 @@ function initializeNewRecord() {
   els.reefRecordNumber.textContent = "New record";
   els.reefTrainingDate.value = kenyaDate();
   els.reefParticipantRows.replaceChildren();
+  competencyDrafts.clear();
   addParticipantRow();
   handleSessionTypesChange();
   updateFieldHighlights();
@@ -165,6 +176,7 @@ async function loadRecord(sessionId) {
     addParticipantRow({ participant });
   });
   if (!els.reefParticipantRows.rows.length) addParticipantRow();
+  loadCompetencyDrafts(data.practical_competencies);
 
   const seaweed = data.seaweed || {};
   els.reefSeaweedHealth.value = seaweed.seaweed_health || "";
@@ -252,6 +264,7 @@ async function ensureRecordsController() {
 
 function addParticipantRow({ focus = false, participant = {} } = {}) {
   const row = document.createElement("tr");
+  row.dataset.participantKey = crypto.randomUUID();
   row.innerHTML = `
     <td data-label="Participant name"><input type="text" data-participant-field="name" maxlength="160" autocomplete="name"></td>
     <td data-label="Farmer ID / phone"><input type="text" data-participant-field="reference" maxlength="100" autocomplete="tel"></td>
@@ -275,6 +288,7 @@ function addParticipantRow({ focus = false, participant = {} } = {}) {
   row.querySelector('[data-participant-field="gender"]').value = participant.gender || "";
   updateParticipantCount();
   updateFieldHighlights();
+  renderCompetencyAssessment();
   if (focus) row.querySelector('[data-participant-field="name"]').focus();
 }
 
@@ -282,14 +296,24 @@ function handleParticipantAction(event) {
   const button = event.target.closest("[data-remove-participant]");
   if (!button) return;
   const rows = [...els.reefParticipantRows.rows];
+  const row = button.closest("tr");
+  const participantKey = row?.dataset.participantKey;
   if (rows.length === 1) {
     rows[0].querySelectorAll("input").forEach((input) => { input.value = ""; });
     rows[0].querySelector("select").value = "";
   } else {
-    button.closest("tr").remove();
+    row.remove();
+  }
+  if (participantKey) {
+    competencyDrafts.forEach((draft) => draft.overrides.delete(participantKey));
   }
   updateParticipantCount();
   updateFieldHighlights();
+  renderCompetencyAssessment();
+}
+
+function handleParticipantInput() {
+  renderCompetencyAssessment();
 }
 
 function updateParticipantCount() {
@@ -348,6 +372,7 @@ function handleSessionTypesChange() {
     els.reefOtherSessionType.classList.remove("empty-value-control");
   }
   renderTrainingSections();
+  renderCompetencyAssessment();
   updateFieldHighlights();
 }
 
@@ -404,6 +429,7 @@ function updateTrainingDraft(event) {
   if (event.target.matches("[data-training-other]")) draft.otherText = event.target.value;
   section.classList.remove("missing-training-selection");
   updateTrainingSectionCount(section);
+  renderCompetencyAssessment();
 }
 
 function updateTrainingSectionCount(section) {
@@ -411,6 +437,215 @@ function updateTrainingSectionCount(section) {
     + (String(section.querySelector("[data-training-other]")?.value || "").trim() ? 1 : 0);
   const pill = section.querySelector("[data-training-count]");
   if (pill) pill.textContent = `${count} selected`;
+}
+
+function deliveredCompetencyActivities() {
+  const selectedSections = new Set(
+    selectedTrainingKeys().filter((key) => TRAINING_SECTION_KEYS.includes(key))
+  );
+  return trainingMatrix.flatMap((section) => {
+    if (!selectedSections.has(section.section_key)) return [];
+    const deliveredIds = trainingDraft(section.section_key).activityIds;
+    return section.activities
+      .filter((activity) => deliveredIds.has(activity.id))
+      .map((activity) => ({
+        ...activity,
+        section_key: section.section_key,
+        section_label: section.section_label,
+        section_order: section.section_order
+      }));
+  });
+}
+
+function competencyDraft(activity) {
+  if (!competencyDrafts.has(activity.id)) {
+    competencyDrafts.set(activity.id, {
+      sectionKey: activity.section_key,
+      assessed: false,
+      groupLevel: "",
+      expanded: false,
+      overrides: new Map()
+    });
+  }
+  const draft = competencyDrafts.get(activity.id);
+  draft.sectionKey = activity.section_key;
+  return draft;
+}
+
+function namedParticipantRows() {
+  return [...els.reefParticipantRows.rows].map((row) => ({
+    key: row.dataset.participantKey,
+    name: row.querySelector('[data-participant-field="name"]').value.trim(),
+    reference: row.querySelector('[data-participant-field="reference"]').value.trim()
+  })).filter((participant) => participant.name);
+}
+
+function renderCompetencyAssessment() {
+  if (!els.reefCompetencySections || !els.reefCompetencyEmpty) return;
+  const activities = deliveredCompetencyActivities();
+  const participants = namedParticipantRows();
+  els.reefCompetencySections.replaceChildren();
+  els.reefCompetencyEmpty.hidden = activities.length > 0;
+  if (!activities.length) {
+    els.reefCompetencyEmpty.textContent = "Select activities under Training delivered first.";
+    return;
+  }
+
+  const sectionGroups = new Map();
+  activities.forEach((activity) => {
+    if (!sectionGroups.has(activity.section_key)) {
+      sectionGroups.set(activity.section_key, {
+        label: activity.section_label,
+        activities: []
+      });
+    }
+    sectionGroups.get(activity.section_key).activities.push(activity);
+  });
+
+  sectionGroups.forEach((section) => {
+    const block = document.createElement("section");
+    block.className = "reef-competency-section";
+    block.innerHTML = `
+      <h3>${escapeHtml(section.label)}</h3>
+      <div class="reef-competency-table" role="table" aria-label="${escapeHtml(section.label)} practical competency">
+        <div class="reef-competency-head" role="row">
+          <span role="columnheader">Key practical task</span>
+          ${COMPETENCY_LEVELS.map((level) => `<span role="columnheader">${escapeHtml(level.label)}</span>`).join("")}
+          <span role="columnheader"><span class="reef-visually-hidden">Individual results</span></span>
+        </div>
+      </div>`;
+    const table = block.querySelector(".reef-competency-table");
+    section.activities.forEach((activity) => {
+      table.append(renderCompetencyRow(activity, participants));
+    });
+    els.reefCompetencySections.append(block);
+  });
+}
+
+function renderCompetencyRow(activity, participants) {
+  const draft = competencyDraft(activity);
+  const overrideCount = [...draft.overrides.entries()]
+    .filter(([participantKey, level]) => participants.some((participant) => participant.key === participantKey) && level)
+    .length;
+  const wrapper = document.createElement("article");
+  wrapper.className = "reef-competency-task";
+  wrapper.dataset.competencyActivity = activity.id;
+  wrapper.innerHTML = `
+    <div class="reef-competency-row" role="row">
+      <div class="reef-competency-task-name" role="cell">
+        <label>
+          <input type="checkbox" data-competency-include ${draft.assessed ? "checked" : ""}>
+          <span>${escapeHtml(activity.label)}</span>
+        </label>
+        <small>${overrideCount ? `All participants, with ${overrideCount} individual ${overrideCount === 1 ? "result" : "results"}` : "Applies to all participants"}</small>
+      </div>
+      ${COMPETENCY_LEVELS.map((level) => `
+        <label class="reef-competency-level" role="cell">
+          <input type="radio" name="competency-${escapeHtml(activity.id)}" value="${escapeHtml(level.value)}"
+            data-competency-group-level ${draft.groupLevel === level.value ? "checked" : ""} ${draft.assessed ? "" : "disabled"}>
+          <span>${escapeHtml(level.label)}</span>
+        </label>`).join("")}
+      <button class="reef-competency-expand" type="button" data-toggle-competency-overrides
+        aria-expanded="${String(draft.expanded)}"
+        aria-label="Add individual results for ${escapeHtml(activity.label)}"
+        title="${participants.length ? "Add individual results" : "Add participant names first"}"
+        ${participants.length ? "" : "disabled"}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+      </button>
+    </div>
+    <div class="reef-competency-overrides" ${draft.expanded ? "" : "hidden"}>
+      <p>Record only participants whose result differs from the all-participants result.</p>
+      <div class="reef-competency-participants">
+        ${participants.map((participant) => renderCompetencyParticipant(activity, participant, draft)).join("")}
+      </div>
+    </div>`;
+  return wrapper;
+}
+
+function renderCompetencyParticipant(activity, participant, draft) {
+  const hasOverride = draft.overrides.has(participant.key);
+  const selectedLevel = draft.overrides.get(participant.key) || "";
+  const reference = participant.reference ? ` (${participant.reference})` : "";
+  return `
+    <div class="reef-competency-participant" data-competency-participant="${escapeHtml(participant.key)}">
+      <label class="reef-competency-participant-name">
+        <input type="checkbox" data-competency-override-enabled ${hasOverride ? "checked" : ""} ${draft.assessed ? "" : "disabled"}>
+        <span>${escapeHtml(participant.name)}${escapeHtml(reference)}</span>
+      </label>
+      <div class="reef-competency-participant-levels" role="radiogroup" aria-label="Individual result for ${escapeHtml(participant.name)}">
+        ${COMPETENCY_LEVELS.map((level) => `
+          <label>
+            <input type="radio"
+              name="competency-${escapeHtml(activity.id)}-${escapeHtml(participant.key)}"
+              value="${escapeHtml(level.value)}"
+              data-competency-override-level
+              ${selectedLevel === level.value ? "checked" : ""}
+              ${draft.assessed && hasOverride ? "" : "disabled"}>
+            <span>${escapeHtml(level.label)}</span>
+          </label>`).join("")}
+      </div>
+    </div>`;
+}
+
+function handleCompetencyAction(event) {
+  const button = event.target.closest("[data-toggle-competency-overrides]");
+  if (!button) return;
+  const task = button.closest("[data-competency-activity]");
+  const draft = competencyDrafts.get(task?.dataset.competencyActivity);
+  if (!draft) return;
+  draft.expanded = !draft.expanded;
+  renderCompetencyAssessment();
+}
+
+function handleCompetencyChange(event) {
+  const task = event.target.closest("[data-competency-activity]");
+  if (!task) return;
+  const draft = competencyDrafts.get(task.dataset.competencyActivity);
+  if (!draft) return;
+
+  if (event.target.matches("[data-competency-include]")) {
+    draft.assessed = event.target.checked;
+    if (!draft.assessed) draft.overrides.clear();
+  }
+  if (event.target.matches("[data-competency-group-level]")) {
+    draft.assessed = true;
+    draft.groupLevel = event.target.value;
+  }
+  const participant = event.target.closest("[data-competency-participant]");
+  const participantKey = participant?.dataset.competencyParticipant;
+  if (participantKey && event.target.matches("[data-competency-override-enabled]")) {
+    if (event.target.checked) draft.overrides.set(participantKey, draft.overrides.get(participantKey) || "");
+    else draft.overrides.delete(participantKey);
+  }
+  if (participantKey && event.target.matches("[data-competency-override-level]")) {
+    draft.overrides.set(participantKey, event.target.value);
+  }
+  renderCompetencyAssessment();
+}
+
+function loadCompetencyDrafts(value) {
+  competencyDrafts.clear();
+  const participantRows = [...els.reefParticipantRows.rows];
+  (Array.isArray(value) ? value : []).forEach((item) => {
+    const activity = deliveredCompetencyActivities()
+      .find((candidate) => candidate.id === String(item.activity_id || ""));
+    if (!activity) return;
+    const draft = competencyDraft(activity);
+    draft.assessed = true;
+    draft.groupLevel = String(item.group_level || "");
+    const overrides = Array.isArray(item.participant_overrides) ? item.participant_overrides : [];
+    overrides.forEach((override) => {
+      const participantRow = participantRows[Number(override.participant_order) - 1];
+      if (participantRow) {
+        draft.overrides.set(
+          participantRow.dataset.participantKey,
+          String(override.competency_level || "")
+        );
+      }
+    });
+    draft.expanded = draft.overrides.size > 0;
+  });
+  renderCompetencyAssessment();
 }
 
 function openTrainingMatrixEditor() {
@@ -540,6 +775,7 @@ async function saveTrainingMatrix(event) {
       draft.activityIds = new Set([...draft.activityIds].filter((id) => activeIds.has(id)));
     });
     renderTrainingSections();
+    renderCompetencyAssessment();
     closeTrainingMatrixEditor();
     setStatus("Training matrix updated.");
   } catch (error) {
@@ -579,7 +815,8 @@ async function submitSession(event) {
       p_participants: record.participants,
       p_seaweed_record: record.seaweed,
       p_photos: uploadedPhotos.map((photo) => photo.manifest),
-      p_training_delivered: record.trainingDelivered
+      p_training_delivered: record.trainingDelivered,
+      p_practical_competencies: record.practicalCompetencies
     };
     if (editingSessionId) rpcPayload.p_session_id = editingSessionId;
     else rpcPayload.p_submission_id = submissionId;
@@ -589,6 +826,7 @@ async function submitSession(event) {
     const participantCount = Number(saved?.participant_count ?? record.participants.length);
     const photoCount = Number(saved?.photo_count ?? uploadedPhotos.length);
     const trainingActivityCount = Number(saved?.training_activity_count ?? 0);
+    const competencyCount = Number(saved?.competency_count ?? record.practicalCompetencies.length);
     const recordNumber = saved?.record_number || els.reefRecordNumber.textContent;
     const photoSummary = photoCount
       ? ` and ${photoCount} ${photoCount === 1 ? "photo" : "photos"}`
@@ -596,12 +834,15 @@ async function submitSession(event) {
     const trainingSummary = trainingActivityCount
       ? `, ${trainingActivityCount} training ${trainingActivityCount === 1 ? "activity" : "activities"}`
       : "";
+    const competencySummary = competencyCount
+      ? `, ${competencyCount} practical ${competencyCount === 1 ? "assessment" : "assessments"}`
+      : "";
     if (editingSessionId) {
       await loadRecord(editingSessionId);
-      setStatus(`${recordNumber} updated with ${participantCount} ${participantCount === 1 ? "participant" : "participants"}${trainingSummary}${photoSummary}.`);
+      setStatus(`${recordNumber} updated with ${participantCount} ${participantCount === 1 ? "participant" : "participants"}${trainingSummary}${competencySummary}${photoSummary}.`);
     } else {
       clearForm({ preserveStatus: true });
-      setStatus(`${recordNumber} saved with ${participantCount} ${participantCount === 1 ? "participant" : "participants"}${trainingSummary}${photoSummary}.`);
+      setStatus(`${recordNumber} saved with ${participantCount} ${participantCount === 1 ? "participant" : "participants"}${trainingSummary}${competencySummary}${photoSummary}.`);
     }
   } catch (error) {
     await removeUploadedPhotos(uploadedPhotos.map((photo) => photo.manifest.storage_path));
@@ -651,19 +892,20 @@ function validatedRecord() {
     });
   }
 
-  const participants = [...els.reefParticipantRows.rows].map((row) => ({
-    participant_name: row.querySelector('[data-participant-field="name"]').value.trim(),
-    farmer_reference_phone: textOrNull(row.querySelector('[data-participant-field="reference"]').value),
-    gender: textOrNull(row.querySelector('[data-participant-field="gender"]').value)
-  })).filter((participant) => (
-    participant.participant_name || participant.farmer_reference_phone || participant.gender
-  ));
+  const participantEntries = collectParticipantEntries();
+  const participants = participantEntries.map(({
+    row: _row,
+    participantKey: _participantKey,
+    ...participant
+  }) => participant);
   const firstMissingParticipant = participants.findIndex((participant) => !participant.participant_name);
   if (firstMissingParticipant >= 0) {
-    const input = els.reefParticipantRows.rows[firstMissingParticipant]
+    const input = participantEntries[firstMissingParticipant].row
       .querySelector('[data-participant-field="name"]');
     return validationError("Participant name is required for every row.", "participants", input);
   }
+  const practicalCompetencies = validatedPracticalCompetencies(participantEntries);
+  if (practicalCompetencies === null) return null;
 
   return {
     session: {
@@ -680,6 +922,7 @@ function validatedRecord() {
     },
     participants,
     trainingDelivered,
+    practicalCompetencies,
     seaweed: {
       seaweed_health: textOrNull(els.reefSeaweedHealth.value),
       seed_weight_value: numberOrNull(els.reefSeedWeight.value),
@@ -689,6 +932,78 @@ function validatedRecord() {
       equipment_replaced: textOrNull(els.reefEquipmentReplaced.value)
     }
   };
+}
+
+function collectParticipantEntries() {
+  return [...els.reefParticipantRows.rows].map((row) => ({
+    row,
+    participantKey: row.dataset.participantKey,
+    participant_name: row.querySelector('[data-participant-field="name"]').value.trim(),
+    farmer_reference_phone: textOrNull(row.querySelector('[data-participant-field="reference"]').value),
+    gender: textOrNull(row.querySelector('[data-participant-field="gender"]').value)
+  })).filter((participant) => (
+    participant.participant_name || participant.farmer_reference_phone || participant.gender
+  ));
+}
+
+function validatedPracticalCompetencies(participantEntries) {
+  const activities = deliveredCompetencyActivities();
+  const participantOrderByKey = new Map(
+    participantEntries.map((participant, index) => [participant.participantKey, {
+      participant_order: index + 1,
+      participant_name: participant.participant_name,
+      farmer_reference_phone: participant.farmer_reference_phone
+    }])
+  );
+  const result = [];
+
+  for (const activity of activities) {
+    const draft = competencyDraft(activity);
+    if (!draft.assessed) continue;
+    const task = els.reefCompetencySections.querySelector(
+      `[data-competency-activity="${activity.id}"]`
+    );
+    if (!COMPETENCY_LEVELS.some((level) => level.value === draft.groupLevel)) {
+      task?.classList.add("missing-competency-selection");
+      const control = task?.querySelector("[data-competency-group-level]")
+        || els.reefCompetencySections;
+      return validationError(
+        `Choose a competency level for ${activity.label}.`,
+        "competency",
+        control
+      );
+    }
+
+    const participantOverrides = [];
+    for (const [participantKey, level] of draft.overrides.entries()) {
+      const participant = participantOrderByKey.get(participantKey);
+      if (!participant) continue;
+      if (!COMPETENCY_LEVELS.some((item) => item.value === level)) {
+        draft.expanded = true;
+        renderCompetencyAssessment();
+        const participantControl = els.reefCompetencySections.querySelector(
+          `[data-competency-activity="${activity.id}"] [data-competency-participant="${participantKey}"] [data-competency-override-level]`
+        );
+        return validationError(
+          `Choose the individual competency level for ${participant.participant_name}.`,
+          "competency",
+          participantControl || els.reefCompetencySections
+        );
+      }
+      participantOverrides.push({
+        participant_order: participant.participant_order,
+        competency_level: level
+      });
+    }
+
+    result.push({
+      section_key: activity.section_key,
+      activity_id: activity.id,
+      group_level: draft.groupLevel,
+      participant_overrides: participantOverrides
+    });
+  }
+  return result;
 }
 
 function validationError(message, tab, control) {
@@ -707,6 +1022,7 @@ function clearForm({ preserveStatus = false } = {}) {
   els.reefTrainingDate.value = kenyaDate();
   els.reefParticipantRows.replaceChildren();
   trainingDrafts.clear();
+  competencyDrafts.clear();
   photoState.files = [];
   photoState.existing = [];
   els.reefCameraPhoto.value = "";

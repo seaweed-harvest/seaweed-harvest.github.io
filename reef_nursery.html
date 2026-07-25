@@ -148,9 +148,11 @@
           </section>
 
           <section id="reefCompetencyPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefCompetencyTab" data-reef-panel="competency" hidden>
-            <fieldset class="reef-prepared-section">
+            <fieldset>
               <legend>Practical competency assessment</legend>
-              <p>Fields to be confirmed.</p>
+              <p class="reef-competency-help">Choose the key practical tasks to assess. A result applies to all participants unless an individual result is added.</p>
+              <p id="reefCompetencyEmpty" class="reef-training-empty">Select activities under Training delivered first.</p>
+              <div id="reefCompetencySections" class="reef-competency-sections"></div>
             </fieldset>
           </section>
 
@@ -293,6 +295,6 @@
     </form>
   </dialog>
   <script type="module" src="./assets/js/admin_page.js?v=27"></script>
-  <script type="module" src="./assets/js/reef_nursery_form.js?v=8"></script>
+  <script type="module" src="./assets/js/reef_nursery_form.js?v=9"></script>
 </body>
 </html>
