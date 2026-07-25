@@ -1010,6 +1010,8 @@ async function renderWeeklyReference() {
   const projectId = clean(els.girlsProjectPicker.value);
   const week = Number(els.girlsReflectionWeek.value);
   els.girlsWeeklyReferenceList.innerHTML = "";
+  els.girlsWeeklyReflection.value = "";
+  els.girlsWeeklyHaiku.value = "";
   if (!projectId) {
     els.girlsWeeklyReferenceStatus.textContent = "Project Start required";
     return;
@@ -1025,7 +1027,22 @@ async function renderWeeklyReference() {
         && Number(row.week_number) === week
       ))
       .sort(compareObservationRows);
-    els.girlsWeeklyReferenceStatus.textContent = `${rows.length} ${rows.length === 1 ? "observation" : "observations"}`;
+    const savedReflection = state.ledger
+      .filter((row) => (
+        row.green_space_id === projectId
+        && row.entry_type === "weekly_reflection"
+        && Number(row.week_number) === week
+      ))
+      .sort((first, second) => String(second.updated_at || second.created_at)
+        .localeCompare(String(first.updated_at || first.created_at)))[0] || null;
+    if (savedReflection) {
+      els.girlsWeeklyReflection.value = savedReflection.weekly_reflection || "";
+      els.girlsWeeklyHaiku.value = savedReflection.haiku || "";
+    }
+    const observationCount = `${rows.length} ${rows.length === 1 ? "observation" : "observations"}`;
+    els.girlsWeeklyReferenceStatus.textContent = savedReflection
+      ? `${observationCount} - saved distillation loaded`
+      : observationCount;
     els.girlsWeeklyReferenceList.className = "girls-week-reference-list";
     els.girlsWeeklyReferenceList.innerHTML = rows.map((row) => `
       <article class="girls-week-reference-item">
@@ -1169,7 +1186,9 @@ function showSuccess(result) {
         ? result.final_submitted
           ? "Your final assessment has been submitted."
           : "Your final assessment draft has been saved."
-        : "Your reflection has been saved.";
+        : state.mode === "weekly_reflection" && result.updated
+          ? "Your distillation and haiku have been updated."
+          : "Your reflection has been saved.";
   if (typeof els.girlsSuccessDialog.showModal === "function") {
     els.girlsSuccessDialog.showModal();
   } else {
