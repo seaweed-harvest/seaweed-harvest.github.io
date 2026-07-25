@@ -19,7 +19,7 @@ const TRAINING_SECTION_KEYS = [
 ];
 const COMPETENCY_LEVELS = [
   { value: "needs_support", label: "Needs support" },
-  { value: "with_supervision", label: "Can complete with supervision" },
+  { value: "with_supervision", label: "Can complete supervised" },
   { value: "independent", label: "Can complete independently" }
 ];
 const photoState = {
