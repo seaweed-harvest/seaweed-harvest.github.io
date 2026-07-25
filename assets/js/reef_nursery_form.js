@@ -77,6 +77,7 @@ async function init() {
   els.reefTrainingSections.addEventListener("input", updateTrainingDraft);
   els.reefCompetencySections.addEventListener("click", handleCompetencyAction);
   els.reefCompetencySections.addEventListener("change", handleCompetencyChange);
+  document.addEventListener("click", closeCompetencyPickerOnOutsideClick);
   window.addEventListener("resize", positionOpenCompetencyPicker);
   window.addEventListener("scroll", positionOpenCompetencyPicker, true);
   els.openReefTrainingMatrix.addEventListener("click", openTrainingMatrixEditor);
@@ -691,6 +692,19 @@ function handleCompetencyAction(event) {
     draft.assessed = Boolean(draft.groupLevel || draft.overrides.size);
     renderCompetencyAssessment();
   }
+}
+
+function closeCompetencyPickerOnOutsideClick(event) {
+  if (!els.reefCompetencySections?.querySelector(".reef-competency-overrides")) return;
+  if (event.target.closest(".reef-competency-overrides, [data-open-competency-level]")) return;
+
+  let changed = false;
+  competencyDrafts.forEach((draft) => {
+    if (!draft.expandedLevel) return;
+    draft.expandedLevel = "";
+    changed = true;
+  });
+  if (changed) renderCompetencyAssessment();
 }
 
 function positionOpenCompetencyPicker() {
