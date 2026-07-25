@@ -342,6 +342,33 @@ body[data-auth-pending] .girls-main {
   line-height: 1.4;
 }
 
+.girls-icon-action {
+  width: 34px;
+  height: 34px;
+  padding: 7px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--girls-green-dark);
+  background: white;
+  border: 1px solid var(--girls-line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.girls-icon-action svg {
+  width: 18px;
+  height: 18px;
+}
+
+.girls-icon-action:hover,
+.girls-icon-action:focus-visible {
+  color: white;
+  background: var(--girls-green);
+  border-color: var(--girls-green);
+  outline: none;
+}
+
 .girls-field {
   min-width: 0;
   display: grid;
@@ -375,6 +402,18 @@ body[data-auth-pending] .girls-main {
   min-height: 92px;
   line-height: 1.45;
   resize: vertical;
+}
+
+.girls-field input[readonly],
+.girls-field textarea[readonly] {
+  color: #31584e;
+  background: #f2f7f5;
+  border-color: #d3e3de;
+  cursor: default;
+}
+
+.girls-gps-tools .girls-secondary-action:disabled {
+  cursor: default;
 }
 
 .girls-haiku-input {
@@ -713,6 +752,12 @@ body[data-auth-pending] .girls-main {
   cursor: pointer;
 }
 
+.girls-observation-photo-preview > span {
+  color: var(--girls-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
 .girls-hidden-file {
   position: fixed;
   left: -10000px;
@@ -960,14 +1005,17 @@ body[data-auth-pending] .girls-main {
 }
 
 .girls-observation-log {
-  border-top: 1px solid var(--girls-line);
+  display: grid;
+  gap: 8px;
 }
 
 .girls-observation-row {
-  padding: 14px 0;
+  padding: 12px 14px;
   display: grid;
-  gap: 9px;
-  border-bottom: 1px solid var(--girls-line);
+  gap: 8px;
+  background: #f8fbfa;
+  border: 1px solid var(--girls-line);
+  border-radius: 6px;
   outline: none;
 }
 
@@ -985,6 +1033,40 @@ body[data-auth-pending] .girls-main {
 
 .girls-observation-row header {
   justify-content: space-between;
+  align-items: flex-start;
+}
+
+.girls-observation-row header > div:first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+}
+
+.girls-observation-row-actions {
+  flex: 0 0 auto;
+}
+
+.girls-observation-date-action {
+  padding: 0;
+  color: var(--girls-ink);
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.girls-observation-date-action:hover,
+.girls-observation-date-action:focus-visible {
+  color: var(--girls-green);
+  outline: none;
+  text-decoration: underline;
+}
+
+.girls-observation-row .girls-icon-action {
+  width: 30px;
+  height: 30px;
+  padding: 6px;
 }
 
 .girls-observation-row header span,
@@ -1004,6 +1086,7 @@ body[data-auth-pending] .girls-main {
   margin: 0;
   line-height: 1.55;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .girls-observation-body img {

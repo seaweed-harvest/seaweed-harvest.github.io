@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#176b52">
   <meta name="description" content="Green-space observation and reflection form.">
   <title>Green Space Log</title>
-  <link rel="stylesheet" href="./assets/green_space.css?v=5">
+  <link rel="stylesheet" href="./assets/green_space.css?v=6">
 </head>
 <body>
   <header class="girls-header">
@@ -59,7 +59,12 @@
       </select>
 
       <section class="girls-form-section" data-mode-panel="project">
-        <h2>Project Start</h2>
+        <div class="girls-section-heading">
+          <h2>Project Start</h2>
+          <button id="girlsEditProject" class="girls-icon-action" type="button" title="Edit Project Start" aria-label="Edit Project Start" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"></path></svg>
+          </button>
+        </div>
         <label class="girls-field">
           <span>Name or initials</span>
           <input id="girlsParticipantName" type="text" maxlength="80" autocomplete="name" placeholder="e.g. Alex P">
@@ -93,7 +98,7 @@
       </section>
 
       <section class="girls-form-section" data-mode-panel="observation" hidden>
-        <h2>Add observation</h2>
+        <h2 id="girlsObservationHeading">Add observation</h2>
         <div class="girls-field-grid two">
           <label class="girls-field">
             <span>Week</span>
@@ -228,6 +233,7 @@
 
       <div class="girls-submit-row">
         <button id="girlsSubmit" class="girls-primary-action" type="submit">Start my log</button>
+        <button id="girlsCancelObservationEdit" class="girls-secondary-action" type="button" hidden>Cancel edit</button>
         <button id="girlsFinalSubmit" class="girls-primary-action girls-final-submit" type="button" hidden>Save and submit final reflection</button>
         <span id="girlsFormStatus" class="girls-form-status" role="status" aria-live="polite"></span>
       </div>
@@ -267,12 +273,11 @@
       <p id="girlsSuccessMessage"></p>
       <div class="girls-dialog-actions">
         <button id="girlsAddAnother" type="button">Add another entry</button>
-        <a href="./map.html">View map</a>
       </div>
     </div>
   </dialog>
 
-  <script type="module" src="./assets/green_space_form.js?v=5"></script>
+  <script type="module" src="./assets/green_space_form.js?v=6"></script>
   <script type="module" src="../assets/js/site_feedback.js?v=5"></script>
 </body>
 </html>

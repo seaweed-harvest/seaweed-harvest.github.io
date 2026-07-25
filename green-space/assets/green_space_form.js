@@ -24,6 +24,9 @@ const state = {
   observationDateFilter: null,
   observationPhoto: null,
   observationPhotoUrl: null,
+  observationExistingPhotoPath: null,
+  editingObservationId: null,
+  projectEditing: false,
   finalReviewRows: [],
   pendingPhotos: [],
   savedPhotos: [],
@@ -42,8 +45,9 @@ document.addEventListener("DOMContentLoaded", initialise, { once: true });
 async function initialise() {
   [
     "girlsReflectionForm", "girlsProjectPicker",
-    "girlsParticipantName", "girlsGreenSpaceName", "girlsIntentions", "girlsLocationDescription",
+    "girlsEditProject", "girlsParticipantName", "girlsGreenSpaceName", "girlsIntentions", "girlsLocationDescription",
     "girlsVisitSchedule", "girlsObservationWeek", "girlsObservationDateTime", "girlsObservationNotes",
+    "girlsObservationHeading", "girlsCancelObservationEdit",
     "girlsTakeObservationPhoto", "girlsChooseObservationPhoto", "girlsObservationCameraPhoto",
     "girlsObservationGalleryPhoto", "girlsObservationPhotoPreview",
     "girlsReflectionWeek", "girlsWeeklyReflection",
@@ -65,6 +69,7 @@ async function initialise() {
   document.querySelectorAll("[data-entry-mode]").forEach((button) => {
     button.addEventListener("click", () => setMode(button.dataset.entryMode));
   });
+  els.girlsEditProject.addEventListener("click", editProjectStart);
   els.girlsCaptureGps.addEventListener("click", captureGps);
   els.girlsTakePhoto.addEventListener("click", () => els.girlsCameraPhoto.click());
   els.girlsChoosePhoto.addEventListener("click", () => els.girlsGalleryPhoto.click());
@@ -74,7 +79,7 @@ async function initialise() {
   els.girlsGalleryPhoto.addEventListener("change", selectPhotos);
   els.girlsObservationCameraPhoto.addEventListener("change", selectObservationPhoto);
   els.girlsObservationGalleryPhoto.addEventListener("change", selectObservationPhoto);
-  els.girlsObservationPhotoPreview.addEventListener("click", clearObservationPhoto);
+  els.girlsObservationPhotoPreview.addEventListener("click", handleObservationPhotoPreview);
   els.girlsPhotoPreview.addEventListener("click", handlePhotoAction);
   els.girlsClosePhotoViewer.addEventListener("click", closePhotoViewer);
   els.girlsPhotoViewer.addEventListener("cancel", (event) => {
@@ -83,7 +88,9 @@ async function initialise() {
   });
   els.girlsPhotoViewer.addEventListener("close", releasePhotoViewerUrl);
   els.girlsObservationCalendars.addEventListener("click", focusObservationDate);
+  els.girlsObservationLog.addEventListener("click", handleObservationLogAction);
   els.girlsShowAllObservations.addEventListener("click", clearObservationDateFilter);
+  els.girlsCancelObservationEdit.addEventListener("click", cancelObservationEdit);
   els.girlsFinalReviewList.addEventListener("click", selectFavouriteHaiku);
   els.girlsReflectionForm.addEventListener("submit", submitForm);
   els.girlsFinalSubmit.addEventListener("click", submitFinalReflection);
@@ -138,6 +145,10 @@ function renderProjectOptions(selectedId) {
 
 function setMode(mode) {
   if (!["project", "observation", "photos", "weekly_reflection", "final_reflection"].includes(mode)) return;
+  const previousMode = state.mode;
+  if (previousMode === "observation" && mode !== "observation") {
+    resetObservationEditor();
+  }
   state.mode = mode;
   document.querySelectorAll("[data-entry-mode]").forEach((button) => {
     const active = button.dataset.entryMode === mode;
@@ -161,7 +172,7 @@ function setMode(mode) {
   if (mode === "project") populateProjectForm();
   if (mode === "observation") {
     state.observationDateFilter = null;
-    selectSuggestedObservationWeek();
+    if (previousMode !== "observation") resetObservationEditor();
     renderObservationHistory();
   }
   if (mode === "photos") loadPhotoGallery();
@@ -181,7 +192,10 @@ function activeProject() {
 function populateProjectForm() {
   const project = activeProject();
   els.girlsSubmit.textContent = project ? "Save Project Start" : "Start my log";
-  if (!project) return;
+  if (!project) {
+    setProjectEditing(true);
+    return;
+  }
   els.girlsParticipantName.value = project.participant_name || "";
   els.girlsGreenSpaceName.value = project.green_space_name || "";
   els.girlsIntentions.value = project.intentions || "";
@@ -194,6 +208,34 @@ function populateProjectForm() {
     els.girlsLatitude.value = String(latitude);
     els.girlsLongitude.value = String(longitude);
     els.girlsGpsReadout.value = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+  }
+  setProjectEditing(false);
+}
+
+function editProjectStart() {
+  if (!activeProject()) return;
+  setProjectEditing(true);
+  els.girlsParticipantName.focus();
+  setStatus("Edit the Project Start details, then save.");
+}
+
+function setProjectEditing(editing) {
+  const project = activeProject();
+  state.projectEditing = Boolean(editing);
+  [
+    els.girlsParticipantName,
+    els.girlsGreenSpaceName,
+    els.girlsIntentions,
+    els.girlsLocationDescription,
+    els.girlsVisitSchedule
+  ].forEach((field) => {
+    field.readOnly = Boolean(project) && !state.projectEditing;
+    field.setAttribute("aria-readonly", String(field.readOnly));
+  });
+  els.girlsCaptureGps.disabled = Boolean(project) && !state.projectEditing;
+  els.girlsEditProject.hidden = !project || state.projectEditing || !project.can_manage;
+  if (state.mode === "project") {
+    els.girlsSubmit.hidden = Boolean(project) && !state.projectEditing;
   }
 }
 
@@ -293,9 +335,27 @@ function selectObservationPhoto(event) {
   els.girlsObservationPhotoPreview.hidden = false;
   els.girlsObservationPhotoPreview.innerHTML = `
     <img src="${escapeAttribute(state.observationPhotoUrl)}" alt="Selected observation photo">
-    <button type="button">Remove</button>
+    <button type="button" data-clear-observation-photo>Remove</button>
   `;
   setStatus("Observation photo ready.");
+}
+
+function handleObservationPhotoPreview(event) {
+  if (event.target.closest("[data-clear-observation-photo]")) {
+    clearObservationPhoto();
+    if (state.observationExistingPhotoPath) {
+      renderExistingObservationPhoto();
+    }
+  }
+}
+
+function renderExistingObservationPhoto() {
+  if (!state.observationExistingPhotoPath) return;
+  els.girlsObservationPhotoPreview.hidden = false;
+  els.girlsObservationPhotoPreview.innerHTML = `
+    <img src="${escapeAttribute(publicPhotoUrl(state.observationExistingPhotoPath))}" alt="Current observation photo">
+    <span>Current photo</span>
+  `;
 }
 
 function clearObservationPhoto() {
@@ -532,6 +592,10 @@ function deleteIcon() {
 async function submitForm(event) {
   event.preventDefault();
   if (state.submitting) return;
+  if (state.mode === "project" && activeProject() && !state.projectEditing) {
+    setStatus("Use the pencil to edit Project Start.");
+    return;
+  }
   if (state.mode === "photos") {
     await savePendingPhotos();
     return;
@@ -626,10 +690,13 @@ async function savePendingPhotos() {
 
 function buildPayload(photoDataUrl = null) {
   const project = activeProject();
+  const observationUpdate = state.mode === "observation" && state.editingObservationId;
   const base = {
     action: state.mode === "project"
       ? (project ? "project_update" : "project")
-      : "entry",
+      : observationUpdate
+        ? "observation_update"
+        : "entry",
     entry_type: state.mode,
     submission_id: randomUuid(),
     client_token: clientToken(),
@@ -674,6 +741,7 @@ function buildPayload(photoDataUrl = null) {
     }
     return {
       ...payload,
+      ...(observationUpdate ? { entry_id: state.editingObservationId } : {}),
       week_number: Number(els.girlsObservationWeek.value),
       observed_on: observedOn,
       start_time: startTime.slice(0, 5),
@@ -708,10 +776,9 @@ function resetAfterSave() {
   if (state.mode === "project") {
     populateProjectForm();
   } else if (state.mode === "observation") {
-    els.girlsObservationNotes.value = "";
-    els.girlsObservationDateTime.value = localDateTimeValue(new Date());
-    clearObservationPhoto();
-    selectSuggestedObservationWeek();
+    state.observationDateFilter = null;
+    els.girlsShowAllObservations.hidden = true;
+    resetObservationEditor();
   } else if (state.mode === "weekly_reflection") {
     selectSuggestedReflectionWeek();
   }
@@ -757,10 +824,17 @@ function renderObservationLog() {
     <article class="girls-observation-row" data-observation-date="${escapeAttribute(row.observed_on || "")}" tabindex="-1">
       <header>
         <div>
-          <strong>${escapeHtml(formatObservationDate(row.observed_on))}</strong>
+          <button type="button" class="girls-observation-date-action" data-observation-date-filter="${escapeAttribute(row.observed_on || "")}">${escapeHtml(formatObservationDate(row.observed_on))}</button>
           <span>${row.week_number ? `Week ${escapeHtml(row.week_number)}` : ""}</span>
         </div>
-        <time>${escapeHtml(formatObservationTime(row.start_time))}</time>
+        <div class="girls-observation-row-actions">
+          <time>${escapeHtml(formatObservationTime(row.start_time))}</time>
+          ${row.can_manage ? `
+            <button type="button" class="girls-icon-action" data-edit-observation="${escapeAttribute(row.id)}" title="Edit observation" aria-label="Edit observation from ${escapeAttribute(formatObservationDate(row.observed_on))}">
+              ${editIcon()}
+            </button>
+          ` : ""}
+        </div>
       </header>
       <div class="girls-observation-body">
         <p>${escapeHtml(row.observations || "")}</p>
@@ -768,6 +842,67 @@ function renderObservationLog() {
       </div>
     </article>
   `).join("");
+}
+
+function handleObservationLogAction(event) {
+  const editButton = event.target.closest("[data-edit-observation]");
+  if (editButton) {
+    editObservation(editButton.dataset.editObservation);
+    return;
+  }
+  const dateButton = event.target.closest("[data-observation-date-filter]");
+  if (dateButton) {
+    applyObservationDateFilter(dateButton.dataset.observationDateFilter);
+  }
+}
+
+function editObservation(recordId) {
+  const row = state.observationRows.find(
+    (observation) => observation.id === recordId && observation.can_manage
+  );
+  if (!row) return;
+  clearObservationPhoto();
+  state.editingObservationId = row.id;
+  state.observationExistingPhotoPath = row.photo_path || null;
+  els.girlsObservationWeek.value = String(row.week_number || 1);
+  els.girlsObservationDateTime.value = observationDateTimeValue(row);
+  els.girlsObservationNotes.value = row.observations || "";
+  els.girlsObservationHeading.textContent = "Edit observation";
+  els.girlsSubmit.textContent = "Save observation";
+  els.girlsCancelObservationEdit.hidden = false;
+  renderExistingObservationPhoto();
+  setStatus(`Editing the observation from ${formatObservationDate(row.observed_on)}.`);
+  document.querySelector('[data-mode-panel="observation"]')
+    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  els.girlsObservationNotes.focus({ preventScroll: true });
+}
+
+function cancelObservationEdit() {
+  resetObservationEditor();
+  setStatus("Observation edit cancelled.");
+}
+
+function resetObservationEditor() {
+  state.editingObservationId = null;
+  state.observationExistingPhotoPath = null;
+  clearObservationPhoto();
+  els.girlsObservationHeading.textContent = "Add observation";
+  els.girlsObservationNotes.value = "";
+  els.girlsObservationDateTime.value = localDateTimeValue(new Date());
+  selectSuggestedObservationWeek();
+  els.girlsCancelObservationEdit.hidden = true;
+  if (state.mode === "observation") els.girlsSubmit.textContent = "Add observation";
+}
+
+function observationDateTimeValue(row) {
+  const date = clean(row.observed_on);
+  const time = clean(row.start_time).slice(0, 5);
+  if (!date || !time) return localDateTimeValue(new Date());
+  return `${date}T${time}`;
+}
+
+function editIcon() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"></path></svg>';
 }
 
 function renderObservationCalendars() {
@@ -822,7 +957,11 @@ function renderCalendarMonth(month, rows) {
 function focusObservationDate(event) {
   const button = event.target.closest("[data-calendar-date]");
   if (!button) return;
-  state.observationDateFilter = button.dataset.calendarDate;
+  applyObservationDateFilter(button.dataset.calendarDate);
+}
+
+function applyObservationDateFilter(date) {
+  state.observationDateFilter = date;
   const count = state.observationRows.filter(
     (row) => row.observed_on === state.observationDateFilter
   ).length;
@@ -831,7 +970,7 @@ function focusObservationDate(event) {
   renderObservationLog();
   renderObservationCalendars();
   const row = els.girlsObservationLog.querySelector(
-    `[data-observation-date="${CSS.escape(button.dataset.calendarDate)}"]`
+    `[data-observation-date="${CSS.escape(date)}"]`
   );
   row?.scrollIntoView({ behavior: "smooth", block: "center" });
   row?.focus?.({ preventScroll: true });
@@ -994,12 +1133,17 @@ function selectFavouriteHaiku(event) {
 
 function showSuccess(result) {
   const isProject = Boolean(result.project);
+  els.girlsAddAnother.textContent = state.mode === "observation"
+    ? "Add another observation"
+    : "Add another entry";
   els.girlsSuccessMessage.textContent = isProject
       ? result.updated
       ? "Project Start details updated."
       : "Your green space is ready."
     : state.mode === "observation"
-      ? "Your observation has been saved."
+      ? result.updated
+        ? "Your observation has been updated."
+        : "Your observation has been saved."
       : state.mode === "final_reflection"
         ? result.final_submitted
           ? "Your final reflection has been submitted."
