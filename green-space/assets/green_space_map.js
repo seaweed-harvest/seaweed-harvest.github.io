@@ -1,4 +1,4 @@
-import { loadProjects, publicPhotoUrl } from "./green_space_api.js";
+import { loadProjectPhotos, loadProjects, publicPhotoUrl } from "./green_space_api.js";
 
 const state = {
   projects: [],
@@ -12,7 +12,16 @@ const els = {
   count: document.getElementById("girlsMapCount"),
   listCount: document.getElementById("girlsMapListCount"),
   search: document.getElementById("girlsMapSearch"),
-  list: document.getElementById("girlsMapList")
+  list: document.getElementById("girlsMapList"),
+  galleryDialog: document.getElementById("girlsMapGalleryDialog"),
+  galleryTitle: document.getElementById("girlsMapGalleryTitle"),
+  galleryStatus: document.getElementById("girlsMapGalleryStatus"),
+  galleryGrid: document.getElementById("girlsMapGalleryGrid"),
+  closeGallery: document.getElementById("girlsCloseMapGallery"),
+  photoViewer: document.getElementById("girlsMapPhotoViewer"),
+  photoViewerImage: document.getElementById("girlsMapPhotoViewerImage"),
+  photoViewerName: document.getElementById("girlsMapPhotoViewerName"),
+  closePhotoViewer: document.getElementById("girlsCloseMapPhotoViewer")
 };
 
 document.addEventListener("DOMContentLoaded", initialise, { once: true });
@@ -21,6 +30,10 @@ async function initialise() {
   els.search.addEventListener("input", renderList);
   els.list.addEventListener("click", focusFromList);
   els.list.addEventListener("keydown", focusFromList);
+  els.map.addEventListener("click", openGalleryFromMap);
+  els.closeGallery.addEventListener("click", () => els.galleryDialog.close());
+  els.galleryGrid.addEventListener("click", openMapPhoto);
+  els.closePhotoViewer.addEventListener("click", () => els.photoViewer.close());
   try {
     state.projects = (await loadProjects()).filter(hasCoordinates);
     els.count.textContent = `${state.projects.length} ${state.projects.length === 1 ? "space" : "spaces"}`;
@@ -121,7 +134,7 @@ function greenSpaceIcon() {
 
 function projectPopup(project) {
   const photo = project.photo_path
-    ? `<img src="${escapeAttribute(publicPhotoUrl(project.photo_path))}" alt="${escapeAttribute(project.green_space_name)}">`
+    ? `<button type="button" class="girls-map-cover" data-open-project-gallery="${escapeAttribute(project.id)}" aria-label="Open photos for ${escapeAttribute(project.green_space_name)}"><img src="${escapeAttribute(publicPhotoUrl(project.photo_path))}" alt="${escapeAttribute(project.green_space_name)} cover photo"></button>`
     : "";
   return `
     <div class="girls-map-popup">
@@ -130,8 +143,43 @@ function projectPopup(project) {
       <span>${escapeHtml(project.participant_name)} - ${escapeHtml(project.public_code)}</span>
       <small>${Number(project.entry_count || 0)} reflection ${Number(project.entry_count || 0) === 1 ? "entry" : "entries"}</small>
       <small>${Number(project.latitude).toFixed(4)}, ${Number(project.longitude).toFixed(4)}</small>
+      <button type="button" class="girls-map-gallery-link" data-open-project-gallery="${escapeAttribute(project.id)}">View photos</button>
     </div>
   `;
+}
+
+async function openGalleryFromMap(event) {
+  const button = event.target.closest("[data-open-project-gallery]");
+  if (!button) return;
+  event.preventDefault();
+  const project = state.projects.find((item) => item.id === button.dataset.openProjectGallery);
+  if (!project) return;
+  els.galleryTitle.textContent = project.green_space_name;
+  els.galleryStatus.textContent = "Loading photos...";
+  els.galleryGrid.replaceChildren();
+  if (typeof els.galleryDialog.showModal === "function") els.galleryDialog.showModal();
+  else els.galleryDialog.setAttribute("open", "");
+  try {
+    const photos = await loadProjectPhotos(project.id);
+    els.galleryStatus.textContent = `${photos.length} ${photos.length === 1 ? "photo" : "photos"}`;
+    els.galleryGrid.innerHTML = photos.map((photo, index) => `
+      <button type="button" data-map-photo-index="${index}" data-photo-path="${escapeAttribute(photo.storage_path)}" data-photo-name="${escapeAttribute(photo.original_name || `Photo ${index + 1}`)}">
+        <img src="${escapeAttribute(publicPhotoUrl(photo.storage_path))}" alt="${escapeAttribute(project.green_space_name)} photo ${index + 1}" loading="lazy">
+        ${photo.is_cover ? '<span>Cover</span>' : ""}
+      </button>
+    `).join("") || '<p class="girls-empty-copy">No photos have been added yet.</p>';
+  } catch (error) {
+    els.galleryStatus.textContent = error.message || "The photos could not be loaded.";
+  }
+}
+
+function openMapPhoto(event) {
+  const button = event.target.closest("[data-photo-path]");
+  if (!button) return;
+  els.photoViewerImage.src = publicPhotoUrl(button.dataset.photoPath);
+  els.photoViewerName.textContent = button.dataset.photoName || "Project photo";
+  if (typeof els.photoViewer.showModal === "function") els.photoViewer.showModal();
+  else els.photoViewer.setAttribute("open", "");
 }
 
 function hasCoordinates(project) {

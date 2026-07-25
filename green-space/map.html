@@ -67,6 +67,30 @@
     </details>
   </main>
 
+  <dialog id="girlsMapGalleryDialog" class="girls-dialog girls-map-gallery-dialog" aria-labelledby="girlsMapGalleryTitle">
+    <div class="girls-dialog-panel">
+      <div class="girls-dialog-heading">
+        <div>
+          <h2 id="girlsMapGalleryTitle">Project photos</h2>
+          <p id="girlsMapGalleryStatus" class="girls-section-copy"></p>
+        </div>
+        <button id="girlsCloseMapGallery" type="button" aria-label="Close">&times;</button>
+      </div>
+      <div id="girlsMapGalleryGrid" class="girls-public-gallery-grid"></div>
+    </div>
+  </dialog>
+
+  <dialog id="girlsMapPhotoViewer" class="girls-dialog girls-photo-dialog" aria-labelledby="girlsMapPhotoViewerTitle">
+    <div class="girls-dialog-panel girls-photo-dialog-panel">
+      <div class="girls-dialog-heading">
+        <h2 id="girlsMapPhotoViewerTitle">Photo preview</h2>
+        <button id="girlsCloseMapPhotoViewer" type="button" aria-label="Close">&times;</button>
+      </div>
+      <img id="girlsMapPhotoViewerImage" alt="Selected green-space photo">
+      <p id="girlsMapPhotoViewerName"></p>
+    </div>
+  </dialog>
+
   <script src="../assets/vendor/leaflet/leaflet.js"></script>
   <script type="module" src="../assets/js/fixed_table_scrollbar.js?v=1"></script>
   <script type="module" src="./assets/green_space_map.js"></script>

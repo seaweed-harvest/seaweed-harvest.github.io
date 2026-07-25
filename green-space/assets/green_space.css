@@ -242,7 +242,7 @@ a {
 
 .girls-mode-options {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 5px;
   padding: 4px;
   background: #eef5f2;
@@ -286,6 +286,13 @@ a {
   margin: 0;
   font-size: 1.04rem;
   letter-spacing: 0;
+}
+
+.girls-section-copy {
+  margin: 4px 0 0;
+  color: var(--girls-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
 }
 
 .girls-field {
@@ -555,7 +562,17 @@ a {
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--girls-line);
+  border-radius: 6px;
   background: white;
+}
+
+.girls-photo-card.is-cover {
+  border-color: var(--girls-green);
+  box-shadow: 0 0 0 2px rgba(23, 107, 82, 0.12);
+}
+
+.girls-photo-card.is-pending {
+  border-style: dashed;
 }
 
 .girls-photo-view {
@@ -602,6 +619,50 @@ a {
   border: 1px solid #e9b4af;
   border-radius: 5px;
   cursor: pointer;
+}
+
+.girls-photo-cover {
+  position: absolute;
+  left: 5px;
+  bottom: 4px;
+  min-height: 30px;
+  padding: 3px 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--girls-green-dark);
+  background: white;
+  border: 1px solid var(--girls-line);
+  border-radius: 5px;
+  font-size: 0.68rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.girls-photo-cover svg {
+  width: 15px;
+  height: 15px;
+}
+
+.girls-cover-badge,
+.girls-pending-badge {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  min-height: 24px;
+  padding: 3px 7px;
+  display: inline-flex;
+  align-items: center;
+  color: white;
+  background: var(--girls-green);
+  border-radius: 4px;
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.girls-pending-badge {
+  color: #5d4700;
+  background: #ffe38b;
 }
 
 .girls-photo-dialog {
@@ -1011,6 +1072,70 @@ a {
   margin-bottom: 5px;
   object-fit: cover;
   border-radius: 5px;
+}
+
+.girls-map-cover {
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  display: block;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.girls-map-gallery-link {
+  min-height: 32px;
+  margin-top: 4px;
+  padding: 5px 9px;
+  color: var(--girls-green-dark);
+  background: white;
+  border: 1px solid var(--girls-line);
+  border-radius: 5px;
+  font-size: 0.74rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.girls-map-gallery-dialog {
+  width: min(820px, calc(100% - 24px));
+}
+
+.girls-public-gallery-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.girls-public-gallery-grid > button {
+  position: relative;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #edf3f1;
+  border: 1px solid var(--girls-line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.girls-public-gallery-grid img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: block;
+  object-fit: cover;
+}
+
+.girls-public-gallery-grid span {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  padding: 3px 7px;
+  color: white;
+  background: var(--girls-green);
+  border-radius: 4px;
+  font-size: 0.66rem;
+  font-weight: 800;
 }
 
 .girls-ledger-tools {

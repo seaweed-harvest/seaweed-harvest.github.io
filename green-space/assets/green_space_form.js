@@ -1,8 +1,12 @@
 import {
+  deleteProjectPhoto,
   loadLedger,
+  loadProjectPhotos,
   loadProjects,
   publicPhotoUrl,
-  submitGreenSpaceRecord
+  setProjectCover,
+  submitGreenSpaceRecord,
+  uploadProjectPhoto
 } from "./green_space_api.js";
 
 const LAST_PROJECT_KEY = "girls:last-project-id";
@@ -10,6 +14,7 @@ const CLIENT_TOKEN_KEY = "girls:client-token";
 const PHOTO_TARGET_BYTES = 550 * 1024;
 const PHOTO_MAX_BYTES = 700 * 1024;
 const PHOTO_MAX_EDGE = 1920;
+const PHOTO_MAX_COUNT = 10;
 
 const state = {
   mode: "project",
@@ -17,8 +22,10 @@ const state = {
   ledger: null,
   observationRows: [],
   finalReviewRows: [],
-  photoFile: null,
+  pendingPhotos: [],
+  savedPhotos: [],
   activePhotoUrl: null,
+  activePhotoIsObjectUrl: false,
   gps: null,
   submitting: false
 };
@@ -37,7 +44,7 @@ async function initialise() {
     "girlsSynthesis", "girlsKeyLearnings", "girlsOverallReflection", "girlsFinalWordCount",
     "girlsLocationTools", "girlsCaptureGps", "girlsCaptureGpsLabel", "girlsGpsReadout", "girlsLatitude", "girlsLongitude",
     "girlsPhotoTools", "girlsTakePhoto", "girlsChoosePhoto", "girlsCameraPhoto", "girlsGalleryPhoto",
-    "girlsPhotoStatus", "girlsPhotoPreview", "girlsPhotoViewer", "girlsPhotoViewerImage",
+    "girlsPhotoCount", "girlsPhotoStatus", "girlsPhotoPreview", "girlsPhotoViewer", "girlsPhotoViewerImage",
     "girlsPhotoViewerName", "girlsClosePhotoViewer",
     "girlsWebsite", "girlsSubmit", "girlsFormStatus", "girlsObservationHistory",
     "girlsObservationHistoryStatus", "girlsObservationLog", "girlsObservationCalendars",
@@ -52,8 +59,8 @@ async function initialise() {
   els.girlsCaptureGps.addEventListener("click", captureGps);
   els.girlsTakePhoto.addEventListener("click", () => els.girlsCameraPhoto.click());
   els.girlsChoosePhoto.addEventListener("click", () => els.girlsGalleryPhoto.click());
-  els.girlsCameraPhoto.addEventListener("change", selectPhoto);
-  els.girlsGalleryPhoto.addEventListener("change", selectPhoto);
+  els.girlsCameraPhoto.addEventListener("change", selectPhotos);
+  els.girlsGalleryPhoto.addEventListener("change", selectPhotos);
   els.girlsPhotoPreview.addEventListener("click", handlePhotoAction);
   els.girlsClosePhotoViewer.addEventListener("click", closePhotoViewer);
   els.girlsPhotoViewer.addEventListener("cancel", (event) => {
@@ -109,7 +116,7 @@ function renderProjectOptions(selectedId) {
 }
 
 function setMode(mode) {
-  if (!["project", "observation", "weekly_reflection", "final_reflection"].includes(mode)) return;
+  if (!["project", "observation", "photos", "weekly_reflection", "final_reflection"].includes(mode)) return;
   state.mode = mode;
   document.querySelectorAll("[data-entry-mode]").forEach((button) => {
     const active = button.dataset.entryMode === mode;
@@ -120,15 +127,16 @@ function setMode(mode) {
     panel.hidden = panel.dataset.modePanel !== mode;
   });
   els.girlsLocationTools.hidden = mode !== "project";
-  els.girlsPhotoTools.hidden = !["project", "observation"].includes(mode);
   els.girlsObservationHistory.hidden = mode !== "observation";
   els.girlsSubmit.textContent = {
     project: "Start my log",
     observation: "Add observation",
+    photos: "Save new photos",
     weekly_reflection: "Save distillation + haiku",
     final_reflection: "Save final reflection"
   }[mode];
   if (mode === "observation") renderObservationHistory();
+  if (mode === "photos") loadPhotoGallery();
   if (mode === "final_reflection") renderFinalReview();
   setStatus("");
 }
@@ -167,16 +175,29 @@ async function captureGps() {
   );
 }
 
-function selectPhoto(event) {
+function selectPhotos(event) {
   const input = event.currentTarget;
-  const file = input.files?.[0];
+  const files = Array.from(input.files || []);
   input.value = "";
-  if (!file) return;
-  if (!isImageFile(file)) {
-    setPhotoStatus("Choose an image from the camera or photo library.", true);
+  if (!files.length) return;
+  const available = Math.max(
+    0,
+    PHOTO_MAX_COUNT - state.savedPhotos.length - state.pendingPhotos.length
+  );
+  if (!available) {
+    setPhotoStatus("This project already has 10 photos.", true);
     return;
   }
-  state.photoFile = file;
+  let rejected = false;
+  files.slice(0, available).forEach((file) => {
+    if (isImageFile(file)) state.pendingPhotos.push(file);
+    else rejected = true;
+  });
+  if (files.length > available) {
+    setPhotoStatus(`Only ${available} more ${available === 1 ? "photo can" : "photos can"} be added.`, true);
+  } else if (rejected) {
+    setPhotoStatus("Only image files can be added.", true);
+  }
   renderPhotoPreview();
 }
 
@@ -187,58 +208,104 @@ function isImageFile(file) {
 
 function renderPhotoPreview() {
   els.girlsPhotoPreview.replaceChildren();
-  if (!state.photoFile) {
-    setPhotoStatus("One photo. Compressed before upload.");
+  const total = state.savedPhotos.length + state.pendingPhotos.length;
+  els.girlsPhotoCount.textContent = `${total} of ${PHOTO_MAX_COUNT}`;
+
+  if (!total) {
+    setPhotoStatus("No photos yet. Take a photo or choose one from this device.");
     return;
   }
 
-  const card = document.createElement("article");
-  card.className = "girls-photo-card";
+  state.savedPhotos.forEach((photo, index) => {
+    const card = document.createElement("article");
+    card.className = `girls-photo-card girls-photo-card-saved${photo.is_cover ? " is-cover" : ""}`;
+    card.innerHTML = `
+      <button type="button" class="girls-photo-view" data-view-saved-photo="${index}" aria-label="View saved photo ${index + 1}">
+        <img src="${escapeAttribute(publicPhotoUrl(photo.storage_path))}" alt="Saved green-space photo ${index + 1}" loading="lazy">
+        <span>${escapeHtml(photo.original_name || `Saved photo ${index + 1}`)}</span>
+      </button>
+      ${photo.is_cover
+        ? '<span class="girls-cover-badge">Cover</span>'
+        : `<button type="button" class="girls-photo-cover" data-set-cover-photo="${escapeAttribute(photo.id)}" title="Use as cover" aria-label="Use saved photo ${index + 1} as the cover">${coverIcon()}<span>Cover</span></button>`}
+      <button type="button" class="girls-photo-remove" data-delete-photo="${escapeAttribute(photo.id)}" aria-label="Delete saved photo ${index + 1}" title="Delete photo">${deleteIcon()}</button>
+    `;
+    els.girlsPhotoPreview.append(card);
+  });
 
-  const view = document.createElement("button");
-  view.type = "button";
-  view.className = "girls-photo-view";
-  view.dataset.viewPhoto = "true";
-  view.setAttribute("aria-label", "View selected green-space photo");
-
-  const image = document.createElement("img");
-  const objectUrl = URL.createObjectURL(state.photoFile);
-  image.src = objectUrl;
-  image.alt = "Selected green-space photo";
-  image.addEventListener("load", () => URL.revokeObjectURL(objectUrl), { once: true });
-  image.addEventListener("error", () => URL.revokeObjectURL(objectUrl), { once: true });
-
-  const caption = document.createElement("span");
-  caption.textContent = state.photoFile.name || "Selected photo";
-  view.append(image, caption);
-
-  const remove = document.createElement("button");
-  remove.type = "button";
-  remove.className = "girls-photo-remove";
-  remove.dataset.removePhoto = "true";
-  remove.setAttribute("aria-label", "Remove selected photo");
-  remove.title = "Remove photo";
-  remove.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"></path></svg>';
-
-  card.append(view, remove);
-  els.girlsPhotoPreview.append(card);
-  setPhotoStatus("One photo ready. It will be compressed when saved.");
+  state.pendingPhotos.forEach((file, index) => {
+    const card = document.createElement("article");
+    card.className = "girls-photo-card is-pending";
+    const view = document.createElement("button");
+    view.type = "button";
+    view.className = "girls-photo-view";
+    view.dataset.viewPendingPhoto = String(index);
+    view.setAttribute("aria-label", `View new photo ${index + 1}`);
+    const image = document.createElement("img");
+    const objectUrl = URL.createObjectURL(file);
+    image.src = objectUrl;
+    image.alt = `New green-space photo ${index + 1}`;
+    image.addEventListener("load", () => URL.revokeObjectURL(objectUrl), { once: true });
+    image.addEventListener("error", () => URL.revokeObjectURL(objectUrl), { once: true });
+    const caption = document.createElement("span");
+    caption.textContent = file.name || `New photo ${index + 1}`;
+    view.append(image, caption);
+    const pending = document.createElement("span");
+    pending.className = "girls-pending-badge";
+    pending.textContent = "Not saved";
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "girls-photo-remove";
+    remove.dataset.removePendingPhoto = String(index);
+    remove.setAttribute("aria-label", `Remove new photo ${index + 1}`);
+    remove.title = "Remove photo";
+    remove.innerHTML = deleteIcon();
+    card.append(view, pending, remove);
+    els.girlsPhotoPreview.append(card);
+  });
+  setPhotoStatus(state.pendingPhotos.length
+    ? `${state.pendingPhotos.length} new ${state.pendingPhotos.length === 1 ? "photo is" : "photos are"} ready to save.`
+    : "Select a photo to view it, change the cover, or delete it.");
 }
 
-function handlePhotoAction(event) {
-  if (event.target.closest("[data-remove-photo]")) {
-    clearPhoto();
+async function handlePhotoAction(event) {
+  const removePending = event.target.closest("[data-remove-pending-photo]");
+  if (removePending) {
+    state.pendingPhotos.splice(Number(removePending.dataset.removePendingPhoto), 1);
+    renderPhotoPreview();
     return;
   }
-  if (event.target.closest("[data-view-photo]")) openPhotoViewer();
+  const viewPending = event.target.closest("[data-view-pending-photo]");
+  if (viewPending) {
+    openPhotoViewer("pending", Number(viewPending.dataset.viewPendingPhoto));
+    return;
+  }
+  const viewSaved = event.target.closest("[data-view-saved-photo]");
+  if (viewSaved) {
+    openPhotoViewer("saved", Number(viewSaved.dataset.viewSavedPhoto));
+    return;
+  }
+  const cover = event.target.closest("[data-set-cover-photo]");
+  if (cover) await chooseCoverPhoto(cover.dataset.setCoverPhoto);
+  const removeSaved = event.target.closest("[data-delete-photo]");
+  if (removeSaved) await removeSavedPhoto(removeSaved.dataset.deletePhoto);
 }
 
-function openPhotoViewer() {
-  if (!state.photoFile) return;
+function openPhotoViewer(kind, index) {
   releasePhotoViewerUrl();
-  state.activePhotoUrl = URL.createObjectURL(state.photoFile);
+  if (kind === "pending") {
+    const file = state.pendingPhotos[index];
+    if (!file) return;
+    state.activePhotoUrl = URL.createObjectURL(file);
+    state.activePhotoIsObjectUrl = true;
+    els.girlsPhotoViewerName.textContent = file.name || `New photo ${index + 1}`;
+  } else {
+    const photo = state.savedPhotos[index];
+    if (!photo) return;
+    state.activePhotoUrl = publicPhotoUrl(photo.storage_path);
+    state.activePhotoIsObjectUrl = false;
+    els.girlsPhotoViewerName.textContent = photo.original_name || `Saved photo ${index + 1}`;
+  }
   els.girlsPhotoViewerImage.src = state.activePhotoUrl;
-  els.girlsPhotoViewerName.textContent = state.photoFile.name || "Selected photo";
   if (typeof els.girlsPhotoViewer.showModal === "function") els.girlsPhotoViewer.showModal();
   else els.girlsPhotoViewer.setAttribute("open", "");
 }
@@ -253,33 +320,117 @@ function closePhotoViewer() {
 }
 
 function releasePhotoViewerUrl() {
-  if (state.activePhotoUrl) URL.revokeObjectURL(state.activePhotoUrl);
+  if (state.activePhotoUrl && state.activePhotoIsObjectUrl) URL.revokeObjectURL(state.activePhotoUrl);
   state.activePhotoUrl = null;
+  state.activePhotoIsObjectUrl = false;
   els.girlsPhotoViewerImage.removeAttribute("src");
   els.girlsPhotoViewerName.textContent = "";
 }
 
-function clearPhoto() {
-  state.photoFile = null;
+function clearPendingPhotos() {
+  state.pendingPhotos = [];
   els.girlsCameraPhoto.value = "";
   els.girlsGalleryPhoto.value = "";
   closePhotoViewer();
   renderPhotoPreview();
 }
 
+async function loadPhotoGallery() {
+  const projectId = clean(els.girlsProjectPicker.value);
+  state.savedPhotos = [];
+  clearPendingPhotos();
+  if (!projectId) {
+    setPhotoStatus("Complete Project Start before adding photos.", true);
+    return;
+  }
+  setPhotoStatus("Loading photos...");
+  try {
+    state.savedPhotos = await loadProjectPhotos(projectId);
+    renderPhotoPreview();
+  } catch (error) {
+    setPhotoStatus(error.message || "The project photos could not be loaded.", true);
+  }
+}
+
+async function chooseCoverPhoto(photoId) {
+  const projectId = clean(els.girlsProjectPicker.value);
+  if (!projectId || !photoId || state.submitting) return;
+  state.submitting = true;
+  setPhotoControlsDisabled(true);
+  setPhotoStatus("Changing cover...");
+  try {
+    await setProjectCover({
+      greenSpaceId: projectId,
+      clientToken: clientToken(),
+      photoId
+    });
+    state.savedPhotos = state.savedPhotos.map((photo) => ({
+      ...photo,
+      is_cover: photo.id === photoId
+    }));
+    renderPhotoPreview();
+    setPhotoStatus("Cover photo updated.");
+  } catch (error) {
+    setPhotoStatus(error.message || "The cover photo could not be changed.", true);
+  } finally {
+    state.submitting = false;
+    setPhotoControlsDisabled(false);
+  }
+}
+
+async function removeSavedPhoto(photoId) {
+  const photo = state.savedPhotos.find((item) => item.id === photoId);
+  const projectId = clean(els.girlsProjectPicker.value);
+  if (!photo || !projectId || state.submitting) return;
+  if (!window.confirm("Delete this photo from the project?")) return;
+  state.submitting = true;
+  setPhotoControlsDisabled(true);
+  setPhotoStatus("Deleting photo...");
+  try {
+    await deleteProjectPhoto({
+      greenSpaceId: projectId,
+      clientToken: clientToken(),
+      photoId
+    });
+    state.savedPhotos = await loadProjectPhotos(projectId);
+    renderPhotoPreview();
+    setPhotoStatus("Photo deleted.");
+  } catch (error) {
+    setPhotoStatus(error.message || "The photo could not be deleted.", true);
+  } finally {
+    state.submitting = false;
+    setPhotoControlsDisabled(false);
+  }
+}
+
+function setPhotoControlsDisabled(disabled) {
+  els.girlsTakePhoto.disabled = disabled;
+  els.girlsChoosePhoto.disabled = disabled;
+  els.girlsSubmit.disabled = disabled;
+  els.girlsPhotoPreview.querySelectorAll("button").forEach((button) => {
+    button.disabled = disabled;
+  });
+}
+
+function coverIcon() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z"></path></svg>';
+}
+
+function deleteIcon() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"></path></svg>';
+}
+
 async function submitForm(event) {
   event.preventDefault();
   if (state.submitting) return;
+  if (state.mode === "photos") {
+    await savePendingPhotos();
+    return;
+  }
   try {
     const payload = buildPayload();
     state.submitting = true;
     els.girlsSubmit.disabled = true;
-    if (state.photoFile) {
-      setStatus("Compressing photo...");
-      const blob = await compressGreenSpacePhoto(state.photoFile);
-      payload.photo_data_url = await blobToDataUrl(blob);
-      setPhotoStatus(`Photo compressed to ${Math.round(blob.size / 1024)} KB.`);
-    }
     setStatus("Saving...");
     const result = await submitGreenSpaceRecord(payload);
     const savedMode = state.mode;
@@ -297,6 +448,46 @@ async function submitForm(event) {
   } finally {
     state.submitting = false;
     els.girlsSubmit.disabled = false;
+  }
+}
+
+async function savePendingPhotos() {
+  const projectId = clean(els.girlsProjectPicker.value);
+  if (!projectId) {
+    setStatus("Complete Project Start before adding photos.", true);
+    return;
+  }
+  if (!state.pendingPhotos.length) {
+    setStatus("Take a photo or choose one from this device.", true);
+    return;
+  }
+  state.submitting = true;
+  setPhotoControlsDisabled(true);
+  try {
+    const files = [...state.pendingPhotos];
+    for (let index = 0; index < files.length; index += 1) {
+      setStatus(`Preparing photo ${index + 1} of ${files.length}...`);
+      setPhotoStatus(`Compressing photo ${index + 1} of ${files.length}...`);
+      const blob = await compressGreenSpacePhoto(files[index]);
+      setPhotoStatus(`Uploading photo ${index + 1} of ${files.length}...`);
+      await uploadProjectPhoto({
+        greenSpaceId: projectId,
+        clientToken: clientToken(),
+        fileName: String(files[index].name || `green-space-photo-${index + 1}.jpg`).slice(0, 255),
+        photoDataUrl: await blobToDataUrl(blob)
+      });
+    }
+    state.pendingPhotos = [];
+    state.savedPhotos = await loadProjectPhotos(projectId);
+    renderPhotoPreview();
+    setStatus(`${files.length} ${files.length === 1 ? "photo" : "photos"} saved.`);
+  } catch (error) {
+    state.savedPhotos = await loadProjectPhotos(projectId).catch(() => state.savedPhotos);
+    renderPhotoPreview();
+    setStatus(error.message || "The photos could not be saved.", true);
+  } finally {
+    state.submitting = false;
+    setPhotoControlsDisabled(false);
   }
 }
 
@@ -374,7 +565,7 @@ function buildPayload() {
 
 function resetAfterSave() {
   els.girlsWebsite.value = "";
-  clearPhoto();
+  clearPendingPhotos();
   state.gps = null;
   els.girlsLatitude.value = "";
   els.girlsLongitude.value = "";

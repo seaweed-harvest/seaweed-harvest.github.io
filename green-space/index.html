@@ -48,6 +48,7 @@
         <div class="girls-mode-options">
           <button type="button" class="is-active" data-entry-mode="project" aria-pressed="true">Project Start</button>
           <button type="button" data-entry-mode="observation" aria-pressed="false">Add observation</button>
+          <button type="button" data-entry-mode="photos" aria-pressed="false">Photos</button>
           <button type="button" data-entry-mode="weekly_reflection" aria-pressed="false">Distil + haiku</button>
           <button type="button" data-entry-mode="final_reflection" aria-pressed="false">Final reflection</button>
         </div>
@@ -174,8 +175,14 @@
         <small>Capture the green space, not a private home address.</small>
       </section>
 
-      <section id="girlsPhotoTools" class="girls-form-section girls-tools-section">
-        <h2>Photo</h2>
+      <section id="girlsPhotoTools" class="girls-form-section girls-tools-section" data-mode-panel="photos" hidden>
+        <div class="girls-section-heading">
+          <div>
+            <h2>Project photos</h2>
+            <p class="girls-section-copy">Add up to 10 photos. Choose one as the cover shown on the map.</p>
+          </div>
+          <span id="girlsPhotoCount" class="girls-count">0 of 10</span>
+        </div>
         <div class="girls-photo-toolbar">
           <button id="girlsTakePhoto" class="girls-secondary-action girls-photo-action" type="button">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4 16 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l1.5-3h5Z"></path><circle cx="12" cy="13" r="3"></circle></svg>
@@ -183,12 +190,12 @@
           </button>
           <button id="girlsChoosePhoto" class="girls-secondary-action girls-photo-action" type="button">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>
-            <span>Choose photo</span>
+            <span>Choose photos</span>
           </button>
         </div>
         <input id="girlsCameraPhoto" class="girls-hidden-file" type="file" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
-        <input id="girlsGalleryPhoto" class="girls-hidden-file" type="file" accept="image/*" tabindex="-1" aria-hidden="true">
-        <p id="girlsPhotoStatus" class="girls-photo-status" aria-live="polite">One photo. Compressed before upload.</p>
+        <input id="girlsGalleryPhoto" class="girls-hidden-file" type="file" accept="image/*" multiple tabindex="-1" aria-hidden="true">
+        <p id="girlsPhotoStatus" class="girls-photo-status" aria-live="polite">Photos are compressed before upload.</p>
         <div id="girlsPhotoPreview" class="girls-photo-grid" aria-live="polite"></div>
         <small>Do not photograph identifiable people without permission.</small>
       </section>

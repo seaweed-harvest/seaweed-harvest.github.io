@@ -17,11 +17,54 @@ export async function loadLedger() {
   });
 }
 
+export async function loadProjectPhotos(greenSpaceId) {
+  return rpc("girls_public_green_space_photos", {
+    p_green_space_id: greenSpaceId
+  });
+}
+
 export async function submitGreenSpaceRecord(payload) {
   return request(`${SUPABASE_URL}/functions/v1/green-space-log`, {
     method: "POST",
     headers: publicHeaders(),
     body: JSON.stringify(payload)
+  });
+}
+
+export async function uploadProjectPhoto({
+  greenSpaceId,
+  clientToken,
+  fileName,
+  photoDataUrl
+}) {
+  return submitGreenSpaceRecord({
+    action: "photo_upload",
+    submission_id: crypto.randomUUID(),
+    client_token: clientToken,
+    green_space_id: greenSpaceId,
+    original_name: fileName,
+    photo_data_url: photoDataUrl,
+    website: ""
+  });
+}
+
+export async function setProjectCover({ greenSpaceId, clientToken, photoId }) {
+  return submitGreenSpaceRecord({
+    action: "photo_cover",
+    client_token: clientToken,
+    green_space_id: greenSpaceId,
+    photo_id: photoId,
+    website: ""
+  });
+}
+
+export async function deleteProjectPhoto({ greenSpaceId, clientToken, photoId }) {
+  return submitGreenSpaceRecord({
+    action: "photo_delete",
+    client_token: clientToken,
+    green_space_id: greenSpaceId,
+    photo_id: photoId,
+    website: ""
   });
 }
 

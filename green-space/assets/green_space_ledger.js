@@ -1,4 +1,4 @@
-import { loadLedger, publicPhotoUrl } from "./green_space_api.js";
+import { loadLedger, loadProjects, publicPhotoUrl } from "./green_space_api.js";
 
 const state = {
   rows: [],
@@ -47,7 +47,12 @@ async function initialise() {
   });
 
   try {
-    state.rows = await loadLedger();
+    const [rows, projects] = await Promise.all([loadLedger(), loadProjects()]);
+    const coverByProject = new Map(projects.map((project) => [project.id, project.photo_path]));
+    state.rows = rows.map((row) => ({
+      ...row,
+      cover_photo_path: coverByProject.get(row.green_space_id) || null
+    }));
     applyFilters();
   } catch (error) {
     els.rows.innerHTML = `<tr><td colspan="8">${escapeHtml(error.message)}</td></tr>`;
@@ -95,7 +100,7 @@ function renderRows() {
       <td>${escapeHtml(entryLabel(row.entry_type))}</td>
       <td>${row.week_number ? `Week ${escapeHtml(row.week_number)}` : "-"}</td>
       <td>${escapeHtml(timeRange(row))}</td>
-      <td>${row.photo_path ? photoIndicator() : "-"}</td>
+      <td>${displayPhotoPath(row) ? photoIndicator() : "-"}</td>
       <td>${escapeHtml(previewText(row))}</td>
     </tr>
   `).join("") || '<tr><td colspan="8">No entries match these filters.</td></tr>';
@@ -145,7 +150,7 @@ function compareRows(first, second) {
 function sortValue(row, key) {
   if (key === "date") return Date.parse(row.observed_on || row.created_at || "") || 0;
   if (key === "week_number") return Number(row.week_number || 0);
-  if (key === "photo_path") return row.photo_path ? 1 : 0;
+  if (key === "photo_path") return displayPhotoPath(row) ? 1 : 0;
   if (key === "entry_type") return entryLabel(row.entry_type);
   return clean(row[key]);
 }
@@ -182,9 +187,10 @@ function openDialog(row) {
     ["Recorded", formatDateTime(row.created_at)]
   ].map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value || "-")}</dd></div>`).join("");
 
-  if (row.photo_path) {
-    els.photo.src = publicPhotoUrl(row.photo_path);
-    els.photo.alt = `${row.green_space_name} observation`;
+  const photoPath = displayPhotoPath(row);
+  if (photoPath) {
+    els.photo.src = publicPhotoUrl(photoPath);
+    els.photo.alt = `${row.green_space_name} project photo`;
     els.photo.hidden = false;
   } else {
     els.photo.hidden = true;
@@ -268,7 +274,7 @@ function exportCsv() {
     row.synthesis || "",
     row.key_learnings || "",
     row.overall_reflection || "",
-    row.photo_path ? publicPhotoUrl(row.photo_path) : ""
+    displayPhotoPath(row) ? publicPhotoUrl(displayPhotoPath(row)) : ""
   ]);
   const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
   const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
@@ -284,6 +290,11 @@ function exportCsv() {
 
 function photoIndicator() {
   return '<span class="girls-photo-indicator" title="Photo attached" aria-label="Photo attached"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-5-5L5 21"></path></svg></span>';
+}
+
+function displayPhotoPath(row) {
+  if (row.photo_path) return row.photo_path;
+  return row.entry_type === "final_reflection" ? row.cover_photo_path : null;
 }
 
 function entryLabel(type) {
