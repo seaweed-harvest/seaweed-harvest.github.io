@@ -470,6 +470,29 @@ a {
   padding: 20px 0 0;
 }
 
+.girls-gps-tools {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.girls-gps-tools .girls-secondary-action {
+  width: auto;
+  white-space: nowrap;
+}
+
+.girls-gps-tools > input:not([type="hidden"]) {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  color: var(--girls-ink);
+  background: white;
+  border: 1px solid #bcd6ce;
+  border-radius: 6px;
+}
+
 .girls-secondary-action,
 .girls-primary-action,
 .girls-dialog-actions button,

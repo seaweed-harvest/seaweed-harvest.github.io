@@ -147,7 +147,7 @@ async function captureGps() {
     return;
   }
   els.girlsCaptureGps.disabled = true;
-  els.girlsCaptureGpsLabel.textContent = "Locating...";
+  els.girlsCaptureGpsLabel.textContent = "Capturing...";
   setStatus("Getting the green-space location...");
   navigator.geolocation.getCurrentPosition(
     (position) => {
@@ -160,12 +160,12 @@ async function captureGps() {
       els.girlsLongitude.value = String(state.gps.longitude);
       els.girlsGpsReadout.value = `${state.gps.latitude.toFixed(6)}, ${state.gps.longitude.toFixed(6)} (+/- ${state.gps.accuracy} m)`;
       els.girlsCaptureGps.disabled = false;
-      els.girlsCaptureGpsLabel.textContent = "Use GPS again";
+      els.girlsCaptureGpsLabel.textContent = "Capture GPS";
       setStatus("Location captured.");
     },
     (error) => {
       els.girlsCaptureGps.disabled = false;
-      els.girlsCaptureGpsLabel.textContent = "Use GPS";
+      els.girlsCaptureGpsLabel.textContent = "Capture GPS";
       const detail = error.code === 1
         ? "Location permission was not allowed."
         : "The location could not be captured. Move into an open area and try again.";
@@ -570,7 +570,7 @@ function resetAfterSave() {
   els.girlsLatitude.value = "";
   els.girlsLongitude.value = "";
   els.girlsGpsReadout.value = "No location captured";
-  els.girlsCaptureGpsLabel.textContent = "Use GPS";
+  els.girlsCaptureGpsLabel.textContent = "Capture GPS";
   if (state.mode === "project") {
     [
       els.girlsParticipantName, els.girlsGreenSpaceName, els.girlsIntentions,

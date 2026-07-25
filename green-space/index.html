@@ -77,6 +77,15 @@
           <span>Location and description</span>
           <textarea id="girlsLocationDescription" rows="4" maxlength="2000" placeholder="Where is it, what does it look like, and why did you choose it?"></textarea>
         </label>
+        <div id="girlsLocationTools" class="girls-gps-tools">
+          <button id="girlsCaptureGps" class="girls-secondary-action" type="button">
+            <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="m12 1 2.6 8.4L23 12l-8.4 2.6L12 23l-2.6-8.4L1 12l8.4-2.6L12 1Z"></path></svg>
+            <span id="girlsCaptureGpsLabel">Capture GPS</span>
+          </button>
+          <input id="girlsGpsReadout" type="text" value="No location captured" readonly aria-label="Captured GPS coordinates">
+          <input id="girlsLatitude" type="hidden">
+          <input id="girlsLongitude" type="hidden">
+        </div>
         <label class="girls-field">
           <span>Visit schedule</span>
           <input id="girlsVisitSchedule" type="text" maxlength="500" placeholder="e.g. Monday and Thursday, 9:00-9:15 am">
@@ -159,20 +168,6 @@
           <textarea id="girlsOverallReflection" rows="5" maxlength="5000"></textarea>
         </label>
         <small>The assignment guide is 200-300 words across these three reflection fields.</small>
-      </section>
-
-      <section id="girlsLocationTools" class="girls-form-section girls-tools-section">
-        <div class="girls-section-heading">
-          <h2>Location</h2>
-          <button id="girlsCaptureGps" class="girls-secondary-action" type="button">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3"></path><path d="M12 19v3"></path><path d="m4.93 4.93 2.12 2.12"></path><path d="m16.95 16.95 2.12 2.12"></path><path d="M2 12h3"></path><path d="M19 12h3"></path><path d="m4.93 19.07 2.12-2.12"></path><path d="m16.95 7.05 2.12-2.12"></path></svg>
-            <span id="girlsCaptureGpsLabel">Use GPS</span>
-          </button>
-        </div>
-        <input id="girlsGpsReadout" type="text" value="No location captured" readonly aria-label="Captured GPS location">
-        <input id="girlsLatitude" type="hidden">
-        <input id="girlsLongitude" type="hidden">
-        <small>Capture the green space, not a private home address.</small>
       </section>
 
       <section id="girlsPhotoTools" class="girls-form-section girls-tools-section" data-mode-panel="photos" hidden>
