@@ -3998,7 +3998,7 @@ body:not([data-today-record-category="intake"]) [data-today-intake-only] {
 }
 
 .my-details-shell {
-  width: min(760px, calc(100% - 28px));
+  width: min(1120px, calc(100% - 28px));
 }
 
 .my-details-panel {

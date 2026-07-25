@@ -658,8 +658,9 @@ async function submitForm(event) {
 function submitFinalReflection() {
   if (state.finalLocked || state.submitting) return;
   const confirmed = window.confirm(
-    "Submit the final reflection?\n\n"
-      + "You can save a draft instead. After final submission, this reflection cannot be edited."
+    "Submit final assessment?\n\n"
+      + "Once submitted, you will no longer be able to edit or adjust your final assessment. "
+      + "To make further changes, you will need to contact your lecturer."
   );
   if (!confirmed) return;
   state.finalAction = "submit";
@@ -1138,8 +1139,8 @@ function setFinalLock(locked) {
   els.girlsFinalSubmissionStatus.hidden = false;
   els.girlsFinalSubmissionStatus.classList.toggle("is-submitted", locked);
   els.girlsFinalSubmissionStatus.textContent = locked
-    ? "Final reflection submitted. It is now read-only."
-    : "Save a draft as often as needed. Final submission is locked after confirmation.";
+    ? "Final assessment submitted. Contact your lecturer if it needs to be reopened."
+    : "Draft. Save changes as often as needed, then submit the final assessment when it is ready.";
 }
 
 function selectFavouriteHaiku(event) {
@@ -1166,8 +1167,8 @@ function showSuccess(result) {
         : "Your observation has been saved."
       : state.mode === "final_reflection"
         ? result.final_submitted
-          ? "Your final reflection has been submitted."
-          : "Your final reflection draft has been saved."
+          ? "Your final assessment has been submitted."
+          : "Your final assessment draft has been saved."
         : "Your reflection has been saved.";
   if (typeof els.girlsSuccessDialog.showModal === "function") {
     els.girlsSuccessDialog.showModal();

@@ -1819,7 +1819,8 @@ body.has-fixed-table-scrollbar {
   font-size: 1.18rem;
 }
 
-.girls-dialog-heading > button {
+.girls-dialog-heading > button,
+.girls-dialog-heading-actions > button[aria-label="Close"] {
   width: 40px;
   height: 40px;
   flex: 0 0 40px;
@@ -1831,6 +1832,17 @@ body.has-fixed-table-scrollbar {
   border-radius: 6px;
   font-size: 1.4rem;
   cursor: pointer;
+}
+
+.girls-dialog-heading-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.girls-dialog-heading-actions .girls-secondary-action {
+  min-height: 40px;
 }
 
 .girls-dialog-actions {
@@ -1877,10 +1889,95 @@ body.has-fixed-table-scrollbar {
   border-radius: 6px;
 }
 
+.girls-review-tabs {
+  margin-top: 18px;
+  padding: 4px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  background: #edf5f2;
+  border: 1px solid var(--girls-line);
+  border-radius: 7px;
+}
+
+.girls-review-tabs button {
+  min-width: 0;
+  min-height: 40px;
+  padding: 7px 10px;
+  color: var(--girls-green-dark);
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.girls-review-tabs button.is-active {
+  color: white;
+  background: var(--girls-green);
+}
+
 .girls-entry-content {
   margin-top: 18px;
   display: grid;
   gap: 16px;
+}
+
+.girls-project-review-entry {
+  display: grid;
+  gap: 0;
+}
+
+.girls-project-review-entry + .girls-project-review-entry {
+  padding-top: 16px;
+  border-top: 1px solid var(--girls-line);
+}
+
+.girls-project-review-entry > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.girls-project-review-entry > header span,
+.girls-review-empty {
+  color: var(--girls-muted);
+  font-size: 0.8rem;
+}
+
+.girls-review-empty {
+  margin: 0;
+  padding: 18px;
+  text-align: center;
+  background: #f4f8f6;
+  border: 1px dashed var(--girls-line);
+  border-radius: 6px;
+}
+
+.girls-assessment-status {
+  min-height: 25px;
+  padding: 3px 8px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--girls-line);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.girls-assessment-status.is-submitted {
+  color: #0b5d48;
+  background: #e3f5eb;
+  border-color: #abd8c3;
+}
+
+.girls-assessment-status.is-draft {
+  color: #7a5b00;
+  background: #fff7d7;
+  border-color: #e6ce70;
 }
 
 .girls-entry-content section {

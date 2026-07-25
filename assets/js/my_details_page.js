@@ -13,7 +13,7 @@ import {
   dashboardSelection,
   saveDashboardPreferences
 } from "./dashboard_preferences.js";
-import { setupAppNavigation } from "./app_navigation.js?v=8";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=8";
 import {
   listOutboxItems,
   loadOfflineCollectionAccess,
@@ -46,6 +46,7 @@ async function init() {
     "saveMyDetails",
     "myDetailsStatus",
     "myDetailsHomeLink",
+    "myDetailsSidebar",
     "myPasswordForm",
     "myNewPassword",
     "myConfirmPassword",
@@ -75,7 +76,9 @@ async function init() {
     returnPage: "my_details.html",
     showMyDetails: false
   });
-  setupAppNavigation({ profile, dashboardHref: routeForProfile(profile) });
+  const dashboardHref = routeForProfile(profile);
+  const sidebar = populateAppSidebar(els.myDetailsSidebar, { profile, dashboardHref });
+  setupAppNavigation({ profile, dashboardHref, sidebar });
   configureHomeLink();
   populateForm();
   populateDashboardPreferences();
@@ -104,7 +107,11 @@ async function initialiseOfflineProfile() {
     app_role: snapshot.appRole
   };
   document.body.removeAttribute("data-auth-pending");
-  setupAppNavigation({ profile, dashboardHref: "./collection.html" });
+  const sidebar = populateAppSidebar(els.myDetailsSidebar, {
+    profile,
+    dashboardHref: "./collection.html"
+  });
+  setupAppNavigation({ profile, dashboardHref: "./collection.html", sidebar });
   els.myDetailsHomeLink.href = "./collection.html";
   els.myDetailsHomeLink.textContent = "Collection";
   populateForm();

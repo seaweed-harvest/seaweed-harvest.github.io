@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#176b52">
   <meta name="robots" content="noindex,nofollow">
   <title>Reflection Ledger</title>
-  <link rel="stylesheet" href="./assets/green_space.css?v=7">
+  <link rel="stylesheet" href="./assets/green_space.css?v=8">
 </head>
 <body data-auth-pending>
   <header class="girls-header">
@@ -49,7 +49,7 @@
           <option value="project">Project Start</option>
           <option value="observation">Observation</option>
           <option value="weekly_reflection">Distillation + haiku</option>
-          <option value="final_reflection">Final reflection</option>
+          <option value="final_reflection" selected>Final reflection</option>
         </select>
       </label>
       <label class="girls-field">
@@ -69,8 +69,7 @@
     <section id="girlsLedgerSelectionToolbar" class="girls-ledger-selection-toolbar" hidden aria-label="Selected ledger actions">
       <strong id="girlsLedgerSelectionCount">0 selected</strong>
       <button id="girlsEditSelected" class="girls-secondary-action" type="button">Edit</button>
-      <button id="girlsPublishSelected" class="girls-secondary-action" type="button">Publish</button>
-      <button id="girlsUnpublishSelected" class="girls-secondary-action" type="button">Unpublish</button>
+      <button id="girlsReopenSelected" class="girls-secondary-action" type="button" hidden>Reopen for editing</button>
       <button id="girlsDeleteSelected" class="girls-secondary-action girls-danger-action" type="button">Delete</button>
     </section>
 
@@ -92,7 +91,7 @@
               <th><button type="button" data-ledger-sort="week_number">Week<span class="girls-sort-indicator" aria-hidden="true"></span></button></th>
               <th><button type="button" data-ledger-sort="start_time">Time<span class="girls-sort-indicator" aria-hidden="true"></span></button></th>
               <th><button type="button" data-ledger-sort="photo_path">Photo<span class="girls-sort-indicator" aria-hidden="true"></span></button></th>
-              <th><button type="button" data-ledger-sort="is_published">Status<span class="girls-sort-indicator" aria-hidden="true"></span></button></th>
+              <th><button type="button" data-ledger-sort="assessment_status">Status<span class="girls-sort-indicator" aria-hidden="true"></span></button></th>
               <th>Preview</th>
             </tr>
           </thead>
@@ -107,10 +106,18 @@
     <div class="girls-dialog-panel">
       <div class="girls-dialog-heading">
         <div><span id="girlsEntryType" class="girls-entry-badge"></span><h2 id="girlsEntryTitle"></h2></div>
-        <button id="girlsCloseEntry" type="button" aria-label="Close">&times;</button>
+        <div class="girls-dialog-heading-actions">
+          <button id="girlsReopenFromReview" class="girls-secondary-action" type="button" hidden>Reopen for editing</button>
+          <button id="girlsCloseEntry" type="button" aria-label="Close">&times;</button>
+        </div>
       </div>
       <dl id="girlsEntryMeta" class="girls-entry-meta"></dl>
       <img id="girlsEntryPhoto" class="girls-entry-photo" alt="" hidden>
+      <div id="girlsReviewTabs" class="girls-review-tabs" role="tablist" aria-label="Project review">
+        <button type="button" role="tab" data-review-tab="observations" aria-selected="false">Observations</button>
+        <button type="button" role="tab" data-review-tab="distillation" aria-selected="false">Distil + haiku</button>
+        <button type="button" role="tab" data-review-tab="final" aria-selected="true">Final reflection</button>
+      </div>
       <div id="girlsEntryContent" class="girls-entry-content"></div>
     </div>
   </dialog>
@@ -131,7 +138,7 @@
   </dialog>
 
   <script type="module" src="../assets/js/fixed_table_scrollbar.js?v=1"></script>
-  <script type="module" src="./assets/green_space_ledger.js?v=7"></script>
+  <script type="module" src="./assets/green_space_ledger.js?v=8"></script>
   <script type="module" src="../assets/js/site_feedback.js?v=5"></script>
 </body>
 </html>

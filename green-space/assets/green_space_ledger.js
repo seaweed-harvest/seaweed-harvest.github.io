@@ -21,7 +21,9 @@ const state = {
   sortDirection: "desc",
   busy: false,
   accessToken: null,
-  profile: null
+  profile: null,
+  reviewProjectId: null,
+  reviewTab: "final"
 };
 
 const els = {
@@ -39,8 +41,7 @@ const els = {
   selectionToolbar: document.getElementById("girlsLedgerSelectionToolbar"),
   selectionCount: document.getElementById("girlsLedgerSelectionCount"),
   editSelected: document.getElementById("girlsEditSelected"),
-  publishSelected: document.getElementById("girlsPublishSelected"),
-  unpublishSelected: document.getElementById("girlsUnpublishSelected"),
+  reopenSelected: document.getElementById("girlsReopenSelected"),
   deleteSelected: document.getElementById("girlsDeleteSelected"),
   dialog: document.getElementById("girlsEntryDialog"),
   close: document.getElementById("girlsCloseEntry"),
@@ -48,6 +49,8 @@ const els = {
   title: document.getElementById("girlsEntryTitle"),
   meta: document.getElementById("girlsEntryMeta"),
   photo: document.getElementById("girlsEntryPhoto"),
+  reviewTabs: document.getElementById("girlsReviewTabs"),
+  reopenFromReview: document.getElementById("girlsReopenFromReview"),
   content: document.getElementById("girlsEntryContent"),
   editDialog: document.getElementById("girlsEditDialog"),
   editForm: document.getElementById("girlsEditForm"),
@@ -82,8 +85,7 @@ async function initialise() {
   els.next.addEventListener("click", () => changePage(1));
   els.selectVisible.addEventListener("change", selectVisibleRows);
   els.editSelected.addEventListener("click", editSelectedRow);
-  els.publishSelected.addEventListener("click", () => setSelectedPublication(true));
-  els.unpublishSelected.addEventListener("click", () => setSelectedPublication(false));
+  els.reopenSelected.addEventListener("click", reopenSelectedAssessments);
   els.deleteSelected.addEventListener("click", deleteSelectedRows);
   document.querySelectorAll("[data-ledger-sort]").forEach((button) => {
     button.addEventListener("click", () => changeSort(button.dataset.ledgerSort));
@@ -91,6 +93,8 @@ async function initialise() {
   els.rows.addEventListener("click", handleRowAction);
   els.rows.addEventListener("keydown", handleRowAction);
   els.close.addEventListener("click", closeDialog);
+  els.reviewTabs.addEventListener("click", selectReviewTab);
+  els.reopenFromReview.addEventListener("click", reopenReviewedAssessment);
   els.dialog.addEventListener("click", (event) => {
     if (event.target === els.dialog) closeDialog();
   });
@@ -115,7 +119,7 @@ async function reloadLedger(message = "") {
     }));
     state.selected.clear();
     applyFilters();
-    els.status.textContent = message || "Select a row to read it, or use the checkbox to manage it.";
+    els.status.textContent = message || "Select a final assessment to review the complete project.";
   } catch (error) {
     els.rows.innerHTML = `<tr><td colspan="10">${escapeHtml(error.message)}</td></tr>`;
     els.status.textContent = error.message;
@@ -170,7 +174,7 @@ function renderRows() {
         <td>${row.week_number ? `Week ${escapeHtml(row.week_number)}` : "-"}</td>
         <td>${escapeHtml(timeRange(row))}</td>
         <td>${displayPhotoPath(row) ? photoIndicator() : "-"}</td>
-        <td><span class="girls-publication-status ${row.is_published ? "" : "is-unpublished"}">${row.is_published ? "Published" : "Unpublished"}</span></td>
+        <td>${assessmentStatusBadge(row)}</td>
         <td>${escapeHtml(previewText(row))}</td>
       </tr>
     `;
@@ -228,10 +232,14 @@ function renderSelectionToolbar() {
   const rows = selectedRows();
   els.selectionToolbar.hidden = !rows.length;
   els.selectionCount.textContent = `${rows.length} selected`;
-  const editable = rows.length === 1;
+  const editable = rows.length === 1 && rows[0].entry_type !== "final_reflection";
+  const submittedFinals = rows.filter((row) => (
+    row.entry_type === "final_reflection" && row.is_final_submitted
+  ));
   els.editSelected.disabled = !editable || state.busy;
-  els.publishSelected.disabled = state.busy || rows.every((row) => row.is_published);
-  els.unpublishSelected.disabled = state.busy || rows.every((row) => !row.is_published);
+  els.editSelected.hidden = rows.every((row) => row.entry_type === "final_reflection");
+  els.reopenSelected.hidden = submittedFinals.length !== rows.length;
+  els.reopenSelected.disabled = state.busy || !submittedFinals.length;
   els.deleteSelected.disabled = state.busy;
 }
 
@@ -334,28 +342,45 @@ async function saveEditedRow(event) {
   }
 }
 
-async function setSelectedPublication(isPublished) {
-  const rows = selectedRows().filter((row) => row.is_published !== isPublished);
+async function reopenSelectedAssessments() {
+  const rows = selectedRows().filter((row) => (
+    row.entry_type === "final_reflection" && row.is_final_submitted
+  ));
   if (!rows.length || state.busy) return;
+  const confirmed = window.confirm(
+    `Reopen ${rows.length} final assessment${rows.length === 1 ? "" : "s"} for editing?\n\n`
+      + "The student will regain editing access. Existing submitted snapshots will be preserved."
+  );
+  if (!confirmed) return;
   setBusy(true);
-  els.status.textContent = isPublished ? "Publishing selected records..." : "Unpublishing selected records...";
+  els.status.textContent = "Reopening selected final assessments...";
   try {
     for (const row of rows) {
       await manageLedgerRecord({
-        action: "record_publish",
+        action: "final_reopen",
         accessToken: state.accessToken,
         greenSpaceId: row.green_space_id,
         recordId: row.id,
-        recordType: row.entry_type,
-        isPublished
+        recordType: row.entry_type
       });
     }
-    await reloadLedger(isPublished ? "Selected records published." : "Selected records unpublished.");
+    closeDialog();
+    await reloadLedger(
+      `${rows.length} final assessment${rows.length === 1 ? "" : "s"} reopened for editing.`
+    );
   } catch (error) {
-    els.status.textContent = error.message || "The publication status could not be changed.";
+    els.status.textContent = error.message || "The final assessment could not be reopened.";
   } finally {
     setBusy(false);
   }
+}
+
+async function reopenReviewedAssessment() {
+  const finalRow = projectRows(state.reviewProjectId)
+    .find((row) => row.entry_type === "final_reflection" && row.is_final_submitted);
+  if (!finalRow || state.busy) return;
+  state.selected = new Set([finalRow.id]);
+  await reopenSelectedAssessments();
 }
 
 async function deleteSelectedRows() {
@@ -404,8 +429,8 @@ function setBusy(busy) {
   state.busy = busy;
   [
     els.editSelected,
-    els.publishSelected,
-    els.unpublishSelected,
+    els.reopenSelected,
+    els.reopenFromReview,
     els.deleteSelected
   ].forEach((button) => {
     button.disabled = busy;
@@ -459,7 +484,7 @@ function sortValue(row, key) {
   if (key === "date") return Date.parse(row.observed_on || row.created_at || "") || 0;
   if (key === "week_number") return Number(row.week_number || 0);
   if (key === "photo_path") return displayPhotoPath(row) ? 1 : 0;
-  if (key === "is_published") return row.is_published ? 1 : 0;
+  if (key === "assessment_status") return assessmentStatus(row);
   if (key === "entry_type") return entryLabel(row.entry_type);
   return clean(row[key]);
 }
@@ -476,60 +501,116 @@ function renderSortState() {
 }
 
 function openDialog(row) {
-  els.entryType.textContent = entryLabel(row.entry_type);
+  state.reviewProjectId = row.green_space_id;
+  state.reviewTab = "final";
+  const rows = projectRows(row.green_space_id);
+  const project = rows.find((item) => item.entry_type === "project") || row;
+  const final = rows.find((item) => item.entry_type === "final_reflection") || null;
+  els.entryType.textContent = "Project review";
   els.title.textContent = `${row.green_space_name} - ${row.participant_name}`;
   els.meta.innerHTML = [
-    ["Project code", row.public_code],
-    ["Date", formatDate(row.observed_on || row.created_at)],
-    ["Week", row.week_number ? `Week ${row.week_number}` : "-"],
-    ["Time", timeRange(row)],
-    ["Status", row.is_published ? "Published" : "Unpublished"],
-    ["GPS", coordinatePair(row)],
-    ["Recorded", formatDateTime(row.created_at)]
+    ["Student", project.participant_name],
+    ["Project Start", formatDate(project.created_at)],
+    ["Final assessment", final ? assessmentStatus(final) : "Not started"],
+    ["Submitted / updated", final ? formatDateTime(final.updated_at || final.created_at) : "-"],
+    ["GPS", coordinatePair(project)]
   ].map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value || "-")}</dd></div>`).join("");
-  const photoPath = displayPhotoPath(row);
+  const photoPath = displayPhotoPath(final || project);
   if (photoPath) {
     els.photo.src = publicPhotoUrl(photoPath);
-    els.photo.alt = `${row.green_space_name} project photo`;
+    els.photo.alt = `${project.green_space_name} project photo`;
     els.photo.hidden = false;
   } else {
     els.photo.hidden = true;
     els.photo.removeAttribute("src");
   }
-  els.content.innerHTML = contentSections(row)
-    .filter((section) => clean(section.value))
-    .map((section) => `<section><h3>${escapeHtml(section.label)}</h3><p>${escapeHtml(section.value)}</p></section>`)
-    .join("");
+  els.reopenFromReview.hidden = !(final?.is_final_submitted);
+  renderReviewTab();
   if (typeof els.dialog.showModal === "function") els.dialog.showModal();
   else els.dialog.setAttribute("open", "");
 }
 
 function closeDialog() {
-  if (typeof els.dialog.close === "function") els.dialog.close();
+  state.reviewProjectId = null;
+  if (typeof els.dialog.close === "function" && els.dialog.open) els.dialog.close();
   else els.dialog.removeAttribute("open");
 }
 
-function contentSections(row) {
-  if (row.entry_type === "project") {
-    return [
-      { label: "Intentions", value: row.intentions },
-      { label: "Location and description", value: row.location_description },
-      { label: "Visit schedule", value: row.visit_schedule }
-    ];
+function selectReviewTab(event) {
+  const button = event.target.closest("[data-review-tab]");
+  if (!button) return;
+  state.reviewTab = button.dataset.reviewTab;
+  renderReviewTab();
+}
+
+function renderReviewTab() {
+  els.reviewTabs.querySelectorAll("[data-review-tab]").forEach((button) => {
+    const active = button.dataset.reviewTab === state.reviewTab;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+  const rows = projectRows(state.reviewProjectId);
+  if (state.reviewTab === "observations") {
+    const observations = rows
+      .filter((row) => row.entry_type === "observation")
+      .sort((first, second) => String(first.observed_on || first.created_at)
+        .localeCompare(String(second.observed_on || second.created_at)));
+    els.content.innerHTML = renderReviewEntries(
+      observations,
+      (row) => `${formatDate(row.observed_on || row.created_at)}${row.week_number ? ` - Week ${row.week_number}` : ""}`,
+      (row) => [{ label: "Observation", value: row.observations }]
+    );
+    return;
   }
-  if (row.entry_type === "observation") return [{ label: "Observations", value: row.observations }];
-  if (row.entry_type === "weekly_reflection") {
-    return [
-      { label: "Weekly distillation", value: row.weekly_reflection },
-      { label: "Haiku", value: row.haiku }
-    ];
+  if (state.reviewTab === "distillation") {
+    const distillations = rows
+      .filter((row) => row.entry_type === "weekly_reflection")
+      .sort((first, second) => Number(first.week_number || 0) - Number(second.week_number || 0));
+    els.content.innerHTML = renderReviewEntries(
+      distillations,
+      (row) => row.week_number ? `Week ${row.week_number}` : "Distillation",
+      (row) => [
+        { label: "Weekly distillation", value: row.weekly_reflection },
+        { label: "Haiku", value: row.haiku }
+      ]
+    );
+    return;
   }
-  return [
-    { label: "Favourite haiku", value: row.favourite_haiku },
-    { label: "Synthesis of observations", value: row.synthesis },
-    { label: "Key learnings", value: row.key_learnings },
-    { label: "Overall reflection", value: row.overall_reflection }
-  ];
+  const final = rows.find((row) => row.entry_type === "final_reflection");
+  if (!final) {
+    els.content.innerHTML = '<p class="girls-review-empty">No final assessment has been started.</p>';
+    return;
+  }
+  els.content.innerHTML = renderContentSections([
+    { label: "Favourite haiku", value: final.favourite_haiku },
+    { label: "Synthesis of observations", value: final.synthesis },
+    { label: "Key learnings", value: final.key_learnings },
+    { label: "Overall reflection", value: final.overall_reflection }
+  ]);
+}
+
+function projectRows(greenSpaceId) {
+  return state.rows.filter((row) => row.green_space_id === greenSpaceId);
+}
+
+function renderReviewEntries(rows, heading, sections) {
+  if (!rows.length) return '<p class="girls-review-empty">No entries have been saved here yet.</p>';
+  return rows.map((row) => `
+    <article class="girls-project-review-entry">
+      <header>
+        <strong>${escapeHtml(heading(row))}</strong>
+        <span>${escapeHtml(timeRange(row))}</span>
+      </header>
+      ${renderContentSections(sections(row))}
+    </article>
+  `).join("");
+}
+
+function renderContentSections(sections) {
+  return sections
+    .filter((section) => clean(section.value))
+    .map((section) => `<section><h3>${escapeHtml(section.label)}</h3><p>${escapeHtml(section.value)}</p></section>`)
+    .join("");
 }
 
 function previewText(row) {
@@ -560,7 +641,7 @@ function exportCsv() {
     entryLabel(row.entry_type),
     row.week_number || "",
     row.start_time || "",
-    row.is_published ? "Published" : "Unpublished",
+    assessmentStatus(row),
     coordinatePair(row),
     row.intentions || "",
     row.location_description || "",
@@ -602,6 +683,18 @@ function entryLabel(type) {
     weekly_reflection: "Distillation + haiku",
     final_reflection: "Final reflection"
   }[type] || type || "-";
+}
+
+function assessmentStatus(row) {
+  if (row.entry_type !== "final_reflection") return "";
+  return row.is_final_submitted ? "Submitted" : "Draft";
+}
+
+function assessmentStatusBadge(row) {
+  const status = assessmentStatus(row);
+  if (!status) return "-";
+  const className = row.is_final_submitted ? "is-submitted" : "is-draft";
+  return `<span class="girls-assessment-status ${className}">${status}</span>`;
 }
 
 function timeRange(row) {
