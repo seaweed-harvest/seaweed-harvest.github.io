@@ -1,4 +1,4 @@
-import { loadLedger, loadProjects, submitGirlsRecord } from "./girls_api.js";
+import { loadLedger, loadProjects, submitGreenSpaceRecord } from "./green_space_api.js";
 
 const LAST_PROJECT_KEY = "girls:last-project-id";
 const CLIENT_TOKEN_KEY = "girls:client-token";
@@ -193,7 +193,7 @@ async function submitForm(event) {
     state.submitting = true;
     els.girlsSubmit.disabled = true;
     setStatus("Saving...");
-    const result = await submitGirlsRecord(payload);
+    const result = await submitGreenSpaceRecord(payload);
     if (state.mode !== "project") state.ledger = null;
     if (state.mode === "project" && result.project?.id) {
       localStorage.setItem(LAST_PROJECT_KEY, result.project.id);

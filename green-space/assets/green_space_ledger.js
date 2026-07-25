@@ -1,4 +1,4 @@
-import { loadLedger, publicPhotoUrl } from "./girls_api.js";
+import { loadLedger, publicPhotoUrl } from "./green_space_api.js";
 
 const state = {
   rows: [],

@@ -1,4 +1,4 @@
-import { loadProjects, publicPhotoUrl } from "./girls_api.js";
+import { loadProjects, publicPhotoUrl } from "./green_space_api.js";
 
 const state = {
   projects: [],

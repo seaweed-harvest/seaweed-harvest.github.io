@@ -1,6 +1,6 @@
 const SUPABASE_URL = "https://wwzmajhdusfyfskppupg.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3em1hamhkdXNmeWZza3BwdXBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MDY5MzQsImV4cCI6MjA5ODE4MjkzNH0.9W8zCF8cTjWn6ArYaJmvRNX9_wDlwsOLMDi8yh5c998";
-const PHOTO_BUCKET = "girls-green-space-photos";
+const PHOTO_BUCKET = "green-space-photos";
 const REQUEST_TIMEOUT_MS = 30000;
 
 export async function loadProjects() {
@@ -17,8 +17,8 @@ export async function loadLedger() {
   });
 }
 
-export async function submitGirlsRecord(payload) {
-  return request(`${SUPABASE_URL}/functions/v1/girls-green-space`, {
+export async function submitGreenSpaceRecord(payload) {
+  return request(`${SUPABASE_URL}/functions/v1/green-space-log`, {
     method: "POST",
     headers: publicHeaders(),
     body: JSON.stringify(payload)
