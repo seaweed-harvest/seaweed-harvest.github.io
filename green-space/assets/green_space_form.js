@@ -7,7 +7,7 @@ import {
   setProjectCover,
   submitGreenSpaceRecord,
   uploadProjectPhoto
-} from "./green_space_api.js";
+} from "./green_space_api.js?v=4";
 
 const LAST_PROJECT_KEY = "girls:last-project-id";
 const CLIENT_TOKEN_KEY = "girls:client-token";
@@ -102,7 +102,7 @@ async function initialise() {
 
 async function refreshProjects(selectedId = localStorage.getItem(LAST_PROJECT_KEY)) {
   try {
-    state.projects = await loadProjects();
+    state.projects = await loadProjects(clientToken());
     renderProjectOptions(selectedId);
   } catch (error) {
     state.projects = [];
@@ -126,7 +126,7 @@ function renderProjectOptions(selectedId) {
   ].join("");
   const activeId = projects.some((project) => project.id === rememberedId)
     ? rememberedId
-    : projects[0]?.id || "";
+    : "";
   els.girlsProjectPicker.value = activeId;
   if (activeId) {
     localStorage.setItem(LAST_PROJECT_KEY, activeId);
@@ -730,7 +730,7 @@ async function renderObservationHistory() {
 
   els.girlsObservationHistoryStatus.textContent = "Loading...";
   try {
-    if (!state.ledger) state.ledger = await loadLedger();
+    if (!state.ledger) state.ledger = await loadLedger(clientToken());
     if (state.mode !== "observation" || clean(els.girlsProjectPicker.value) !== projectId) return;
     state.observationRows = state.ledger
       .filter((row) => row.green_space_id === projectId && row.entry_type === "observation")
@@ -856,7 +856,7 @@ async function renderWeeklyReference() {
   }
   els.girlsWeeklyReferenceStatus.textContent = "Loading...";
   try {
-    if (!state.ledger) state.ledger = await loadLedger();
+    if (!state.ledger) state.ledger = await loadLedger(clientToken());
     if (state.mode !== "weekly_reflection" || clean(els.girlsProjectPicker.value) !== projectId) return;
     const rows = state.ledger
       .filter((row) => (
@@ -922,7 +922,7 @@ async function renderFinalReview() {
 
   els.girlsFinalReviewStatus.textContent = "Loading your six-week review...";
   try {
-    if (!state.ledger) state.ledger = await loadLedger();
+    if (!state.ledger) state.ledger = await loadLedger(clientToken());
     if (state.mode !== "final_reflection" || els.girlsProjectPicker.value !== projectId) return;
     const finalRow = state.ledger
       .filter((row) => row.green_space_id === projectId && row.entry_type === "final_reflection")

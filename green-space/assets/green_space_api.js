@@ -3,17 +3,52 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const PHOTO_BUCKET = "green-space-photos";
 const REQUEST_TIMEOUT_MS = 30000;
 
-export async function loadProjects() {
+export async function loadProjects(clientToken = null) {
+  if (clientToken) {
+    return submitGreenSpaceRecord({
+      action: "projects",
+      client_token: clientToken,
+      website: ""
+    });
+  }
   return rpc("girls_public_green_spaces", {});
 }
 
-export async function loadLedger() {
+export async function loadLedger(clientToken = null) {
+  if (clientToken) {
+    return submitGreenSpaceRecord({
+      action: "ledger",
+      client_token: clientToken,
+      website: ""
+    });
+  }
   return rpc("girls_public_ledger", {
     p_search: null,
     p_entry_type: null,
     p_week: null,
     p_limit: 1000,
     p_offset: 0
+  });
+}
+
+export async function manageLedgerRecord({
+  action,
+  clientToken,
+  greenSpaceId,
+  recordId,
+  recordType,
+  isPublished = null,
+  changes = null
+}) {
+  return submitGreenSpaceRecord({
+    action,
+    client_token: clientToken,
+    green_space_id: greenSpaceId,
+    record_id: recordId,
+    record_type: recordType,
+    is_published: isPublished,
+    changes,
+    website: ""
   });
 }
 

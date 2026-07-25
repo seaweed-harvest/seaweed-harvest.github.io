@@ -1333,6 +1333,34 @@ a {
   white-space: nowrap;
 }
 
+.girls-ledger-selection-toolbar {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: #fff8df;
+  border: 1px solid #e9d17c;
+  border-radius: 8px;
+}
+
+.girls-ledger-selection-toolbar strong {
+  margin-right: auto;
+  font-size: 0.82rem;
+}
+
+.girls-ledger-selection-toolbar .girls-secondary-action {
+  min-height: 34px;
+  padding: 5px 10px;
+  font-size: 0.76rem;
+}
+
+.girls-danger-action {
+  color: var(--girls-danger);
+  border-color: #e9b4af;
+}
+
 .girls-ledger-section {
   overflow: hidden;
 }
@@ -1404,6 +1432,44 @@ a {
   background: var(--girls-mint);
 }
 
+.girls-ledger-table tbody tr.is-selected {
+  background: #fff8df;
+}
+
+.girls-ledger-table .girls-select-column {
+  width: 38px;
+  min-width: 38px;
+  padding-right: 5px;
+  padding-left: 8px;
+}
+
+.girls-ledger-table input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--girls-green);
+  cursor: pointer;
+}
+
+.girls-publication-status {
+  min-height: 24px;
+  padding: 3px 7px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--girls-green-dark);
+  background: var(--girls-mint);
+  border: 1px solid var(--girls-mint-strong);
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 750;
+}
+
+.girls-publication-status.is-unpublished {
+  color: #695100;
+  background: #fff8df;
+  border-color: #e9d17c;
+}
+
 .girls-ledger-table td:last-child {
   max-width: 320px;
   overflow: hidden;
@@ -1468,6 +1534,20 @@ a {
   padding: 10px 12px;
   color: var(--girls-muted);
   font-size: 0.78rem;
+}
+
+.girls-edit-dialog {
+  width: min(720px, calc(100% - 24px));
+}
+
+.girls-edit-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.girls-edit-fields .girls-field.is-wide {
+  grid-column: 1 / -1;
 }
 
 .fixed-table-scrollbar {
@@ -1797,6 +1877,14 @@ body.has-fixed-table-scrollbar {
   .girls-submit-row {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .girls-edit-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .girls-edit-fields .girls-field.is-wide {
+    grid-column: auto;
   }
 
   .girls-ledger-tools {
