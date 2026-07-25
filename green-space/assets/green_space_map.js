@@ -141,6 +141,7 @@ function projectPopup(project) {
       ${photo}
       <strong>${escapeHtml(project.green_space_name)}</strong>
       <span>${escapeHtml(project.participant_name)} - ${escapeHtml(project.public_code)}</span>
+      ${project.favourite_haiku ? `<blockquote>${escapeHtml(project.favourite_haiku)}</blockquote>` : ""}
       <small>${Number(project.entry_count || 0)} reflection ${Number(project.entry_count || 0) === 1 ? "entry" : "entries"}</small>
       <small>${Number(project.latitude).toFixed(4)}, ${Number(project.longitude).toFixed(4)}</small>
       <button type="button" class="girls-map-gallery-link" data-open-project-gallery="${escapeAttribute(project.id)}">View photos</button>

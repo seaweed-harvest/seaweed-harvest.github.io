@@ -21,12 +21,17 @@ const state = {
   projects: [],
   ledger: null,
   observationRows: [],
+  observationDateFilter: null,
+  observationPhoto: null,
+  observationPhotoUrl: null,
   finalReviewRows: [],
   pendingPhotos: [],
   savedPhotos: [],
   activePhotoUrl: null,
   activePhotoIsObjectUrl: false,
   gps: null,
+  finalAction: "draft",
+  finalLocked: false,
   submitting: false
 };
 
@@ -39,15 +44,19 @@ async function initialise() {
     "girlsReflectionForm", "girlsProjectPicker",
     "girlsParticipantName", "girlsGreenSpaceName", "girlsIntentions", "girlsLocationDescription",
     "girlsVisitSchedule", "girlsObservationWeek", "girlsObservationDateTime", "girlsObservationNotes",
+    "girlsTakeObservationPhoto", "girlsChooseObservationPhoto", "girlsObservationCameraPhoto",
+    "girlsObservationGalleryPhoto", "girlsObservationPhotoPreview",
     "girlsReflectionWeek", "girlsWeeklyReflection",
+    "girlsWeeklyReferenceStatus", "girlsWeeklyReferenceList",
     "girlsWeeklyHaiku", "girlsFinalReviewStatus", "girlsFinalReviewList", "girlsFavouriteHaiku",
     "girlsSynthesis", "girlsKeyLearnings", "girlsOverallReflection", "girlsFinalWordCount",
+    "girlsFinalSubmissionStatus", "girlsFinalSubmit",
     "girlsLocationTools", "girlsCaptureGps", "girlsCaptureGpsLabel", "girlsGpsReadout", "girlsLatitude", "girlsLongitude",
     "girlsPhotoTools", "girlsTakePhoto", "girlsChoosePhoto", "girlsCameraPhoto", "girlsGalleryPhoto",
     "girlsPhotoCount", "girlsPhotoStatus", "girlsPhotoPreview", "girlsPhotoViewer", "girlsPhotoViewerImage",
     "girlsPhotoViewerName", "girlsClosePhotoViewer",
     "girlsWebsite", "girlsSubmit", "girlsFormStatus", "girlsObservationHistory",
-    "girlsObservationHistoryStatus", "girlsObservationLog", "girlsObservationCalendars",
+    "girlsObservationHistoryStatus", "girlsShowAllObservations", "girlsObservationLog", "girlsObservationCalendars",
     "girlsSuccessDialog", "girlsCloseSuccess", "girlsSuccessMessage", "girlsSuccessCode", "girlsAddAnother"
   ].forEach((id) => {
     els[id] = document.getElementById(id);
@@ -59,8 +68,13 @@ async function initialise() {
   els.girlsCaptureGps.addEventListener("click", captureGps);
   els.girlsTakePhoto.addEventListener("click", () => els.girlsCameraPhoto.click());
   els.girlsChoosePhoto.addEventListener("click", () => els.girlsGalleryPhoto.click());
+  els.girlsTakeObservationPhoto.addEventListener("click", () => els.girlsObservationCameraPhoto.click());
+  els.girlsChooseObservationPhoto.addEventListener("click", () => els.girlsObservationGalleryPhoto.click());
   els.girlsCameraPhoto.addEventListener("change", selectPhotos);
   els.girlsGalleryPhoto.addEventListener("change", selectPhotos);
+  els.girlsObservationCameraPhoto.addEventListener("change", selectObservationPhoto);
+  els.girlsObservationGalleryPhoto.addEventListener("change", selectObservationPhoto);
+  els.girlsObservationPhotoPreview.addEventListener("click", clearObservationPhoto);
   els.girlsPhotoPreview.addEventListener("click", handlePhotoAction);
   els.girlsClosePhotoViewer.addEventListener("click", closePhotoViewer);
   els.girlsPhotoViewer.addEventListener("cancel", (event) => {
@@ -69,12 +83,16 @@ async function initialise() {
   });
   els.girlsPhotoViewer.addEventListener("close", releasePhotoViewerUrl);
   els.girlsObservationCalendars.addEventListener("click", focusObservationDate);
+  els.girlsShowAllObservations.addEventListener("click", clearObservationDateFilter);
   els.girlsFinalReviewList.addEventListener("click", selectFavouriteHaiku);
   els.girlsReflectionForm.addEventListener("submit", submitForm);
+  els.girlsFinalSubmit.addEventListener("click", submitFinalReflection);
   els.girlsCloseSuccess.addEventListener("click", closeSuccessDialog);
   els.girlsAddAnother.addEventListener("click", addAnotherEntry);
   [els.girlsSynthesis, els.girlsKeyLearnings, els.girlsOverallReflection]
     .forEach((field) => field.addEventListener("input", renderWordCount));
+  els.girlsObservationDateTime.addEventListener("change", selectSuggestedObservationWeek);
+  els.girlsReflectionWeek.addEventListener("change", renderWeeklyReference);
 
   els.girlsObservationDateTime.value = localDateTimeValue(new Date());
   setMode("project");
@@ -113,6 +131,9 @@ function renderProjectOptions(selectedId) {
   if (activeId) {
     localStorage.setItem(LAST_PROJECT_KEY, activeId);
   }
+  populateProjectForm();
+  selectSuggestedObservationWeek();
+  selectSuggestedReflectionWeek();
 }
 
 function setMode(mode) {
@@ -128,17 +149,74 @@ function setMode(mode) {
   });
   els.girlsLocationTools.hidden = mode !== "project";
   els.girlsObservationHistory.hidden = mode !== "observation";
+  els.girlsFinalSubmit.hidden = mode !== "final_reflection" || state.finalLocked;
+  els.girlsSubmit.hidden = mode === "final_reflection" && state.finalLocked;
   els.girlsSubmit.textContent = {
-    project: "Start my log",
+    project: activeProject() ? "Save Project Start" : "Start my log",
     observation: "Add observation",
     photos: "Save new photos",
     weekly_reflection: "Save distillation + haiku",
-    final_reflection: "Save final reflection"
+    final_reflection: "Save draft"
   }[mode];
-  if (mode === "observation") renderObservationHistory();
+  if (mode === "project") populateProjectForm();
+  if (mode === "observation") {
+    state.observationDateFilter = null;
+    selectSuggestedObservationWeek();
+    renderObservationHistory();
+  }
   if (mode === "photos") loadPhotoGallery();
+  if (mode === "weekly_reflection") {
+    selectSuggestedReflectionWeek();
+    renderWeeklyReference();
+  }
   if (mode === "final_reflection") renderFinalReview();
   setStatus("");
+}
+
+function activeProject() {
+  const projectId = clean(els.girlsProjectPicker.value);
+  return state.projects.find((project) => project.id === projectId) || null;
+}
+
+function populateProjectForm() {
+  const project = activeProject();
+  els.girlsSubmit.textContent = project ? "Save Project Start" : "Start my log";
+  if (!project) return;
+  els.girlsParticipantName.value = project.participant_name || "";
+  els.girlsGreenSpaceName.value = project.green_space_name || "";
+  els.girlsIntentions.value = project.intentions || "";
+  els.girlsLocationDescription.value = project.location_description || "";
+  els.girlsVisitSchedule.value = project.visit_schedule || "";
+  const latitude = Number(project.latitude);
+  const longitude = Number(project.longitude);
+  if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+    state.gps = { latitude, longitude, accuracy: null };
+    els.girlsLatitude.value = String(latitude);
+    els.girlsLongitude.value = String(longitude);
+    els.girlsGpsReadout.value = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+  }
+}
+
+function suggestedWeek(targetDate = new Date()) {
+  const created = new Date(activeProject()?.created_at || "");
+  const target = targetDate instanceof Date ? targetDate : new Date(targetDate);
+  if (Number.isNaN(created.getTime()) || Number.isNaN(target.getTime())) return 1;
+  const elapsedDays = Math.floor((startOfDay(target) - startOfDay(created)) / 86400000);
+  return Math.min(7, Math.max(1, Math.floor(elapsedDays / 7) + 1));
+}
+
+function startOfDay(value) {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
+}
+
+function selectSuggestedObservationWeek() {
+  const value = els.girlsObservationDateTime.value;
+  const observedAt = value ? new Date(value) : new Date();
+  els.girlsObservationWeek.value = String(suggestedWeek(observedAt));
+}
+
+function selectSuggestedReflectionWeek() {
+  els.girlsReflectionWeek.value = String(suggestedWeek(new Date()));
 }
 
 async function captureGps() {
@@ -199,6 +277,37 @@ function selectPhotos(event) {
     setPhotoStatus("Only image files can be added.", true);
   }
   renderPhotoPreview();
+}
+
+function selectObservationPhoto(event) {
+  const file = event.currentTarget.files?.[0];
+  event.currentTarget.value = "";
+  if (!file) return;
+  if (!String(file.type || "").startsWith("image/")) {
+    setStatus("Choose an image for the observation photo.", true);
+    return;
+  }
+  clearObservationPhoto();
+  state.observationPhoto = file;
+  state.observationPhotoUrl = URL.createObjectURL(file);
+  els.girlsObservationPhotoPreview.hidden = false;
+  els.girlsObservationPhotoPreview.innerHTML = `
+    <img src="${escapeAttribute(state.observationPhotoUrl)}" alt="Selected observation photo">
+    <button type="button">Remove</button>
+  `;
+  setStatus("Observation photo ready.");
+}
+
+function clearObservationPhoto() {
+  if (state.observationPhotoUrl) URL.revokeObjectURL(state.observationPhotoUrl);
+  state.observationPhoto = null;
+  state.observationPhotoUrl = null;
+  if (els.girlsObservationCameraPhoto) els.girlsObservationCameraPhoto.value = "";
+  if (els.girlsObservationGalleryPhoto) els.girlsObservationGalleryPhoto.value = "";
+  if (els.girlsObservationPhotoPreview) {
+    els.girlsObservationPhotoPreview.hidden = true;
+    els.girlsObservationPhotoPreview.replaceChildren();
+  }
 }
 
 function isImageFile(file) {
@@ -428,27 +537,51 @@ async function submitForm(event) {
     return;
   }
   try {
-    const payload = buildPayload();
+    let photoDataUrl = null;
+    if (state.mode === "observation" && state.observationPhoto) {
+      setStatus("Preparing observation photo...");
+      photoDataUrl = await blobToDataUrl(await compressGreenSpacePhoto(state.observationPhoto));
+    }
+    const payload = buildPayload(photoDataUrl);
     state.submitting = true;
     els.girlsSubmit.disabled = true;
+    els.girlsFinalSubmit.disabled = true;
     setStatus("Saving...");
     const result = await submitGreenSpaceRecord(payload);
     const savedMode = state.mode;
     if (savedMode !== "project") state.ledger = null;
-    if (state.mode === "project" && result.project?.id) {
+    if (savedMode === "project" && result.project?.id) {
       localStorage.setItem(LAST_PROJECT_KEY, result.project.id);
       await refreshProjects(result.project.id);
+    }
+    if (savedMode === "final_reflection") {
+      await refreshProjects(els.girlsProjectPicker.value);
     }
     showSuccess(result);
     resetAfterSave();
     if (savedMode === "observation") await renderObservationHistory();
+    if (savedMode === "weekly_reflection") await renderWeeklyReference();
+    if (savedMode === "final_reflection") await renderFinalReview();
     setStatus("Saved.");
   } catch (error) {
     setStatus(error.message || "The entry could not be saved.", true);
   } finally {
     state.submitting = false;
     els.girlsSubmit.disabled = false;
+    els.girlsFinalSubmit.disabled = false;
+    state.finalAction = "draft";
   }
+}
+
+function submitFinalReflection() {
+  if (state.finalLocked || state.submitting) return;
+  const confirmed = window.confirm(
+    "Submit the final reflection?\n\n"
+      + "You can save a draft instead. After final submission, this reflection cannot be edited."
+  );
+  if (!confirmed) return;
+  state.finalAction = "submit";
+  els.girlsReflectionForm.requestSubmit();
 }
 
 async function savePendingPhotos() {
@@ -491,16 +624,19 @@ async function savePendingPhotos() {
   }
 }
 
-function buildPayload() {
+function buildPayload(photoDataUrl = null) {
+  const project = activeProject();
   const base = {
-    action: state.mode === "project" ? "project" : "entry",
+    action: state.mode === "project"
+      ? (project ? "project_update" : "project")
+      : "entry",
     entry_type: state.mode,
     submission_id: randomUuid(),
     client_token: clientToken(),
     website: clean(els.girlsWebsite.value),
-    photo_data_url: null,
-    latitude: state.gps?.latitude ?? null,
-    longitude: state.gps?.longitude ?? null,
+    photo_data_url: photoDataUrl,
+    latitude: state.mode === "project" ? state.gps?.latitude ?? null : null,
+    longitude: state.mode === "project" ? state.gps?.longitude ?? null : null,
     user_agent: navigator.userAgent
   };
 
@@ -513,6 +649,7 @@ function buildPayload() {
     if (!state.gps) throw focusError("Capture the green-space GPS location.", els.girlsCaptureGps);
     return {
       ...base,
+      green_space_id: project?.id || null,
       participant_name: participantName,
       green_space_name: greenSpaceName,
       intentions,
@@ -541,7 +678,8 @@ function buildPayload() {
       observed_on: observedOn,
       start_time: startTime.slice(0, 5),
       end_time: null,
-      observations: required(els.girlsObservationNotes, "Record what you noticed.")
+      observations: required(els.girlsObservationNotes, "Record what you noticed."),
+      photo_name: state.observationPhoto?.name || null
     };
   }
   if (state.mode === "weekly_reflection") {
@@ -555,6 +693,7 @@ function buildPayload() {
   return {
     ...payload,
     week_number: 8,
+    final_action: state.finalAction,
     favourite_haiku: required(els.girlsFavouriteHaiku, "Choose or enter a favourite haiku."),
     final_format: null,
     synthesis: required(els.girlsSynthesis, "Write the synthesis of observations."),
@@ -566,28 +705,15 @@ function buildPayload() {
 function resetAfterSave() {
   els.girlsWebsite.value = "";
   clearPendingPhotos();
-  state.gps = null;
-  els.girlsLatitude.value = "";
-  els.girlsLongitude.value = "";
-  els.girlsGpsReadout.value = "No location captured";
-  els.girlsCaptureGpsLabel.textContent = "Capture GPS";
   if (state.mode === "project") {
-    [
-      els.girlsParticipantName, els.girlsGreenSpaceName, els.girlsIntentions,
-      els.girlsLocationDescription, els.girlsVisitSchedule
-    ].forEach((field) => { field.value = ""; });
+    populateProjectForm();
   } else if (state.mode === "observation") {
     els.girlsObservationNotes.value = "";
     els.girlsObservationDateTime.value = localDateTimeValue(new Date());
+    clearObservationPhoto();
+    selectSuggestedObservationWeek();
   } else if (state.mode === "weekly_reflection") {
-    els.girlsWeeklyReflection.value = "";
-    els.girlsWeeklyHaiku.value = "";
-  } else {
-    els.girlsFavouriteHaiku.value = "";
-    els.girlsSynthesis.value = "";
-    els.girlsKeyLearnings.value = "";
-    els.girlsOverallReflection.value = "";
-    renderWordCount();
+    selectSuggestedReflectionWeek();
   }
 }
 
@@ -620,11 +746,14 @@ async function renderObservationHistory() {
 }
 
 function renderObservationLog() {
-  if (!state.observationRows.length) {
+  const rows = state.observationDateFilter
+    ? state.observationRows.filter((row) => row.observed_on === state.observationDateFilter)
+    : state.observationRows;
+  if (!rows.length) {
     els.girlsObservationLog.innerHTML = '<p class="girls-empty-copy">No observations have been added yet.</p>';
     return;
   }
-  els.girlsObservationLog.innerHTML = state.observationRows.map((row) => `
+  els.girlsObservationLog.innerHTML = rows.map((row) => `
     <article class="girls-observation-row" data-observation-date="${escapeAttribute(row.observed_on || "")}" tabindex="-1">
       <header>
         <div>
@@ -674,7 +803,7 @@ function renderCalendarMonth(month, rows) {
     const date = `${month}-${String(day).padStart(2, "0")}`;
     const count = counts.get(date) || 0;
     cells.push(count
-      ? `<button type="button" data-calendar-date="${date}" title="${count} ${count === 1 ? "observation" : "observations"}"><span>${day}</span><strong>${count}</strong></button>`
+      ? `<button type="button" class="${state.observationDateFilter === date ? "is-selected" : ""}" data-calendar-date="${date}" title="${count} ${count === 1 ? "observation" : "observations"}"><span>${day}</span><strong>${count}</strong></button>`
       : `<span><span>${day}</span></span>`);
   }
   const title = new Intl.DateTimeFormat("en-AU", { month: "long", year: "numeric" })
@@ -693,11 +822,64 @@ function renderCalendarMonth(month, rows) {
 function focusObservationDate(event) {
   const button = event.target.closest("[data-calendar-date]");
   if (!button) return;
+  state.observationDateFilter = button.dataset.calendarDate;
+  const count = state.observationRows.filter(
+    (row) => row.observed_on === state.observationDateFilter
+  ).length;
+  els.girlsObservationHistoryStatus.textContent = `${count} on ${formatObservationDate(state.observationDateFilter)}`;
+  els.girlsShowAllObservations.hidden = false;
+  renderObservationLog();
+  renderObservationCalendars();
   const row = els.girlsObservationLog.querySelector(
     `[data-observation-date="${CSS.escape(button.dataset.calendarDate)}"]`
   );
   row?.scrollIntoView({ behavior: "smooth", block: "center" });
   row?.focus?.({ preventScroll: true });
+}
+
+function clearObservationDateFilter() {
+  state.observationDateFilter = null;
+  const count = state.observationRows.length;
+  els.girlsObservationHistoryStatus.textContent = `${count} ${count === 1 ? "observation" : "observations"}`;
+  els.girlsShowAllObservations.hidden = true;
+  renderObservationLog();
+  renderObservationCalendars();
+}
+
+async function renderWeeklyReference() {
+  const projectId = clean(els.girlsProjectPicker.value);
+  const week = Number(els.girlsReflectionWeek.value);
+  els.girlsWeeklyReferenceList.innerHTML = "";
+  if (!projectId) {
+    els.girlsWeeklyReferenceStatus.textContent = "Project Start required";
+    return;
+  }
+  els.girlsWeeklyReferenceStatus.textContent = "Loading...";
+  try {
+    if (!state.ledger) state.ledger = await loadLedger();
+    if (state.mode !== "weekly_reflection" || clean(els.girlsProjectPicker.value) !== projectId) return;
+    const rows = state.ledger
+      .filter((row) => (
+        row.green_space_id === projectId
+        && row.entry_type === "observation"
+        && Number(row.week_number) === week
+      ))
+      .sort(compareObservationRows);
+    els.girlsWeeklyReferenceStatus.textContent = `${rows.length} ${rows.length === 1 ? "observation" : "observations"}`;
+    els.girlsWeeklyReferenceList.className = "girls-week-reference-list";
+    els.girlsWeeklyReferenceList.innerHTML = rows.map((row) => `
+      <article class="girls-week-reference-item">
+        <div>
+          <small>${escapeHtml(formatObservationDate(row.observed_on))} at ${escapeHtml(formatObservationTime(row.start_time))}</small>
+          <p>${escapeHtml(row.observations || "")}</p>
+        </div>
+        ${row.photo_path ? `<img src="${escapeAttribute(publicPhotoUrl(row.photo_path))}" alt="Observation photo from ${escapeAttribute(formatObservationDate(row.observed_on))}" loading="lazy">` : ""}
+      </article>
+    `).join("") || '<p class="girls-empty-copy">No observations have been saved for this week yet.</p>';
+  } catch (error) {
+    els.girlsWeeklyReferenceStatus.textContent = "Could not load";
+    els.girlsWeeklyReferenceList.innerHTML = `<p class="girls-empty-copy">${escapeHtml(error.message || "The weekly observations could not be loaded.")}</p>`;
+  }
 }
 
 function compareObservationRows(first, second) {
@@ -731,6 +913,9 @@ async function renderFinalReview() {
   state.finalReviewRows = [];
   els.girlsFinalReviewList.innerHTML = "";
   if (!projectId) {
+    setFinalLock(false);
+    els.girlsFinalSubmissionStatus.hidden = false;
+    els.girlsFinalSubmissionStatus.textContent = "Complete Project Start before writing the final reflection.";
     els.girlsFinalReviewStatus.textContent = "Complete Project Start to review saved distillations and haiku.";
     return;
   }
@@ -739,6 +924,11 @@ async function renderFinalReview() {
   try {
     if (!state.ledger) state.ledger = await loadLedger();
     if (state.mode !== "final_reflection" || els.girlsProjectPicker.value !== projectId) return;
+    const finalRow = state.ledger
+      .filter((row) => row.green_space_id === projectId && row.entry_type === "final_reflection")
+      .sort((first, second) => String(second.created_at).localeCompare(String(first.created_at)))[0] || null;
+    populateFinalDraft(finalRow);
+    setFinalLock(Boolean(activeProject()?.final_submitted_at));
     state.finalReviewRows = state.ledger
       .filter((row) => row.green_space_id === projectId && row.entry_type === "weekly_reflection")
       .sort((a, b) => Number(a.week_number || 0) - Number(b.week_number || 0));
@@ -757,14 +947,45 @@ async function renderFinalReview() {
         ${row.haiku ? `<blockquote>${escapeHtml(row.haiku)}</blockquote>` : ""}
       </article>
     `).join("");
+    setFinalLock(state.finalLocked);
   } catch (error) {
     els.girlsFinalReviewStatus.textContent = error.message || "The weekly review could not be loaded.";
   }
 }
 
+function populateFinalDraft(row) {
+  els.girlsFavouriteHaiku.value = row?.favourite_haiku || "";
+  els.girlsSynthesis.value = row?.synthesis || "";
+  els.girlsKeyLearnings.value = row?.key_learnings || "";
+  els.girlsOverallReflection.value = row?.overall_reflection || "";
+  renderWordCount();
+}
+
+function setFinalLock(locked) {
+  state.finalLocked = locked;
+  [
+    els.girlsFavouriteHaiku,
+    els.girlsSynthesis,
+    els.girlsKeyLearnings,
+    els.girlsOverallReflection
+  ].forEach((field) => {
+    field.disabled = locked;
+  });
+  els.girlsFinalReviewList.querySelectorAll("[data-favourite-haiku]").forEach((button) => {
+    button.disabled = locked;
+  });
+  els.girlsSubmit.hidden = locked;
+  els.girlsFinalSubmit.hidden = locked;
+  els.girlsFinalSubmissionStatus.hidden = false;
+  els.girlsFinalSubmissionStatus.classList.toggle("is-submitted", locked);
+  els.girlsFinalSubmissionStatus.textContent = locked
+    ? "Final reflection submitted. It is now read-only."
+    : "Save a draft as often as needed. Final submission is locked after confirmation.";
+}
+
 function selectFavouriteHaiku(event) {
   const button = event.target.closest("[data-favourite-haiku]");
-  if (!button) return;
+  if (!button || state.finalLocked) return;
   const row = state.finalReviewRows[Number(button.dataset.favouriteHaiku)];
   if (!row?.haiku) return;
   els.girlsFavouriteHaiku.value = row.haiku;
@@ -774,10 +995,16 @@ function selectFavouriteHaiku(event) {
 function showSuccess(result) {
   const isProject = Boolean(result.project);
   els.girlsSuccessMessage.textContent = isProject
-    ? "Your green space is ready. Use the code below when discussing the project."
+    ? result.updated
+      ? "Project Start details updated."
+      : "Your green space is ready. Use the code below when discussing the project."
     : state.mode === "observation"
       ? "Your observation has been saved."
-      : "Your reflection has been saved.";
+      : state.mode === "final_reflection"
+        ? result.final_submitted
+          ? "Your final reflection has been submitted."
+          : "Your final reflection draft has been saved."
+        : "Your reflection has been saved.";
   els.girlsSuccessCode.hidden = !isProject;
   els.girlsSuccessCode.textContent = result.project?.public_code || "";
   if (typeof els.girlsSuccessDialog.showModal === "function") {
