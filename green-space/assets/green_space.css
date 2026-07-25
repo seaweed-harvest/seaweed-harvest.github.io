@@ -1624,18 +1624,6 @@ body.has-fixed-table-scrollbar {
   cursor: pointer;
 }
 
-.girls-project-code {
-  margin: 12px 0;
-  padding: 10px 12px;
-  display: block;
-  color: var(--girls-green-dark);
-  background: var(--girls-mint);
-  border: 1px solid var(--girls-mint-strong);
-  border-radius: 6px;
-  font-size: 1.08rem;
-  text-align: center;
-}
-
 .girls-dialog-actions {
   margin-top: 18px;
   display: flex;

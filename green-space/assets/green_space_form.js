@@ -57,7 +57,7 @@ async function initialise() {
     "girlsPhotoViewerName", "girlsClosePhotoViewer",
     "girlsWebsite", "girlsSubmit", "girlsFormStatus", "girlsObservationHistory",
     "girlsObservationHistoryStatus", "girlsShowAllObservations", "girlsObservationLog", "girlsObservationCalendars",
-    "girlsSuccessDialog", "girlsCloseSuccess", "girlsSuccessMessage", "girlsSuccessCode", "girlsAddAnother"
+    "girlsSuccessDialog", "girlsCloseSuccess", "girlsSuccessMessage", "girlsAddAnother"
   ].forEach((id) => {
     els[id] = document.getElementById(id);
   });
@@ -995,9 +995,9 @@ function selectFavouriteHaiku(event) {
 function showSuccess(result) {
   const isProject = Boolean(result.project);
   els.girlsSuccessMessage.textContent = isProject
-    ? result.updated
+      ? result.updated
       ? "Project Start details updated."
-      : "Your green space is ready. Use the code below when discussing the project."
+      : "Your green space is ready."
     : state.mode === "observation"
       ? "Your observation has been saved."
       : state.mode === "final_reflection"
@@ -1005,8 +1005,6 @@ function showSuccess(result) {
           ? "Your final reflection has been submitted."
           : "Your final reflection draft has been saved."
         : "Your reflection has been saved.";
-  els.girlsSuccessCode.hidden = !isProject;
-  els.girlsSuccessCode.textContent = result.project?.public_code || "";
   if (typeof els.girlsSuccessDialog.showModal === "function") {
     els.girlsSuccessDialog.showModal();
   } else {
