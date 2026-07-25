@@ -11,7 +11,8 @@ const state = {
   projects: [],
   ledger: null,
   finalReviewRows: [],
-  photoDataUrl: null,
+  photoFile: null,
+  activePhotoUrl: null,
   gps: null,
   submitting: false
 };
@@ -29,7 +30,9 @@ async function initialise() {
     "girlsWeeklyHaiku", "girlsFinalReviewStatus", "girlsFinalReviewList", "girlsFavouriteHaiku",
     "girlsFinalFormat", "girlsSynthesis", "girlsKeyLearnings", "girlsOverallReflection", "girlsFinalWordCount",
     "girlsLocationTools", "girlsCaptureGps", "girlsCaptureGpsLabel", "girlsGpsReadout", "girlsLatitude", "girlsLongitude",
-    "girlsPhotoTools", "girlsPhoto", "girlsPhotoPreview", "girlsPhotoPreviewImage", "girlsRemovePhoto",
+    "girlsPhotoTools", "girlsTakePhoto", "girlsChoosePhoto", "girlsCameraPhoto", "girlsGalleryPhoto",
+    "girlsPhotoStatus", "girlsPhotoPreview", "girlsPhotoViewer", "girlsPhotoViewerImage",
+    "girlsPhotoViewerName", "girlsClosePhotoViewer",
     "girlsPublicConsent", "girlsWebsite", "girlsSubmit", "girlsFormStatus", "girlsSuccessDialog",
     "girlsCloseSuccess", "girlsSuccessMessage", "girlsSuccessCode", "girlsAddAnother"
   ].forEach((id) => {
@@ -40,8 +43,17 @@ async function initialise() {
     button.addEventListener("click", () => setMode(button.dataset.entryMode));
   });
   els.girlsCaptureGps.addEventListener("click", captureGps);
-  els.girlsPhoto.addEventListener("change", selectPhoto);
-  els.girlsRemovePhoto.addEventListener("click", clearPhoto);
+  els.girlsTakePhoto.addEventListener("click", () => els.girlsCameraPhoto.click());
+  els.girlsChoosePhoto.addEventListener("click", () => els.girlsGalleryPhoto.click());
+  els.girlsCameraPhoto.addEventListener("change", selectPhoto);
+  els.girlsGalleryPhoto.addEventListener("change", selectPhoto);
+  els.girlsPhotoPreview.addEventListener("click", handlePhotoAction);
+  els.girlsClosePhotoViewer.addEventListener("click", closePhotoViewer);
+  els.girlsPhotoViewer.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closePhotoViewer();
+  });
+  els.girlsPhotoViewer.addEventListener("close", releasePhotoViewerUrl);
   els.girlsProjectPicker.addEventListener("change", () => {
     if (els.girlsProjectPicker.value) {
       localStorage.setItem(LAST_PROJECT_KEY, els.girlsProjectPicker.value);
@@ -151,38 +163,104 @@ async function captureGps() {
   );
 }
 
-async function selectPhoto() {
-  const file = els.girlsPhoto.files?.[0];
-  if (!file) {
+function selectPhoto(event) {
+  const input = event.currentTarget;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  if (!isImageFile(file)) {
+    setPhotoStatus("Choose an image from the camera or photo library.", true);
+    return;
+  }
+  state.photoFile = file;
+  renderPhotoPreview();
+}
+
+function isImageFile(file) {
+  return String(file?.type || "").startsWith("image/")
+    || /\.(jpe?g|png|webp|heic|heif)$/i.test(String(file?.name || ""));
+}
+
+function renderPhotoPreview() {
+  els.girlsPhotoPreview.replaceChildren();
+  if (!state.photoFile) {
+    setPhotoStatus("One photo. Compressed before upload.");
+    return;
+  }
+
+  const card = document.createElement("article");
+  card.className = "girls-photo-card";
+
+  const view = document.createElement("button");
+  view.type = "button";
+  view.className = "girls-photo-view";
+  view.dataset.viewPhoto = "true";
+  view.setAttribute("aria-label", "View selected green-space photo");
+
+  const image = document.createElement("img");
+  const objectUrl = URL.createObjectURL(state.photoFile);
+  image.src = objectUrl;
+  image.alt = "Selected green-space photo";
+  image.addEventListener("load", () => URL.revokeObjectURL(objectUrl), { once: true });
+  image.addEventListener("error", () => URL.revokeObjectURL(objectUrl), { once: true });
+
+  const caption = document.createElement("span");
+  caption.textContent = state.photoFile.name || "Selected photo";
+  view.append(image, caption);
+
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "girls-photo-remove";
+  remove.dataset.removePhoto = "true";
+  remove.setAttribute("aria-label", "Remove selected photo");
+  remove.title = "Remove photo";
+  remove.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"></path></svg>';
+
+  card.append(view, remove);
+  els.girlsPhotoPreview.append(card);
+  setPhotoStatus("One photo ready. It will be compressed when saved.");
+}
+
+function handlePhotoAction(event) {
+  if (event.target.closest("[data-remove-photo]")) {
     clearPhoto();
     return;
   }
-  if (!file.type.startsWith("image/")) {
-    clearPhoto();
-    setStatus("Choose a photo from the camera or photo library.", true);
-    return;
-  }
-  setStatus("Preparing photo...");
-  els.girlsPhoto.disabled = true;
-  try {
-    const blob = await compressPhoto(file);
-    state.photoDataUrl = await blobToDataUrl(blob);
-    els.girlsPhotoPreviewImage.src = state.photoDataUrl;
-    els.girlsPhotoPreview.hidden = false;
-    setStatus(`Photo ready (${Math.round(blob.size / 1024)} KB).`);
-  } catch (error) {
-    clearPhoto();
-    setStatus(error.message, true);
-  } finally {
-    els.girlsPhoto.disabled = false;
+  if (event.target.closest("[data-view-photo]")) openPhotoViewer();
+}
+
+function openPhotoViewer() {
+  if (!state.photoFile) return;
+  releasePhotoViewerUrl();
+  state.activePhotoUrl = URL.createObjectURL(state.photoFile);
+  els.girlsPhotoViewerImage.src = state.activePhotoUrl;
+  els.girlsPhotoViewerName.textContent = state.photoFile.name || "Selected photo";
+  if (typeof els.girlsPhotoViewer.showModal === "function") els.girlsPhotoViewer.showModal();
+  else els.girlsPhotoViewer.setAttribute("open", "");
+}
+
+function closePhotoViewer() {
+  if (typeof els.girlsPhotoViewer.close === "function" && els.girlsPhotoViewer.open) {
+    els.girlsPhotoViewer.close();
+  } else {
+    els.girlsPhotoViewer.removeAttribute("open");
+    releasePhotoViewerUrl();
   }
 }
 
+function releasePhotoViewerUrl() {
+  if (state.activePhotoUrl) URL.revokeObjectURL(state.activePhotoUrl);
+  state.activePhotoUrl = null;
+  els.girlsPhotoViewerImage.removeAttribute("src");
+  els.girlsPhotoViewerName.textContent = "";
+}
+
 function clearPhoto() {
-  state.photoDataUrl = null;
-  els.girlsPhoto.value = "";
-  els.girlsPhotoPreviewImage.removeAttribute("src");
-  els.girlsPhotoPreview.hidden = true;
+  state.photoFile = null;
+  els.girlsCameraPhoto.value = "";
+  els.girlsGalleryPhoto.value = "";
+  closePhotoViewer();
+  renderPhotoPreview();
 }
 
 async function submitForm(event) {
@@ -192,6 +270,12 @@ async function submitForm(event) {
     const payload = buildPayload();
     state.submitting = true;
     els.girlsSubmit.disabled = true;
+    if (state.photoFile) {
+      setStatus("Compressing photo...");
+      const blob = await compressGreenSpacePhoto(state.photoFile);
+      payload.photo_data_url = await blobToDataUrl(blob);
+      setPhotoStatus(`Photo compressed to ${Math.round(blob.size / 1024)} KB.`);
+    }
     setStatus("Saving...");
     const result = await submitGreenSpaceRecord(payload);
     if (state.mode !== "project") state.ledger = null;
@@ -221,7 +305,7 @@ function buildPayload() {
     submission_id: randomUuid(),
     client_token: clientToken(),
     website: clean(els.girlsWebsite.value),
-    photo_data_url: state.photoDataUrl,
+    photo_data_url: null,
     latitude: state.gps?.latitude ?? null,
     longitude: state.gps?.longitude ?? null,
     user_agent: navigator.userAgent
@@ -388,61 +472,75 @@ function renderWordCount() {
   els.girlsFinalWordCount.classList.toggle("is-high", count > 300);
 }
 
-async function compressPhoto(file) {
-  const source = await loadImageSource(file);
-  const originalWidth = source.width;
-  const originalHeight = source.height;
-  const initialScale = Math.min(1, PHOTO_MAX_EDGE / Math.max(originalWidth, originalHeight));
+async function compressGreenSpacePhoto(file) {
+  const image = await loadGreenSpaceImage(file);
+  let width = image.naturalWidth || image.width;
+  let height = image.naturalHeight || image.height;
+  if (!width || !height) throw new Error("The selected photo could not be opened.");
+  const scale = Math.min(1, PHOTO_MAX_EDGE / Math.max(width, height));
+  width = Math.max(1, Math.round(width * scale));
+  height = Math.max(1, Math.round(height * scale));
 
-  for (const scaleFactor of [1, 0.85, 0.7, 0.55]) {
-    const width = Math.max(1, Math.round(originalWidth * initialScale * scaleFactor));
-    const height = Math.max(1, Math.round(originalHeight * initialScale * scaleFactor));
+  for (let attempt = 0; attempt < 5; attempt += 1) {
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
     const context = canvas.getContext("2d", { alpha: false });
-    if (!context) throw new Error("The photo could not be prepared.");
+    if (!context) throw new Error("This browser could not prepare the selected photo.");
     context.fillStyle = "#ffffff";
     context.fillRect(0, 0, width, height);
-    context.drawImage(source, 0, 0, width, height);
-
-    let smallest = null;
-    for (const quality of [0.88, 0.82, 0.76, 0.68, 0.58, 0.48]) {
-      const blob = await canvasToBlob(canvas, quality);
-      smallest = blob;
-      if (blob.size <= PHOTO_TARGET_BYTES) {
-        source.close?.();
-        return blob;
-      }
-    }
-    if (smallest?.size <= PHOTO_MAX_BYTES) {
-      source.close?.();
-      return smallest;
-    }
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(image, 0, 0, width, height);
+    const blob = await jpegBlobNearTarget(canvas);
+    if (blob.size <= PHOTO_MAX_BYTES) return blob;
+    const reduction = Math.min(0.9, Math.sqrt(PHOTO_TARGET_BYTES / blob.size) * 0.96);
+    width = Math.max(1, Math.round(width * reduction));
+    height = Math.max(1, Math.round(height * reduction));
   }
-  source.close?.();
-  throw new Error("The photo is still too large. Choose a smaller image.");
+  throw new Error("The photo could not be reduced below 700 KB.");
 }
 
-async function loadImageSource(file) {
-  if ("createImageBitmap" in window) return createImageBitmap(file, { imageOrientation: "from-image" });
-  const url = URL.createObjectURL(file);
-  try {
+function loadGreenSpaceImage(file) {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
     const image = new Image();
-    image.decoding = "async";
-    image.src = url;
-    await image.decode();
-    return image;
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("The selected photo could not be opened. Try a JPEG image."));
+    };
+    image.src = objectUrl;
+  });
 }
 
-function canvasToBlob(canvas, quality) {
+async function jpegBlobNearTarget(canvas) {
+  let low = 0.38;
+  let high = 0.92;
+  let best = null;
+  let smallest = null;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const quality = (low + high) / 2;
+    const blob = await canvasToJpegBlob(canvas, quality);
+    if (!smallest || blob.size < smallest.size) smallest = blob;
+    if (blob.size <= PHOTO_TARGET_BYTES) {
+      best = blob;
+      low = quality;
+    } else {
+      high = quality;
+    }
+  }
+  return best || smallest;
+}
+
+function canvasToJpegBlob(canvas, quality) {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
-      if (blob?.size) resolve(blob);
-      else reject(new Error("The photo could not be prepared."));
+      if (blob) resolve(blob);
+      else reject(new Error("This browser could not compress the selected photo."));
     }, "image/jpeg", quality);
   });
 }
@@ -454,6 +552,11 @@ function blobToDataUrl(blob) {
     reader.onerror = () => reject(new Error("The photo preview could not be created."));
     reader.readAsDataURL(blob);
   });
+}
+
+function setPhotoStatus(message, error = false) {
+  els.girlsPhotoStatus.textContent = message;
+  els.girlsPhotoStatus.classList.toggle("is-error", error);
 }
 
 function required(element, message) {

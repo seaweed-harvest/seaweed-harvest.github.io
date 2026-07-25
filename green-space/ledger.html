@@ -60,9 +60,25 @@
     </section>
 
     <section class="girls-ledger-section">
-      <div class="girls-table-wrap">
+      <div class="girls-ledger-pagination">
+        <button id="girlsLedgerPrevious" class="girls-secondary-action" type="button">Previous</button>
+        <span id="girlsLedgerPageStatus" class="girls-table-status">Page 1</span>
+        <button id="girlsLedgerNext" class="girls-secondary-action" type="button">Next</button>
+      </div>
+      <div class="girls-table-wrap responsive-table-wrap">
         <table class="girls-ledger-table">
-          <thead><tr><th>Date</th><th>Student</th><th>Green space</th><th>Entry</th><th>Week</th><th>Time</th><th>Photo</th><th>Preview</th></tr></thead>
+          <thead>
+            <tr>
+              <th><button type="button" data-ledger-sort="date">Date<span class="girls-sort-indicator" aria-hidden="true"></span></button></th>
+              <th><button type="button" data-ledger-sort="participant_name">Student<span class="girls-sort-indicator" aria-hidden="true"></span></button></th>
+              <th><button type="button" data-ledger-sort="green_space_name">Green space<span class="girls-sort-indicator" aria-hidden="true"></span></button></th>
+              <th><button type="button" data-ledger-sort="entry_type">Entry<span class="girls-sort-indicator" aria-hidden="true"></span></button></th>
+              <th><button type="button" data-ledger-sort="week_number">Week<span class="girls-sort-indicator" aria-hidden="true"></span></button></th>
+              <th><button type="button" data-ledger-sort="start_time">Time<span class="girls-sort-indicator" aria-hidden="true"></span></button></th>
+              <th><button type="button" data-ledger-sort="photo_path">Photo<span class="girls-sort-indicator" aria-hidden="true"></span></button></th>
+              <th>Preview</th>
+            </tr>
+          </thead>
           <tbody id="girlsLedgerRows"><tr><td colspan="8">Loading entries...</td></tr></tbody>
         </table>
       </div>
@@ -82,6 +98,7 @@
     </div>
   </dialog>
 
+  <script type="module" src="../assets/js/fixed_table_scrollbar.js?v=1"></script>
   <script type="module" src="./assets/green_space_ledger.js"></script>
 </body>
 </html>

@@ -198,17 +198,20 @@
 
       <section id="girlsPhotoTools" class="girls-form-section girls-tools-section">
         <h2>Photo</h2>
-        <div class="girls-photo-layout">
-          <label class="girls-photo-button">
+        <div class="girls-photo-toolbar">
+          <button id="girlsTakePhoto" class="girls-secondary-action girls-photo-action" type="button">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4 16 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l1.5-3h5Z"></path><circle cx="12" cy="13" r="3"></circle></svg>
-            Take or choose photo
-            <input id="girlsPhoto" type="file" accept="image/*" capture="environment">
-          </label>
-          <div id="girlsPhotoPreview" class="girls-photo-preview" hidden>
-            <img id="girlsPhotoPreviewImage" alt="Selected green-space photo preview">
-            <button id="girlsRemovePhoto" type="button" aria-label="Remove selected photo">Remove</button>
-          </div>
+            <span>Take photo</span>
+          </button>
+          <button id="girlsChoosePhoto" class="girls-secondary-action girls-photo-action" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>
+            <span>Choose photo</span>
+          </button>
         </div>
+        <input id="girlsCameraPhoto" class="girls-hidden-file" type="file" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
+        <input id="girlsGalleryPhoto" class="girls-hidden-file" type="file" accept="image/*" tabindex="-1" aria-hidden="true">
+        <p id="girlsPhotoStatus" class="girls-photo-status" aria-live="polite">One photo. Compressed before upload.</p>
+        <div id="girlsPhotoPreview" class="girls-photo-grid" aria-live="polite"></div>
         <small>Do not photograph identifiable people without permission.</small>
       </section>
 
@@ -225,6 +228,17 @@
       </div>
     </form>
   </main>
+
+  <dialog id="girlsPhotoViewer" class="girls-dialog girls-photo-dialog" aria-labelledby="girlsPhotoViewerTitle">
+    <div class="girls-dialog-panel girls-photo-dialog-panel">
+      <div class="girls-dialog-heading">
+        <h2 id="girlsPhotoViewerTitle">Photo preview</h2>
+        <button id="girlsClosePhotoViewer" type="button" aria-label="Close">&times;</button>
+      </div>
+      <img id="girlsPhotoViewerImage" alt="Selected green-space photo">
+      <p id="girlsPhotoViewerName"></p>
+    </div>
+  </dialog>
 
   <dialog id="girlsSuccessDialog" class="girls-dialog">
     <div class="girls-dialog-panel">

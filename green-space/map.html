@@ -36,19 +36,39 @@
       <p id="girlsMapStatus" class="girls-empty-state" role="status">Loading green spaces...</p>
     </section>
 
-    <section class="girls-list-section">
-      <div class="girls-section-heading">
-        <h2>Green spaces</h2>
+    <details class="girls-list-section girls-list-details">
+      <summary class="girls-list-summary">
+        <span>
+          <strong>Green Space List</strong>
+          <small>Open the list to find or focus a location.</small>
+        </span>
+        <span id="girlsMapListCount" class="girls-count">0 spaces</span>
+      </summary>
+      <div class="girls-list-body">
         <label class="girls-compact-search">
-          <span class="visually-hidden">Search green spaces</span>
-          <input id="girlsMapSearch" type="search" placeholder="Search name or place">
+          <span>Search green spaces</span>
+          <input id="girlsMapSearch" type="search" placeholder="Name, code or place">
         </label>
+        <div class="girls-table-wrap map-table-wrap">
+          <table class="girls-map-list-table">
+            <thead>
+              <tr>
+                <th>Green space</th>
+                <th>Participant</th>
+                <th>Code</th>
+                <th>Entries</th>
+                <th>Latest entry</th>
+              </tr>
+            </thead>
+            <tbody id="girlsMapList"></tbody>
+          </table>
+        </div>
       </div>
-      <div id="girlsMapList" class="girls-space-list"></div>
-    </section>
+    </details>
   </main>
 
   <script src="../assets/vendor/leaflet/leaflet.js"></script>
+  <script type="module" src="../assets/js/fixed_table_scrollbar.js?v=1"></script>
   <script type="module" src="./assets/green_space_map.js"></script>
 </body>
 </html>

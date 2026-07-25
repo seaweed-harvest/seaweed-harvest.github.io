@@ -10,6 +10,7 @@ const els = {
   map: document.getElementById("girlsMap"),
   status: document.getElementById("girlsMapStatus"),
   count: document.getElementById("girlsMapCount"),
+  listCount: document.getElementById("girlsMapListCount"),
   search: document.getElementById("girlsMapSearch"),
   list: document.getElementById("girlsMapList")
 };
@@ -28,7 +29,7 @@ async function initialise() {
   } catch (error) {
     els.status.hidden = false;
     els.status.textContent = error.message;
-    els.list.innerHTML = `<p class="girls-empty-state">${escapeHtml(error.message)}</p>`;
+    els.list.innerHTML = `<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;
   }
 }
 
@@ -84,14 +85,16 @@ function renderList() {
     ].some((value) => clean(value).toLowerCase().includes(query));
   });
 
+  els.listCount.textContent = `${rows.length} ${rows.length === 1 ? "space" : "spaces"}`;
   els.list.innerHTML = rows.map((project) => `
-    <button class="girls-space-row" type="button" data-project-id="${escapeAttribute(project.id)}">
-      <strong>${escapeHtml(project.green_space_name)}</strong>
-      <span>${escapeHtml(project.participant_name)}</span>
-      <small>${Number(project.entry_count || 0)} ${Number(project.entry_count || 0) === 1 ? "entry" : "entries"}</small>
-      <small>${project.latest_entry_at ? formatDate(project.latest_entry_at) : "Project setup"}</small>
-    </button>
-  `).join("") || '<p class="girls-empty-state">No green spaces match this search.</p>';
+    <tr class="girls-map-list-row" tabindex="0" data-project-id="${escapeAttribute(project.id)}" aria-label="Focus ${escapeAttribute(project.green_space_name)} on the map">
+      <td><strong>${escapeHtml(project.green_space_name)}</strong></td>
+      <td>${escapeHtml(project.participant_name)}</td>
+      <td>${escapeHtml(project.public_code)}</td>
+      <td>${Number(project.entry_count || 0)}</td>
+      <td>${project.latest_entry_at ? formatDate(project.latest_entry_at) : "Project setup"}</td>
+    </tr>
+  `).join("") || '<tr><td colspan="5">No green spaces match this search.</td></tr>';
 }
 
 function focusFromList(event) {

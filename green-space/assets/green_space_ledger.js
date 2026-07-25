@@ -2,7 +2,11 @@ import { loadLedger, publicPhotoUrl } from "./green_space_api.js";
 
 const state = {
   rows: [],
-  filtered: []
+  filtered: [],
+  page: 1,
+  pageSize: 50,
+  sortKey: "date",
+  sortDirection: "desc"
 };
 
 const els = {
@@ -13,6 +17,9 @@ const els = {
   count: document.getElementById("girlsLedgerCount"),
   rows: document.getElementById("girlsLedgerRows"),
   status: document.getElementById("girlsLedgerStatus"),
+  previous: document.getElementById("girlsLedgerPrevious"),
+  next: document.getElementById("girlsLedgerNext"),
+  pageStatus: document.getElementById("girlsLedgerPageStatus"),
   dialog: document.getElementById("girlsEntryDialog"),
   close: document.getElementById("girlsCloseEntry"),
   entryType: document.getElementById("girlsEntryType"),
@@ -27,6 +34,11 @@ document.addEventListener("DOMContentLoaded", initialise, { once: true });
 async function initialise() {
   [els.search, els.type, els.week].forEach((control) => control.addEventListener("input", applyFilters));
   els.export.addEventListener("click", exportCsv);
+  els.previous.addEventListener("click", () => changePage(-1));
+  els.next.addEventListener("click", () => changePage(1));
+  document.querySelectorAll("[data-ledger-sort]").forEach((button) => {
+    button.addEventListener("click", () => changeSort(button.dataset.ledgerSort));
+  });
   els.rows.addEventListener("click", openFromRow);
   els.rows.addEventListener("keydown", openFromRow);
   els.close.addEventListener("click", closeDialog);
@@ -58,15 +70,25 @@ function applyFilters() {
       previewText(row),
       row.location_description
     ].some((value) => clean(value).toLowerCase().includes(query));
-  });
+  }).sort(compareRows);
+  state.page = 1;
   renderRows();
 }
 
 function renderRows() {
+  const pageCount = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+  state.page = Math.min(state.page, pageCount);
+  const start = (state.page - 1) * state.pageSize;
+  const pageRows = state.filtered.slice(start, start + state.pageSize);
   els.count.textContent = `${state.filtered.length} ${state.filtered.length === 1 ? "entry" : "entries"}`;
   els.export.disabled = !state.filtered.length;
-  els.rows.innerHTML = state.filtered.map((row, index) => `
-    <tr tabindex="0" data-row-index="${index}" aria-label="Open ${escapeAttribute(entryLabel(row.entry_type))} for ${escapeAttribute(row.green_space_name)}">
+  els.previous.disabled = state.page <= 1;
+  els.next.disabled = state.page >= pageCount;
+  els.pageStatus.textContent = state.filtered.length
+    ? `Rows ${start + 1}-${Math.min(start + state.pageSize, state.filtered.length)} of ${state.filtered.length}`
+    : "No rows";
+  els.rows.innerHTML = pageRows.map((row, index) => `
+    <tr tabindex="0" data-row-index="${start + index}" aria-label="Open ${escapeAttribute(entryLabel(row.entry_type))} for ${escapeAttribute(row.green_space_name)}">
       <td>${escapeHtml(formatDate(row.observed_on || row.created_at))}</td>
       <td>${escapeHtml(row.participant_name)}</td>
       <td><strong>${escapeHtml(row.green_space_name)}</strong></td>
@@ -80,6 +102,63 @@ function renderRows() {
   els.status.textContent = state.filtered.length
     ? "Select a row to read the complete entry."
     : "No entries to display.";
+  renderSortState();
+}
+
+function changePage(delta) {
+  const pageCount = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+  state.page = Math.max(1, Math.min(pageCount, state.page + delta));
+  renderRows();
+}
+
+function changeSort(key) {
+  if (!key) return;
+  if (state.sortKey === key) {
+    state.sortDirection = state.sortDirection === "asc" ? "desc" : "asc";
+  } else {
+    state.sortKey = key;
+    state.sortDirection = key === "date" ? "desc" : "asc";
+  }
+  state.filtered.sort(compareRows);
+  state.page = 1;
+  renderRows();
+}
+
+function compareRows(first, second) {
+  const firstValue = sortValue(first, state.sortKey);
+  const secondValue = sortValue(second, state.sortKey);
+  let result;
+  if (typeof firstValue === "number" && typeof secondValue === "number") {
+    result = firstValue - secondValue;
+  } else {
+    result = String(firstValue).localeCompare(String(secondValue), "en", {
+      numeric: true,
+      sensitivity: "base"
+    });
+  }
+  if (!result) {
+    result = String(first.created_at || "").localeCompare(String(second.created_at || ""));
+  }
+  return state.sortDirection === "asc" ? result : -result;
+}
+
+function sortValue(row, key) {
+  if (key === "date") return Date.parse(row.observed_on || row.created_at || "") || 0;
+  if (key === "week_number") return Number(row.week_number || 0);
+  if (key === "photo_path") return row.photo_path ? 1 : 0;
+  if (key === "entry_type") return entryLabel(row.entry_type);
+  return clean(row[key]);
+}
+
+function renderSortState() {
+  document.querySelectorAll("[data-ledger-sort]").forEach((button) => {
+    const active = button.dataset.ledgerSort === state.sortKey;
+    const header = button.closest("th");
+    button.classList.toggle("is-sorted", active);
+    button.dataset.direction = active ? state.sortDirection : "";
+    if (active) header?.setAttribute("aria-sort", state.sortDirection === "asc" ? "ascending" : "descending");
+    else header?.removeAttribute("aria-sort");
+  });
 }
 
 function openFromRow(event) {
@@ -199,7 +278,7 @@ function exportCsv() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `girls-reflection-ledger-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.download = `green-space-reflection-ledger-${new Date().toISOString().slice(0, 10)}.csv`;
   document.body.append(link);
   link.click();
   link.remove();
