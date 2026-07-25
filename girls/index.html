@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#176b52">
   <meta name="description" content="GIRLS green-space observation and reflection form.">
-  <title>Green Space Reflection - GIRLS</title>
+  <title>Green Space Log - GIRLS</title>
   <link rel="stylesheet" href="./assets/girls.css">
 </head>
 <body>
@@ -38,17 +38,17 @@
 
   <main class="girls-main girls-form-main">
     <header class="girls-page-heading">
-      <p class="girls-eyebrow">Six-week observation project</p>
-      <h1>Green Space Reflection</h1>
+      <p class="girls-eyebrow">Six-week observation and reflection</p>
+      <h1>Green Space Log</h1>
     </header>
 
     <form id="girlsReflectionForm" class="girls-form" novalidate>
       <fieldset class="girls-mode-picker">
         <legend>What are you recording?</legend>
         <div class="girls-mode-options">
-          <button type="button" class="is-active" data-entry-mode="project" aria-pressed="true">Start project</button>
+          <button type="button" class="is-active" data-entry-mode="project" aria-pressed="true">Preliminaries</button>
           <button type="button" data-entry-mode="observation" aria-pressed="false">Observation</button>
-          <button type="button" data-entry-mode="weekly_reflection" aria-pressed="false">Weekly reflection</button>
+          <button type="button" data-entry-mode="weekly_reflection" aria-pressed="false">Distil + haiku</button>
           <button type="button" data-entry-mode="final_reflection" aria-pressed="false">Final reflection</button>
         </div>
       </fieldset>
@@ -117,7 +117,7 @@
       </section>
 
       <section class="girls-form-section" data-mode-panel="weekly_reflection" hidden>
-        <h2>Weekly distillation</h2>
+        <h2>Distil and draft a haiku</h2>
         <label class="girls-field girls-week-field">
           <span>Week</span>
           <select id="girlsReflectionWeek">
@@ -129,6 +129,19 @@
           <span>What stood out this week?</span>
           <textarea id="girlsWeeklyReflection" rows="8" maxlength="4000" placeholder="Distil what you noticed across your visits and connect it to your intention where useful."></textarea>
         </label>
+        <label class="girls-field">
+          <span>Draft a haiku</span>
+          <textarea id="girlsWeeklyHaiku" class="girls-haiku-input" rows="4" maxlength="1000" placeholder="A present-moment image from your green space"></textarea>
+        </label>
+        <details class="girls-haiku-guide">
+          <summary>Haiku guide</summary>
+          <ul>
+            <li>Use a clear present-moment observation from nature.</li>
+            <li>Draw on the senses and keep the language simple.</li>
+            <li>One to three lines and usually fewer than 17 syllables works well.</li>
+            <li>It does not need to follow 5-7-5.</li>
+          </ul>
+        </details>
       </section>
 
       <section class="girls-form-section" data-mode-panel="final_reflection" hidden>
@@ -136,6 +149,24 @@
           <h2>Week 8 synthesis</h2>
           <span id="girlsFinalWordCount" class="girls-word-count">0 words</span>
         </div>
+        <section class="girls-final-review" aria-labelledby="girlsFinalReviewHeading">
+          <h3 id="girlsFinalReviewHeading">Review your six weeks</h3>
+          <p id="girlsFinalReviewStatus">Select your green space to review its distillations and haiku.</p>
+          <div id="girlsFinalReviewList" class="girls-review-list"></div>
+        </section>
+        <label class="girls-field">
+          <span>Favourite haiku</span>
+          <textarea id="girlsFavouriteHaiku" class="girls-haiku-input" rows="4" maxlength="1000" placeholder="Choose one above or enter it here"></textarea>
+        </label>
+        <label class="girls-field">
+          <span>Reflection format</span>
+          <select id="girlsFinalFormat">
+            <option value="classic_reflection">Classic reflection</option>
+            <option value="prose">Prose</option>
+            <option value="haibun">Haibun - prose with a concluding haiku</option>
+            <option value="other_artistic_medium">Other artistic medium</option>
+          </select>
+        </label>
         <label class="girls-field">
           <span>Synthesis of observations</span>
           <textarea id="girlsSynthesis" rows="5" maxlength="5000"></textarea>
@@ -148,7 +179,7 @@
           <span>Overall reflection</span>
           <textarea id="girlsOverallReflection" rows="5" maxlength="5000"></textarea>
         </label>
-        <small>The assignment guide is 200-300 words across these three fields.</small>
+        <small>The assignment guide is 200-300 words across these three reflection fields.</small>
       </section>
 
       <section id="girlsLocationTools" class="girls-form-section girls-tools-section">
@@ -189,7 +220,7 @@
       <label class="girls-honeypot" aria-hidden="true">Website<input id="girlsWebsite" type="text" tabindex="-1" autocomplete="off"></label>
 
       <div class="girls-submit-row">
-        <button id="girlsSubmit" class="girls-primary-action" type="submit">Save project</button>
+        <button id="girlsSubmit" class="girls-primary-action" type="submit">Start my log</button>
         <span id="girlsFormStatus" class="girls-form-status" role="status" aria-live="polite"></span>
       </div>
     </form>

@@ -136,9 +136,14 @@ function contentSections(row) {
     return [{ label: "Observations", value: row.observations }];
   }
   if (row.entry_type === "weekly_reflection") {
-    return [{ label: "Weekly distillation", value: row.weekly_reflection }];
+    return [
+      { label: "Weekly distillation", value: row.weekly_reflection },
+      { label: "Haiku", value: row.haiku }
+    ];
   }
   return [
+    { label: "Favourite haiku", value: row.favourite_haiku },
+    { label: "Reflection format", value: finalFormatLabel(row.final_format) },
     { label: "Synthesis of observations", value: row.synthesis },
     { label: "Key learnings", value: row.key_learnings },
     { label: "Overall reflection", value: row.overall_reflection }
@@ -151,8 +156,8 @@ function previewText(row) {
     : row.entry_type === "observation"
       ? row.observations
       : row.entry_type === "weekly_reflection"
-        ? row.weekly_reflection
-        : row.synthesis;
+        ? row.haiku || row.weekly_reflection
+        : row.favourite_haiku || row.synthesis;
   const text = clean(value).replace(/\s+/g, " ");
   return text.length > 120 ? `${text.slice(0, 117)}...` : text || "-";
 }
@@ -162,8 +167,9 @@ function exportCsv() {
   const headers = [
     "Date", "Student", "Green space", "Project code", "Entry type", "Week",
     "Start time", "Finish time", "GPS", "Intentions", "Location description",
-    "Visit schedule", "Observations", "Weekly reflection", "Synthesis",
-    "Key learnings", "Overall reflection", "Photo URL"
+    "Visit schedule", "Observations", "Weekly distillation", "Haiku",
+    "Favourite haiku", "Reflection format", "Synthesis", "Key learnings",
+    "Overall reflection", "Photo URL"
   ];
   const rows = state.filtered.map((row) => [
     row.observed_on || row.created_at,
@@ -180,6 +186,9 @@ function exportCsv() {
     row.visit_schedule || "",
     row.observations || "",
     row.weekly_reflection || "",
+    row.haiku || "",
+    row.favourite_haiku || "",
+    finalFormatLabel(row.final_format),
     row.synthesis || "",
     row.key_learnings || "",
     row.overall_reflection || "",
@@ -205,9 +214,18 @@ function entryLabel(type) {
   return {
     project: "Project setup",
     observation: "Observation",
-    weekly_reflection: "Weekly reflection",
+    weekly_reflection: "Distillation + haiku",
     final_reflection: "Final reflection"
   }[type] || type || "-";
+}
+
+function finalFormatLabel(value) {
+  return {
+    classic_reflection: "Classic reflection",
+    prose: "Prose",
+    haibun: "Haibun",
+    other_artistic_medium: "Other artistic medium"
+  }[value] || value || "";
 }
 
 function timeRange(row) {

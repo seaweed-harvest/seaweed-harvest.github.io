@@ -1,4 +1,4 @@
-import { loadProjects, submitGirlsRecord } from "./girls_api.js";
+import { loadLedger, loadProjects, submitGirlsRecord } from "./girls_api.js";
 
 const LAST_PROJECT_KEY = "girls:last-project-id";
 const CLIENT_TOKEN_KEY = "girls:client-token";
@@ -9,6 +9,8 @@ const PHOTO_MAX_EDGE = 1920;
 const state = {
   mode: "project",
   projects: [],
+  ledger: null,
+  finalReviewRows: [],
   photoDataUrl: null,
   gps: null,
   submitting: false
@@ -24,7 +26,8 @@ async function initialise() {
     "girlsParticipantName", "girlsGreenSpaceName", "girlsIntentions", "girlsLocationDescription",
     "girlsVisitSchedule", "girlsObservationWeek", "girlsObservationDate", "girlsStartTime",
     "girlsEndTime", "girlsObservationNotes", "girlsReflectionWeek", "girlsWeeklyReflection",
-    "girlsSynthesis", "girlsKeyLearnings", "girlsOverallReflection", "girlsFinalWordCount",
+    "girlsWeeklyHaiku", "girlsFinalReviewStatus", "girlsFinalReviewList", "girlsFavouriteHaiku",
+    "girlsFinalFormat", "girlsSynthesis", "girlsKeyLearnings", "girlsOverallReflection", "girlsFinalWordCount",
     "girlsLocationTools", "girlsCaptureGps", "girlsCaptureGpsLabel", "girlsGpsReadout", "girlsLatitude", "girlsLongitude",
     "girlsPhotoTools", "girlsPhoto", "girlsPhotoPreview", "girlsPhotoPreviewImage", "girlsRemovePhoto",
     "girlsPublicConsent", "girlsWebsite", "girlsSubmit", "girlsFormStatus", "girlsSuccessDialog",
@@ -39,6 +42,13 @@ async function initialise() {
   els.girlsCaptureGps.addEventListener("click", captureGps);
   els.girlsPhoto.addEventListener("change", selectPhoto);
   els.girlsRemovePhoto.addEventListener("click", clearPhoto);
+  els.girlsProjectPicker.addEventListener("change", () => {
+    if (els.girlsProjectPicker.value) {
+      localStorage.setItem(LAST_PROJECT_KEY, els.girlsProjectPicker.value);
+    }
+    if (state.mode === "final_reflection") renderFinalReview();
+  });
+  els.girlsFinalReviewList.addEventListener("click", selectFavouriteHaiku);
   els.girlsReflectionForm.addEventListener("submit", submitForm);
   els.girlsCloseSuccess.addEventListener("click", closeSuccessDialog);
   els.girlsAddAnother.addEventListener("click", addAnotherEntry);
@@ -98,11 +108,12 @@ function setMode(mode) {
   els.girlsLocationTools.hidden = !["project", "observation"].includes(mode);
   els.girlsPhotoTools.hidden = !["project", "observation"].includes(mode);
   els.girlsSubmit.textContent = {
-    project: "Save project",
-    observation: "Save observation",
-    weekly_reflection: "Save weekly reflection",
+    project: "Start my log",
+    observation: "Log observation",
+    weekly_reflection: "Save distillation + haiku",
     final_reflection: "Save final reflection"
   }[mode];
+  if (mode === "final_reflection") renderFinalReview();
   setStatus("");
 }
 
@@ -183,6 +194,7 @@ async function submitForm(event) {
     els.girlsSubmit.disabled = true;
     setStatus("Saving...");
     const result = await submitGirlsRecord(payload);
+    if (state.mode !== "project") state.ledger = null;
     if (state.mode === "project" && result.project?.id) {
       localStorage.setItem(LAST_PROJECT_KEY, result.project.id);
       await refreshProjects(result.project.id);
@@ -248,12 +260,15 @@ function buildPayload() {
     return {
       ...payload,
       week_number: Number(els.girlsReflectionWeek.value),
-      weekly_reflection: required(els.girlsWeeklyReflection, "Write the weekly distillation.")
+      weekly_reflection: required(els.girlsWeeklyReflection, "Write the weekly distillation."),
+      haiku: required(els.girlsWeeklyHaiku, "Draft a haiku from this week's observations.")
     };
   }
   return {
     ...payload,
     week_number: 8,
+    favourite_haiku: required(els.girlsFavouriteHaiku, "Choose or enter a favourite haiku."),
+    final_format: required(els.girlsFinalFormat, "Select the final reflection format."),
     synthesis: required(els.girlsSynthesis, "Write the synthesis of observations."),
     key_learnings: required(els.girlsKeyLearnings, "Write the key learnings and examples."),
     overall_reflection: required(els.girlsOverallReflection, "Write the overall reflection.")
@@ -280,12 +295,60 @@ function resetAfterSave() {
     els.girlsEndTime.value = "";
   } else if (state.mode === "weekly_reflection") {
     els.girlsWeeklyReflection.value = "";
+    els.girlsWeeklyHaiku.value = "";
   } else {
+    els.girlsFavouriteHaiku.value = "";
+    els.girlsFinalFormat.value = "classic_reflection";
     els.girlsSynthesis.value = "";
     els.girlsKeyLearnings.value = "";
     els.girlsOverallReflection.value = "";
     renderWordCount();
   }
+}
+
+async function renderFinalReview() {
+  const projectId = els.girlsProjectPicker.value;
+  state.finalReviewRows = [];
+  els.girlsFinalReviewList.innerHTML = "";
+  if (!projectId) {
+    els.girlsFinalReviewStatus.textContent = "Select your green space to review its distillations and haiku.";
+    return;
+  }
+
+  els.girlsFinalReviewStatus.textContent = "Loading your six-week review...";
+  try {
+    if (!state.ledger) state.ledger = await loadLedger();
+    if (state.mode !== "final_reflection" || els.girlsProjectPicker.value !== projectId) return;
+    state.finalReviewRows = state.ledger
+      .filter((row) => row.green_space_id === projectId && row.entry_type === "weekly_reflection")
+      .sort((a, b) => Number(a.week_number || 0) - Number(b.week_number || 0));
+    if (!state.finalReviewRows.length) {
+      els.girlsFinalReviewStatus.textContent = "No weekly distillations or haiku have been saved yet.";
+      return;
+    }
+    els.girlsFinalReviewStatus.textContent = `${state.finalReviewRows.length} of 6 weekly entries available.`;
+    els.girlsFinalReviewList.innerHTML = state.finalReviewRows.map((row, index) => `
+      <article class="girls-review-row">
+        <header>
+          <strong>Week ${escapeHtml(row.week_number)}</strong>
+          ${row.haiku ? `<button type="button" data-favourite-haiku="${index}">Use as favourite</button>` : ""}
+        </header>
+        <p>${escapeHtml(row.weekly_reflection || "No distillation recorded.")}</p>
+        ${row.haiku ? `<blockquote>${escapeHtml(row.haiku)}</blockquote>` : ""}
+      </article>
+    `).join("");
+  } catch (error) {
+    els.girlsFinalReviewStatus.textContent = error.message || "The weekly review could not be loaded.";
+  }
+}
+
+function selectFavouriteHaiku(event) {
+  const button = event.target.closest("[data-favourite-haiku]");
+  if (!button) return;
+  const row = state.finalReviewRows[Number(button.dataset.favouriteHaiku)];
+  if (!row?.haiku) return;
+  els.girlsFavouriteHaiku.value = row.haiku;
+  els.girlsFavouriteHaiku.focus();
 }
 
 function showSuccess(result) {
