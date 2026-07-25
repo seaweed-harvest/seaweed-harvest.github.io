@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Reef Nursery - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/reef_nursery.css?v=6">
+  <link rel="stylesheet" href="./assets/css/reef_nursery.css?v=7">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -160,26 +160,14 @@
           <section id="reefSeaweedPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefSeaweedTab" data-reef-panel="seaweed" hidden>
             <fieldset>
               <legend>Seaweed Record</legend>
-              <label>Seaweed health
-                <textarea id="reefSeaweedHealth" rows="3" maxlength="500"></textarea>
-              </label>
-              <div class="reef-two-column-grid">
-                <label>Seed weight
-                  <span class="packing-measure-row">
-                    <input id="reefSeedWeight" type="number" min="0" max="100000" step="0.001" inputmode="decimal">
-                    <select id="reefSeedWeightUnit" aria-label="Seed weight unit"><option value="kg">kg</option><option value="g">g</option></select>
-                  </span>
-                </label>
-                <label>Harvest weight
-                  <span class="packing-measure-row">
-                    <input id="reefHarvestWeight" type="number" min="0" max="100000" step="0.001" inputmode="decimal">
-                    <select id="reefHarvestWeightUnit" aria-label="Harvest weight unit"><option value="kg">kg</option><option value="g">g</option></select>
-                  </span>
-                </label>
+              <div class="reef-raft-selection-field">
+                <span class="packing-field-label">Selected rafts</span>
+                <div id="reefSelectedRafts" class="reef-raft-selector">
+                  <label><input type="checkbox" name="reefSelectedRaft" value="1" checked><span>Raft #1</span></label>
+                  <label><input type="checkbox" name="reefSelectedRaft" value="2"><span>Raft #2</span></label>
+                </div>
               </div>
-              <label>Equipment replaced
-                <textarea id="reefEquipmentReplaced" rows="3" maxlength="1000"></textarea>
-              </label>
+              <div id="reefRaftSeaweedRecords" class="reef-raft-seaweed-records"></div>
             </fieldset>
           </section>
 
@@ -298,6 +286,6 @@
     </form>
   </dialog>
   <script type="module" src="./assets/js/admin_page.js?v=27"></script>
-  <script type="module" src="./assets/js/reef_nursery_form.js?v=16"></script>
+  <script type="module" src="./assets/js/reef_nursery_form.js?v=17"></script>
 </body>
 </html>

@@ -17,6 +17,7 @@ const TRAINING_SECTION_KEYS = [
   "mooring_inspection_maintenance",
   "nursery_deployment_recovery"
 ];
+const RAFT_NUMBERS = [1, 2];
 const COMPETENCY_LEVELS = [
   { value: "needs_support", label: "Needs support" },
   { value: "with_supervision", label: "Can complete supervised" },
@@ -31,6 +32,7 @@ const photoState = {
 };
 const trainingDrafts = new Map();
 const competencyDrafts = new Map();
+const raftSeaweedDrafts = new Map();
 let trainingMatrix = [];
 let trainingMatrixEditor = [];
 let submissionId = crypto.randomUUID();
@@ -54,9 +56,8 @@ async function init() {
     "reefTrainingMatrixForm", "reefTrainingMatrixEditor", "reefTrainingMatrixStatus",
     "closeReefTrainingMatrix", "cancelReefTrainingMatrix", "saveReefTrainingMatrix",
     "reefParticipantRows", "reefCompetencyEmpty", "reefCompetencySections",
-    "reefParticipantCount", "addReefParticipant", "reefSeaweedHealth",
-    "reefSeedWeight", "reefSeedWeightUnit", "reefHarvestWeight",
-    "reefHarvestWeightUnit", "reefEquipmentReplaced", "saveReefNursery",
+    "reefParticipantCount", "addReefParticipant", "reefSelectedRafts",
+    "reefRaftSeaweedRecords", "saveReefNursery",
     "submitReefNursery",
     "reefTakePhoto", "reefChoosePhotos", "reefCameraPhoto", "reefGalleryPhotos",
     "reefPhotoStatus", "reefPhotoPreview", "reefDropboxLink", "reefDropboxPending",
@@ -72,6 +73,9 @@ async function init() {
   els.reefParticipantRows.addEventListener("input", handleParticipantInput);
   els.reefParticipantRows.addEventListener("change", handleParticipantInput);
   els.reefParticipantRows.addEventListener("keydown", handleParticipantKeydown);
+  els.reefSelectedRafts.addEventListener("change", handleSelectedRaftsChange);
+  els.reefRaftSeaweedRecords.addEventListener("input", captureRaftSeaweedDrafts);
+  els.reefRaftSeaweedRecords.addEventListener("change", captureRaftSeaweedDrafts);
   els.reefSessionTypes.addEventListener("change", handleSessionTypesChange);
   els.reefTrainingSections.addEventListener("change", updateTrainingDraft);
   els.reefTrainingSections.addEventListener("input", updateTrainingDraft);
@@ -140,6 +144,7 @@ function initializeNewRecord() {
   els.reefParticipantRows.replaceChildren();
   competencyDrafts.clear();
   addParticipantRow();
+  resetRaftSeaweedRecords();
   handleSessionTypesChange();
   updateFieldHighlights();
 }
@@ -147,7 +152,7 @@ function initializeNewRecord() {
 async function loadRecord(sessionId) {
   setStatus("Loading Reef Nursery record...");
   setSaveActionsDisabled(true);
-  const { data, error } = await authClient.rpc("ag_reef_nursery_session_detail_v2", {
+  const { data, error } = await authClient.rpc("ag_reef_nursery_session_detail_v3", {
     p_session_id: sessionId
   });
   if (error || !data) {
@@ -190,13 +195,7 @@ async function loadRecord(sessionId) {
   if (!els.reefParticipantRows.rows.length) addParticipantRow();
   loadCompetencyDrafts(data.practical_competencies);
 
-  const seaweed = data.seaweed || {};
-  els.reefSeaweedHealth.value = seaweed.seaweed_health || "";
-  els.reefSeedWeight.value = seaweed.seed_weight_value ?? "";
-  els.reefSeedWeightUnit.value = seaweed.seed_weight_unit || "kg";
-  els.reefHarvestWeight.value = seaweed.harvest_weight_value ?? "";
-  els.reefHarvestWeightUnit.value = seaweed.harvest_weight_unit || "kg";
-  els.reefEquipmentReplaced.value = seaweed.equipment_replaced || "";
+  loadRaftSeaweedRecords(data.raft_seaweed_records, data.seaweed);
 
   photoState.files = [];
   photoState.existing = await Promise.all((Array.isArray(data.photos) ? data.photos : []).map(async (photo) => {
@@ -355,6 +354,161 @@ function participantRowHasValue(row) {
 function updateParticipantCount() {
   const count = [...els.reefParticipantRows.rows].filter(participantRowHasValue).length;
   els.reefParticipantCount.textContent = `${count} ${count === 1 ? "participant" : "participants"}`;
+}
+
+function emptyRaftSeaweedDraft(raftNumber) {
+  return {
+    raft_number: raftNumber,
+    seaweed_health: "",
+    seed_weight_value: "",
+    seed_weight_unit: "kg",
+    harvest_weight_value: "",
+    harvest_weight_unit: "kg",
+    equipment_replaced: ""
+  };
+}
+
+function resetRaftSeaweedRecords(selectedRafts = [1]) {
+  raftSeaweedDrafts.clear();
+  RAFT_NUMBERS.forEach((raftNumber) => {
+    raftSeaweedDrafts.set(raftNumber, emptyRaftSeaweedDraft(raftNumber));
+  });
+  els.reefSelectedRafts.querySelectorAll('[name="reefSelectedRaft"]').forEach((control) => {
+    control.checked = selectedRafts.includes(Number(control.value));
+  });
+  renderRaftSeaweedRecords({ capture: false });
+}
+
+function loadRaftSeaweedRecords(value, legacySeaweed = {}) {
+  const records = (Array.isArray(value) ? value : [])
+    .filter((record) => RAFT_NUMBERS.includes(Number(record?.raft_number)));
+  const legacyHasValue = [
+    "seaweed_health",
+    "seed_weight_value",
+    "harvest_weight_value",
+    "equipment_replaced"
+  ].some((field) => legacySeaweed?.[field] !== null
+    && legacySeaweed?.[field] !== undefined
+    && String(legacySeaweed[field]).trim() !== "");
+  const source = records.length
+    ? records
+    : (legacyHasValue ? [{ raft_number: 1, ...legacySeaweed }] : []);
+
+  raftSeaweedDrafts.clear();
+  RAFT_NUMBERS.forEach((raftNumber) => {
+    const saved = source.find((record) => Number(record.raft_number) === raftNumber) || {};
+    raftSeaweedDrafts.set(raftNumber, {
+      raft_number: raftNumber,
+      seaweed_health: saved.seaweed_health || "",
+      seed_weight_value: saved.seed_weight_value ?? "",
+      seed_weight_unit: saved.seed_weight_unit || "kg",
+      harvest_weight_value: saved.harvest_weight_value ?? "",
+      harvest_weight_unit: saved.harvest_weight_unit || "kg",
+      equipment_replaced: saved.equipment_replaced || ""
+    });
+  });
+
+  const selectedRafts = source.length
+    ? source.map((record) => Number(record.raft_number))
+    : [1];
+  els.reefSelectedRafts.querySelectorAll('[name="reefSelectedRaft"]').forEach((control) => {
+    control.checked = selectedRafts.includes(Number(control.value));
+  });
+  renderRaftSeaweedRecords({ capture: false });
+}
+
+function selectedRaftNumbers() {
+  return [...els.reefSelectedRafts.querySelectorAll('[name="reefSelectedRaft"]:checked')]
+    .map((control) => Number(control.value))
+    .filter((raftNumber) => RAFT_NUMBERS.includes(raftNumber))
+    .sort((left, right) => left - right);
+}
+
+function handleSelectedRaftsChange() {
+  captureRaftSeaweedDrafts();
+  renderRaftSeaweedRecords({ capture: false });
+}
+
+function captureRaftSeaweedDrafts() {
+  els.reefRaftSeaweedRecords.querySelectorAll("[data-raft-seaweed-record]").forEach((record) => {
+    const raftNumber = Number(record.dataset.raftSeaweedRecord);
+    if (!RAFT_NUMBERS.includes(raftNumber)) return;
+    const field = (name) => record.querySelector(`[data-raft-field="${name}"]`);
+    raftSeaweedDrafts.set(raftNumber, {
+      raft_number: raftNumber,
+      seaweed_health: field("seaweed_health").value,
+      seed_weight_value: field("seed_weight_value").value,
+      seed_weight_unit: field("seed_weight_unit").value,
+      harvest_weight_value: field("harvest_weight_value").value,
+      harvest_weight_unit: field("harvest_weight_unit").value,
+      equipment_replaced: field("equipment_replaced").value
+    });
+  });
+}
+
+function renderRaftSeaweedRecords({ capture = true } = {}) {
+  if (capture) captureRaftSeaweedDrafts();
+  const selectedRafts = selectedRaftNumbers();
+  if (!selectedRafts.length) {
+    els.reefRaftSeaweedRecords.innerHTML =
+      '<p class="reef-training-empty">Select a raft to enter a Seaweed Record.</p>';
+    return;
+  }
+
+  els.reefRaftSeaweedRecords.innerHTML = selectedRafts.map((raftNumber) => {
+    const draft = raftSeaweedDrafts.get(raftNumber)
+      || emptyRaftSeaweedDraft(raftNumber);
+    return `
+      <section class="reef-raft-seaweed-record" data-raft-seaweed-record="${raftNumber}">
+        <h3>Raft #${raftNumber}</h3>
+        <label>Seaweed health
+          <textarea rows="3" maxlength="500" data-raft-field="seaweed_health"
+            placeholder="e.g. Firm green growth with clean tips; note fouling, grazing, damage or disease.">${escapeHtml(draft.seaweed_health)}</textarea>
+        </label>
+        <div class="reef-two-column-grid">
+          <label>Seed weight
+            <span class="packing-measure-row">
+              <input type="number" min="0" max="100000" step="0.001" inputmode="decimal"
+                data-raft-field="seed_weight_value" value="${escapeHtml(draft.seed_weight_value)}">
+              <select data-raft-field="seed_weight_unit" aria-label="Raft #${raftNumber} seed weight unit">
+                <option value="kg" ${draft.seed_weight_unit === "kg" ? "selected" : ""}>kg</option>
+                <option value="g" ${draft.seed_weight_unit === "g" ? "selected" : ""}>g</option>
+              </select>
+            </span>
+          </label>
+          <label>Harvest weight
+            <span class="packing-measure-row">
+              <input type="number" min="0" max="100000" step="0.001" inputmode="decimal"
+                data-raft-field="harvest_weight_value" value="${escapeHtml(draft.harvest_weight_value)}">
+              <select data-raft-field="harvest_weight_unit" aria-label="Raft #${raftNumber} harvest weight unit">
+                <option value="kg" ${draft.harvest_weight_unit === "kg" ? "selected" : ""}>kg</option>
+                <option value="g" ${draft.harvest_weight_unit === "g" ? "selected" : ""}>g</option>
+              </select>
+            </span>
+          </label>
+        </div>
+        <label>Equipment replaced
+          <textarea rows="3" maxlength="1000" data-raft-field="equipment_replaced">${escapeHtml(draft.equipment_replaced)}</textarea>
+        </label>
+      </section>`;
+  }).join("");
+}
+
+function collectRaftSeaweedRecords() {
+  captureRaftSeaweedDrafts();
+  return selectedRaftNumbers().map((raftNumber) => {
+    const draft = raftSeaweedDrafts.get(raftNumber)
+      || emptyRaftSeaweedDraft(raftNumber);
+    return {
+      raft_number: raftNumber,
+      seaweed_health: textOrNull(draft.seaweed_health),
+      seed_weight_value: numberOrNull(draft.seed_weight_value),
+      seed_weight_unit: draft.seed_weight_unit || "kg",
+      harvest_weight_value: numberOrNull(draft.harvest_weight_value),
+      harvest_weight_unit: draft.harvest_weight_unit || "kg",
+      equipment_replaced: textOrNull(draft.equipment_replaced)
+    };
+  });
 }
 
 async function loadTrainingMatrix() {
@@ -949,18 +1103,19 @@ async function persistSession(record, { submitAndReset }) {
       p_seaweed_record: record.seaweed,
       p_photos: uploadedPhotos.map((photo) => photo.manifest),
       p_training_delivered: record.trainingDelivered,
-      p_practical_competencies: record.practicalCompetencies
+      p_practical_competencies: record.practicalCompetencies,
+      p_raft_records: record.raftRecords
     };
 
     let rpcName;
     if (savingDraft) {
-      rpcName = "ag_save_reef_nursery_draft";
+      rpcName = "ag_save_reef_nursery_draft_v2";
       rpcPayload.p_session_id = editingSessionId;
       rpcPayload.p_submission_id = submissionId;
     } else {
       rpcName = editingSessionId
-        ? "ag_update_reef_nursery_session"
-        : "ag_submit_reef_nursery_session";
+        ? "ag_update_reef_nursery_session_v2"
+        : "ag_submit_reef_nursery_session_v2";
       if (editingSessionId) rpcPayload.p_session_id = editingSessionId;
       else rpcPayload.p_submission_id = submissionId;
     }
@@ -1084,6 +1239,15 @@ function validatedRecord({ requireComplete = true } = {}) {
     { requireComplete }
   );
   if (practicalCompetencies === null) return null;
+  const raftRecords = collectRaftSeaweedRecords();
+  const primaryRaftRecord = raftRecords[0] || {
+    seaweed_health: null,
+    seed_weight_value: null,
+    seed_weight_unit: "kg",
+    harvest_weight_value: null,
+    harvest_weight_unit: "kg",
+    equipment_replaced: null
+  };
 
   return {
     session: {
@@ -1102,13 +1266,14 @@ function validatedRecord({ requireComplete = true } = {}) {
     trainingDelivered,
     practicalCompetencies,
     seaweed: {
-      seaweed_health: textOrNull(els.reefSeaweedHealth.value),
-      seed_weight_value: numberOrNull(els.reefSeedWeight.value),
-      seed_weight_unit: els.reefSeedWeightUnit.value,
-      harvest_weight_value: numberOrNull(els.reefHarvestWeight.value),
-      harvest_weight_unit: els.reefHarvestWeightUnit.value,
-      equipment_replaced: textOrNull(els.reefEquipmentReplaced.value)
-    }
+      seaweed_health: primaryRaftRecord.seaweed_health,
+      seed_weight_value: primaryRaftRecord.seed_weight_value,
+      seed_weight_unit: primaryRaftRecord.seed_weight_unit,
+      harvest_weight_value: primaryRaftRecord.harvest_weight_value,
+      harvest_weight_unit: primaryRaftRecord.harvest_weight_unit,
+      equipment_replaced: primaryRaftRecord.equipment_replaced
+    },
+    raftRecords
   };
 }
 
@@ -1214,6 +1379,7 @@ function clearForm({ preserveStatus = false } = {}) {
   closePhotoViewer();
   renderPhotoPreview();
   addParticipantRow();
+  resetRaftSeaweedRecords();
   handleSessionTypesChange();
   submissionId = crypto.randomUUID();
   updateRecordActions();

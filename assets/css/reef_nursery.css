@@ -348,6 +348,60 @@
   display: none;
 }
 
+.reef-raft-selection-field,
+.reef-raft-seaweed-records,
+.reef-raft-seaweed-record {
+  display: grid;
+  gap: 9px;
+}
+
+.reef-raft-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reef-nursery-form .reef-raft-selector label {
+  min-width: 112px;
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: none;
+}
+
+.reef-nursery-form .reef-raft-selector input {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  min-height: 16px;
+  margin: 0;
+  padding: 0;
+}
+
+.reef-raft-seaweed-record {
+  padding-top: 12px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.reef-raft-seaweed-record h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.reef-raft-seaweed-record textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 0.72;
+}
+
 .reef-training-empty {
   margin: 2px 0;
   color: var(--text-sec);
@@ -1097,6 +1151,15 @@
   .reef-session-type-grid,
   .reef-training-activity-list {
     grid-template-columns: 1fr;
+  }
+
+  .reef-raft-selector {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reef-nursery-form .reef-raft-selector label {
+    min-width: 0;
   }
 
   .reef-form-tabs {
