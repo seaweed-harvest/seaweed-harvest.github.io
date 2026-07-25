@@ -6,7 +6,7 @@ const CATEGORY_CONFIG = {
     rpcType: "process",
     dataKey: "process_records",
     prefix: "todayProcessRecord",
-    colspan: 13,
+    colspan: 12,
     empty: "No process records were recorded on this date."
   },
   "site-sample": {
@@ -270,7 +270,6 @@ function renderProcessRow(row) {
       <td><strong>PR-${escapeHtml(String(row.record_number || "").padStart(5, "0"))}</strong></td>
       <td>${editing ? speciesControl(key, id, draft.species) : escapeHtml(speciesLabel(row.species))}</td>
       <td>${editing ? numberControl(key, id, "received_seaweed_kg", draft.received_seaweed_kg) : escapeHtml(formatNumber(row.received_seaweed_kg))}</td>
-      <td>${editing ? numberControl(key, id, "blended_seaweed_kg", draft.blended_seaweed_kg) : escapeHtml(formatNumber(row.blended_seaweed_kg))}</td>
       <td>${editing ? numberControl(key, id, "wet_pulp_kg", draft.wet_pulp_kg) : escapeHtml(formatNumber(row.wet_pulp_kg))}</td>
       <td>${editing ? numberControl(key, id, "pressed_liquid_l", draft.pressed_liquid_l) : escapeHtml(formatNumber(row.pressed_liquid_l))}</td>
       <td>${editing ? numberControl(key, id, "dry_pulp_kg", draft.dry_pulp_kg) : escapeHtml(formatNumber(row.dry_pulp_kg))}</td>
@@ -535,7 +534,6 @@ function processDraft(row) {
     end_time: shortTime(row.end_time),
     species: row.species || "",
     received_seaweed_kg: nullableValue(row.received_seaweed_kg),
-    blended_seaweed_kg: nullableValue(row.blended_seaweed_kg),
     wet_pulp_kg: nullableValue(row.wet_pulp_kg),
     pressed_liquid_l: nullableValue(row.pressed_liquid_l),
     dry_pulp_kg: nullableValue(row.dry_pulp_kg),
@@ -590,7 +588,6 @@ function serializeDraft(key, row, draft) {
       end_time: draft.end_time,
       species: draft.species,
       received_seaweed_kg: numberOrNull(draft.received_seaweed_kg),
-      blended_seaweed_kg: numberOrNull(draft.blended_seaweed_kg),
       wet_pulp_kg: numberOrNull(draft.wet_pulp_kg),
       pressed_liquid_l: numberOrNull(draft.pressed_liquid_l),
       dry_pulp_kg: numberOrNull(draft.dry_pulp_kg),

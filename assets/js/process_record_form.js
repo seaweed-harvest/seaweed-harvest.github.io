@@ -1,7 +1,6 @@
 import { authClient, requireAdminAccess } from "./auth_client.js";
 import { setupFavoriteFormButton } from "./favorite_forms.js";
 import { selectRows } from "./supabase_client.js";
-import { installSuggestedInput } from "./suggested_input.js";
 
 const PHOTO_BUCKET = "process-record-photos";
 const PHOTO_MAX_BYTES = 700 * 1024;
@@ -13,9 +12,7 @@ const state = {
   access: null,
   submissionId: crypto.randomUUID(),
   photo: null,
-  photoUrl: null,
-  dailyTotalKg: null,
-  receivedSuggestion: null
+  photoUrl: null
 };
 
 document.addEventListener("DOMContentLoaded", init);
@@ -24,8 +21,8 @@ async function init() {
   [
     "processRecordForm", "processRecordNumber", "processRecordedBy", "processDate",
     "processStartTime", "processEndTime", "processSpecies", "processReceivedKg",
-    "processReceivedHint", "useDailyCollectionTotal", "processBlendedKg",
-    "processWetPulpKg", "processPressedLiquidL", "processDryPulpKg",
+    "processReceivedHint", "processPressedLiquidL", "processPressedLiquidHint",
+    "processWetPulpKg", "processDryPulpKg",
     "processLostSeaweedKg", "processPressCount", "processAveragePress",
     "processWetDryRatio", "processStockProductRatio", "processPhoto",
     "processPhotoHint", "processPhotoPreview", "processPhotoImage", "processPhotoName",
@@ -33,7 +30,6 @@ async function init() {
     "clearProcessRecord", "processRecordStatus", "favoriteProcessForm"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
-  state.receivedSuggestion = installSuggestedInput(els.processReceivedKg);
   state.access = await requireAdminAccess("can_submit_collection");
   if (!state.access) return;
 
@@ -61,8 +57,7 @@ async function init() {
 function bindEvents() {
   els.processRecordForm.addEventListener("submit", submitProcessRecord);
   els.clearProcessRecord.addEventListener("click", clearForm);
-  els.processDate.addEventListener("change", () => loadFormContext({ applySuggestion: true }));
-  els.useDailyCollectionTotal.addEventListener("click", applyDailyTotalSuggestion);
+  els.processDate.addEventListener("change", loadFormContext);
   els.processPhoto.addEventListener("change", selectPhoto);
   els.deleteProcessPhoto.addEventListener("click", clearPhoto);
   els.processRecordForm.addEventListener("input", () => {
@@ -97,34 +92,24 @@ async function loadSpecies() {
   });
 }
 
-async function loadFormContext(options = {}) {
+async function loadFormContext() {
   const { data, error } = await authClient.rpc("ag_process_record_form_context", {
     p_process_date: els.processDate.value || null
   });
   if (error) throw error;
   const context = Array.isArray(data) ? data[0] : data;
-  state.dailyTotalKg = positiveNumber(context?.received_seaweed_total_kg);
+  const dailyTotalKg = positiveNumber(context?.received_seaweed_total_kg);
+  const dailyPressedLiquidL = positiveNumber(context?.pressed_liquid_total_l);
   els.processRecordNumber.textContent = context?.next_record_number
     ? `Next record PR-${String(context.next_record_number).padStart(5, "0")}`
     : "Record number assigned on save";
 
-  if (state.dailyTotalKg !== null) {
-    els.processReceivedHint.textContent = `${formatNumber(state.dailyTotalKg)} kg recorded in Collection for this date.`;
-    els.useDailyCollectionTotal.hidden = false;
-    if (options.applySuggestion !== false && (!els.processReceivedKg.value || state.receivedSuggestion.suggested)) {
-      applyDailyTotalSuggestion();
-    }
-  } else {
-    els.processReceivedHint.textContent = "No collection total available for this date.";
-    els.useDailyCollectionTotal.hidden = true;
-    if (state.receivedSuggestion.suggested) state.receivedSuggestion.set("");
-  }
-}
-
-function applyDailyTotalSuggestion() {
-  if (state.dailyTotalKg === null) return;
-  state.receivedSuggestion.set(String(state.dailyTotalKg));
-  updateCalculations();
+  els.processReceivedHint.textContent = dailyTotalKg === null
+    ? "No collection total available for this date."
+    : `${formatNumber(dailyTotalKg)} kg registered today.`;
+  els.processPressedLiquidHint.textContent = dailyPressedLiquidL === null
+    ? "No stock total available for this date."
+    : `${formatNumber(dailyPressedLiquidL)} L registered today.`;
 }
 
 async function selectPhoto() {
@@ -189,7 +174,6 @@ async function submitProcessRecord(event) {
         species: els.processSpecies.value,
         recorded_by_name: textOrNull(els.processRecordedBy.value),
         received_seaweed_kg: numberOrNull(els.processReceivedKg.value),
-        blended_seaweed_kg: numberOrNull(els.processBlendedKg.value),
         wet_pulp_kg: numberOrNull(els.processWetPulpKg.value),
         pressed_liquid_l: numberOrNull(els.processPressedLiquidL.value),
         dry_pulp_kg: numberOrNull(els.processDryPulpKg.value),
@@ -260,12 +244,11 @@ function clearForm() {
   els.processRecordForm.reset();
   clearPhoto();
   state.submissionId = crypto.randomUUID();
-  state.receivedSuggestion.clear();
   setDefaults();
   els.processRecordedBy.value = recorder;
   setStatus("");
   updateCalculations();
-  void loadFormContext({ applySuggestion: true });
+  void loadFormContext();
 }
 
 function resetAfterSave() {
@@ -276,7 +259,7 @@ function resetAfterSave() {
   setDefaults();
   els.processRecordedBy.value = recorder;
   updateCalculations();
-  void loadFormContext({ applySuggestion: true });
+  void loadFormContext();
 }
 
 async function compressPhoto(file) {
