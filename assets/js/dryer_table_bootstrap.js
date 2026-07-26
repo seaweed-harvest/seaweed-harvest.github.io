@@ -35,7 +35,7 @@ async function initializeDryerTablePage() {
       returnPage: "dryer_table.html"
     });
 
-    await import("./dryer_table_form.js?v=1");
+    await import("./dryer_table_form.js?v=2");
     document.body.removeAttribute("data-auth-pending");
   } catch (error) {
     window.location.replace(`./login.html?error=${encodeURIComponent(error.message)}`);

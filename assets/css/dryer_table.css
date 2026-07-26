@@ -1504,14 +1504,8 @@ input[readonly] {
 .capture-workflow-intro {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
-}
-
-.capture-workflow-intro p {
-  margin: 0;
-  color: var(--text-sec);
-  font-size: 0.8rem;
 }
 
 .capture-phase-tabs {

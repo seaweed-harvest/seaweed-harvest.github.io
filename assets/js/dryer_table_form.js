@@ -1,11 +1,11 @@
-import { DRYING_FORM_CONFIG as CONFIG } from "./dryer_table_config.js?v=1";
+import { DRYING_FORM_CONFIG as CONFIG } from "./dryer_table_config.js?v=2";
 import {
   configurationParts,
   getLocale,
   initDryingLanguage,
   t,
   tableLabel
-} from "./dryer_table_language.js?v=1";
+} from "./dryer_table_language.js?v=2";
 
 const $ = (id) => document.getElementById(id);
 
@@ -799,13 +799,17 @@ function renderWeightSplit(phase) {
   const total = nullableNumber(captureElement(phase, "Weight").value);
   const count = state.selectedBays[phase].length;
   const perBay = splitWeightAcrossBays(total, count);
-  output.textContent = perBay === null
-    ? t("capture.splitHint")
-    : t("capture.splitPreview", {
-      total: displayNumber(total, 5),
-      count,
-      perBay: displayNumber(perBay, 5)
-    });
+  if (perBay === null) {
+    output.textContent = "";
+    output.hidden = true;
+    return;
+  }
+  output.hidden = false;
+  output.textContent = t("capture.splitPreview", {
+    total: displayNumber(total, 5),
+    count,
+    perBay: displayNumber(perBay, 5)
+  });
 }
 
 function clearCaptureCard(phase) {
