@@ -136,15 +136,22 @@ async function syncOutboxItem(savedItem, currentUserId) {
     });
   }
 
-  if (item.farmSizeUpdate && item.mode !== "public") {
-    if (item.aggregatorId && item.ownerUserId) {
-      await callRpc("ag_update_farmer_farm_size_for_aggregator_v1", {
-        ...item.farmSizeUpdate,
-        p_aggregator_id: item.aggregatorId,
-        p_original_user_id: item.ownerUserId
-      });
-    } else {
-      await callRpc("ag_update_farmer_farm_size_from_collection", item.farmSizeUpdate);
+  const farmSizeUpdates = Array.isArray(item.farmSizeUpdates) && item.farmSizeUpdates.length
+    ? item.farmSizeUpdates
+    : item.farmSizeUpdate
+      ? [item.farmSizeUpdate]
+      : [];
+  if (item.mode !== "public") {
+    for (const farmSizeUpdate of farmSizeUpdates) {
+      if (item.aggregatorId && item.ownerUserId) {
+        await callRpc("ag_update_farmer_farm_size_for_aggregator_v1", {
+          ...farmSizeUpdate,
+          p_aggregator_id: item.aggregatorId,
+          p_original_user_id: item.ownerUserId
+        });
+      } else {
+        await callRpc("ag_update_farmer_farm_size_from_collection", farmSizeUpdate);
+      }
     }
   }
   await markOutboxSynced(item.submissionId, result);

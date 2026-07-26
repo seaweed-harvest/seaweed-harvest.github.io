@@ -127,10 +127,14 @@
             <button id="scanFarmerId" type="button" tabindex="-1">Scan</button>
             <span id="farmerLinkStatus" class="status-pill status-hidden"></span>
           </div>
+          <div id="selectedFarmerSummaries" class="selected-farmer-summaries wide-field" aria-live="polite" hidden></div>
           <div class="quick-farmer-reference wide-field">
-            <p><span data-i18n="quick.name">Name:</span> <button id="quickFarmerName" class="quick-farmer-name" type="button" disabled>-</button> <small id="quickFarmerMatchStatus" class="quick-match-status" data-i18n="quick.possibleMatch" hidden>Possible match</small></p>
-            <p><span data-i18n="quick.community">Community:</span> <strong id="quickFarmerCommunity">-</strong></p>
-            <p><span data-i18n="quick.farmSize">Farm size:</span> <strong id="quickFarmerFarmSize">-</strong></p>
+            <div class="quick-farmer-values">
+              <p><span data-i18n="quick.name">Name:</span> <button id="quickFarmerName" class="quick-farmer-name" type="button" disabled>-</button> <small id="quickFarmerMatchStatus" class="quick-match-status" data-i18n="quick.possibleMatch" hidden>Possible match</small></p>
+              <p><span data-i18n="quick.community">Community:</span> <strong id="quickFarmerCommunity">-</strong></p>
+              <p><span data-i18n="quick.farmSize">Farm size:</span> <strong id="quickFarmerFarmSize">-</strong></p>
+            </div>
+            <button id="addAnotherFarmer" class="add-another-farmer" type="button" aria-label="Add another farmer" title="Enter or select a farmer first" disabled>+</button>
           </div>
           <details id="farmerDetails" class="form-details wide-field">
             <summary data-i18n="farmer.detailsSummary">Farmer Detail - Enter Details:</summary>
@@ -193,6 +197,10 @@
             <span data-i18n="harvest.weight">Weight kg</span>
             <input id="sackWeightKg" type="number" min="0" step="0.01" required>
           </label>
+          <details id="individualFarmerWeights" class="form-details individual-farmer-weights wide-field" hidden>
+            <summary data-i18n="farmer.individualWeights">Individual farmer weights</summary>
+            <div id="individualFarmerWeightRows" class="individual-farmer-weight-rows"></div>
+          </details>
           <label>
             <span data-i18n="harvest.seaweedType">Seaweed type (common name)</span>
             <select id="seaweedType">
@@ -357,6 +365,6 @@
   </section>
 
   <script src="./assets/js/vendor/jsQR.js"></script>
-  <script type="module" src="./assets/js/collection_form.js?v=33"></script>
+  <script type="module" src="./assets/js/collection_form.js?v=34"></script>
 </body>
 </html>

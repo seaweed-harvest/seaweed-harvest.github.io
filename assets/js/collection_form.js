@@ -11,7 +11,7 @@ import {
   initCollectionLanguage,
   t,
   unitLabel
-} from "./collection_language.js?v=22";
+} from "./collection_language.js?v=23";
 import {
   clearOfflineCollectionAccess,
   initialiseOfflineStore,
@@ -58,6 +58,8 @@ const state = {
   selectedFarmerPhoneQuery: "",
   pendingFarmer: null,
   pendingFarmerPhoneQuery: "",
+  collectionFarmers: [],
+  currentFarmerWeight: null,
   gps: null,
   collectionPhotos: [],
   activePhotoIndex: null,
@@ -478,6 +480,8 @@ function cacheElements() {
     "scanFarmerId",
     "farmerLinkStatus",
     "farmerDetails",
+    "selectedFarmerSummaries",
+    "addAnotherFarmer",
     "quickFarmerName",
     "quickFarmerMatchStatus",
     "quickFarmerCommunity",
@@ -500,6 +504,8 @@ function cacheElements() {
     "captureGps",
     "gpsSummary",
     "sackWeightKg",
+    "individualFarmerWeights",
+    "individualFarmerWeightRows",
     "seaweedType",
     "seaweedGrade",
     "productForm",
@@ -572,6 +578,7 @@ function bindEvents() {
   els.manualFarmerPhone.addEventListener("input", scheduleFarmerPhoneLookup);
   els.manualFarmerPhone.addEventListener("change", lookupFarmerByPhone);
   els.quickFarmerName.addEventListener("click", acceptPendingFarmerMatch);
+  els.addAnotherFarmer.addEventListener("click", freezeCurrentFarmer);
   els.manualFarmerFarmSize.addEventListener("input", updateQuickReference);
   els.manualFarmerFarmSizeUnit.addEventListener("change", updateQuickReference);
   els.manualCommunityInput.addEventListener("input", syncManualCommunity);
@@ -595,7 +602,11 @@ function bindEvents() {
   });
   els.scanSackId.addEventListener("click", () => startQrScanner("sack"));
   els.captureGps.addEventListener("click", captureGps);
-  els.sackWeightKg.addEventListener("input", updatePrice);
+  els.sackWeightKg.addEventListener("input", () => {
+    updatePrice();
+    renderIndividualFarmerWeights();
+  });
+  els.individualFarmerWeightRows.addEventListener("input", updateIndividualFarmerWeight);
   els.seaweedGrade.addEventListener("change", updatePriceForGrade);
   els.seaweedType.addEventListener("change", updatePriceForGrade);
   els.productForm.addEventListener("change", updatePriceForGrade);
@@ -988,6 +999,7 @@ async function lookupFarmerByPhone() {
   window.clearTimeout(farmerPhoneLookupTimer);
   const phoneValue = String(els.manualFarmerPhone.value || "").trim();
   const query = normalizedPhoneDigits(phoneValue);
+  if (state.selectedFarmer && query === state.selectedFarmerPhoneQuery) return;
   const requestId = ++farmerPhoneLookupRequest;
   if (query.length < FARMER_PHONE_LOOKUP_MIN_DIGITS) return;
 
@@ -1130,6 +1142,218 @@ function updateQuickReference() {
   els.quickFarmerMatchStatus.hidden = !state.pendingFarmer;
   els.quickFarmerCommunity.textContent = communityLabel(community) || "-";
   els.quickFarmerFarmSize.textContent = formatManualFarmSize();
+  updateAddAnotherFarmerState();
+  renderSelectedFarmerSummaries();
+  renderIndividualFarmerWeights();
+}
+
+function currentFarmerDraft() {
+  const farmerName = combinedManualFarmerName() || state.selectedFarmer?.name || "";
+  if (!farmerName || state.pendingFarmer) return null;
+
+  const community = selectedFarmerCommunity() || findCommunityFromText(els.manualCommunityInput.value);
+  const manualCommunityName = normalizedCommunityNameInput(els.manualCommunityInput.value);
+  return {
+    entry_id: "current",
+    farmer_record_id: state.selectedFarmer?.id || null,
+    farmer_id: state.selectedFarmer?.farmer_id || null,
+    farmer_name_snapshot: farmerName,
+    phone_snapshot: nullableText(els.manualFarmerPhone.value),
+    community_record_id: community?.id || null,
+    community_id_snapshot: community?.community_id || nullableText(els.farmerCommunityId.value),
+    community_name_snapshot: community?.community_name || manualCommunityName || null,
+    farm_size_value: nullableNumber(els.manualFarmerFarmSize.value),
+    farm_size_unit: els.manualFarmerFarmSizeUnit.value || "blocks",
+    original_farm_size_value: state.selectedFarmer
+      ? nullableNumber(state.selectedFarmer.farm_size_value)
+      : null,
+    original_farm_size_unit: state.selectedFarmer
+      ? String(state.selectedFarmer.farm_size_unit || "lines").trim() || "lines"
+      : null,
+    weight_kg: state.currentFarmerWeight
+  };
+}
+
+function updateAddAnotherFarmerState() {
+  const canAdd = Boolean(currentFarmerDraft());
+  els.addAnotherFarmer.disabled = !canAdd;
+  els.addAnotherFarmer.title = canAdd
+    ? t("farmer.addAnother")
+    : t("farmer.addAnotherDisabled");
+  els.addAnotherFarmer.setAttribute("aria-label", t("farmer.addAnother"));
+}
+
+function freezeCurrentFarmer() {
+  const farmer = currentFarmerDraft();
+  if (!farmer) return;
+  if (state.collectionFarmers.some((saved) => farmerIdentityKey(saved) === farmerIdentityKey(farmer))) {
+    setStatus(t("farmer.alreadyAdded"), "error");
+    return;
+  }
+
+  state.collectionFarmers.push({
+    ...farmer,
+    entry_id: crypto.randomUUID()
+  });
+  state.currentFarmerWeight = null;
+  clearActiveFarmerEditor();
+  setStatus("");
+  renderSelectedFarmerSummaries();
+  renderIndividualFarmerWeights();
+  els.manualFarmerPhone.focus();
+}
+
+function clearActiveFarmerEditor() {
+  window.clearTimeout(farmerPhoneLookupTimer);
+  farmerPhoneLookupRequest += 1;
+  state.selectedFarmer = null;
+  state.selectedFarmerPhoneQuery = "";
+  clearPendingFarmer();
+  els.farmerId.value = "";
+  clearManualFarmerDetails();
+  setFarmerStatus("");
+  setFarmerPhoneMatchHint("farmer.phoneHint");
+  updateQuickReference();
+}
+
+function renderSelectedFarmerSummaries() {
+  els.selectedFarmerSummaries.replaceChildren();
+  els.selectedFarmerSummaries.hidden = state.collectionFarmers.length === 0;
+
+  state.collectionFarmers.forEach((farmer, index) => {
+    const row = document.createElement("div");
+    row.className = "selected-farmer-summary";
+
+    const details = document.createElement("div");
+    details.className = "selected-farmer-summary-details";
+    details.append(
+      farmerSummaryPart(t("quick.name"), farmer.farmer_name_snapshot || "-"),
+      farmerSummaryPart(
+        t("quick.community"),
+        [farmer.community_id_snapshot, farmer.community_name_snapshot].filter(Boolean).join(" - ") || "-"
+      ),
+      farmerSummaryPart(t("quick.farmSize"), formatFarmSize(farmer))
+    );
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "selected-farmer-remove";
+    remove.textContent = "\u00d7";
+    remove.setAttribute("aria-label", t("farmer.remove", { name: farmer.farmer_name_snapshot }));
+    remove.title = t("farmer.remove", { name: farmer.farmer_name_snapshot });
+    remove.addEventListener("click", () => {
+      state.collectionFarmers.splice(index, 1);
+      renderSelectedFarmerSummaries();
+      renderIndividualFarmerWeights();
+      updateAddAnotherFarmerState();
+    });
+
+    row.append(details, remove);
+    els.selectedFarmerSummaries.append(row);
+  });
+}
+
+function farmerSummaryPart(label, value) {
+  const part = document.createElement("p");
+  const name = document.createElement("span");
+  const detail = document.createElement("strong");
+  name.textContent = `${label} `;
+  detail.textContent = value;
+  part.append(name, detail);
+  return part;
+}
+
+function effectiveCollectionFarmers() {
+  const current = currentFarmerDraft();
+  return current ? [...state.collectionFarmers, current] : [...state.collectionFarmers];
+}
+
+function renderIndividualFarmerWeights() {
+  const farmers = effectiveCollectionFarmers();
+  const shouldShow = farmers.length > 1;
+  els.individualFarmerWeights.hidden = !shouldShow;
+  if (!shouldShow) {
+    els.individualFarmerWeights.open = false;
+    els.individualFarmerWeightRows.replaceChildren();
+    return;
+  }
+
+  const wasOpen = els.individualFarmerWeights.open;
+  els.individualFarmerWeightRows.replaceChildren();
+  farmers.forEach((farmer) => {
+    const label = document.createElement("label");
+    label.className = "individual-farmer-weight-row";
+
+    const name = document.createElement("span");
+    name.textContent = farmer.farmer_name_snapshot;
+
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = "0";
+    input.step = "0.01";
+    input.inputMode = "decimal";
+    input.placeholder = t("common.optional");
+    input.value = farmer.weight_kg ?? "";
+    input.dataset.farmerEntryId = farmer.entry_id;
+    input.setAttribute(
+      "aria-label",
+      t("farmer.weightFor", { name: farmer.farmer_name_snapshot })
+    );
+    label.append(name, input);
+    els.individualFarmerWeightRows.append(label);
+  });
+
+  const status = document.createElement("p");
+  status.id = "individualFarmerWeightStatus";
+  status.className = "individual-farmer-weight-status";
+  els.individualFarmerWeightRows.append(status);
+  els.individualFarmerWeights.open = wasOpen;
+  updateIndividualFarmerWeightStatus();
+}
+
+function updateIndividualFarmerWeight(event) {
+  const input = event.target.closest("[data-farmer-entry-id]");
+  if (!input) return;
+  const value = nullableNumber(input.value);
+  if (input.dataset.farmerEntryId === "current") {
+    state.currentFarmerWeight = value;
+  } else {
+    const farmer = state.collectionFarmers.find((item) => item.entry_id === input.dataset.farmerEntryId);
+    if (farmer) farmer.weight_kg = value;
+  }
+  updateIndividualFarmerWeightStatus();
+}
+
+function updateIndividualFarmerWeightStatus() {
+  const status = document.getElementById("individualFarmerWeightStatus");
+  if (!status) return;
+  const farmers = effectiveCollectionFarmers();
+  const entered = farmers.filter((farmer) => farmer.weight_kg !== null);
+  if (!entered.length) {
+    status.textContent = t("farmer.weightsOptional");
+    status.dataset.status = "";
+    return;
+  }
+
+  const allocated = entered.reduce((total, farmer) => total + Number(farmer.weight_kg || 0), 0);
+  const totalWeight = nullableNumber(els.sackWeightKg.value);
+  status.textContent = totalWeight === null
+    ? t("farmer.weightsAllocated", { allocated: formatCompactNumber(allocated) })
+    : t("farmer.weightsCompared", {
+      allocated: formatCompactNumber(allocated),
+      total: formatCompactNumber(totalWeight)
+    });
+  const complete = entered.length === farmers.length;
+  const balanced = totalWeight !== null && Math.abs(allocated - totalWeight) < 0.005;
+  status.dataset.status = complete && balanced ? "ok" : "check";
+}
+
+function farmerIdentityKey(farmer) {
+  if (farmer.farmer_record_id) return `record:${farmer.farmer_record_id}`;
+  if (farmer.farmer_id) return `id:${String(farmer.farmer_id).toUpperCase()}`;
+  const phone = normalizedPhoneDigits(farmer.phone_snapshot);
+  if (phone.length >= FARMER_PHONE_LOOKUP_MIN_DIGITS) return `phone:${phone}`;
+  return `name:${normalizeCommunitySearchText(farmer.farmer_name_snapshot)}:${normalizeCommunitySearchText(farmer.community_name_snapshot)}`;
 }
 
 function assignNextFarmerId() {
@@ -1724,11 +1948,13 @@ async function submitCollection(event) {
     if (els.collectionPhotosField.dataset.photoRequired === "true" && !state.collectionPhotos.length) {
       throw new Error(t("photos.required"));
     }
-    const payload = buildPayload([]);
+    const farmers = collectionFarmersForSubmission();
+    const payload = buildPayload([], farmers);
     validateCollectionPricing(payload);
     const photos = await prepareSelectedCollectionPhotos();
-    const farmSizeUpdate = pendingFarmSizeUpdate();
-    if (state.publicMode && farmSizeUpdate) {
+    const farmSizeUpdates = pendingFarmSizeUpdates(farmers);
+    if (state.publicMode && farmSizeUpdates.length) {
+      const farmSizeUpdate = farmSizeUpdates[0];
       payload.farm_size_update = {
         value: farmSizeUpdate.p_farm_size_value,
         unit: farmSizeUpdate.p_farm_size_unit
@@ -1745,13 +1971,14 @@ async function submitCollection(event) {
       collectorName: String(els.collectorName.value || "").trim(),
       website: els.collectionWebsite.value,
       payload,
-      farmSizeUpdate: state.publicMode ? null : farmSizeUpdate,
+      farmSizeUpdate: state.publicMode ? null : farmSizeUpdates[0] || null,
+      farmSizeUpdates: state.publicMode ? [] : farmSizeUpdates,
       photos,
       summary: {
         transactionId: payload.transaction_id,
         collectedAt: payload.collected_at,
         community: payload.community_name_snapshot || payload.community_id || "No community",
-        farmer: payload.farmer_name_snapshot || payload.farmer_id || "No farmer",
+        farmer: farmers.map((farmer) => farmer.farmer_name_snapshot).filter(Boolean).join(", ") || "No farmer",
         weightKg: payload.sack_weight_kg,
         grade: payload.grade_code || "Ungraded"
       }
@@ -1845,23 +2072,30 @@ function startNewCollection() {
   els.sackWeightKg.focus();
 }
 
-function buildPayload(photoPaths = []) {
+function buildPayload(photoPaths = [], farmers = collectionFarmersForSubmission()) {
   const communitySelection = validatedCollectionCommunity();
   const community = communitySelection.community;
   const communityName = community?.community_name || communitySelection.name;
   const weight = requiredNumber(els.sackWeightKg.value, t("harvest.weight"));
+  validateIndividualFarmerWeights(farmers, weight);
   const seaweedType = nullableText(els.seaweedType.value) || state.defaultSeaweedType;
   const gradeCode = requiredText(els.seaweedGrade.value, t("harvest.grade")).toUpperCase();
   const ungraded = gradeCode === "UNGRADED";
   const collectedAt = els.collectedAt.value ? new Date(els.collectedAt.value) : new Date();
-  const farmerNameSnapshot = combinedManualFarmerName() || state.selectedFarmer?.name || null;
+  const primaryFarmer = farmers[0] || null;
+  const customFields = customFieldPayload();
+  if (farmers.length) {
+    customFields.collection_farmers = farmers.map(farmerAllocationPayload);
+    customFields.farm_size_value = primaryFarmer.farm_size_value;
+    customFields.farm_size_unit = primaryFarmer.farm_size_unit;
+  }
 
   return {
     collector_name: requiredText(els.collectorName.value, t("collector.name")),
     transaction_id: requiredText(els.transactionId.value, t("harvest.transactionId")),
-    farmer_id: state.selectedFarmer?.farmer_id || null,
-    farmer_record_id: state.selectedFarmer?.id || null,
-    farmer_name_snapshot: farmerNameSnapshot,
+    farmer_id: primaryFarmer?.farmer_id || null,
+    farmer_record_id: primaryFarmer?.farmer_record_id || null,
+    farmer_name_snapshot: primaryFarmer?.farmer_name_snapshot || null,
     community_id: nullableText(community?.community_id),
     community_record_id: community?.id || null,
     community_name_snapshot: communityName,
@@ -1882,8 +2116,47 @@ function buildPayload(photoPaths = []) {
     price_override_reason: nullableText(els.priceOverrideReason.value),
     notes: nullableText(els.collectionNotes.value),
     photo_urls: photoPaths,
-    custom_fields: customFieldPayload()
+    custom_fields: customFields
   };
+}
+
+function collectionFarmersForSubmission() {
+  const farmers = effectiveCollectionFarmers();
+  const identities = new Set();
+  farmers.forEach((farmer) => {
+    const identity = farmerIdentityKey(farmer);
+    if (identities.has(identity)) throw new Error(t("farmer.duplicateError"));
+    identities.add(identity);
+  });
+  return farmers;
+}
+
+function farmerAllocationPayload(farmer) {
+  return {
+    farmer_record_id: farmer.farmer_record_id || null,
+    farmer_id: farmer.farmer_id || null,
+    farmer_name_snapshot: farmer.farmer_name_snapshot,
+    community_record_id: farmer.community_record_id || null,
+    community_id_snapshot: farmer.community_id_snapshot || null,
+    community_name_snapshot: farmer.community_name_snapshot || null,
+    farm_size_value: farmer.farm_size_value,
+    farm_size_unit: farmer.farm_size_unit || null,
+    weight_kg: farmer.weight_kg
+  };
+}
+
+function validateIndividualFarmerWeights(farmers, totalWeight) {
+  if (farmers.length < 2) return;
+  const entered = farmers.filter((farmer) => farmer.weight_kg !== null);
+  if (!entered.length) return;
+  if (entered.length !== farmers.length) throw new Error(t("farmer.weightsCompleteError"));
+  const allocated = entered.reduce((total, farmer) => total + Number(farmer.weight_kg || 0), 0);
+  if (Math.abs(allocated - totalWeight) >= 0.005) {
+    throw new Error(t("farmer.weightsTotalError", {
+      allocated: formatCompactNumber(allocated),
+      total: formatCompactNumber(totalWeight)
+    }));
+  }
 }
 
 function validateCollectionPricing(payload) {
@@ -1914,6 +2187,8 @@ function clearForm(options = {}) {
   state.selectedFarmer = null;
   state.selectedFarmerPhoneQuery = "";
   clearPendingFarmer();
+  state.collectionFarmers = [];
+  state.currentFarmerWeight = null;
   state.gps = null;
   state.collectionPhotos = [];
   state.retakePhotoIndex = null;
@@ -2200,20 +2475,18 @@ function formatManualFarmSize() {
   return `${formatCompactNumber(value)} ${unitLabel(unit)}`;
 }
 
-function pendingFarmSizeUpdate() {
-  if (!state.selectedFarmer) return null;
-
-  const previousValue = nullableNumber(state.selectedFarmer.farm_size_value);
-  const nextValue = nullableNumber(els.manualFarmerFarmSize.value);
-  const previousUnit = String(state.selectedFarmer.farm_size_unit || "lines").trim() || "lines";
-  const nextUnit = String(els.manualFarmerFarmSizeUnit.value || "blocks").trim() || "blocks";
-  if (previousValue === nextValue && previousUnit === nextUnit) return null;
-
-  return {
-    p_farmer_id: state.selectedFarmer.farmer_id,
-    p_farm_size_value: nextValue,
-    p_farm_size_unit: nextUnit
-  };
+function pendingFarmSizeUpdates(farmers) {
+  return farmers
+    .filter((farmer) => farmer.farmer_id && farmer.original_farm_size_unit !== null)
+    .filter((farmer) => (
+      farmer.original_farm_size_value !== farmer.farm_size_value
+      || farmer.original_farm_size_unit !== farmer.farm_size_unit
+    ))
+    .map((farmer) => ({
+      p_farmer_id: farmer.farmer_id,
+      p_farm_size_value: farmer.farm_size_value,
+      p_farm_size_unit: farmer.farm_size_unit
+    }));
 }
 
 function formatCompactNumber(value) {
@@ -2389,6 +2662,13 @@ function applyRuntimeSettings(gradePrices) {
     updateLabelText(label, configuredFieldLabel(setting.field_key, setting.label));
     if (setting.default_value && !control.value) control.value = setting.default_value;
   });
+  const weightField = els.sackWeightKg.closest("label");
+  const weightOrder = Number(weightField?.style.order);
+  if (weightField?.style.order && Number.isFinite(weightOrder)) {
+    els.individualFarmerWeights.style.order = String(weightOrder + 1);
+  } else {
+    els.individualFarmerWeights.style.removeProperty("order");
+  }
 
   els.farmerLinkStatus.closest(".field-status-block").hidden = true;
   document.querySelector(".quick-farmer-reference").hidden = false;
