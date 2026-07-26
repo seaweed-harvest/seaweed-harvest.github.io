@@ -1,4 +1,4 @@
-import { authClient, requireAggregatorAccess } from "./auth_client.js?v=23";
+import { authClient, requireAggregatorAccess } from "./auth_client.js?v=24";
 
 const PAGE_SIZE = 50;
 const state = {

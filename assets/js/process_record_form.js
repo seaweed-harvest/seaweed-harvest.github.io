@@ -1,5 +1,5 @@
 import { authClient, requireAdminAccess } from "./auth_client.js";
-import { setupFavoriteFormButton } from "./favorite_forms.js";
+import { setupFavoriteFormButton } from "./favorite_forms.js?v=2";
 import { selectRows } from "./supabase_client.js";
 
 const PHOTO_BUCKET = "process-record-photos";

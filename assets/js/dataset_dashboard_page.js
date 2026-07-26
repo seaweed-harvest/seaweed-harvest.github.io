@@ -4,7 +4,7 @@ import {
   setupAccountControls
 } from "./auth_client.js?v=23";
 import { dataModeLabel } from "./supabase_client.js";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=8";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=10";
 
 const FARMER_PAGE_SIZE = 50;
 

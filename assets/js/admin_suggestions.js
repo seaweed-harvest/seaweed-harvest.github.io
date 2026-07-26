@@ -4,7 +4,7 @@ import {
   routeForProfile,
   setupAccountControls
 } from "./auth_client.js?v=23";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=8";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=10";
 
 const OWNER_EMAIL = "bmichael@cascadiaseaweed.com";
 const PHOTO_BUCKET = "site-feedback-photos";

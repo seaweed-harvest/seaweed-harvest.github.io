@@ -102,21 +102,16 @@ export async function requireAggregatorAccess(aggregatorCode, permission, return
   const aggregator = (context.aggregators || []).find(
     (item) => String(item.aggregator_code || "").toUpperCase() === expectedCode
   );
-  if (!aggregator) {
+  const activeCode = String(context.active_aggregator?.aggregator_code || "").trim().toUpperCase();
+  if (!aggregator || activeCode !== expectedCode) {
     window.location.replace("./access_pending.html");
     return null;
-  }
-
-  let activeContext = context;
-  if (String(context.active_aggregator_id || "") !== String(aggregator.id)) {
-    activeContext = await setActiveAggregator(aggregator.id);
-    access.profile = await currentProfile(true);
   }
 
   return {
     ...access,
     aggregator,
-    aggregatorContext: activeContext,
+    aggregatorContext: context,
     returnPage: returnPage || currentPage()
   };
 }

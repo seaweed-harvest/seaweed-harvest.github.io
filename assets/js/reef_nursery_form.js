@@ -1,6 +1,6 @@
 import { APP_CONFIG } from "./config.js";
-import { authClient, requireAggregatorAccess } from "./auth_client.js?v=23";
-import { setupFavoriteFormButton } from "./favorite_forms.js";
+import { authClient, requireAggregatorAccess } from "./auth_client.js?v=24";
+import { setupFavoriteFormButton } from "./favorite_forms.js?v=2";
 import { initReefNurseryRecords } from "./reef_nursery_records.js?v=5";
 
 const els = {};

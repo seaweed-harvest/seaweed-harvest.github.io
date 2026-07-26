@@ -28,8 +28,8 @@ import {
 import { syncPendingCollections } from "./offline_sync.js";
 import { completeLaunchSplash } from "./app_transition.js";
 import { createOperationFeedback } from "./operation_feedback.js";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=8";
-import { setupFavoriteFormButton } from "./favorite_forms.js";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=10";
+import { setupFavoriteFormButton } from "./favorite_forms.js?v=2";
 import { setPrintValue, setupPdfWorksheet } from "./print_worksheet.js";
 
 const state = {

@@ -1,10 +1,15 @@
 import { APP_CONFIG } from "./config.js";
 import { hasMapCoordinates as hasGps, mapCoordinates } from "./map_coordinates.js";
 import { dataModeLabel, selectRows } from "./supabase_client.js";
-import { currentAccessToken, requireAdminAccess, setupAccountControls } from "./auth_client.js?v=23";
+import {
+  currentAccessToken,
+  requireAdminAccess,
+  requireAggregatorAccess,
+  setupAccountControls
+} from "./auth_client.js?v=24";
 import { applyDashboardPreferences } from "./dashboard_preferences.js";
-import { renderFavoriteForms } from "./favorite_forms.js";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=8";
+import { renderFavoriteForms } from "./favorite_forms.js?v=2";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=10";
 import { moonEvents } from "./moon_calendar.js";
 
 const TABLES = {
@@ -92,7 +97,10 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   cacheElements();
   try {
-    const access = await requireAdminAccess(requiredPermissionForPage());
+    const permission = requiredPermissionForPage();
+    const access = isCosmeOnlyPage()
+      ? await requireAggregatorAccess("COSME", permission, currentPageFile())
+      : await requireAdminAccess(permission);
     if (!access) return;
     state.profile = access.profile;
   } catch (error) {
@@ -495,7 +503,7 @@ function setupFixedTableScrollbar() {
 }
 
 function requiredPermissionForPage() {
-  const file = window.location.pathname.split("/").pop() || "home.html";
+  const file = currentPageFile();
   const permissions = {
     "home.html": "can_view_dashboard",
     "admin_member_registry.html": "can_view_registry",
@@ -524,6 +532,17 @@ function requiredPermissionForPage() {
     "tags.html": "can_access_admin"
   };
   return permissions[file] || "can_access_admin";
+}
+
+function isCosmeOnlyPage() {
+  return new Set([
+    "reef_nursery.html",
+    "reef_nursery_records.html"
+  ]).has(currentPageFile());
+}
+
+function currentPageFile() {
+  return window.location.pathname.split("/").pop() || "home.html";
 }
 
 async function loadAdminData() {

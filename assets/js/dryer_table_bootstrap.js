@@ -2,9 +2,9 @@ import {
   authClient,
   requireAggregatorAccess,
   setupAccountControls
-} from "./auth_client.js?v=23";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=9";
-import { setupFavoriteFormButton } from "./favorite_forms.js";
+} from "./auth_client.js?v=24";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=10";
+import { setupFavoriteFormButton } from "./favorite_forms.js?v=2";
 
 document.addEventListener("DOMContentLoaded", initializeDryerTablePage);
 

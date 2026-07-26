@@ -1,6 +1,6 @@
 import { APP_CONFIG } from "./config.js";
 import { authClient, requireAdminAccess } from "./auth_client.js";
-import { setupFavoriteFormButton } from "./favorite_forms.js";
+import { setupFavoriteFormButton } from "./favorite_forms.js?v=2";
 import { setPrintValue, setupPdfWorksheet } from "./print_worksheet.js";
 import { selectRows } from "./supabase_client.js";
 

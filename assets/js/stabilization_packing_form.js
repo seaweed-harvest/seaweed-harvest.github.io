@@ -1,5 +1,5 @@
 import { authClient, currentAggregatorContext, requireAdminAccess } from "./auth_client.js";
-import { setupFavoriteFormButton } from "./favorite_forms.js";
+import { setupFavoriteFormButton } from "./favorite_forms.js?v=2";
 import { selectRows } from "./supabase_client.js";
 import { setPrintValue, setupPdfWorksheet } from "./print_worksheet.js";
 import { installSuggestedInput } from "./suggested_input.js";

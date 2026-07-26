@@ -368,10 +368,10 @@ function formLinks(profile) {
     { label: "4. Process Record", href: "./process_record.html", permission: "can_submit_collection" }
   ];
   if (hasPermission(profile, "can_access_reef_nursery")) {
-    links.push({ label: "Reef Nursery", href: "./reef_nursery.html" });
-    links.push({ label: "Dryer Table", href: "./dryer_table.html" });
+    links.push({ label: "Reef Nursery", href: "./reef_nursery.html", requiredAggregator: "COSME" });
+    links.push({ label: "Dryer Table", href: "./dryer_table.html", requiredAggregator: "COSME" });
   }
-  return links.filter((link) => !link.permission || hasPermission(profile, link.permission));
+  return links.filter((link) => hasLinkAccess(profile, link));
 }
 
 function recordLinks(profile) {
@@ -382,7 +382,7 @@ function recordLinks(profile) {
   return links.concat(permittedLinks(profile, [
     { label: "Dataset Dashboard", href: "./dataset_dashboard.html", permission: "can_view_dashboard", className: "app-nav-desktop-only" },
     { label: "Record Ledgers", href: "./records.html", permission: "can_view_data", className: "app-nav-desktop-only" },
-    { label: "Reef Nursery Records", href: "./reef_nursery_records.html", permission: "can_access_reef_nursery", className: "app-nav-desktop-only" },
+    { label: "Reef Nursery Records", href: "./reef_nursery_records.html", permission: "can_access_reef_nursery", requiredAggregator: "COSME", className: "app-nav-desktop-only" },
     { label: "Finance Review", href: "./admin_finance.html", permission: "can_view_finance", className: "app-nav-desktop-only" },
     { label: "Receipts", href: "./admin_receipts.html", permission: "can_view_data", className: "app-nav-desktop-only" },
     { label: "Notifications", href: "./admin_notifications.html", permission: "can_view_notifications", className: "app-nav-desktop-only" }
@@ -390,12 +390,23 @@ function recordLinks(profile) {
 }
 
 function permittedLinks(profile, links) {
-  return links.filter((link) => hasPermission(profile, link.permission));
+  return links.filter((link) => hasLinkAccess(profile, link));
+}
+
+function hasLinkAccess(profile, link) {
+  const permitted = !link.permission || hasPermission(profile, link.permission);
+  const correctAggregator = !link.requiredAggregator
+    || activeAggregatorCode(profile) === String(link.requiredAggregator).trim().toUpperCase();
+  return permitted && correctAggregator;
 }
 
 function hasPermission(profile, permission) {
   if (permission === "can_access_reef_nursery") return Boolean(profile?.can_access_reef_nursery);
   return profile?.app_role === "system_admin" || Boolean(profile?.[permission]);
+}
+
+function activeAggregatorCode(profile) {
+  return String(profile?.active_aggregator_code || "").trim().toUpperCase();
 }
 
 function isProtectedOwner(profile) {

@@ -32,14 +32,16 @@ export const FAVORITE_FORMS = [
     label: "Reef Nursery",
     description: "Record nursery training sessions and participants",
     href: "./reef_nursery.html",
-    permission: "can_access_reef_nursery"
+    permission: "can_access_reef_nursery",
+    requiredAggregator: "COSME"
   },
   {
     key: "dryer_table",
     label: "Dryer Table",
     description: "Record wet and dry weights across dryer table bays",
     href: "./dryer_table.html",
-    permission: "can_access_reef_nursery"
+    permission: "can_access_reef_nursery",
+    requiredAggregator: "COSME"
   }
 ];
 
@@ -52,7 +54,10 @@ export function favoriteFormKeys(profile) {
 }
 
 export function availableFavoriteForms(profile) {
-  return FAVORITE_FORMS.filter((form) => hasPermission(profile, form.permission));
+  return FAVORITE_FORMS.filter((form) => (
+    hasPermission(profile, form.permission)
+    && (!form.requiredAggregator || activeAggregatorCode(profile) === form.requiredAggregator)
+  ));
 }
 
 export async function saveFavoriteForms(client, keys) {
@@ -141,6 +146,10 @@ export function renderFavoriteForms(container, profile) {
 function hasPermission(profile, permission) {
   if (permission === "can_access_reef_nursery") return Boolean(profile?.can_access_reef_nursery);
   return profile?.app_role === "system_admin" || Boolean(profile?.[permission]);
+}
+
+function activeAggregatorCode(profile) {
+  return String(profile?.active_aggregator_code || "").trim().toUpperCase();
 }
 
 function starSvg() {
