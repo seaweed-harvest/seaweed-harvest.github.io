@@ -99,7 +99,12 @@
         <div class="collection-community-field form-recorder-field">
           <span data-i18n="collection.community">Collection community</span>
           <div class="collection-community-picker">
-            <input id="collectionCommunitySearch" type="text" autocomplete="off" placeholder="Type or select community" data-i18n-placeholder="collection.communityPlaceholder" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="collectionCommunitySuggestions" required>
+            <div class="collection-community-combobox">
+              <input id="collectionCommunitySearch" type="text" autocomplete="off" placeholder="Search and select community" data-i18n-placeholder="collection.communityPlaceholder" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="collectionCommunitySuggestions" required>
+              <button id="toggleCollectionCommunitySuggestions" class="collection-community-toggle" type="button" aria-label="Show communities" title="Show communities" aria-expanded="false" aria-controls="collectionCommunitySuggestions">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="chevron-down" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+              </button>
+            </div>
             <button id="addCollectionCommunityName" class="collection-community-add" type="button" aria-label="Add a new community" title="Add a new community" aria-pressed="false">+</button>
           </div>
           <div id="collectionCommunitySuggestions" class="collection-community-suggestions" role="listbox" aria-label="Matching communities" hidden></div>
@@ -365,6 +370,6 @@
   </section>
 
   <script src="./assets/js/vendor/jsQR.js"></script>
-  <script type="module" src="./assets/js/collection_form.js?v=35"></script>
+  <script type="module" src="./assets/js/collection_form.js?v=36"></script>
 </body>
 </html>

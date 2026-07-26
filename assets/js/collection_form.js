@@ -11,7 +11,7 @@ import {
   initCollectionLanguage,
   t,
   unitLabel
-} from "./collection_language.js?v=23";
+} from "./collection_language.js?v=24";
 import {
   clearOfflineCollectionAccess,
   initialiseOfflineStore,
@@ -53,6 +53,7 @@ const state = {
   submissionId: crypto.randomUUID(),
   addingNewCommunity: false,
   communitySuggestionsOpen: false,
+  communityBrowseAll: false,
   activeCommunitySuggestion: -1,
   selectedFarmer: null,
   selectedFarmerPhoneQuery: "",
@@ -472,6 +473,7 @@ function cacheElements() {
     "collectionCommunitySuggestions",
     "collectionCommunityId",
     "collectionCommunityMatch",
+    "toggleCollectionCommunitySuggestions",
     "addCollectionCommunityName",
     "collectorName",
     "collectionWebsite",
@@ -587,11 +589,14 @@ function bindEvents() {
   els.collectionCommunitySearch.addEventListener("click", openCollectionCommunitySuggestions);
   els.collectionCommunitySearch.addEventListener("input", () => {
     state.communitySuggestionsOpen = true;
+    state.communityBrowseAll = false;
     state.activeCommunitySuggestion = -1;
     syncCollectionCommunity();
   });
   els.collectionCommunitySearch.addEventListener("change", syncCollectionCommunity);
+  els.collectionCommunitySearch.addEventListener("blur", closeCollectionCommunitySuggestions);
   els.collectionCommunitySearch.addEventListener("keydown", handleCollectionCommunityKeydown);
+  els.toggleCollectionCommunitySuggestions.addEventListener("click", toggleCollectionCommunitySuggestions);
   els.addCollectionCommunityName.addEventListener("click", toggleNewCollectionCommunity);
   document.addEventListener("pointerdown", closeCollectionCommunitySuggestionsFromPointer);
   els.assignFarmerId.addEventListener("click", assignNextFarmerId);
@@ -748,6 +753,9 @@ function syncCollectionCommunity() {
 function updateCollectionCommunityMode() {
   const community = selectedCollectionCommunity();
   const name = normalizedCommunityNameInput(els.collectionCommunitySearch.value);
+  const showCommunitiesLabel = t("collection.showCommunities");
+  els.toggleCollectionCommunitySuggestions.setAttribute("aria-label", showCommunitiesLabel);
+  els.toggleCollectionCommunitySuggestions.title = showCommunitiesLabel;
   els.addCollectionCommunityName.setAttribute("aria-pressed", String(state.addingNewCommunity));
   els.addCollectionCommunityName.setAttribute(
     "aria-label",
@@ -823,12 +831,14 @@ function suggestCollectionCommunity(communityId) {
 
 function openCollectionCommunitySuggestions() {
   state.communitySuggestionsOpen = true;
+  state.communityBrowseAll = !normalizedCommunityNameInput(els.collectionCommunitySearch.value);
   state.activeCommunitySuggestion = -1;
   renderCollectionCommunitySuggestions();
 }
 
 function closeCollectionCommunitySuggestions() {
   state.communitySuggestionsOpen = false;
+  state.communityBrowseAll = false;
   state.activeCommunitySuggestion = -1;
   renderCollectionCommunitySuggestions();
 }
@@ -843,6 +853,7 @@ function toggleNewCollectionCommunity() {
   if (state.addingNewCommunity) {
     els.collectionCommunityId.value = "";
     state.communitySuggestionsOpen = true;
+    state.communityBrowseAll = false;
     state.activeCommunitySuggestion = -1;
     updateCollectionCommunityMode();
     renderCollectionCommunitySuggestions();
@@ -853,8 +864,23 @@ function toggleNewCollectionCommunity() {
   syncCollectionCommunity();
 }
 
+function toggleCollectionCommunitySuggestions() {
+  if (state.communitySuggestionsOpen && state.communityBrowseAll) {
+    closeCollectionCommunitySuggestions();
+    els.collectionCommunitySearch.focus();
+    return;
+  }
+  state.communitySuggestionsOpen = true;
+  state.communityBrowseAll = true;
+  state.activeCommunitySuggestion = -1;
+  renderCollectionCommunitySuggestions();
+  els.collectionCommunitySearch.focus({ preventScroll: true });
+}
+
 function renderCollectionCommunitySuggestions() {
-  const matches = communitySearchMatches(els.collectionCommunitySearch.value);
+  const matches = communitySearchMatches(
+    state.communityBrowseAll ? "" : els.collectionCommunitySearch.value
+  );
   const selectedId = els.collectionCommunityId.value;
   els.collectionCommunitySuggestions.replaceChildren();
 
@@ -865,6 +891,7 @@ function renderCollectionCommunitySuggestions() {
     option.setAttribute("role", "option");
     option.setAttribute("aria-selected", String(community.community_id === selectedId));
     option.dataset.communityId = community.community_id;
+    option.id = `collection-community-option-${String(community.community_id || index).toLowerCase()}`;
     option.classList.toggle("is-active", index === state.activeCommunitySuggestion);
 
     const name = document.createElement("strong");
@@ -877,9 +904,30 @@ function renderCollectionCommunitySuggestions() {
     els.collectionCommunitySuggestions.append(option);
   });
 
-  const visible = state.communitySuggestionsOpen && matches.length > 0;
+  if (!matches.length) {
+    const empty = document.createElement("p");
+    empty.className = "collection-community-empty";
+    empty.setAttribute("role", "status");
+    empty.textContent = state.communities.length
+      ? t("collection.noMatchingCommunities")
+      : t("collection.communitiesUnavailable");
+    els.collectionCommunitySuggestions.append(empty);
+  }
+
+  const visible = state.communitySuggestionsOpen;
   els.collectionCommunitySuggestions.hidden = !visible;
   els.collectionCommunitySearch.setAttribute("aria-expanded", String(visible));
+  els.toggleCollectionCommunitySuggestions.setAttribute("aria-expanded", String(visible));
+  els.toggleCollectionCommunitySuggestions.classList.toggle("is-open", visible);
+  const activeOption = matches[state.activeCommunitySuggestion];
+  if (visible && activeOption) {
+    els.collectionCommunitySearch.setAttribute(
+      "aria-activedescendant",
+      `collection-community-option-${String(activeOption.community_id).toLowerCase()}`
+    );
+  } else {
+    els.collectionCommunitySearch.removeAttribute("aria-activedescendant");
+  }
 }
 
 function selectCollectionCommunity(community) {
@@ -892,6 +940,7 @@ function selectCollectionCommunity(community) {
 }
 
 function handleCollectionCommunityKeydown(event) {
+  prepareCollectionCommunityForTyping(event);
   const matches = communitySearchMatches(els.collectionCommunitySearch.value);
   if (event.key === "Escape") {
     closeCollectionCommunitySuggestions();
@@ -917,6 +966,30 @@ function handleCollectionCommunityKeydown(event) {
   els.collectionCommunitySuggestions
     .querySelector(".collection-community-option.is-active")
     ?.scrollIntoView({ block: "nearest" });
+}
+
+function prepareCollectionCommunityForTyping(event) {
+  if (!selectedCollectionCommunity()) return;
+  const replacesSelection = event.key === "Backspace"
+    || event.key === "Delete"
+    || (event.key.length === 1 && !event.altKey && !event.ctrlKey && !event.metaKey);
+  if (!replacesSelection) return;
+
+  const input = els.collectionCommunitySearch;
+  const wholeValueSelected = input.selectionStart === 0
+    && input.selectionEnd === input.value.length;
+  if (wholeValueSelected) return;
+
+  input.value = "";
+  els.collectionCommunityId.value = "";
+  state.addingNewCommunity = false;
+  state.communitySuggestionsOpen = true;
+  state.communityBrowseAll = false;
+  state.activeCommunitySuggestion = -1;
+  if (event.key === "Backspace" || event.key === "Delete") {
+    event.preventDefault();
+    syncCollectionCommunity();
+  }
 }
 
 async function lookupFarmer() {
@@ -2912,6 +2985,7 @@ function setFixedFormOrder() {
 function refreshTranslatedContent() {
   applyRuntimeSettings(state.gradePrices);
   updateCollectionCommunityMode();
+  renderCollectionCommunitySuggestions();
   updateQuickReference();
   updatePhotoSelectionStatus();
   setConnectionStatus(isOnline() ? translatedDataMode() : t("offline.offline"), isOnline() ? "" : "status-muted");
