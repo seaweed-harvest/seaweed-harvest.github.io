@@ -99,12 +99,12 @@
         <div class="collection-community-field form-recorder-field">
           <span data-i18n="collection.community">Collection community</span>
           <div class="collection-community-picker">
-            <input id="collectionCommunitySearch" type="text" list="collectionCommunityOptions" autocomplete="off" placeholder="Type or select community" data-i18n-placeholder="collection.communityPlaceholder" required>
-            <button id="addCollectionCommunityName" class="collection-community-add" type="button" aria-label="Enter a community name" title="Enter a community name">+</button>
+            <input id="collectionCommunitySearch" type="text" autocomplete="off" placeholder="Type or select community" data-i18n-placeholder="collection.communityPlaceholder" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="collectionCommunitySuggestions" required>
+            <button id="addCollectionCommunityName" class="collection-community-add" type="button" aria-label="Add a new community" title="Add a new community" aria-pressed="false">+</button>
           </div>
-          <datalist id="collectionCommunityOptions"></datalist>
+          <div id="collectionCommunitySuggestions" class="collection-community-suggestions" role="listbox" aria-label="Matching communities" hidden></div>
           <input id="collectionCommunityId" type="hidden">
-          <small id="collectionCommunityMatch" class="field-hint" data-i18n="collection.communityHint">Select a registry match, or use + for a one-off name.</small>
+          <small id="collectionCommunityMatch" class="field-hint" data-i18n="collection.communityHint">Type to search the registry. Use + only to add a new community.</small>
         </div>
         <label class="collector-name-field form-recorder-field">
           <span data-i18n="collector.name">Collector name</span>
@@ -119,6 +119,7 @@
           <label class="farmer-phone-field wide-field">
             <span data-i18n="farmer.phone">Phone</span>
             <input id="manualFarmerPhone" type="tel" inputmode="tel" autocomplete="tel" maxlength="40">
+            <small id="farmerPhoneMatchHint" class="field-hint" data-i18n="farmer.phoneHint">Enter at least 5 digits to find a registered farmer.</small>
           </label>
           <div class="field-status-block" hidden aria-hidden="true">
             <input id="farmerId" type="hidden">
@@ -309,20 +310,6 @@
       </div>
     </div>
   </dialog>
-  <dialog id="collectionCommunityDialog" class="simple-entry-dialog" aria-labelledby="collectionCommunityDialogTitle">
-    <form id="collectionCommunityDialogForm" class="simple-entry-dialog-panel" method="dialog">
-      <h2 id="collectionCommunityDialogTitle" data-i18n="collection.manualCommunityTitle">Enter community name</h2>
-      <label>
-        <span data-i18n="collection.manualCommunityLabel">Community name</span>
-        <input id="manualCollectionCommunityName" type="text" maxlength="160" autocomplete="organization">
-      </label>
-      <p class="field-hint" data-i18n="collection.manualCommunityHint">This records the name on this collection. It does not add a registry entry.</p>
-      <div class="button-row">
-        <button id="cancelCollectionCommunityName" type="button" data-i18n="action.cancel">Cancel</button>
-        <button type="submit" data-i18n="collection.useCommunityName">Use name</button>
-      </div>
-    </form>
-  </dialog>
   <input id="collectionPhotoRetake" class="visually-hidden-file" type="file" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
 
   <section id="collectionPrintWorksheet" class="ag-print-document" data-print-title="Seaweed Collection Worksheet" data-pdf-filename="seaweed-collection-worksheet.pdf" aria-hidden="true">
@@ -370,6 +357,6 @@
   </section>
 
   <script src="./assets/js/vendor/jsQR.js"></script>
-  <script type="module" src="./assets/js/collection_form.js?v=32"></script>
+  <script type="module" src="./assets/js/collection_form.js?v=33"></script>
 </body>
 </html>

@@ -11,7 +11,7 @@ import {
   initCollectionLanguage,
   t,
   unitLabel
-} from "./collection_language.js?v=21";
+} from "./collection_language.js?v=22";
 import {
   clearOfflineCollectionAccess,
   initialiseOfflineStore,
@@ -51,6 +51,9 @@ const state = {
   publicMode: true,
   canOverridePrice: false,
   submissionId: crypto.randomUUID(),
+  addingNewCommunity: false,
+  communitySuggestionsOpen: false,
+  activeCommunitySuggestion: -1,
   selectedFarmer: null,
   selectedFarmerPhoneQuery: "",
   pendingFarmer: null,
@@ -464,14 +467,10 @@ function cacheElements() {
     "printCollectionAggregator",
     "printCollectionCollector",
     "collectionCommunitySearch",
-    "collectionCommunityOptions",
+    "collectionCommunitySuggestions",
     "collectionCommunityId",
     "collectionCommunityMatch",
     "addCollectionCommunityName",
-    "collectionCommunityDialog",
-    "collectionCommunityDialogForm",
-    "manualCollectionCommunityName",
-    "cancelCollectionCommunityName",
     "collectorName",
     "collectionWebsite",
     "farmerId",
@@ -486,6 +485,7 @@ function cacheElements() {
     "manualFarmerFirstName",
     "manualFarmerLastNames",
     "manualFarmerPhone",
+    "farmerPhoneMatchHint",
     "manualCommunityInput",
     "manualFarmerFarmSize",
     "manualFarmerFarmSizeUnit",
@@ -576,15 +576,17 @@ function bindEvents() {
   els.manualFarmerFarmSizeUnit.addEventListener("change", updateQuickReference);
   els.manualCommunityInput.addEventListener("input", syncManualCommunity);
   els.manualCommunityInput.addEventListener("change", syncManualCommunity);
-  els.collectionCommunitySearch.addEventListener("input", syncCollectionCommunity);
-  els.collectionCommunitySearch.addEventListener("change", syncCollectionCommunity);
-  els.addCollectionCommunityName.addEventListener("click", openCollectionCommunityDialog);
-  els.collectionCommunityDialogForm.addEventListener("submit", useManualCollectionCommunityName);
-  els.cancelCollectionCommunityName.addEventListener("click", closeCollectionCommunityDialog);
-  els.collectionCommunityDialog.addEventListener("cancel", (event) => {
-    event.preventDefault();
-    closeCollectionCommunityDialog();
+  els.collectionCommunitySearch.addEventListener("focus", openCollectionCommunitySuggestions);
+  els.collectionCommunitySearch.addEventListener("click", openCollectionCommunitySuggestions);
+  els.collectionCommunitySearch.addEventListener("input", () => {
+    state.communitySuggestionsOpen = true;
+    state.activeCommunitySuggestion = -1;
+    syncCollectionCommunity();
   });
+  els.collectionCommunitySearch.addEventListener("change", syncCollectionCommunity);
+  els.collectionCommunitySearch.addEventListener("keydown", handleCollectionCommunityKeydown);
+  els.addCollectionCommunityName.addEventListener("click", toggleNewCollectionCommunity);
+  document.addEventListener("pointerdown", closeCollectionCommunitySuggestionsFromPointer);
   els.assignFarmerId.addEventListener("click", assignNextFarmerId);
   els.sackId.addEventListener("change", () => {
     els.sackId.value = normalizedSackId();
@@ -714,25 +716,51 @@ function applyFormData(formData) {
 }
 
 function renderCommunityOptions() {
-  els.collectionCommunityOptions.innerHTML = state.communities.map((community) => {
-    const label = communityLabel(community);
-    return `<option value="${escapeAttribute(label)}">${escapeHtml(community.community_name || "")}</option>`;
-  }).join("");
   els.communityOptions.innerHTML = state.communities.map((community) => {
     const label = communityLabel(community);
     return `<option value="${escapeAttribute(label)}"></option>`;
   }).join("");
   restoreCollectionCommunity();
   syncFarmerCommunityName();
+  renderCollectionCommunitySuggestions();
 }
 
 function syncCollectionCommunity() {
   const community = findExactCommunityFromText(els.collectionCommunitySearch.value);
   els.collectionCommunityId.value = community?.community_id || "";
-  els.collectionCommunityMatch.textContent = community
-    ? `Registry match: ${communityLabel(community)}`
-    : t("collection.communityHint");
+  if (community) state.addingNewCommunity = false;
+  updateCollectionCommunityMode();
+  renderCollectionCommunitySuggestions();
   rememberCollectionCommunity();
+}
+
+function updateCollectionCommunityMode() {
+  const community = selectedCollectionCommunity();
+  const name = normalizedCommunityNameInput(els.collectionCommunitySearch.value);
+  els.addCollectionCommunityName.setAttribute("aria-pressed", String(state.addingNewCommunity));
+  els.addCollectionCommunityName.setAttribute(
+    "aria-label",
+    state.addingNewCommunity ? t("collection.cancelNewCommunity") : t("collection.addNewCommunity")
+  );
+  els.addCollectionCommunityName.title = state.addingNewCommunity
+    ? t("collection.cancelNewCommunity")
+    : t("collection.addNewCommunity");
+  els.collectionCommunitySearch.closest(".collection-community-field")
+    ?.classList.toggle("is-new-community", state.addingNewCommunity);
+
+  if (community) {
+    els.collectionCommunityMatch.textContent = t("collection.registryMatch", {
+      community: communityLabel(community)
+    });
+  } else if (state.addingNewCommunity && name) {
+    els.collectionCommunityMatch.textContent = t("collection.willCreateCommunity", { community: name });
+  } else if (state.addingNewCommunity) {
+    els.collectionCommunityMatch.textContent = t("collection.newCommunityHint");
+  } else if (name) {
+    els.collectionCommunityMatch.textContent = t("collection.noCommunityMatch");
+  } else {
+    els.collectionCommunityMatch.textContent = t("collection.communityHint");
+  }
 }
 
 function rememberCollectionCommunity() {
@@ -782,38 +810,102 @@ function suggestCollectionCommunity(communityId) {
   syncCollectionCommunity();
 }
 
-function openCollectionCommunityDialog() {
-  els.manualCollectionCommunityName.value = els.collectionCommunityId.value
-    ? ""
-    : String(els.collectionCommunitySearch.value || "").trim();
-  if (typeof els.collectionCommunityDialog.showModal === "function") {
-    els.collectionCommunityDialog.showModal();
-  } else {
-    els.collectionCommunityDialog.setAttribute("open", "");
-  }
-  requestAnimationFrame(() => els.manualCollectionCommunityName.focus());
+function openCollectionCommunitySuggestions() {
+  state.communitySuggestionsOpen = true;
+  state.activeCommunitySuggestion = -1;
+  renderCollectionCommunitySuggestions();
 }
 
-function useManualCollectionCommunityName(event) {
-  event.preventDefault();
-  const name = String(els.manualCollectionCommunityName.value || "").trim().replace(/\s+/g, " ");
-  if (!name) {
-    els.manualCollectionCommunityName.focus();
+function closeCollectionCommunitySuggestions() {
+  state.communitySuggestionsOpen = false;
+  state.activeCommunitySuggestion = -1;
+  renderCollectionCommunitySuggestions();
+}
+
+function closeCollectionCommunitySuggestionsFromPointer(event) {
+  if (event.target.closest(".collection-community-field")) return;
+  closeCollectionCommunitySuggestions();
+}
+
+function toggleNewCollectionCommunity() {
+  state.addingNewCommunity = !state.addingNewCommunity;
+  if (state.addingNewCommunity) {
+    els.collectionCommunityId.value = "";
+    state.communitySuggestionsOpen = true;
+    state.activeCommunitySuggestion = -1;
+    updateCollectionCommunityMode();
+    renderCollectionCommunitySuggestions();
+    els.collectionCommunitySearch.focus();
+    els.collectionCommunitySearch.select();
     return;
   }
-  els.collectionCommunitySearch.value = name;
-  els.collectionCommunityId.value = "";
-  els.collectionCommunityMatch.textContent = t("collection.communityHint");
-  rememberCollectionCommunity();
-  closeCollectionCommunityDialog();
+  syncCollectionCommunity();
 }
 
-function closeCollectionCommunityDialog() {
-  if (typeof els.collectionCommunityDialog.close === "function") {
-    els.collectionCommunityDialog.close();
-  } else {
-    els.collectionCommunityDialog.removeAttribute("open");
+function renderCollectionCommunitySuggestions() {
+  const matches = communitySearchMatches(els.collectionCommunitySearch.value);
+  const selectedId = els.collectionCommunityId.value;
+  els.collectionCommunitySuggestions.replaceChildren();
+
+  matches.forEach((community, index) => {
+    const option = document.createElement("button");
+    option.type = "button";
+    option.className = "collection-community-option";
+    option.setAttribute("role", "option");
+    option.setAttribute("aria-selected", String(community.community_id === selectedId));
+    option.dataset.communityId = community.community_id;
+    option.classList.toggle("is-active", index === state.activeCommunitySuggestion);
+
+    const name = document.createElement("strong");
+    name.textContent = community.community_name || community.community_id;
+    const id = document.createElement("small");
+    id.textContent = community.community_id;
+    option.append(name, id);
+    option.addEventListener("pointerdown", (event) => event.preventDefault());
+    option.addEventListener("click", () => selectCollectionCommunity(community));
+    els.collectionCommunitySuggestions.append(option);
+  });
+
+  const visible = state.communitySuggestionsOpen && matches.length > 0;
+  els.collectionCommunitySuggestions.hidden = !visible;
+  els.collectionCommunitySearch.setAttribute("aria-expanded", String(visible));
+}
+
+function selectCollectionCommunity(community) {
+  state.addingNewCommunity = false;
+  els.collectionCommunityId.value = community.community_id;
+  els.collectionCommunitySearch.value = communityLabel(community);
+  closeCollectionCommunitySuggestions();
+  updateCollectionCommunityMode();
+  rememberCollectionCommunity();
+}
+
+function handleCollectionCommunityKeydown(event) {
+  const matches = communitySearchMatches(els.collectionCommunitySearch.value);
+  if (event.key === "Escape") {
+    closeCollectionCommunitySuggestions();
+    return;
   }
+  if (!["ArrowDown", "ArrowUp", "Enter"].includes(event.key) || !matches.length) return;
+
+  if (event.key === "Enter" && state.activeCommunitySuggestion < 0) return;
+  event.preventDefault();
+  if (event.key === "ArrowDown") {
+    state.communitySuggestionsOpen = true;
+    state.activeCommunitySuggestion = (state.activeCommunitySuggestion + 1) % matches.length;
+  } else if (event.key === "ArrowUp") {
+    state.communitySuggestionsOpen = true;
+    state.activeCommunitySuggestion = state.activeCommunitySuggestion <= 0
+      ? matches.length - 1
+      : state.activeCommunitySuggestion - 1;
+  } else {
+    selectCollectionCommunity(matches[state.activeCommunitySuggestion]);
+    return;
+  }
+  renderCollectionCommunitySuggestions();
+  els.collectionCommunitySuggestions
+    .querySelector(".collection-community-option.is-active")
+    ?.scrollIntoView({ block: "nearest" });
 }
 
 async function lookupFarmer() {
@@ -880,10 +972,12 @@ function scheduleFarmerPhoneLookup() {
 
   if (query.length < FARMER_PHONE_LOOKUP_MIN_DIGITS) {
     clearPendingFarmer();
+    setFarmerPhoneMatchHint(query.length ? "farmer.phoneMoreDigits" : "farmer.phoneHint");
     updateQuickReference();
     return;
   }
 
+  setFarmerPhoneMatchHint("farmer.phoneSearching");
   farmerPhoneLookupTimer = window.setTimeout(
     () => lookupFarmerByPhone(),
     FARMER_PHONE_LOOKUP_DELAY_MS
@@ -927,6 +1021,7 @@ async function lookupFarmerByPhone() {
     if (state.selectedFarmer) clearSelectedFarmer({ preservePhone: true });
     clearPendingFarmer();
     setFarmerStatus("");
+    setFarmerPhoneMatchHint("farmer.phoneNoMatch");
     updateQuickReference();
     return;
   }
@@ -937,6 +1032,7 @@ async function lookupFarmerByPhone() {
     state.pendingFarmerPhoneQuery = query;
     els.farmerId.value = "";
     setFarmerStatus("");
+    setFarmerPhoneMatchHint("farmer.phonePossibleMatch");
     updateQuickReference();
     return;
   }
@@ -962,6 +1058,11 @@ function linkFarmerMatch(farmer) {
   state.selectedFarmerPhoneQuery = normalizedPhoneDigits(els.manualFarmerPhone.value);
   updateQuickReference();
   setFarmerStatus(t("status.linked"), "");
+  setFarmerPhoneMatchHint("farmer.phoneMatched");
+}
+
+function setFarmerPhoneMatchHint(key) {
+  els.farmerPhoneMatchHint.textContent = t(key);
 }
 
 function syncManualDetailsFromFarmer(farmer, options = {}) {
@@ -1670,6 +1771,7 @@ async function submitCollection(event) {
         if (photos.length) {
           els.collectionPhotoStatus.textContent = t("photos.uploaded", { count: photos.length });
         }
+        applySavedCollectionCommunity(saved);
         renderReceiptResult(saved);
         setStatus(t("offline.confirmed", { id: saved.transaction_id || payload.transaction_id }));
         operationFeedback.show({
@@ -1744,9 +1846,9 @@ function startNewCollection() {
 }
 
 function buildPayload(photoPaths = []) {
-  const community = selectedCollectionCommunity();
-  const communityName = community?.community_name
-    || nullableText(els.collectionCommunitySearch.value);
+  const communitySelection = validatedCollectionCommunity();
+  const community = communitySelection.community;
+  const communityName = community?.community_name || communitySelection.name;
   const weight = requiredNumber(els.sackWeightKg.value, t("harvest.weight"));
   const seaweedType = nullableText(els.seaweedType.value) || state.defaultSeaweedType;
   const gradeCode = requiredText(els.seaweedGrade.value, t("harvest.grade")).toUpperCase();
@@ -1763,6 +1865,7 @@ function buildPayload(photoPaths = []) {
     community_id: nullableText(community?.community_id),
     community_record_id: community?.id || null,
     community_name_snapshot: communityName,
+    create_community: communitySelection.create,
     sack_id: normalizedSackId() || null,
     collected_at: collectedAt.toISOString(),
     gps_latitude: state.gps?.latitude ?? null,
@@ -1799,9 +1902,13 @@ function clearForm(options = {}) {
   const collectorName = String(els.collectorName.value || "").trim();
   const collectionCommunityId = els.collectionCommunityId.value;
   const collectionCommunityName = els.collectionCommunitySearch.value;
+  const addingNewCommunity = state.addingNewCommunity;
   els.collectionForm.reset();
   els.collectionCommunityId.value = collectionCommunityId;
   els.collectionCommunitySearch.value = collectionCommunityName;
+  state.addingNewCommunity = addingNewCommunity;
+  state.communitySuggestionsOpen = false;
+  state.activeCommunitySuggestion = -1;
   els.collectorName.value = collectorName || localStorage.getItem(COLLECTOR_NAME_STORAGE_KEY) || "";
   els.collectionWebsite.value = "";
   state.selectedFarmer = null;
@@ -1828,6 +1935,7 @@ function clearForm(options = {}) {
   updateCustomCalculations();
   updatePhotoSelectionStatus();
   setFarmerStatus("");
+  setFarmerPhoneMatchHint("farmer.phoneHint");
   updatePriceForGrade();
   updateEmptyFieldHighlights();
   els.submitCollection.disabled = false;
@@ -1845,6 +1953,34 @@ function renderReceiptResult(saved) {
   els.viewSavedReceipt.href = `./receipt.html?id=${encodeURIComponent(saved.receipt_id)}`;
   els.viewSavedReceipt.hidden = state.publicMode;
   els.collectionReceiptResult.hidden = false;
+}
+
+function applySavedCollectionCommunity(saved) {
+  const communityId = String(saved?.community_id || "").trim();
+  const communityName = String(saved?.community_name || "").trim();
+  const communityRecordId = String(saved?.community_record_id || "").trim();
+  if (!communityId || !communityName) return;
+
+  let community = communityById(communityId);
+  if (!community) {
+    community = {
+      id: communityRecordId || null,
+      community_id: communityId,
+      community_name: communityName
+    };
+    state.communities.push(community);
+    state.communities.sort((left, right) =>
+      String(left.community_name || "").localeCompare(String(right.community_name || ""))
+    );
+    renderCommunityOptions();
+  }
+
+  const enteredName = normalizedCommunityNameInput(els.collectionCommunitySearch.value);
+  if (normalizeCommunitySearchText(enteredName) !== normalizeCommunitySearchText(communityName)) return;
+  state.addingNewCommunity = false;
+  els.collectionCommunityId.value = communityId;
+  els.collectionCommunitySearch.value = communityLabel(community);
+  syncCollectionCommunity();
 }
 
 async function syncOutbox(options = {}) {
@@ -2016,7 +2152,24 @@ function normalizeSackIdValue(value) {
 }
 
 function selectedCollectionCommunity() {
-  return communityById(els.collectionCommunityId.value);
+  return communityById(els.collectionCommunityId.value)
+    || findExactCommunityFromText(els.collectionCommunitySearch.value);
+}
+
+function validatedCollectionCommunity() {
+  const community = selectedCollectionCommunity();
+  if (community) {
+    return { community, name: community.community_name, create: false };
+  }
+
+  const name = normalizedCommunityNameInput(els.collectionCommunitySearch.value);
+  if (!state.addingNewCommunity) {
+    throw new Error(t("collection.selectCommunityError"));
+  }
+  if (name.length < 2 || name.length > 160) {
+    throw new Error(t("collection.newCommunityLengthError"));
+  }
+  return { community: null, name, create: true };
 }
 
 function selectedFarmerCommunity() {
@@ -2081,14 +2234,79 @@ function findCommunityFromText(value) {
 }
 
 function findExactCommunityFromText(value) {
-  const text = String(value || "").trim().toUpperCase();
+  const text = normalizeCommunitySearchText(value);
   if (!text) return null;
   return state.communities.find((community) => {
-    const id = String(community.community_id || "").toUpperCase();
-    const name = String(community.community_name || "").toUpperCase();
-    const label = communityLabel(community).toUpperCase();
+    const id = normalizeCommunitySearchText(community.community_id);
+    const name = normalizeCommunitySearchText(community.community_name);
+    const label = normalizeCommunitySearchText(communityLabel(community));
     return text === id || text === name || text === label;
   }) || null;
+}
+
+function normalizedCommunityNameInput(value) {
+  return String(value || "")
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function normalizeCommunitySearchText(value) {
+  return normalizedCommunityNameInput(value)
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function communitySearchMatches(value) {
+  const query = normalizeCommunitySearchText(value);
+  return state.communities
+    .map((community) => ({
+      community,
+      score: communitySearchScore(community, query)
+    }))
+    .filter((entry) => Number.isFinite(entry.score))
+    .sort((left, right) =>
+      left.score - right.score
+      || String(left.community.community_name || "").localeCompare(String(right.community.community_name || ""))
+    )
+    .slice(0, 12)
+    .map((entry) => entry.community);
+}
+
+function communitySearchScore(community, query) {
+  if (!query) return 10;
+  const id = normalizeCommunitySearchText(community.community_id);
+  const name = normalizeCommunitySearchText(community.community_name);
+  const label = normalizeCommunitySearchText(communityLabel(community));
+  if ([id, name, label].includes(query)) return 0;
+  if (id.startsWith(query) || name.startsWith(query)) return 1;
+  if (id.includes(query) || name.includes(query) || label.includes(query)) return 2;
+  if (query.split(" ").every((token) => label.includes(token))) return 3;
+
+  const comparison = name.slice(0, Math.max(query.length, Math.min(name.length, query.length + 2)));
+  const distance = levenshteinDistance(query, comparison);
+  const threshold = Math.max(2, Math.ceil(query.length * 0.2));
+  return distance <= threshold ? 4 + distance : Number.POSITIVE_INFINITY;
+}
+
+function levenshteinDistance(left, right) {
+  const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+    const current = [leftIndex];
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      current[rightIndex] = Math.min(
+        current[rightIndex - 1] + 1,
+        previous[rightIndex] + 1,
+        previous[rightIndex - 1] + (left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1)
+      );
+    }
+    previous.splice(0, previous.length, ...current);
+  }
+  return previous[right.length];
 }
 
 function nextFarmerId() {
@@ -2413,6 +2631,7 @@ function setFixedFormOrder() {
 
 function refreshTranslatedContent() {
   applyRuntimeSettings(state.gradePrices);
+  updateCollectionCommunityMode();
   updateQuickReference();
   updatePhotoSelectionStatus();
   setConnectionStatus(isOnline() ? translatedDataMode() : t("offline.offline"), isOnline() ? "" : "status-muted");
@@ -2420,8 +2639,16 @@ function refreshTranslatedContent() {
   void refreshOfflineQueue();
   if (state.selectedFarmer) {
     setFarmerStatus(t("status.linked"));
+    setFarmerPhoneMatchHint("farmer.phoneMatched");
+  } else if (state.pendingFarmer) {
+    setFarmerPhoneMatchHint("farmer.phonePossibleMatch");
   } else if (!normalizedFarmerId()) {
     setFarmerStatus("");
+    setFarmerPhoneMatchHint(
+      normalizedPhoneDigits(els.manualFarmerPhone.value).length
+        ? "farmer.phoneNoMatch"
+        : "farmer.phoneHint"
+    );
   }
 }
 
