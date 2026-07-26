@@ -512,6 +512,7 @@ function requiredPermissionForPage() {
     "site_water_sample.html": "can_submit_collection",
     "reef_nursery.html": "can_access_reef_nursery",
     "reef_nursery_records.html": "can_access_reef_nursery",
+    "dryer_table.html": "can_access_reef_nursery",
     "admin_receipts.html": "can_view_data",
     "admin_notifications.html": "can_view_notifications",
     "admin_seaweedke.html": "can_manage_sms_settings",

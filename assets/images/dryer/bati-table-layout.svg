@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" role="img" aria-labelledby="title desc">
+  <title id="title">Bati dryer table layout</title>
+  <desc id="desc">Dryer shed at the left, four dryer tables numbered 4, 3, 2, 1 from left to right, and the road along the front.</desc>
+  <defs>
+    <linearGradient id="shed" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#eee7de"/>
+      <stop offset="1" stop-color="#cdbda9"/>
+    </linearGradient>
+    <linearGradient id="table" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b7dea7"/>
+      <stop offset="1" stop-color="#76b965"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#183c33" flood-opacity="0.14"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="600" rx="24" fill="#fbfdfc"/>
+
+  <g filter="url(#shadow)">
+    <rect x="35" y="50" width="300" height="410" rx="10" fill="url(#shed)" stroke="#474f4c" stroke-width="4"/>
+    <text x="185" y="242" font-family="Arial, sans-serif" font-size="42" font-weight="700" text-anchor="middle" fill="#302d29">DRYER</text>
+    <text x="185" y="294" font-family="Arial, sans-serif" font-size="42" font-weight="700" text-anchor="middle" fill="#302d29">SHED</text>
+  </g>
+
+  <g fill="url(#table)" stroke="#31513f" stroke-width="4" filter="url(#shadow)">
+    <rect x="390" y="170" width="76" height="230" rx="8"/>
+    <rect x="606" y="170" width="76" height="230" rx="8"/>
+    <rect x="822" y="170" width="76" height="230" rx="8"/>
+    <rect x="1038" y="170" width="76" height="230" rx="8"/>
+  </g>
+
+  <g font-family="Arial, sans-serif" font-size="38" font-weight="700" text-anchor="middle" fill="#173d32">
+    <g>
+      <circle cx="428" cy="112" r="34" fill="#e8f7ef" stroke="#6bb293" stroke-width="3"/>
+      <text x="428" y="125">4</text>
+    </g>
+    <g>
+      <circle cx="644" cy="112" r="34" fill="#e8f7ef" stroke="#6bb293" stroke-width="3"/>
+      <text x="644" y="125">3</text>
+    </g>
+    <g>
+      <circle cx="860" cy="112" r="34" fill="#e8f7ef" stroke="#6bb293" stroke-width="3"/>
+      <text x="860" y="125">2</text>
+    </g>
+    <g>
+      <circle cx="1076" cy="112" r="34" fill="#e8f7ef" stroke="#6bb293" stroke-width="3"/>
+      <text x="1076" y="125">1</text>
+    </g>
+  </g>
+
+  <g>
+    <path d="M0 525h1200v75H0z" fill="#d8c1a4"/>
+    <path d="M0 525h1200M0 597h1200" stroke="#615240" stroke-width="5"/>
+    <path d="M70 562h120M250 562h120M430 562h120M610 562h120M790 562h120M970 562h120" stroke="#fff8ec" stroke-width="8" stroke-linecap="round"/>
+  </g>
+</svg>

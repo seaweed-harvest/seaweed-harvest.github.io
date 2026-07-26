@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 330" role="img" aria-labelledby="title desc">
+  <title id="title">Seaweed dryer bay reference</title>
+  <desc id="desc">Front view of the drying table, with bays B1 to B4 on the upper row and B5 to B8 on the lower row.</desc>
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#a9aaa4"/>
+      <stop offset="0.5" stop-color="#c3c3bd"/>
+      <stop offset="1" stop-color="#a9aaa4"/>
+    </linearGradient>
+    <filter id="softShadow" x="-10%" y="-20%" width="120%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#12362f" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="330" fill="#fbfdfc"/>
+  <g filter="url(#softShadow)" stroke="#4b504d" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M80 44H1120M80 98H1120M80 116H1120M80 184H1120"/>
+    <path d="M100 36V258M350 36V258M600 36V258M850 36V258M1100 36V258"/>
+    <path d="M94 42H106M344 42H356M594 42H606M844 42H856M1094 42H1106" stroke-width="12"/>
+    <path d="M94 112H106M344 112H356M594 112H606M844 112H856M1094 112H1106" stroke-width="12"/>
+    <path d="M94 180H106M344 180H356M594 180H606M844 180H856M1094 180H1106" stroke-width="12"/>
+    <path d="M100 258L88 278M100 258L112 278M350 258L338 278M350 258L362 278M600 258L588 278M600 258L612 278M850 258L838 278M850 258L862 278M1100 258L1088 278M1100 258L1112 278"/>
+  </g>
+  <rect x="36" y="278" width="1128" height="36" rx="2" fill="url(#base)" stroke="#555a57" stroke-width="3"/>
+  <g fill="#45bf45" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="700" text-anchor="middle">
+    <text x="225" y="84">B1</text>
+    <text x="475" y="84">B2</text>
+    <text x="725" y="84">B3</text>
+    <text x="975" y="84">B4</text>
+    <text x="225" y="164">B5</text>
+    <text x="475" y="164">B6</text>
+    <text x="725" y="164">B7</text>
+    <text x="975" y="164">B8</text>
+  </g>
+</svg>

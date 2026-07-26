@@ -369,6 +369,7 @@ function formLinks(profile) {
   ];
   if (hasPermission(profile, "can_access_reef_nursery")) {
     links.push({ label: "Reef Nursery", href: "./reef_nursery.html" });
+    links.push({ label: "Dryer Table", href: "./dryer_table.html" });
   }
   return links.filter((link) => !link.permission || hasPermission(profile, link.permission));
 }

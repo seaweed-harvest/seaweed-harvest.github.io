@@ -33,6 +33,13 @@ export const FAVORITE_FORMS = [
     description: "Record nursery training sessions and participants",
     href: "./reef_nursery.html",
     permission: "can_access_reef_nursery"
+  },
+  {
+    key: "dryer_table",
+    label: "Dryer Table",
+    description: "Record wet and dry weights across dryer table bays",
+    href: "./dryer_table.html",
+    permission: "can_access_reef_nursery"
   }
 ];
 
