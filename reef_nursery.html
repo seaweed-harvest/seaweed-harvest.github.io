@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Reef Nursery - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/reef_nursery.css?v=7">
+  <link rel="stylesheet" href="./assets/css/reef_nursery.css?v=8">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -54,7 +54,7 @@
             <button id="reefTrainingTab" type="button" role="tab" aria-selected="false" aria-controls="reefTrainingPanel" data-reef-tab="training">Training delivered</button>
             <button id="reefCompetencyTab" type="button" role="tab" aria-selected="false" aria-controls="reefCompetencyPanel" data-reef-tab="competency">Competency Assessment</button>
             <button id="reefSeaweedTab" type="button" role="tab" aria-selected="false" aria-controls="reefSeaweedPanel" data-reef-tab="seaweed">Seaweed Record</button>
-            <button id="reefRaftTab" type="button" role="tab" aria-selected="false" aria-controls="reefRaftPanel" data-reef-tab="raft">Raft Service</button>
+            <button id="reefRaftTab" type="button" role="tab" aria-selected="false" aria-controls="reefRaftPanel" data-reef-tab="raft">Raft inspection</button>
             <button id="reefPhotosTab" type="button" role="tab" aria-selected="false" aria-controls="reefPhotosPanel" data-reef-tab="photos">Photos</button>
             <button id="reefRecordsTab" type="button" role="tab" aria-selected="false" aria-controls="reefRecordsPanel" data-reef-tab="records">Previous records</button>
           </nav>
@@ -197,9 +197,50 @@
           </section>
 
           <section id="reefRaftPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefRaftTab" data-reef-panel="raft" hidden>
-            <fieldset class="reef-prepared-section">
-              <legend>Raft Service</legend>
-              <p>Fields to be confirmed.</p>
+            <fieldset>
+              <legend>Raft inspection</legend>
+              <div class="reef-inspection-grid">
+                <section class="reef-inspection-field">
+                  <h3>Overall position and operating condition</h3>
+                  <ul>
+                    <li>Raft position, alignment and stability</li>
+                    <li>Floatation level and general shape</li>
+                    <li>Fouling, debris or access hazards</li>
+                  </ul>
+                  <label for="reefRaftOverallCondition">Inspection notes</label>
+                  <textarea id="reefRaftOverallCondition" rows="5" maxlength="3000" placeholder="Record findings, defects or action needed."></textarea>
+                </section>
+                <section class="reef-inspection-field">
+                  <h3>Seaweed lines and attachments</h3>
+                  <ul>
+                    <li>Missing, loose, tangled or overloaded lines</li>
+                    <li>Wear to ropes, knots and attachment points</li>
+                    <li>Seaweed condition, spacing and fouling</li>
+                  </ul>
+                  <label for="reefRaftSeaweedLines">Inspection notes</label>
+                  <textarea id="reefRaftSeaweedLines" rows="5" maxlength="3000" placeholder="Record findings, defects or action needed."></textarea>
+                </section>
+                <section class="reef-inspection-field">
+                  <h3>HDPE floating frame</h3>
+                  <ul>
+                    <li>Cracks, cuts, deformation or damage to HDPE pipes</li>
+                    <li>Condition of welded joints and fittings</li>
+                    <li>Uneven floating or signs of water inside pipes</li>
+                  </ul>
+                  <label for="reefRaftHdpeFrame">Inspection notes</label>
+                  <textarea id="reefRaftHdpeFrame" rows="5" maxlength="3000" placeholder="Record findings, defects or action needed."></textarea>
+                </section>
+                <section class="reef-inspection-field">
+                  <h3>Rigging harness and bridle</h3>
+                  <ul>
+                    <li>Wear, fraying or damage to harness and bridle ropes</li>
+                    <li>Secure knots, loops and connection points</li>
+                    <li>Even loading without slipping or excessive chafing</li>
+                  </ul>
+                  <label for="reefRaftRiggingHarness">Inspection notes</label>
+                  <textarea id="reefRaftRiggingHarness" rows="5" maxlength="3000" placeholder="Record findings, defects or action needed."></textarea>
+                </section>
+              </div>
             </fieldset>
           </section>
 
@@ -286,6 +327,6 @@
     </form>
   </dialog>
   <script type="module" src="./assets/js/admin_page.js?v=27"></script>
-  <script type="module" src="./assets/js/reef_nursery_form.js?v=17"></script>
+  <script type="module" src="./assets/js/reef_nursery_form.js?v=18"></script>
 </body>
 </html>

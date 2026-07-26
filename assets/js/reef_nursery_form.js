@@ -57,7 +57,8 @@ async function init() {
     "closeReefTrainingMatrix", "cancelReefTrainingMatrix", "saveReefTrainingMatrix",
     "reefParticipantRows", "reefCompetencyEmpty", "reefCompetencySections",
     "reefParticipantCount", "addReefParticipant", "reefSelectedRafts",
-    "reefRaftSeaweedRecords", "saveReefNursery",
+    "reefRaftSeaweedRecords", "reefRaftOverallCondition", "reefRaftSeaweedLines",
+    "reefRaftHdpeFrame", "reefRaftRiggingHarness", "saveReefNursery",
     "submitReefNursery",
     "reefTakePhoto", "reefChoosePhotos", "reefCameraPhoto", "reefGalleryPhotos",
     "reefPhotoStatus", "reefPhotoPreview", "reefDropboxLink", "reefDropboxPending",
@@ -152,7 +153,7 @@ function initializeNewRecord() {
 async function loadRecord(sessionId) {
   setStatus("Loading Reef Nursery record...");
   setSaveActionsDisabled(true);
-  const { data, error } = await authClient.rpc("ag_reef_nursery_session_detail_v3", {
+  const { data, error } = await authClient.rpc("ag_reef_nursery_session_detail_v4", {
     p_session_id: sessionId
   });
   if (error || !data) {
@@ -173,6 +174,11 @@ async function loadRecord(sessionId) {
   els.reefSupportingStaff.value = data.supporting_staff || "";
   els.reefConditions.value = data.weather_sea_conditions || "";
   els.reefNurseryReference.value = data.nursery_reference || "";
+  const raftInspection = data.raft_inspection || {};
+  els.reefRaftOverallCondition.value = raftInspection.overall_condition || "";
+  els.reefRaftSeaweedLines.value = raftInspection.seaweed_lines_attachments || "";
+  els.reefRaftHdpeFrame.value = raftInspection.hdpe_floating_frame || "";
+  els.reefRaftRiggingHarness.value = raftInspection.rigging_harness_bridle || "";
 
   const sessionTypes = new Set(Array.isArray(data.session_types) ? data.session_types : []);
   els.reefNurseryForm.querySelectorAll('[name="reefSessionType"]').forEach((control) => {
@@ -1104,18 +1110,19 @@ async function persistSession(record, { submitAndReset }) {
       p_photos: uploadedPhotos.map((photo) => photo.manifest),
       p_training_delivered: record.trainingDelivered,
       p_practical_competencies: record.practicalCompetencies,
-      p_raft_records: record.raftRecords
+      p_raft_records: record.raftRecords,
+      p_raft_inspection: record.raftInspection
     };
 
     let rpcName;
     if (savingDraft) {
-      rpcName = "ag_save_reef_nursery_draft_v2";
+      rpcName = "ag_save_reef_nursery_draft_v3";
       rpcPayload.p_session_id = editingSessionId;
       rpcPayload.p_submission_id = submissionId;
     } else {
       rpcName = editingSessionId
-        ? "ag_update_reef_nursery_session_v2"
-        : "ag_submit_reef_nursery_session_v2";
+        ? "ag_update_reef_nursery_session_v3"
+        : "ag_submit_reef_nursery_session_v3";
       if (editingSessionId) rpcPayload.p_session_id = editingSessionId;
       else rpcPayload.p_submission_id = submissionId;
     }
@@ -1273,7 +1280,13 @@ function validatedRecord({ requireComplete = true } = {}) {
       harvest_weight_unit: primaryRaftRecord.harvest_weight_unit,
       equipment_replaced: primaryRaftRecord.equipment_replaced
     },
-    raftRecords
+    raftRecords,
+    raftInspection: {
+      overall_condition: textOrNull(els.reefRaftOverallCondition.value),
+      seaweed_lines_attachments: textOrNull(els.reefRaftSeaweedLines.value),
+      hdpe_floating_frame: textOrNull(els.reefRaftHdpeFrame.value),
+      rigging_harness_bridle: textOrNull(els.reefRaftRiggingHarness.value)
+    }
   };
 }
 
