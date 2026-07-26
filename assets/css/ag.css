@@ -2141,6 +2141,13 @@ body.has-fixed-table-scrollbar {
   font-weight: 600;
 }
 
+.dashboard-heading-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .field-hint {
   margin: 0;
   color: var(--text-muted);

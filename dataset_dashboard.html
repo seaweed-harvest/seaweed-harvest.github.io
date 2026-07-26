@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Dataset Dashboard - Seaweed Harvest</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+  <link rel="stylesheet" href="./assets/css/dataset_dashboard.css?v=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Seaweed Harvest">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./favicon.ico" sizes="any">
+  <link rel="icon" href="./assets/images/seaweed-harvest-icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
+  <script type="module" src="./assets/js/pwa_bootstrap.js"></script>
+</head>
+<body class="admin-console-page dataset-dashboard-page" data-auth-pending>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <p class="eyebrow">Seaweed aggregation</p>
+        <h1>Dataset Dashboard</h1>
+      </div>
+      <div class="header-actions admin-header-controls">
+        <nav class="app-nav" aria-label="Main navigation">
+          <a href="./collection.html">Collection</a>
+          <a href="./home.html">Home</a>
+        </nav>
+        <span id="datasetConnectionStatus" class="status-pill status-muted">Loading</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell admin-shell admin-layout">
+    <aside id="datasetSidebar" class="admin-sidebar" aria-label="Application menu"></aside>
+
+    <section class="admin-content admin-page-section dataset-dashboard-content">
+      <section class="panel dataset-overview-panel">
+        <div class="section-head compact dataset-title-row">
+          <div>
+            <h2 id="datasetOrganisationName">Dataset</h2>
+            <p id="datasetOrganisationMeta" class="field-hint">Active sandbox aggregator</p>
+          </div>
+          <div class="dataset-title-actions">
+            <a class="button-link secondary" href="./records.html?category=intake&amp;view=all&amp;period=all">Open Record Ledgers</a>
+            <button id="reloadDatasetDashboard" type="button">Reload</button>
+          </div>
+        </div>
+
+        <p id="datasetScopeNote" class="dataset-scope-note">
+          Historical dataset view focused on quantity, seaweed type, communities and farmers. Grade is intentionally not used.
+        </p>
+
+        <div class="dataset-summary-grid" aria-label="Dataset summary">
+          <article class="dataset-summary-card">
+            <span>Total quantity</span>
+            <strong><span id="datasetTotalKg">--</span> <small>kg</small></strong>
+          </article>
+          <article class="dataset-summary-card">
+            <span>Collection rows</span>
+            <strong id="datasetCollectionCount">--</strong>
+          </article>
+          <article class="dataset-summary-card">
+            <span>Farmers</span>
+            <strong id="datasetFarmerCount">--</strong>
+          </article>
+          <article class="dataset-summary-card">
+            <span>Communities</span>
+            <strong id="datasetCommunityCount">--</strong>
+          </article>
+          <article class="dataset-summary-card">
+            <span>Seaweed types</span>
+            <strong id="datasetSeaweedTypeCount">--</strong>
+          </article>
+          <article class="dataset-summary-card">
+            <span>Collection range</span>
+            <strong id="datasetCollectionRange">--</strong>
+          </article>
+        </div>
+        <p id="datasetDashboardStatus" class="admin-status" aria-live="polite"></p>
+      </section>
+
+      <section id="datasetQualityPanel" class="panel dataset-section" aria-labelledby="datasetQualityHeading" hidden>
+        <div class="section-head compact">
+          <div>
+            <h2 id="datasetQualityHeading">Source Quality</h2>
+            <p class="field-hint">Transcription limits retained for review; no operational collection records were created.</p>
+          </div>
+          <span class="status-pill status-muted">Staging only</span>
+        </div>
+        <div class="dataset-quality-grid">
+          <article><span>Exact-day dates</span><strong id="datasetDayPrecisionCount">--</strong></article>
+          <article><span>Month-only dates</span><strong id="datasetMonthPrecisionCount">--</strong></article>
+          <article><span>Year-only dates</span><strong id="datasetYearPrecisionCount">--</strong></article>
+          <article><span>Date review</span><strong id="datasetDateReviewCount">--</strong></article>
+          <article><span>Community review</span><strong id="datasetCommunityReviewCount">--</strong></article>
+          <article><span>Unverified rows</span><strong id="datasetUnverifiedCount">--</strong></article>
+          <article><span>Zero-quantity rows</span><strong id="datasetNonpositiveCount">--</strong></article>
+          <article><span>Amount differences</span><strong id="datasetAmountVarianceCount">--</strong></article>
+        </div>
+      </section>
+
+      <section class="panel dataset-section" aria-labelledby="datasetSeaweedTypesHeading">
+        <div class="section-head compact">
+          <div>
+            <h2 id="datasetSeaweedTypesHeading">Seaweed Types</h2>
+            <p class="field-hint">Quantity and participation by recorded seaweed type.</p>
+          </div>
+          <span id="datasetSeaweedTypesCount" class="status-pill">0 types</span>
+        </div>
+        <div class="responsive-table-wrap">
+          <table class="management-table admin-data-table dataset-table">
+            <thead>
+              <tr>
+                <th scope="col">Seaweed type</th>
+                <th scope="col">Total kg</th>
+                <th scope="col">Collection rows</th>
+                <th scope="col">Farmers</th>
+                <th scope="col">Communities</th>
+                <th scope="col">First collection</th>
+                <th scope="col">Last collection</th>
+              </tr>
+            </thead>
+            <tbody id="datasetSeaweedTypeRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel dataset-section" aria-labelledby="datasetCommunitiesHeading">
+        <div class="section-head compact">
+          <div>
+            <h2 id="datasetCommunitiesHeading">Communities</h2>
+            <p class="field-hint">Registered farmers and quantities for the active sandbox organisation.</p>
+          </div>
+          <span id="datasetCommunitiesCount" class="status-pill">0 communities</span>
+        </div>
+        <div class="responsive-table-wrap">
+          <table class="management-table admin-data-table dataset-table">
+            <thead>
+              <tr>
+                <th scope="col">Community ID</th>
+                <th scope="col">Community</th>
+                <th scope="col">Total kg</th>
+                <th scope="col">Collection rows</th>
+                <th scope="col">Registered farmers</th>
+                <th scope="col">Collecting farmers</th>
+                <th scope="col">Seaweed types</th>
+                <th scope="col">Last collection</th>
+              </tr>
+            </thead>
+            <tbody id="datasetCommunityRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel dataset-section" aria-labelledby="datasetImportBatchesHeading">
+        <div class="section-head compact">
+          <div>
+            <h2 id="datasetImportBatchesHeading">Import Batches</h2>
+            <p class="field-hint">Historical import provenance recorded in collection custom fields.</p>
+          </div>
+          <span id="datasetImportBatchCount" class="status-pill">0 batches</span>
+        </div>
+        <div class="responsive-table-wrap">
+          <table class="management-table admin-data-table dataset-table">
+            <thead>
+              <tr>
+                <th scope="col">Import batch</th>
+                <th scope="col">Total kg</th>
+                <th scope="col">Collection rows</th>
+                <th scope="col">Farmers</th>
+                <th scope="col">Communities</th>
+                <th scope="col">Seaweed types</th>
+                <th scope="col">Collection range</th>
+              </tr>
+            </thead>
+            <tbody id="datasetImportBatchRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel dataset-section" aria-labelledby="datasetFarmersHeading">
+        <div class="section-head compact dataset-farmer-heading">
+          <div>
+            <h2 id="datasetFarmersHeading">Farmers</h2>
+            <p id="datasetFarmerHint" class="field-hint">Searchable farmer dataset with quantity and seaweed-type history. Contact details remain in the Farmer Registry.</p>
+          </div>
+          <div class="dataset-title-actions">
+            <span id="datasetFarmersCount" class="status-pill">0 farmers</span>
+            <a id="datasetFarmerRegistryLink" class="button-link secondary" href="./admin_member_registry.html">Open Farmer Registry</a>
+          </div>
+        </div>
+
+        <div class="admin-toolbar dataset-farmer-toolbar">
+          <label>
+            Search farmers
+            <input id="datasetFarmerSearch" type="search" autocomplete="off" placeholder="Farmer or community">
+          </label>
+          <button id="loadDatasetFarmers" type="button">Search</button>
+        </div>
+
+        <div class="ledger-pagination dataset-farmer-pagination">
+          <button id="datasetFarmerPrevPage" type="button">Previous</button>
+          <span id="datasetFarmerPageStatus" class="admin-status">Page 1</span>
+          <button id="datasetFarmerNextPage" type="button">Next</button>
+        </div>
+
+        <div class="responsive-table-wrap">
+          <table class="management-table admin-data-table dataset-table dataset-farmer-table">
+            <thead>
+              <tr>
+                <th id="datasetMemberIdHeading" scope="col">Farmer ID</th>
+                <th id="datasetMemberNameHeading" scope="col">Farmer</th>
+                <th scope="col">Community</th>
+                <th scope="col">Total kg</th>
+                <th scope="col">Collection rows</th>
+                <th scope="col">Seaweed types</th>
+                <th scope="col">Farm size</th>
+                <th scope="col">First collection</th>
+                <th scope="col">Last collection</th>
+              </tr>
+            </thead>
+            <tbody id="datasetFarmerRows"></tbody>
+          </table>
+        </div>
+        <p id="datasetFarmerStatus" class="admin-status" aria-live="polite"></p>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
+  <script type="module" src="./assets/js/dataset_dashboard_page.js?v=1"></script>
+</body>
+</html>

@@ -1,0 +1,217 @@
+.dataset-dashboard-content {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.dataset-overview-panel,
+.dataset-section {
+  min-width: 0;
+  padding: 16px;
+}
+
+.dataset-title-row,
+.dataset-farmer-heading {
+  align-items: flex-start;
+}
+
+.dataset-title-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dataset-scope-note {
+  margin: 0 0 14px;
+  padding: 9px 11px;
+  border: 1px solid rgba(15, 118, 110, 0.22);
+  border-radius: 7px;
+  background: rgba(15, 118, 110, 0.06);
+  color: var(--text-sec);
+  font-size: 0.84rem;
+}
+
+.dataset-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.dataset-summary-card {
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-soft);
+}
+
+.dataset-summary-card > span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.dataset-summary-card strong {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 1.08rem;
+  line-height: 1.25;
+}
+
+.dataset-summary-card small {
+  color: var(--text-muted);
+  font-size: 0.72em;
+}
+
+.dataset-quality-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+
+.dataset-quality-grid article {
+  min-width: 0;
+  padding: 11px 12px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-soft);
+}
+
+.dataset-quality-grid article:nth-child(4n) {
+  border-right: 0;
+}
+
+.dataset-quality-grid article:nth-last-child(-n + 4) {
+  border-bottom: 0;
+}
+
+.dataset-quality-grid span,
+.dataset-quality-grid strong {
+  display: block;
+}
+
+.dataset-quality-grid span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.dataset-quality-grid strong {
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 1.08rem;
+}
+
+.dataset-table th,
+.dataset-table td {
+  white-space: nowrap;
+}
+
+.dataset-table td:nth-child(2) {
+  white-space: normal;
+  min-width: 180px;
+}
+
+.dataset-farmer-toolbar {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dataset-farmer-toolbar label {
+  flex: 1 1 320px;
+  max-width: 520px;
+}
+
+.dataset-farmer-toolbar input {
+  width: 100%;
+}
+
+.dataset-farmer-pagination {
+  margin-bottom: 8px;
+}
+
+.dataset-farmer-table td:nth-child(2),
+.dataset-farmer-table td:nth-child(3),
+.dataset-farmer-table td:nth-child(6) {
+  white-space: normal;
+}
+
+.dataset-farmer-table td:nth-child(2) {
+  min-width: 170px;
+}
+
+.dataset-farmer-table td:nth-child(3) {
+  min-width: 190px;
+}
+
+@media (max-width: 1280px) {
+  .dataset-summary-grid {
+    grid-template-columns: repeat(3, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .dataset-overview-panel,
+  .dataset-section {
+    padding: 12px;
+  }
+
+  .dataset-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dataset-quality-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dataset-quality-grid article,
+  .dataset-quality-grid article:nth-child(4n) {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dataset-quality-grid article:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .dataset-quality-grid article:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
+
+  .dataset-title-row,
+  .dataset-farmer-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dataset-title-actions {
+    justify-content: flex-start;
+  }
+
+  .dataset-title-actions .button-link,
+  .dataset-title-actions button {
+    flex: 1 1 auto;
+  }
+
+  .dataset-farmer-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dataset-farmer-toolbar label {
+    flex: 0 0 auto;
+    max-width: none;
+  }
+}

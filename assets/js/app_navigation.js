@@ -379,6 +379,7 @@ function recordLinks(profile) {
     href: hasPermission(profile, "can_view_data") ? "./admin_today.html" : "./today.html"
   }];
   return links.concat(permittedLinks(profile, [
+    { label: "Dataset Dashboard", href: "./dataset_dashboard.html", permission: "can_view_dashboard", className: "app-nav-desktop-only" },
     { label: "Record Ledgers", href: "./records.html", permission: "can_view_data", className: "app-nav-desktop-only" },
     { label: "Reef Nursery Records", href: "./reef_nursery_records.html", permission: "can_access_reef_nursery", className: "app-nav-desktop-only" },
     { label: "Finance Review", href: "./admin_finance.html", permission: "can_view_finance", className: "app-nav-desktop-only" },
