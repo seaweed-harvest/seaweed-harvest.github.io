@@ -12,6 +12,13 @@
   --danger: #ef4444;
   --warn: #f59e0b;
   --shadow: 0 4px 12px rgba(31, 75, 68, 0.08);
+  --layout-gap: 14px;
+  --page-section-padding: 16px;
+  --panel-padding: 16px;
+  --form-field-gap: 12px;
+  --label-font-size: 0.8rem;
+  --section-font-size: 1rem;
+  --supporting-font-size: 0.78rem;
 }
 
 * {
@@ -2386,8 +2393,8 @@ body.has-fixed-table-scrollbar {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: var(--form-field-gap);
+  margin-bottom: var(--form-field-gap);
 }
 
 .section-head.compact {
@@ -2398,7 +2405,7 @@ body.has-fixed-table-scrollbar {
 .section-head h3 {
   margin: 0;
   color: var(--text);
-  font-size: 1rem;
+  font-size: var(--section-font-size);
   font-weight: 600;
 }
 
@@ -2655,12 +2662,12 @@ body.has-fixed-table-scrollbar {
 .admin-content {
   min-width: 0;
   display: grid;
-  gap: 12px;
+  gap: var(--layout-gap);
 }
 
 .admin-page-section,
 .admin-dashboard-panel {
-  padding: 16px;
+  padding: var(--page-section-padding);
 }
 
 .admin-section-title {
@@ -4508,7 +4515,7 @@ body:not([data-today-record-category="intake"]) [data-today-intake-only] {
   display: grid;
   gap: 5px;
   color: var(--text-sec);
-  font-size: 0.8rem;
+  font-size: var(--label-font-size);
   font-weight: 600;
   text-transform: uppercase;
 }
@@ -4847,7 +4854,7 @@ body[data-registration-pending] .registration-flow {
 .user-invite-form {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--form-field-gap);
   margin-bottom: 18px;
 }
 
@@ -4862,7 +4869,7 @@ body[data-registration-pending] .registration-flow {
 
 .permission-fieldset {
   margin: 0;
-  padding: 10px 12px;
+  padding: 11px 12px 12px;
   border: 1px solid var(--border-soft);
   border-radius: 7px;
 }
@@ -5048,7 +5055,7 @@ body[data-registration-pending] .registration-flow {
 .users-page .admin-content > .panel,
 .builder-page .admin-content > .panel,
 .finance-page .admin-content > .panel {
-  padding: 16px;
+  padding: var(--panel-padding);
 }
 
 .builder-table {
@@ -6176,6 +6183,12 @@ body[data-registration-pending] .registration-flow {
 }
 
 @media (max-width: 760px) {
+  :root {
+    --page-section-padding: 12px;
+    --panel-padding: 14px;
+    --form-field-gap: 10px;
+  }
+
   .process-record-form fieldset {
     grid-template-columns: 1fr;
   }
@@ -7401,7 +7414,7 @@ label input[type="checkbox"] {
 
   .admin-page-section,
   .admin-dashboard-panel {
-    padding: 12px;
+    padding: var(--page-section-padding);
   }
 
   .admin-dashboard-band-items-five,
@@ -7484,7 +7497,7 @@ label input[type="checkbox"] {
   .users-page .admin-content > .panel,
   .builder-page .admin-content > .panel,
   .finance-page .admin-content > .panel {
-    padding: 12px;
+    padding: var(--panel-padding);
   }
 }
 

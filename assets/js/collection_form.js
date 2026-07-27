@@ -28,7 +28,7 @@ import {
 import { syncPendingCollections } from "./offline_sync.js";
 import { completeLaunchSplash } from "./app_transition.js";
 import { createOperationFeedback } from "./operation_feedback.js";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=11";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=12";
 import { setupFavoriteFormButton } from "./favorite_forms.js?v=3";
 import { setPrintValue, setupPdfWorksheet } from "./print_worksheet.js";
 

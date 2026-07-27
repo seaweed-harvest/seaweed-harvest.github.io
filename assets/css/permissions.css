@@ -1,4 +1,5 @@
 .permission-page-tabs {
+  justify-self: start;
   display: inline-flex;
   gap: 4px;
   padding: 4px;
@@ -20,22 +21,49 @@
 }
 
 .permission-workspace {
-  margin-top: 14px;
+  min-width: 0;
+  margin-top: var(--layout-gap);
+}
+
+.permission-workspace > .panel {
+  min-width: 0;
+  padding: var(--panel-padding);
 }
 
 .organisation-permissions-panel {
-  max-width: 1180px;
+  width: 100%;
+  max-width: 1240px;
 }
 
-.organisation-permissions-intro {
-  max-width: 780px;
-  margin: 0 0 18px;
-  color: var(--text-muted);
+.organisation-permissions-header {
+  min-height: 42px;
+}
+
+.organisation-permissions-selector {
+  width: min(360px, 100%);
+  display: grid;
+  grid-template-columns: auto minmax(190px, 1fr);
+  align-items: center;
+  gap: 10px;
+  color: var(--text-sec);
+  font-size: var(--label-font-size);
+  font-weight: 600;
+  text-transform: none;
+}
+
+.organisation-permissions-selector select {
+  width: 100%;
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
 }
 
 .organisation-capability-group {
   min-width: 0;
-  margin: 0 0 18px;
+  margin: 0 0 var(--layout-gap);
   padding: 0;
   border: 0;
 }
@@ -45,7 +73,7 @@
   margin-bottom: 8px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
-  font-size: 1rem;
+  font-size: var(--section-font-size);
   font-weight: 700;
 }
 
@@ -61,7 +89,7 @@
   gap: 10px;
   align-items: start;
   min-width: 0;
-  padding: 13px 4px;
+  padding: 11px 4px;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
 }
@@ -79,13 +107,16 @@
 }
 
 .organisation-capability-copy strong {
-  font-size: 0.95rem;
+  font-size: 0.86rem;
+  line-height: 1.35;
+  text-transform: none;
 }
 
 .organisation-capability-copy small {
   color: var(--text-muted);
-  font-size: 0.82rem;
-  line-height: 1.4;
+  font-size: var(--supporting-font-size);
+  line-height: 1.35;
+  text-transform: none;
 }
 
 .organisation-capability-badge {
@@ -119,5 +150,11 @@
 
   .organisation-capability-list {
     grid-template-columns: 1fr;
+  }
+
+  .organisation-permissions-selector {
+    width: 100%;
+    grid-template-columns: 1fr;
+    gap: 5px;
   }
 }

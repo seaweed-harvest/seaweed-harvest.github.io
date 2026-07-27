@@ -367,6 +367,12 @@ function formLinks(profile) {
     { label: "3. Stock Record", href: "./stabilization_packing.html", permission: "can_submit_collection", capability: "form_stock_record" },
     { label: "4. Process Record", href: "./process_record.html", permission: "can_submit_collection", capability: "form_process_record" }
   ];
+  links.push({
+    label: "Green Space Log",
+    href: "./green-space/",
+    requiredAggregator: "SANDBOX",
+    capability: "form_green_space"
+  });
   if (hasPermission(profile, "can_access_reef_nursery")) {
     links.push({ label: "Reef Nursery", href: "./reef_nursery.html", requiredAggregator: "COSME", capability: "form_reef_nursery" });
     links.push({ label: "Dryer Table", href: "./dryer_table.html", requiredAggregator: "COSME", capability: "form_dryer_table" });

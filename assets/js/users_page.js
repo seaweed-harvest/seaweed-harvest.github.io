@@ -17,6 +17,7 @@ const permissionDefinitions = [
   ["can_export_data", "Export data", "Download data from the system for use outside it."],
   ["can_manage_settings", "Form builder settings", "Change collection fields, grades and seaweed types."],
   ["can_manage_users", "Invite and edit users", "View user emails and manage non-admin accounts."],
+  ["can_manage_organisation_permissions", "Manage organisation permissions", "Choose which forms, records and tools are available to organisations you administer. Requires access to at least two organisations."],
   ["can_manage_admin_users", "Add or edit admin users", "Grant or change administrator access, except the protected owner."],
   ["can_view_user_activity", "View recent activity", "View login and administrator action history. The page shows the newest 20 events."],
   ["can_view_notifications", "View notification content", "Includes recipient names, masked phone numbers, message text and delivery history."],
@@ -30,6 +31,7 @@ const permissionDependencies = [
   ["can_edit_collections", "can_view_data"],
   ["can_manage_pricing", "can_view_finance"],
   ["can_manage_admin_users", "can_manage_users"],
+  ["can_manage_organisation_permissions", "can_manage_users"],
   ["can_view_user_activity", "can_manage_users"],
   ["can_manage_notifications", "can_view_notifications"]
 ];
@@ -53,7 +55,8 @@ const organisationCapabilityDefinitions = {
     ["form_stock_record", "3. Stock Record", "BioStim stock form and connected stock records."],
     ["form_process_record", "4. Process Record", "Processing form and connected process records."],
     ["form_reef_nursery", "Reef Nursery", "COSME nursery form, photos and connected records."],
-    ["form_dryer_table", "Dryer Table", "COSME dryer form and the connected Station dataset."]
+    ["form_dryer_table", "Dryer Table", "COSME dryer form and the connected Station dataset."],
+    ["form_green_space", "Green Space Log", "Green Space project form, map, photos and reflection records."]
   ],
   tools: [
     ["tool_qr_tags", "QR code tags", "Generate and print QR identification tags.", "development"],
@@ -71,6 +74,7 @@ const state = {
   communities: [],
   aggregators: [],
   activity: [],
+  organisationPermissionAccess: null,
   organisationPermissions: null,
   actor: null,
   editingUser: null
@@ -93,8 +97,8 @@ async function init() {
     "userActivityPanel", "userActivityCount", "userActivityRows",
     "permissionPageTabs", "organisationPermissionsTab", "userPermissionsTab",
     "organisationPermissionsWorkspace", "userPermissionsWorkspace",
-    "organisationPermissionsForm", "organisationPermissionsName",
-    "organisationPermissionsCode", "organisationFormPermissions",
+    "organisationPermissionsForm", "organisationPermissionsSelect",
+    "organisationFormPermissions",
     "organisationToolPermissions", "saveOrganisationPermissions",
     "organisationPermissionsStatus"
   ].forEach((id) => { els[id] = document.getElementById(id); });
@@ -112,13 +116,15 @@ async function init() {
   renderDashboardInputs("invite", els.inviteRole.value);
   configureFarmerRoleFields("invite");
   configureInviteContactMode();
-  selectPermissionTab(location.hash === "#users" ? "users" : "organisation", false);
   await loadPageData();
   await resumePasswordResetLink();
 }
 
 function bindEvents() {
   els.permissionPageTabs.addEventListener("click", handlePermissionTabClick);
+  els.organisationPermissionsSelect.addEventListener("change", () => {
+    void loadOrganisationPermissions(els.organisationPermissionsSelect.value);
+  });
   els.organisationPermissionsForm.addEventListener("submit", saveOrganisationPermissions);
   els.reloadUsers.addEventListener("click", loadPageData);
   els.inviteEmail.addEventListener("input", configureInviteContactMode);
@@ -128,11 +134,17 @@ function bindEvents() {
     configureFarmerRoleFields("invite");
     renderAggregatorInputs("invite", selectedAggregatorIds("invite"));
   });
+  els.inviteAggregators.addEventListener("change", () => {
+    updateOrganisationPermissionEligibility("invite");
+  });
   els.editUserRole.addEventListener("change", () => {
     applyRolePreset("edit", els.editUserRole.value);
     renderDashboardInputs("edit", els.editUserRole.value);
     configureFarmerRoleFields("edit");
     renderAggregatorInputs("edit", selectedAggregatorIds("edit"), els.editUserRole.value === "system_admin");
+  });
+  els.editAggregators.addEventListener("change", () => {
+    updateOrganisationPermissionEligibility("edit");
   });
   els.inviteUserForm.addEventListener("submit", inviteUser);
   els.editUserForm.addEventListener("submit", saveUser);
@@ -158,28 +170,29 @@ async function loadPageData() {
     const activityRequest = canViewUserActivity()
       ? authClient.rpc("ag_admin_activity_log", { p_limit: 20 })
       : Promise.resolve({ data: [], error: null });
-    const [usersResponse, registrationsResponse, passwordHelpResponse, activityResponse, aggregatorResponse, organisationResponse, communities] = await Promise.all([
+    const [usersResponse, registrationsResponse, passwordHelpResponse, activityResponse, aggregatorResponse, organisationAccessResponse, communities] = await Promise.all([
       authClient.rpc("ag_admin_user_directory"),
       authClient.rpc("ag_admin_farmer_registration_requests"),
       invokeAdminUsers({ action: "list_password_help" }),
       activityRequest,
       authClient.rpc("ag_admin_user_aggregator_options"),
-      authClient.rpc("ag_admin_organisation_permissions"),
+      authClient.rpc("ag_admin_organisation_permission_options"),
       selectRows(APP_CONFIG.tables.communities, "select=community_id,community_name&order=community_name.asc")
     ]);
     if (usersResponse.error) throw usersResponse.error;
     if (registrationsResponse.error) throw registrationsResponse.error;
     if (activityResponse.error) throw activityResponse.error;
     if (aggregatorResponse.error) throw aggregatorResponse.error;
-    if (organisationResponse.error) throw organisationResponse.error;
+    if (organisationAccessResponse.error) throw organisationAccessResponse.error;
     state.users = usersResponse.data || [];
     state.registrations = registrationsResponse.data || [];
     state.passwordHelp = passwordHelpResponse.requests || [];
     state.activity = activityResponse.data || [];
     state.aggregators = aggregatorResponse.data || [];
-    state.organisationPermissions = organisationResponse.data || null;
+    state.organisationPermissionAccess = organisationAccessResponse.data || null;
+    state.organisationPermissions = null;
     state.communities = communities;
-    renderOrganisationPermissions();
+    await configureOrganisationPermissionAccess();
     renderCommunityOptions();
     renderAggregatorInputs("invite", defaultInviteAggregatorIds());
     renderUsers();
@@ -199,7 +212,8 @@ function handlePermissionTabClick(event) {
 }
 
 function selectPermissionTab(tab, updateHash = true) {
-  const usersSelected = tab === "users";
+  const organisationAllowed = Boolean(state.organisationPermissionAccess?.can_access);
+  const usersSelected = tab === "users" || !organisationAllowed;
   els.organisationPermissionsTab.setAttribute("aria-selected", String(!usersSelected));
   els.userPermissionsTab.setAttribute("aria-selected", String(usersSelected));
   els.organisationPermissionsWorkspace.hidden = usersSelected;
@@ -207,19 +221,64 @@ function selectPermissionTab(tab, updateHash = true) {
   if (updateHash) history.replaceState(null, "", usersSelected ? "#users" : "#organisation");
 }
 
+async function configureOrganisationPermissionAccess() {
+  const access = state.organisationPermissionAccess;
+  const organisations = Array.isArray(access?.organisations) ? access.organisations : [];
+  const canAccess = Boolean(access?.can_access && organisations.length > 1);
+  els.permissionPageTabs.hidden = !canAccess;
+  els.organisationPermissionsTab.hidden = !canAccess;
+
+  if (!canAccess) {
+    els.organisationPermissionsSelect.replaceChildren();
+    selectPermissionTab("users", false);
+    return;
+  }
+
+  els.organisationPermissionsSelect.innerHTML = organisations.map((organisation) => `
+    <option value="${escapeHtml(organisation.id)}">${escapeHtml(organisation.aggregator_code)} - ${escapeHtml(organisation.organisation_name)}</option>
+  `).join("");
+  const activeId = String(access.active_organisation_id || "");
+  els.organisationPermissionsSelect.value = organisations.some(
+    (organisation) => String(organisation.id) === activeId
+  ) ? activeId : String(organisations[0].id);
+
+  const requestedTab = location.hash === "#users" ? "users" : "organisation";
+  selectPermissionTab(requestedTab, false);
+  await loadOrganisationPermissions(els.organisationPermissionsSelect.value);
+}
+
+async function loadOrganisationPermissions(organisationId) {
+  if (!state.organisationPermissionAccess?.can_access || !organisationId) return;
+  els.organisationPermissionsSelect.disabled = true;
+  els.saveOrganisationPermissions.disabled = true;
+  setStatus(els.organisationPermissionsStatus, "Loading...");
+  try {
+    const { data, error } = await authClient.rpc(
+      "ag_admin_organisation_permissions",
+      { p_organisation_id: organisationId }
+    );
+    if (error) throw error;
+    state.organisationPermissions = data || null;
+    renderOrganisationPermissions();
+    setStatus(els.organisationPermissionsStatus, "");
+  } catch (error) {
+    state.organisationPermissions = null;
+    renderOrganisationPermissions();
+    setStatus(els.organisationPermissionsStatus, error.message, "error");
+  } finally {
+    els.organisationPermissionsSelect.disabled = false;
+  }
+}
+
 function renderOrganisationPermissions() {
   const settings = state.organisationPermissions;
   if (!settings?.organisation) {
-    els.organisationPermissionsName.textContent = "Organisation permissions";
-    els.organisationPermissionsCode.textContent = "-";
     els.organisationFormPermissions.innerHTML = "";
     els.organisationToolPermissions.innerHTML = "";
     els.saveOrganisationPermissions.disabled = true;
     return;
   }
 
-  els.organisationPermissionsName.textContent = settings.organisation.name;
-  els.organisationPermissionsCode.textContent = settings.organisation.code;
   renderOrganisationCapabilityGroup(
     els.organisationFormPermissions,
     organisationCapabilityDefinitions.forms,
@@ -266,7 +325,10 @@ async function saveOrganisationPermissions(event) {
   try {
     const { data, error } = await authClient.rpc(
       "ag_admin_save_organisation_permissions",
-      { p_capabilities: capabilities }
+      {
+        p_organisation_id: state.organisationPermissions.organisation.id,
+        p_capabilities: capabilities
+      }
     );
     if (error) throw error;
     state.organisationPermissions = data;
@@ -757,6 +819,7 @@ function renderAggregatorInputs(prefix, selectedIds = [], allAggregators = false
       '<span class="field-help">Green Space teachers are limited to the Green Space form and ledger within SANDBOX.</span>'
     );
   }
+  updateOrganisationPermissionEligibility(prefix);
 }
 
 function selectedAggregatorIds(prefix) {
@@ -768,6 +831,24 @@ function defaultInviteAggregatorIds() {
   const activeId = String(state.actor?.active_aggregator_id || "");
   if (state.aggregators.some((row) => String(row.id) === activeId)) return [activeId];
   return state.aggregators[0]?.id ? [String(state.aggregators[0].id)] : [];
+}
+
+function updateOrganisationPermissionEligibility(prefix) {
+  const input = document.getElementById(`${prefix}-can_manage_organisation_permissions`);
+  if (!input) return;
+  const role = prefix === "invite" ? els.inviteRole.value : els.editUserRole.value;
+  const organisationCount = role === "system_admin"
+    ? state.aggregators.length
+    : selectedAggregatorIds(prefix).length;
+  const eligible = organisationCount > 1;
+  const canChange = actorCanChangePermission("can_manage_organisation_permissions");
+  if (!eligible) input.checked = false;
+  input.disabled = !canChange || !eligible;
+  input.title = !eligible
+    ? "This permission requires access to at least two organisations"
+    : canChange
+      ? ""
+      : "You cannot grant or change a permission you do not have";
 }
 
 function formatAggregatorAccess(user) {
@@ -831,6 +912,7 @@ function writePermissions(prefix, values) {
     input.disabled = !canChange;
     input.title = canChange ? "" : "You cannot grant or change a permission you do not have";
   });
+  updateOrganisationPermissionEligibility(prefix);
 }
 
 function actorCanChangePermission(key) {

@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Permissions - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/permissions.css">
+  <link rel="stylesheet" href="./assets/css/permissions.css?v=2">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -42,21 +42,19 @@
     </aside>
 
     <section class="admin-content admin-page-section">
-      <nav id="permissionPageTabs" class="permission-page-tabs" aria-label="Permission area" role="tablist">
-        <button id="organisationPermissionsTab" type="button" role="tab" aria-controls="organisationPermissionsWorkspace" aria-selected="true">Organisation</button>
-        <button id="userPermissionsTab" type="button" role="tab" aria-controls="userPermissionsWorkspace" aria-selected="false">Users</button>
+      <nav id="permissionPageTabs" class="permission-page-tabs" aria-label="Permission area" role="tablist" hidden>
+        <button id="organisationPermissionsTab" type="button" role="tab" aria-controls="organisationPermissionsWorkspace" aria-selected="false" hidden>Organisation</button>
+        <button id="userPermissionsTab" type="button" role="tab" aria-controls="userPermissionsWorkspace" aria-selected="true">Users</button>
       </nav>
 
-      <section id="organisationPermissionsWorkspace" class="permission-workspace" role="tabpanel" aria-labelledby="organisationPermissionsTab">
+      <section id="organisationPermissionsWorkspace" class="permission-workspace" role="tabpanel" aria-labelledby="organisationPermissionsTab" hidden>
         <section class="panel organisation-permissions-panel">
-          <div class="section-head compact">
-            <div>
-              <p class="eyebrow">Active organisation</p>
-              <h2 id="organisationPermissionsName">Organisation permissions</h2>
-            </div>
-            <span id="organisationPermissionsCode" class="status-pill">-</span>
+          <div class="section-head compact organisation-permissions-header">
+            <h2>Organisation permissions</h2>
+            <label class="organisation-permissions-selector">Organisation
+              <select id="organisationPermissionsSelect" aria-label="Organisation"></select>
+            </label>
           </div>
-          <p class="organisation-permissions-intro">A form and its records are one permission. Turning a form off removes both the form and its connected dataset for this organisation.</p>
 
           <form id="organisationPermissionsForm">
             <fieldset class="organisation-capability-group">
@@ -75,7 +73,7 @@
         </section>
       </section>
 
-      <div id="userPermissionsWorkspace" class="permission-workspace" role="tabpanel" aria-labelledby="userPermissionsTab" hidden>
+      <div id="userPermissionsWorkspace" class="permission-workspace" role="tabpanel" aria-labelledby="userPermissionsTab">
       <section class="panel">
         <div class="section-head compact"><h2>Users</h2><button id="reloadUsers" type="button">Reload</button></div>
         <form id="inviteUserForm" class="user-invite-form">
@@ -213,6 +211,6 @@
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
   <script type="module" src="./assets/js/admin_page.js?v=35"></script>
-  <script type="module" src="./assets/js/users_page.js?v=8"></script>
+  <script type="module" src="./assets/js/users_page.js?v=9"></script>
 </body>
 </html>

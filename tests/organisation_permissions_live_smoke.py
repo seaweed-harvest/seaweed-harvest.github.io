@@ -1,4 +1,5 @@
 import contextlib
+import time
 import urllib.error
 
 from seaweedke_ui_probe import (
@@ -9,6 +10,71 @@ from seaweedke_ui_probe import (
     create_admin,
     request_json,
 )
+
+
+def create_single_organisation_admin(keys):
+    suffix = str(int(time.time() * 1000))
+    email = f"codex.organisation.scope.{suffix}@example.com"
+    password = f"OrganisationScope!{suffix}Aa9"
+    user = request_json(
+        "POST",
+        f"{PROJECT_URL}/auth/v1/admin/users",
+        keys["service_role"],
+        keys["service_role"],
+        {
+            "email": email,
+            "password": password,
+            "email_confirm": True,
+            "user_metadata": {"full_name": "Organisation Scope Probe"},
+        },
+    )
+    bati = request_json(
+        "GET",
+        f"{PROJECT_URL}/rest/v1/ag_aggregators?select=id&aggregator_code=eq.BATI&limit=1",
+        keys["service_role"],
+        keys["service_role"],
+    )[0]
+    request_json(
+        "PATCH",
+        f"{PROJECT_URL}/rest/v1/ag_user_profiles?id=eq.{user['id']}",
+        keys["service_role"],
+        keys["service_role"],
+        {
+            "email": email,
+            "display_name": "Organisation Scope Probe",
+            "app_role": "company_admin",
+            "account_status": "active",
+            "active_aggregator_id": bati["id"],
+            "can_access_admin": True,
+            "can_manage_users": True,
+            "can_manage_organisation_permissions": True,
+        },
+        "return=minimal",
+    )
+    request_json(
+        "POST",
+        f"{PROJECT_URL}/rest/v1/ag_aggregator_memberships",
+        keys["service_role"],
+        keys["service_role"],
+        {
+            "aggregator_id": bati["id"],
+            "user_id": user["id"],
+            "membership_role": "aggregator_admin",
+            "is_active": True,
+        },
+        "return=minimal",
+    )
+    return user["id"], email, password
+
+
+def password_session(keys, email, password):
+    return request_json(
+        "POST",
+        f"{PROJECT_URL}/auth/v1/token?grant_type=password",
+        keys["anon"],
+        keys["anon"],
+        {"email": email, "password": password},
+    )["access_token"]
 
 
 def expect_denied(call, label):
@@ -26,6 +92,7 @@ def expect_denied(call, label):
 def main():
     keys = api_keys()
     user_id, email, password = create_admin(keys)
+    scoped_user_id = None
     try:
         cosme_id = add_cosme_membership(keys, user_id)
         request_json(
@@ -37,19 +104,13 @@ def main():
                 "active_aggregator_id": cosme_id,
                 "can_manage_users": True,
                 "can_manage_settings": True,
+                "can_manage_organisation_permissions": True,
                 "can_submit_collection": True,
                 "can_view_data": True,
             },
             "return=minimal",
         )
-        session = request_json(
-            "POST",
-            f"{PROJECT_URL}/auth/v1/token?grant_type=password",
-            keys["anon"],
-            keys["anon"],
-            {"email": email, "password": password},
-        )
-        token = session["access_token"]
+        token = password_session(keys, email, password)
 
         profile = request_json(
             "POST",
@@ -71,13 +132,25 @@ def main():
             raise AssertionError("COSME Reef Nursery capability is disabled")
         if not capabilities.get("form_dryer_table"):
             raise AssertionError("COSME Dryer Table capability is disabled")
+        if capabilities.get("form_green_space") is not False:
+            raise AssertionError("COSME unexpectedly enables Green Space")
+
+        organisation_options = request_json(
+            "POST",
+            f"{PROJECT_URL}/rest/v1/rpc/ag_admin_organisation_permission_options",
+            keys["anon"],
+            token,
+            {},
+        )
+        if not organisation_options["can_access"]:
+            raise AssertionError("System admin could not access organisation permissions")
 
         permissions = request_json(
             "POST",
             f"{PROJECT_URL}/rest/v1/rpc/ag_admin_organisation_permissions",
             keys["anon"],
             token,
-            {},
+            {"p_organisation_id": cosme_id},
         )
         if permissions["organisation"]["code"] != "COSME":
             raise AssertionError("Organisation permission RPC did not use COSME")
@@ -113,8 +186,50 @@ def main():
             "COSME process submission",
         )
 
-        print("PASS: COSME disabled forms also deny their connected database RPCs")
+        scoped_user_id, scoped_email, scoped_password = (
+            create_single_organisation_admin(keys)
+        )
+        scoped_token = password_session(keys, scoped_email, scoped_password)
+        single_scope = request_json(
+            "POST",
+            f"{PROJECT_URL}/rest/v1/rpc/ag_admin_organisation_permission_options",
+            keys["anon"],
+            scoped_token,
+            {},
+        )
+        if single_scope != {
+            "can_access": False,
+            "active_organisation_id": None,
+            "organisations": [],
+        }:
+            raise AssertionError(
+                f"Single-organisation user received organisation details: {single_scope}"
+            )
+
+        add_cosme_membership(keys, scoped_user_id)
+        multi_scope = request_json(
+            "POST",
+            f"{PROJECT_URL}/rest/v1/rpc/ag_admin_organisation_permission_options",
+            keys["anon"],
+            scoped_token,
+            {},
+        )
+        scoped_codes = {
+            row["aggregator_code"] for row in multi_scope["organisations"]
+        }
+        if not multi_scope["can_access"] or scoped_codes != {"BATI", "COSME"}:
+            raise AssertionError(
+                f"Multi-organisation scope leaked or omitted organisations: {multi_scope}"
+            )
+
+        print(
+            "PASS: organisation forms, records, and single/multi-organisation "
+            "permission scoping"
+        )
     finally:
+        if scoped_user_id:
+            with contextlib.suppress(Exception):
+                cleanup(keys, scoped_user_id)
         with contextlib.suppress(Exception):
             cleanup(keys, user_id)
 
