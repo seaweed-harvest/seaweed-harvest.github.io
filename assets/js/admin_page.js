@@ -27,6 +27,8 @@ const RPC = {
   ledgerExport: "ag_sec_admin_collection_ledger_export",
   todayIntake: "ag_sec_admin_today_intake",
   updateCollectionRows: "ag_sec_admin_update_collection_rows",
+  createMemberRegistry: "ag_sec_admin_create_member_registry",
+  createCommunityRegistry: "ag_sec_admin_create_community_registry",
   updateMemberRegistry: "ag_sec_admin_update_member_registry",
   updateCommunityRegistry: "ag_sec_admin_update_community_registry",
   deleteMemberRegistry: "ag_sec_admin_delete_member_registry",
@@ -83,8 +85,10 @@ const state = {
   todayIntakeDrafts: new Map(),
   selectedMemberIds: new Set(),
   editingMemberIds: new Set(),
+  newMemberDraft: null,
   selectedCommunityIds: new Set(),
   editingCommunityIds: new Set(),
+  newCommunityDraft: null,
   map: null,
   markersByKey: new Map(),
   profile: null
@@ -147,6 +151,8 @@ function cacheElements() {
     "memberRegistryCount",
     "memberRegistryRows",
     "memberSearch",
+    "memberRegistryAdd",
+    "memberRegistryCancelAdd",
     "memberRegistryEdit",
     "memberRegistrySave",
     "memberRegistryDelete",
@@ -154,6 +160,8 @@ function cacheElements() {
     "communityRegistryCount",
     "communityRegistryRows",
     "communitySearch",
+    "communityRegistryAdd",
+    "communityRegistryCancelAdd",
     "communityRegistryEdit",
     "communityRegistrySave",
     "communityRegistryDelete",
@@ -294,11 +302,15 @@ function bindEvents() {
   els.communitySearch?.addEventListener("input", renderCommunityRegistry);
   els.memberRegistryRows?.addEventListener("change", handleMemberRegistryChange);
   els.memberRegistryRows?.addEventListener("input", () => updateRegistryEditUi("member"));
+  els.memberRegistryAdd?.addEventListener("click", () => startRegistryAdd("member"));
+  els.memberRegistryCancelAdd?.addEventListener("click", () => cancelRegistryAdd("member"));
   els.memberRegistryEdit?.addEventListener("click", startMemberRegistryEdit);
   els.memberRegistrySave?.addEventListener("click", saveMemberRegistryEdit);
   els.memberRegistryDelete?.addEventListener("click", () => deleteRegistrySelection("member"));
   els.communityRegistryRows?.addEventListener("change", handleCommunityRegistryChange);
   els.communityRegistryRows?.addEventListener("input", () => updateRegistryEditUi("community"));
+  els.communityRegistryAdd?.addEventListener("click", () => startRegistryAdd("community"));
+  els.communityRegistryCancelAdd?.addEventListener("click", () => cancelRegistryAdd("community"));
   els.communityRegistryEdit?.addEventListener("click", startCommunityRegistryEdit);
   els.communityRegistrySave?.addEventListener("click", saveCommunityRegistryEdit);
   els.communityRegistryDelete?.addEventListener("click", () => deleteRegistrySelection("community"));
@@ -657,13 +669,14 @@ function renderMemberRegistry() {
   const rows = filteredMembers();
   pruneRegistrySelection("member", rows.map((member) => member.farmer_id));
   els.memberRegistryCount.textContent = `${rows.length} rows`;
-  els.memberRegistryRows.innerHTML = rows.map((member) => {
+  const newRow = state.newMemberDraft ? renderNewMemberRegistryRow() : "";
+  const existingRows = rows.map((member) => {
     const memberId = String(member.farmer_id || "");
     const isSelected = state.selectedMemberIds.has(memberId);
     const isEditing = state.editingMemberIds.has(memberId);
     return `
     <tr class="${registryRowClass(isSelected, isEditing)}" data-member-id="${escapeAttribute(memberId)}">
-      <td class="selection-cell"><input type="checkbox" data-member-select="${escapeAttribute(memberId)}" aria-label="Select ${escapeAttribute(memberId || "member")}"${isSelected ? " checked" : ""}></td>
+      <td class="selection-cell">${registrySelectionControl("member", memberId, isSelected)}</td>
       <td><strong>${escapeHtml(member.farmer_id || "-")}</strong></td>
       <td${dirtyCellAttribute(isEditing, "name")}>${isEditing ? registryTextInput("member", "name", member.name) : escapeHtml(member.name || "-")}</td>
       <td${dirtyCellAttribute(isEditing, "phone")}>${isEditing ? registryTextInput("member", "phone", member.phone) : escapeHtml(member.phone || "-")}</td>
@@ -679,7 +692,10 @@ function renderMemberRegistry() {
       <td${dirtyCellAttribute(isEditing, "notes")}>${isEditing ? registryTextInput("member", "notes", member.notes) : escapeHtml(member.notes || "-")}</td>
     </tr>
   `;
-  }).join("") || emptyRow(14, "No member registry rows found.");
+  }).join("");
+  els.memberRegistryRows.innerHTML = newRow || existingRows
+    ? `${newRow}${existingRows}`
+    : emptyRow(14, "No member registry rows found.");
   updateRegistryEditUi("member");
 }
 
@@ -689,13 +705,14 @@ function renderCommunityRegistry() {
   const rows = filteredCommunities();
   pruneRegistrySelection("community", rows.map((community) => community.community_id));
   els.communityRegistryCount.textContent = `${rows.length} rows`;
-  els.communityRegistryRows.innerHTML = rows.map((community) => {
+  const newRow = state.newCommunityDraft ? renderNewCommunityRegistryRow() : "";
+  const existingRows = rows.map((community) => {
     const communityId = String(community.community_id || "");
     const isSelected = state.selectedCommunityIds.has(communityId);
     const isEditing = state.editingCommunityIds.has(communityId);
     return `
     <tr class="${registryRowClass(isSelected, isEditing)}" data-community-id="${escapeAttribute(communityId)}">
-      <td class="selection-cell"><input type="checkbox" data-community-select="${escapeAttribute(communityId)}" aria-label="Select ${escapeAttribute(communityId || "community")}"${isSelected ? " checked" : ""}></td>
+      <td class="selection-cell">${registrySelectionControl("community", communityId, isSelected)}</td>
       <td><strong>${escapeHtml(community.community_id || "-")}</strong></td>
       <td${dirtyCellAttribute(isEditing, "community_name")}>${isEditing ? registryTextInput("community", "community_name", community.community_name) : escapeHtml(community.community_name || "-")}</td>
       <td${dirtyCellAttribute(isEditing, "gps_pair")}>${isEditing ? registryGpsInput(community.gps_latitude, community.gps_longitude) : escapeHtml(formatCoordinatePair(community.gps_latitude, community.gps_longitude))}</td>
@@ -709,12 +726,106 @@ function renderCommunityRegistry() {
       <td${dirtyCellAttribute(isEditing, "notes")}>${isEditing ? registryTextInput("community", "notes", community.notes) : escapeHtml(community.notes || "-")}</td>
     </tr>
   `;
-  }).join("") || emptyRow(12, "No community registry rows found.");
+  }).join("");
+  els.communityRegistryRows.innerHTML = newRow || existingRows
+    ? `${newRow}${existingRows}`
+    : emptyRow(12, "No community registry rows found.");
   updateRegistryEditUi("community");
+}
+
+function renderNewMemberRegistryRow() {
+  return `
+    <tr class="registry-row-new" data-new-member="true">
+      <td class="selection-cell"><span class="registry-new-row-mark" title="New farmer" aria-label="New farmer">+</span></td>
+      <td>${registryDraftTextInput("member", "farmer_id", "Automatic RID", { ariaLabel: "Farmer ID, optional" })}</td>
+      <td>${registryDraftTextInput("member", "name", "Farmer name", { required: true })}</td>
+      <td>${registryDraftTextInput("member", "phone", "Phone")}</td>
+      <td>${registryDraftTextInput("member", "address", "Address")}</td>
+      <td>${registryDateInput("member", "date_of_birth", "")}</td>
+      <td>${registryCommunitySelect("")}</td>
+      <td class="muted-cell">Selected by ID</td>
+      <td>${registryFarmSizeInputs({ farm_size_unit: "lines" })}</td>
+      <td class="muted-cell">-</td>
+      <td>${registryActiveSelect("member", true)}</td>
+      <td class="muted-cell">-</td>
+      <td class="muted-cell">0 kg</td>
+      <td>${registryDraftTextInput("member", "notes", "Notes")}</td>
+    </tr>
+  `;
+}
+
+function renderNewCommunityRegistryRow() {
+  return `
+    <tr class="registry-row-new" data-new-community="true">
+      <td class="selection-cell"><span class="registry-new-row-mark" title="New community" aria-label="New community">+</span></td>
+      <td>${registryDraftTextInput("community", "community_id", "Automatic CID", { ariaLabel: "Community ID, optional" })}</td>
+      <td>${registryDraftTextInput("community", "community_name", "Community name", { required: true })}</td>
+      <td>${registryGpsInput(null, null)}</td>
+      <td>${registryDraftTextInput("community", "chair_person", "Chair person")}</td>
+      <td>${registryDraftTextInput("community", "chair_person_contact", "Chair contact")}</td>
+      <td class="muted-cell">0</td>
+      <td class="muted-cell">0 kg</td>
+      <td class="muted-cell">-</td>
+      <td class="muted-cell">Needs GPS</td>
+      <td>${registryActiveSelect("community", true)}</td>
+      <td>${registryDraftTextInput("community", "notes", "Notes")}</td>
+    </tr>
+  `;
+}
+
+function registrySelectionControl(type, id, isSelected) {
+  if (!canEditRegistry()) return "";
+  const label = type === "member" ? "member" : "community";
+  const attribute = type === "member" ? "data-member-select" : "data-community-select";
+  return `<input type="checkbox" ${attribute}="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(id || label)}"${isSelected ? " checked" : ""}>`;
+}
+
+function registryDraftTextInput(type, fieldName, placeholder, options = {}) {
+  return `
+    <input class="registry-edit-control"
+      data-registry-type="${escapeAttribute(type)}"
+      data-registry-field="${escapeAttribute(fieldName)}"
+      data-original=""
+      value=""
+      autocomplete="off"
+      placeholder="${escapeAttribute(placeholder)}"
+      ${options.required ? "required " : ""}
+      ${options.ariaLabel ? `aria-label="${escapeAttribute(options.ariaLabel)}"` : ""}>
+  `;
+}
+
+function startRegistryAdd(type) {
+  if (!canEditRegistry() || registryDraftActive(type) || editingRegistryIds(type).length) return;
+  clearRegistrySelection(type);
+  if (type === "member") {
+    state.newMemberDraft = {};
+    if (els.memberSearch) els.memberSearch.value = "";
+    renderMemberRegistry();
+  } else {
+    state.newCommunityDraft = {};
+    if (els.communitySearch) els.communitySearch.value = "";
+    renderCommunityRegistry();
+  }
+  setRegistryStatus(type, `Enter the new ${type === "member" ? "farmer" : "community"} details in the highlighted row.`);
+  const row = newRegistryRow(type);
+  row?.querySelector(`[data-registry-field="${type === "member" ? "name" : "community_name"}"]`)?.focus();
+}
+
+function cancelRegistryAdd(type) {
+  if (!registryDraftActive(type)) return;
+  if (type === "member") {
+    state.newMemberDraft = null;
+    renderMemberRegistry();
+  } else {
+    state.newCommunityDraft = null;
+    renderCommunityRegistry();
+  }
+  setRegistryStatus(type, "New row cancelled. Nothing was saved.");
 }
 
 function handleMemberRegistryChange(event) {
   if (event.target.matches("[data-member-select]")) {
+    if (!canEditRegistry() || state.newMemberDraft) return;
     const memberId = event.target.dataset.memberSelect;
     updateRegistrySelectionSet(state.selectedMemberIds, state.editingMemberIds, memberId, event.target.checked);
     setRegistryStatus("member", "");
@@ -727,6 +838,7 @@ function handleMemberRegistryChange(event) {
 
 function handleCommunityRegistryChange(event) {
   if (event.target.matches("[data-community-select]")) {
+    if (!canEditRegistry() || state.newCommunityDraft) return;
     const communityId = event.target.dataset.communitySelect;
     updateRegistrySelectionSet(state.selectedCommunityIds, state.editingCommunityIds, communityId, event.target.checked);
     setRegistryStatus("community", "");
@@ -738,20 +850,25 @@ function handleCommunityRegistryChange(event) {
 }
 
 function startMemberRegistryEdit() {
-  if (!state.selectedMemberIds.size) return;
+  if (!canEditRegistry() || state.newMemberDraft || !state.selectedMemberIds.size) return;
   state.editingMemberIds = new Set(state.selectedMemberIds);
   setRegistryStatus("member", "");
   renderMemberRegistry();
 }
 
 function startCommunityRegistryEdit() {
-  if (!state.selectedCommunityIds.size) return;
+  if (!canEditRegistry() || state.newCommunityDraft || !state.selectedCommunityIds.size) return;
   state.editingCommunityIds = new Set(state.selectedCommunityIds);
   setRegistryStatus("community", "");
   renderCommunityRegistry();
 }
 
 async function saveMemberRegistryEdit() {
+  if (!canEditRegistry()) return;
+  if (state.newMemberDraft) {
+    await saveNewMemberRegistry();
+    return;
+  }
   const dirtyRows = dirtyRegistryRows("member");
   if (!dirtyRows.length) return;
 
@@ -782,7 +899,47 @@ async function saveMemberRegistryEdit() {
   }
 }
 
+async function saveNewMemberRegistry() {
+  const row = newRegistryRow("member");
+  if (!row) return;
+  const name = registryFieldValue(row, "name").trim();
+  if (!name) {
+    setRegistryStatus("member", "Farmer name is required.", "error");
+    row.querySelector('[data-registry-field="name"]')?.focus();
+    return;
+  }
+
+  els.memberRegistrySave.disabled = true;
+  setRegistryStatus("member", "Adding farmer...");
+  try {
+    const result = await supabaseRpc(RPC.createMemberRegistry, {
+      p_farmer_id: nullableText(registryFieldValue(row, "farmer_id")),
+      p_name: name,
+      p_phone: nullableText(registryFieldValue(row, "phone")),
+      p_community_id: nullableText(registryFieldValue(row, "community_id")),
+      p_active: registryFieldValue(row, "active") !== "false",
+      p_notes: nullableText(registryFieldValue(row, "notes")),
+      p_farm_size_value: optionalNumber(registryFieldValue(row, "farm_size_value")),
+      p_farm_size_unit: nullableText(registryFieldValue(row, "farm_size_unit")) || "lines",
+      p_address: nullableText(registryFieldValue(row, "address")),
+      p_date_of_birth: nullableText(registryFieldValue(row, "date_of_birth"))
+    });
+    const farmerId = result?.farmer_id || result?.[0]?.farmer_id || "farmer";
+    state.newMemberDraft = null;
+    await loadAdminData();
+    setRegistryStatus("member", `Added ${farmerId}.`);
+  } catch (error) {
+    setRegistryStatus("member", writeErrorMessage(error), "error");
+    els.memberRegistrySave.disabled = false;
+  }
+}
+
 async function saveCommunityRegistryEdit() {
+  if (!canEditRegistry()) return;
+  if (state.newCommunityDraft) {
+    await saveNewCommunityRegistry();
+    return;
+  }
   const dirtyRows = dirtyRegistryRows("community");
   if (!dirtyRows.length) return;
 
@@ -816,7 +973,50 @@ async function saveCommunityRegistryEdit() {
   }
 }
 
+async function saveNewCommunityRegistry() {
+  const row = newRegistryRow("community");
+  if (!row) return;
+  const name = registryFieldValue(row, "community_name").trim();
+  if (!name) {
+    setRegistryStatus("community", "Community name is required.", "error");
+    row.querySelector('[data-registry-field="community_name"]')?.focus();
+    return;
+  }
+
+  let gps;
+  try {
+    gps = parseGpsPair(registryFieldValue(row, "gps_pair"));
+  } catch (error) {
+    setRegistryStatus("community", error.message, "error");
+    row.querySelector('[data-registry-field="gps_pair"]')?.focus();
+    return;
+  }
+
+  els.communityRegistrySave.disabled = true;
+  setRegistryStatus("community", "Adding community...");
+  try {
+    const result = await supabaseRpc(RPC.createCommunityRegistry, {
+      p_community_id: nullableText(registryFieldValue(row, "community_id")),
+      p_community_name: name,
+      p_gps_latitude: gps.latitude,
+      p_gps_longitude: gps.longitude,
+      p_chair_person: nullableText(registryFieldValue(row, "chair_person")),
+      p_chair_person_contact: nullableText(registryFieldValue(row, "chair_person_contact")),
+      p_active: registryFieldValue(row, "active") !== "false",
+      p_notes: nullableText(registryFieldValue(row, "notes"))
+    });
+    const communityId = result?.community_id || result?.[0]?.community_id || "community";
+    state.newCommunityDraft = null;
+    await loadAdminData();
+    setRegistryStatus("community", `Added ${communityId}.`);
+  } catch (error) {
+    setRegistryStatus("community", writeErrorMessage(error), "error");
+    els.communityRegistrySave.disabled = false;
+  }
+}
+
 async function deleteRegistrySelection(type) {
+  if (!canEditRegistry() || registryDraftActive(type)) return;
   const ids = selectedRegistryIds(type);
   if (!ids.length) return;
 
@@ -960,22 +1160,39 @@ function registryGpsInput(latitude, longitude) {
 function updateRegistryEditUi(type) {
   const selectedCount = selectedRegistryIds(type).length;
   const editingCount = editingRegistryIds(type).length;
+  const canEdit = canEditRegistry();
+  const adding = registryDraftActive(type);
+  const addButton = type === "member" ? els.memberRegistryAdd : els.communityRegistryAdd;
+  const cancelAddButton = type === "member" ? els.memberRegistryCancelAdd : els.communityRegistryCancelAdd;
   const editButton = type === "member" ? els.memberRegistryEdit : els.communityRegistryEdit;
   const saveButton = type === "member" ? els.memberRegistrySave : els.communityRegistrySave;
   const deleteButton = type === "member" ? els.memberRegistryDelete : els.communityRegistryDelete;
+  const searchInput = type === "member" ? els.memberSearch : els.communitySearch;
 
-  if (!editButton || !saveButton || !deleteButton) return;
+  if (!addButton || !cancelAddButton || !editButton || !saveButton || !deleteButton) return;
 
-  editButton.hidden = !selectedCount;
-  editButton.disabled = !selectedCount || Boolean(editingCount);
+  addButton.hidden = !canEdit;
+  addButton.disabled = adding || Boolean(editingCount);
+  cancelAddButton.hidden = !canEdit || !adding;
+
+  editButton.hidden = !canEdit || adding || !selectedCount;
+  editButton.disabled = !selectedCount || Boolean(editingCount) || adding;
   editButton.textContent = editingCount ? `Editing ${editingCount}` : `Edit ${selectedCount}`;
 
-  deleteButton.hidden = !selectedCount;
+  deleteButton.hidden = !canEdit || adding || !selectedCount;
+  deleteButton.disabled = Boolean(editingCount);
   deleteButton.textContent = `Delete selected ${selectedCount}`;
 
   const dirty = dirtyRegistryRows(type).length > 0;
-  saveButton.hidden = !editingCount || !dirty;
-  saveButton.disabled = !dirty;
+  const draftRow = newRegistryRow(type);
+  const requiredField = type === "member" ? "name" : "community_name";
+  const draftReady = Boolean(registryFieldValue(draftRow, requiredField).trim());
+  saveButton.hidden = !canEdit || (!adding && (!editingCount || !dirty));
+  saveButton.disabled = adding ? !draftReady : !dirty;
+  saveButton.textContent = adding
+    ? `Save new ${type === "member" ? "farmer" : "community"}`
+    : "Save";
+  if (searchInput) searchInput.disabled = adding || Boolean(editingCount);
 }
 
 function dirtyRegistryRows(type) {
@@ -1003,7 +1220,22 @@ function markRegistryDirtyCells(row) {
 }
 
 function registryFieldValue(row, fieldName) {
-  return row.querySelector(`[data-registry-field="${cssEscape(fieldName)}"]`)?.value ?? "";
+  return row?.querySelector(`[data-registry-field="${cssEscape(fieldName)}"]`)?.value ?? "";
+}
+
+function newRegistryRow(type) {
+  const tbody = type === "member" ? els.memberRegistryRows : els.communityRegistryRows;
+  return tbody?.querySelector(type === "member" ? "[data-new-member]" : "[data-new-community]") || null;
+}
+
+function registryDraftActive(type) {
+  return type === "member"
+    ? Boolean(state.newMemberDraft)
+    : Boolean(state.newCommunityDraft);
+}
+
+function canEditRegistry() {
+  return state.profile?.app_role === "system_admin" || Boolean(state.profile?.can_edit_registry);
 }
 
 function setRegistryStatus(type, message, status = "") {

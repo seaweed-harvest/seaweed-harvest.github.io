@@ -2302,6 +2302,22 @@ body.has-fixed-table-scrollbar {
   background: rgba(15, 118, 110, 0.025);
 }
 
+.registry-table tr.registry-row-new td,
+.registry-table tr.registry-row-new:hover td {
+  background: #fff9df;
+}
+
+.registry-new-row-mark {
+  display: inline-grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  color: #8a5b00;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .registry-table td.registry-cell-dirty,
 .registry-table tr.registry-row-selected td.registry-cell-dirty,
 .registry-table tr.registry-row-editing td.registry-cell-dirty,
