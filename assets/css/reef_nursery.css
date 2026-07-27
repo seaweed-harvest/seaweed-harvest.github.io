@@ -1500,7 +1500,6 @@
   margin-inline: auto;
 }
 
-.reef-review-notice,
 .reef-share-gate-message {
   margin-bottom: 14px;
   padding: 11px 13px;
@@ -1511,14 +1510,16 @@
 }
 
 .reef-review-notice {
+  margin: -2px 0 8px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 5px 12px;
+  justify-content: flex-end;
   color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
-.reef-review-notice strong {
-  color: var(--accent);
+.reef-review-notice[hidden] {
+  display: none;
 }
 
 .reef-share-gate-message {

@@ -83,7 +83,7 @@ class FormManagerStaticTest(unittest.TestCase):
         page = read("reef_nursery.html")
         self.assertIn("Review copy", page)
         self.assertIn("ag_public_shared_form_submission", reef)
-        self.assertIn("It will not change COSME operational records.", page)
+        self.assertNotIn("It will not change COSME operational records.", page)
         self.assertIn("Test submission", reef)
 
 

@@ -22,6 +22,7 @@ def main():
     cosme_id = None
     submission_id = str(uuid.uuid4())
     access_token = None
+    original_entry_access = None
     server = None
     driver = None
     try:
@@ -47,7 +48,8 @@ def main():
             keys["service_role"],
             keys["service_role"],
         )
-        assert current and current[0]["entry_access"] == "private", current
+        assert current, current
+        original_entry_access = current[0]["entry_access"]
 
         session = request_json(
             "POST",
@@ -164,7 +166,7 @@ def main():
         if server:
             server.shutdown()
             server.server_close()
-        if access_token:
+        if access_token and original_entry_access:
             with contextlib.suppress(Exception):
                 request_json(
                     "POST",
@@ -173,7 +175,7 @@ def main():
                     access_token,
                     {
                         "p_form_key": "form_reef_nursery",
-                        "p_entry_access": "private",
+                        "p_entry_access": original_entry_access,
                     },
                 )
         if cosme_id:
