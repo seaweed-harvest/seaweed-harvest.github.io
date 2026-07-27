@@ -135,9 +135,9 @@ async function handleSuggestionAction(event) {
     await showPhoto(photoButton.dataset.viewSuggestionPhoto);
     return;
   }
-  const retryButton = event.target.closest("[data-retry-ai-assist]");
-  if (retryButton) {
-    await retryAiAssist(retryButton);
+  const queueButton = event.target.closest("[data-queue-chatgpt-assist]");
+  if (queueButton) {
+    await queueChatGptAssist(queueButton);
     return;
   }
   const deleteButton = event.target.closest("[data-delete-suggestion]");
@@ -193,24 +193,24 @@ async function deleteSuggestion(button) {
   setStatus("Suggestion deleted.", "success");
 }
 
-async function retryAiAssist(button) {
+async function queueChatGptAssist(button) {
   const item = button.closest("[data-suggestion-id]");
   if (!item) return;
   button.disabled = true;
-  setStatus("Restarting AI Assist...");
+  setStatus("Sending the request to the ChatGPT/Codex queue...");
   const { data, error } = await authClient.functions.invoke("site-feedback", {
     body: {
-      action: "retry_ai_assist",
+      action: "queue_chatgpt_assist",
       feedback_id: item.dataset.suggestionId
     }
   });
   button.disabled = false;
   if (error || !data?.ok) {
-    setStatus(data?.error || error?.message || "AI Assist could not be restarted.", "error");
+    setStatus(data?.error || error?.message || "The ChatGPT/Codex queue notice could not be sent.", "error");
     return;
   }
   await loadSuggestions();
-  setStatus("AI Assist restarted.", "success");
+  setStatus("Request added to the ChatGPT/Codex queue.", "success");
 }
 
 async function showPhoto(path) {
@@ -262,9 +262,18 @@ function productLabel(value) {
 }
 
 function automationPanel(row) {
-  if (!row.automation_enabled) return "";
+  if (!row.automation_enabled) {
+    return `
+      <section class="suggestion-ai-status" aria-label="ChatGPT/Codex queue">
+        <div><strong>AI Assist: Not queued</strong></div>
+        <p>Add this suggestion to the owner's connected ChatGPT/Codex review queue.</p>
+        <button type="button" data-queue-chatgpt-assist>Add to ChatGPT/Codex queue</button>
+      </section>`;
+  }
   const status = automationStatusLabel(row.automation_status);
-  const detail = row.automation_error_message || row.automation_summary || "AI Assist is preparing an assessment.";
+  const detail = row.automation_error_message
+    || row.automation_summary
+    || "Waiting for review in the owner's connected ChatGPT/Codex workspace.";
   const decision = [row.automation_decision, row.automation_risk_level]
     .filter(Boolean)
     .map((value) => String(value).replaceAll("_", " "))
@@ -279,16 +288,14 @@ function automationPanel(row) {
       ${row.automation_pull_request_url
         ? `<a href="${escapeAttribute(row.automation_pull_request_url)}" target="_blank" rel="noopener noreferrer">Open draft pull request</a>`
         : ""}
-      ${["new", "failed", "cancelled"].includes(row.automation_status)
-        ? `<button type="button" data-retry-ai-assist>Retry AI Assist</button>`
-        : ""}
+      <button type="button" data-queue-chatgpt-assist>Send queue notice again</button>
     </section>`;
 }
 
 function automationStatusLabel(value) {
   return {
     new: "Requested",
-    queued: "Queued",
+    queued: "Queued for ChatGPT/Codex",
     shadow_assessing: "Assessing",
     dispatched: "Assessment dispatched",
     assessing: "Assessing",

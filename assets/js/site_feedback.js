@@ -22,15 +22,14 @@ const COPY = {
     photoError: "That image could not be prepared. Try another photo or screenshot.",
     removePhoto: "Remove image",
     aiAssist: "AI Assist",
-    aiAssistHint: "Assess this request and prepare a draft change when it is safe.",
+    aiAssistHint: "Add this request to your ChatGPT/Codex review queue.",
     quote: "Better ideas start with a question.",
     cancel: "Cancel",
     submit: "Send suggestion",
     sending: "Sending...",
     sent: "Thank you. Your suggestion was sent.",
-    sentAi: "Suggestion sent. AI Assist has started.",
-    sentAiQueued: "Suggestion sent. AI Assist is queued.",
-    sentWithoutAi: "Suggestion sent, but AI Assist was not started.",
+    sentAiQueued: "Suggestion sent. Added to your ChatGPT/Codex queue.",
+    sentWithoutAi: "Suggestion sent, but it was not added to the ChatGPT/Codex queue.",
     queued: "Saved on this device. It will send when online.",
     error: "The suggestion could not be sent. Please try again.",
     required: "Write a short suggestion before sending."
@@ -47,15 +46,14 @@ const COPY = {
     photoError: "Picha hiyo haikuweza kutayarishwa. Jaribu picha nyingine.",
     removePhoto: "Ondoa picha",
     aiAssist: "Msaada wa AI",
-    aiAssistHint: "Ichambue na uandae rasimu ya mabadiliko ikiwa ni salama.",
+    aiAssistHint: "Ongeza ombi hili kwenye foleni yako ya ChatGPT/Codex.",
     quote: "Mawazo bora huanza na swali.",
     cancel: "Ghairi",
     submit: "Tuma pendekezo",
     sending: "Inatuma...",
     sent: "Asante. Pendekezo lako limetumwa.",
-    sentAi: "Pendekezo limetumwa. Msaada wa AI umeanza.",
-    sentAiQueued: "Pendekezo limetumwa. Msaada wa AI unasubiri.",
-    sentWithoutAi: "Pendekezo limetumwa, lakini msaada wa AI haujaanza.",
+    sentAiQueued: "Pendekezo limetumwa kwenye foleni yako ya ChatGPT/Codex.",
+    sentWithoutAi: "Pendekezo limetumwa, lakini halijaongezwa kwenye foleni ya ChatGPT/Codex.",
     queued: "Limehifadhiwa kwenye kifaa. Litatumwa mtandao ukirudi.",
     error: "Pendekezo halikutumwa. Tafadhali jaribu tena.",
     required: "Andika pendekezo fupi kabla ya kutuma."
@@ -220,7 +218,7 @@ async function submitFeedback(event) {
     clearFeedbackPhoto();
     const completionMessage = payload.ai_assist_requested
       ? response.ai_assist_accepted
-        ? response.ai_assist_dispatched ? copy.sentAi : copy.sentAiQueued
+        ? copy.sentAiQueued
         : copy.sentWithoutAi
       : copy.sent;
     setStatus(status, completionMessage, response.ai_assist_accepted === false ? "queued" : "success");
