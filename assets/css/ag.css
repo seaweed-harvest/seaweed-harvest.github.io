@@ -1625,8 +1625,8 @@ label,
 }
 
 .collection-form fieldset > *,
-.packing-record-form fieldset > *,
-.process-record-form fieldset > * {
+.standard-form-linear-layout fieldset > *,
+.standard-form-tabbed-layout fieldset > * {
   min-width: 0;
 }
 
@@ -5517,155 +5517,12 @@ body[data-registration-pending] .registration-flow {
   grid-column: span 2;
 }
 
-.packing-record-form {
-  display: grid;
-  gap: var(--form-section-gap);
-}
-
-.packing-record-form fieldset {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 14px;
-  min-width: 0;
-  margin: 0;
-  padding: 18px 1px 2px;
-  border: 0;
-  border-top: 1px solid var(--border);
-  border-radius: 0;
-  background: transparent;
-}
-
-.packing-record-form legend {
-  padding: 0 10px 0 0;
-  color: var(--text);
-  font-size: var(--form-legend-font-size);
-  font-weight: 700;
-}
-
-.packing-record-form label {
-  min-width: 0;
-  display: grid;
-  gap: 5px;
-  color: var(--text-sec);
-  font-size: var(--form-label-font-size);
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
 .packing-notes-field {
   max-width: 760px;
 }
 
 .packing-notes-field textarea {
   min-height: 60px;
-}
-
-.packing-record-type-field {
-  display: grid;
-  gap: 5px;
-}
-
-.packing-field-label {
-  color: var(--text-sec);
-  font-size: var(--form-label-font-size);
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.packing-record-type-control {
-  width: fit-content;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(130px, 1fr));
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--panel);
-}
-
-.packing-record-form .packing-record-type-control label {
-  display: block;
-  color: var(--text-sec);
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: none;
-  cursor: pointer;
-}
-
-.packing-record-form .packing-record-type-control input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  min-width: 1px;
-  min-height: 1px;
-  padding: 0;
-  border: 0;
-  margin: 0;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.packing-record-type-control span {
-  min-height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px 10px;
-  border-radius: 5px;
-}
-
-.packing-record-type-control input:checked + span {
-  background: var(--panel-soft);
-  color: var(--accent);
-}
-
-.packing-record-type-control input:focus-visible + span {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.packing-field-hint {
-  color: var(--text-muted);
-  font-size: var(--form-hint-font-size);
-  font-weight: 400;
-  text-transform: none;
-}
-
-.packing-record-form input,
-.packing-record-form select,
-.packing-record-form textarea {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  min-height: var(--form-control-min-height);
-  padding: 8px var(--form-control-padding-inline);
-  border: 1px solid var(--border);
-  border-radius: var(--form-control-radius);
-  background: var(--panel);
-  color: var(--text);
-  font: inherit;
-  font-weight: 400;
-  text-transform: none;
-}
-
-.packing-record-form input[readonly] {
-  background: #f6faf9;
-  color: var(--text-sec);
-}
-
-.packing-record-form .empty-value-control {
-  border-color: #e0bd75;
-  background: #fff8e8;
-}
-
-.packing-record-form .empty-value-control:focus-visible {
-  border-color: var(--accent);
-}
-
-.packing-measure-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 110px;
-  gap: 8px;
 }
 
 .packing-stabilizer-choice {
@@ -5675,12 +5532,13 @@ body[data-registration-pending] .registration-flow {
   gap: 10px;
 }
 
-.packing-stabilizer-control {
+.standard-segmented-control.packing-stabilizer-control {
+  width: fit-content;
   grid-template-columns: repeat(2, 54px);
   padding: 2px;
 }
 
-.packing-stabilizer-control span {
+.standard-segmented-control.packing-stabilizer-control span {
   min-height: 28px;
   padding: 4px 8px;
 }
@@ -5712,7 +5570,7 @@ body[data-registration-pending] .registration-flow {
   align-items: end;
 }
 
-.packing-record-form .packing-dose-default-row {
+.stock-record-form .packing-dose-default-row {
   width: fit-content;
   min-height: 30px;
   display: inline-flex;
@@ -5725,44 +5583,11 @@ body[data-registration-pending] .registration-flow {
   text-transform: none;
 }
 
-.packing-record-form .packing-dose-default-row input {
+.stock-record-form .packing-dose-default-row input {
   width: 14px;
   height: 14px;
   min-height: 14px;
   padding: 0;
-}
-
-.packing-record-actions {
-  padding-top: 2px;
-}
-
-.packing-record-actions .admin-status {
-  flex: 1 1 220px;
-  margin: 0;
-}
-
-.process-record-form {
-  display: grid;
-  gap: var(--form-section-gap);
-}
-
-.process-record-form fieldset {
-  min-width: 0;
-  display: grid;
-  gap: 14px;
-  margin: 0;
-  padding: 18px 1px 2px;
-  border: 0;
-  border-top: 1px solid var(--border);
-  border-radius: 0;
-  background: transparent;
-}
-
-.process-record-form legend {
-  padding: 0 10px 0 0;
-  color: var(--text);
-  font-size: var(--form-legend-font-size);
-  font-weight: 700;
 }
 
 .process-session-fields {
@@ -5785,60 +5610,6 @@ body[data-registration-pending] .registration-flow {
 
 .process-measurement-half-first {
   grid-column: 1 / span 3;
-}
-
-.process-field-label {
-  min-height: 1.8em;
-  display: flex;
-  align-items: flex-end;
-}
-
-.process-record-form label {
-  min-width: 0;
-  display: grid;
-  gap: 5px;
-  color: var(--text-sec);
-  font-size: var(--form-label-font-size);
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.process-record-form input,
-.process-record-form select,
-.process-record-form textarea {
-  width: 100%;
-  min-width: 0;
-  min-height: var(--form-control-min-height);
-  padding: 8px var(--form-control-padding-inline);
-  border: 1px solid var(--border);
-  border-radius: var(--form-control-radius);
-  background: var(--panel);
-  color: var(--text);
-  font: inherit;
-  font-weight: 400;
-  text-transform: none;
-}
-
-.process-record-form .empty-value-control {
-  border-color: #e0bd75;
-  background: #fff8e8;
-}
-
-.process-record-form .packing-measure-row {
-  grid-template-columns: minmax(0, 1fr) 48px;
-}
-
-.input-unit {
-  min-height: 40px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--panel);
-  color: var(--text-sec);
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-transform: none;
 }
 
 .process-suggestion-line {
@@ -6616,7 +6387,7 @@ label input[type="checkbox"] {
     grid-column: auto;
   }
 
-  .packing-record-type-control {
+  .standard-segmented-control {
     width: 100%;
   }
 

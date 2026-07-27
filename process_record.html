@@ -57,59 +57,59 @@
 
           <fieldset class="process-session-fields">
             <legend>Processing session</legend>
-            <label><span class="process-field-label">Date</span>
+            <label><span class="standard-field-label standard-field-label-aligned">Date</span>
               <input id="processDate" type="date" required>
             </label>
-            <label><span class="process-field-label">Processing start time</span>
+            <label><span class="standard-field-label standard-field-label-aligned">Processing start time</span>
               <input id="processStartTime" type="time" required>
             </label>
-            <label><span class="process-field-label">Processing end time</span>
+            <label><span class="standard-field-label standard-field-label-aligned">Processing end time</span>
               <input id="processEndTime" type="time" required>
             </label>
           </fieldset>
 
           <fieldset class="process-measurement-fields">
             <legend>Measured values</legend>
-            <label class="process-species-field"><span class="process-field-label">Seaweed species</span>
+            <label class="process-species-field"><span class="standard-field-label standard-field-label-aligned">Seaweed species</span>
               <select id="processSpecies" required>
                 <option value="spinosum">Spinosum</option>
                 <option value="cottonii">Cottonii</option>
                 <option value="other">Other</option>
               </select>
             </label>
-            <label class="process-measurement-half process-measurement-half-first"><span class="process-field-label">Total received seaweed weight</span>
-              <span class="packing-measure-row">
+            <label class="process-measurement-half process-measurement-half-first"><span class="standard-field-label standard-field-label-aligned">Total received seaweed weight</span>
+              <span class="standard-input-group standard-input-group-compact">
                 <input id="processReceivedKg" type="number" min="0" max="1000000" step="0.001" inputmode="decimal" aria-describedby="processReceivedHint">
-                <span class="input-unit">kg</span>
+                <span class="standard-input-addon">kg</span>
               </span>
-              <small id="processReceivedHint" class="packing-field-hint">No collection total available for this date.</small>
+              <small id="processReceivedHint" class="standard-field-hint">No collection total available for this date.</small>
             </label>
-            <label class="process-measurement-half"><span class="process-field-label">Total pressed liquid volume</span>
-              <span class="packing-measure-row">
+            <label class="process-measurement-half"><span class="standard-field-label standard-field-label-aligned">Total pressed liquid volume</span>
+              <span class="standard-input-group standard-input-group-compact">
                 <input id="processPressedLiquidL" type="number" min="0" max="1000000" step="0.001" inputmode="decimal" aria-describedby="processPressedLiquidHint">
-                <span class="input-unit">L</span>
+                <span class="standard-input-addon">L</span>
               </span>
-              <small id="processPressedLiquidHint" class="packing-field-hint">No stock total available for this date.</small>
+              <small id="processPressedLiquidHint" class="standard-field-hint">No stock total available for this date.</small>
             </label>
-            <label class="process-measurement-half"><span class="process-field-label">Wet pulp weight</span>
-              <span class="packing-measure-row">
+            <label class="process-measurement-half"><span class="standard-field-label standard-field-label-aligned">Wet pulp weight</span>
+              <span class="standard-input-group standard-input-group-compact">
                 <input id="processWetPulpKg" type="number" min="0" max="1000000" step="0.001" inputmode="decimal">
-                <span class="input-unit">kg</span>
+                <span class="standard-input-addon">kg</span>
               </span>
             </label>
-            <label class="process-measurement-half"><span class="process-field-label">Dry pulp weight</span>
-              <span class="packing-measure-row">
+            <label class="process-measurement-half"><span class="standard-field-label standard-field-label-aligned">Dry pulp weight</span>
+              <span class="standard-input-group standard-input-group-compact">
                 <input id="processDryPulpKg" type="number" min="0" max="1000000" step="0.001" inputmode="decimal">
-                <span class="input-unit">kg</span>
+                <span class="standard-input-addon">kg</span>
               </span>
             </label>
-            <label class="process-measurement-half"><span class="process-field-label">Lost seaweed weight</span>
-              <span class="packing-measure-row">
+            <label class="process-measurement-half"><span class="standard-field-label standard-field-label-aligned">Lost seaweed weight</span>
+              <span class="standard-input-group standard-input-group-compact">
                 <input id="processLostSeaweedKg" type="number" min="0" max="1000000" step="0.001" inputmode="decimal">
-                <span class="input-unit">kg</span>
+                <span class="standard-input-addon">kg</span>
               </span>
             </label>
-            <label class="process-measurement-half"><span class="process-field-label">Number of presses</span>
+            <label class="process-measurement-half"><span class="standard-field-label standard-field-label-aligned">Number of presses</span>
               <input id="processPressCount" type="number" min="1" max="100000" step="1" inputmode="numeric">
             </label>
           </fieldset>
@@ -123,7 +123,7 @@
           <fieldset class="process-photo-field">
             <legend>Sample photo</legend>
             <input id="processPhoto" type="file" accept="image/*" capture="environment" aria-describedby="processPhotoHint">
-            <span id="processPhotoHint" class="packing-field-hint">One photo, compressed before upload.</span>
+            <span id="processPhotoHint" class="standard-field-hint">One photo, compressed before upload.</span>
             <figure id="processPhotoPreview" class="process-photo-preview" hidden>
               <img id="processPhotoImage" alt="Selected process sample">
               <figcaption><span id="processPhotoName"></span><button id="deleteProcessPhoto" type="button" class="danger-text-action">Delete photo</button></figcaption>
@@ -134,7 +134,7 @@
             <textarea id="processNotes" rows="2" maxlength="1000"></textarea>
           </label>
 
-          <div class="button-row process-record-actions">
+          <div class="button-row standard-form-actions process-record-actions">
             <button id="saveProcessRecord" type="submit">Save process record</button>
             <button id="clearProcessRecord" type="button">Clear</button>
             <p id="processRecordStatus" class="admin-status" aria-live="polite"></p>

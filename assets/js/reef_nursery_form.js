@@ -589,7 +589,7 @@ function renderRaftSeaweedRecords({ capture = true } = {}) {
         </label>
         <div class="reef-two-column-grid">
           <label>Seed weight
-            <span class="packing-measure-row">
+            <span class="standard-input-group standard-input-group-unit">
               <input type="number" min="0" max="100000" step="0.001" inputmode="decimal"
                 data-raft-field="seed_weight_value" value="${escapeHtml(draft.seed_weight_value)}">
               <select data-raft-field="seed_weight_unit" aria-label="Raft #${raftNumber} seed weight unit">
@@ -599,7 +599,7 @@ function renderRaftSeaweedRecords({ capture = true } = {}) {
             </span>
           </label>
           <label>Harvest weight
-            <span class="packing-measure-row">
+            <span class="standard-input-group standard-input-group-unit">
               <input type="number" min="0" max="100000" step="0.001" inputmode="decimal"
                 data-raft-field="harvest_weight_value" value="${escapeHtml(draft.harvest_weight_value)}">
               <select data-raft-field="harvest_weight_unit" aria-label="Raft #${raftNumber} harvest weight unit">

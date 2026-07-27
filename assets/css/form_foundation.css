@@ -46,11 +46,18 @@
   border-radius: var(--form-control-radius);
 }
 
-/* Reusable primitives for new forms and gradual migration of existing forms. */
+/*
+ * Linear and tabbed forms share a quiet field hierarchy. Workflow-specific
+ * selectors can override these low-specificity defaults without !important.
+ */
+.form-record-page :where(
+  .standard-form-linear-layout,
+  .standard-form-tabbed-layout
+) :where(fieldset),
 .standard-form-section {
   min-width: 0;
   display: grid;
-  gap: var(--form-field-gap);
+  gap: 14px;
   margin: 0;
   padding: 18px 1px 2px;
   border: 0;
@@ -59,6 +66,10 @@
   background: transparent;
 }
 
+.form-record-page :where(
+  .standard-form-linear-layout,
+  .standard-form-tabbed-layout
+) :where(legend),
 .standard-form-section > legend,
 .standard-section-title {
   padding: 0 10px 0 0;
@@ -67,6 +78,70 @@
   font-weight: 700;
 }
 
+.form-record-page :where(
+  .standard-form-linear-layout,
+  .standard-form-tabbed-layout
+) :where(label),
+.standard-form-grid {
+  min-width: 0;
+}
+
+.form-record-page :where(
+  .standard-form-linear-layout,
+  .standard-form-tabbed-layout
+) :where(label) {
+  display: grid;
+  gap: 5px;
+  color: var(--text-sec);
+  font-size: var(--form-label-font-size);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.form-record-page :where(
+  .standard-form-linear-layout,
+  .standard-form-tabbed-layout
+) :where(
+  input[type="text"],
+  input[type="number"],
+  input[type="datetime-local"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="password"],
+  input[type="search"],
+  input[type="date"],
+  input[type="time"],
+  input[type="month"],
+  input[type="file"],
+  select,
+  textarea
+) {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 8px var(--form-control-padding-inline);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-weight: 400;
+  text-transform: none;
+}
+
+.form-record-page .standard-form :where(input[readonly]) {
+  background: #f6faf9;
+  color: var(--text-sec);
+}
+
+.form-record-page .standard-form :where(.empty-value-control) {
+  border-color: #e0bd75;
+  background: #fff8e8;
+}
+
+.form-record-page .standard-form :where(.empty-value-control:focus-visible) {
+  border-color: var(--accent);
+}
+
+/* Reusable primitives for new forms and gradual migration of existing forms. */
 .standard-form-grid {
   min-width: 0;
   display: grid;
@@ -111,6 +186,10 @@
   text-transform: uppercase;
 }
 
+.standard-field-label.standard-field-label-aligned {
+  min-height: 1.8em;
+}
+
 .standard-field-hint {
   margin: 0;
   color: var(--text-muted);
@@ -125,6 +204,85 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
+}
+
+.standard-input-group-unit {
+  grid-template-columns: minmax(0, 1fr) 110px;
+}
+
+.standard-input-group-compact {
+  grid-template-columns: minmax(0, 1fr) 48px;
+}
+
+.standard-input-addon {
+  min-height: var(--form-control-min-height);
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--form-control-radius);
+  background: var(--panel);
+  color: var(--text-sec);
+  font-size: var(--supporting-font-size);
+  font-weight: 700;
+  text-transform: none;
+}
+
+.standard-choice-field {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.standard-segmented-control {
+  width: fit-content;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--form-control-radius);
+  background: var(--panel);
+}
+
+.form-record-page .standard-form .standard-segmented-control label {
+  display: block;
+  color: var(--text-sec);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.form-record-page .standard-form .standard-segmented-control input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-width: 1px;
+  min-height: 1px;
+  padding: 0;
+  border: 0;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.standard-segmented-control span {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 5px;
+}
+
+.standard-segmented-control input:checked + span {
+  background: var(--panel-soft);
+  color: var(--accent);
+}
+
+.standard-segmented-control input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .standard-form-actions {
@@ -171,5 +329,21 @@
 
   .standard-input-group {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .standard-input-group-unit {
+    grid-template-columns: minmax(0, 1fr) 104px;
+  }
+
+  .standard-input-group-compact {
+    grid-template-columns: minmax(0, 1fr) 48px;
+  }
+
+  .standard-input-addon {
+    min-height: var(--form-control-min-height-touch);
+  }
+
+  .standard-segmented-control {
+    width: 100%;
   }
 }

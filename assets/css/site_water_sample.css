@@ -8,7 +8,7 @@
 }
 
 @media (max-width: 520px) {
-  .site-sample-form .packing-measure-row {
+  .site-sample-form .standard-input-group-unit {
     grid-template-columns: minmax(0, 1fr) 104px;
   }
 
