@@ -22,6 +22,7 @@ const APP_SHELL = [
   "./favicon.ico",
   "./manifest.webmanifest",
   "./assets/css/ag.css",
+  "./assets/css/form_foundation.css",
   "./assets/css/site_water_sample.css",
   "./assets/css/reef_nursery.css",
   "./assets/css/dataset_dashboard.css",

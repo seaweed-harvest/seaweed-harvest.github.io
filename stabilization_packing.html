@@ -7,6 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>BioStim Stock Record - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
+  <link rel="stylesheet" href="./assets/css/form_foundation.css?v=1">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -55,7 +56,7 @@
           <button id="packingSingleTab" type="button" role="tab" aria-selected="true" aria-controls="packingRecordForm" data-packing-entry-tab="single">Single entry</button>
           <button id="packingBatchTab" type="button" role="tab" aria-selected="false" aria-controls="packingBatchForm" data-packing-entry-tab="batch">Batch entry</button>
         </div>
-        <form id="packingRecordForm" class="packing-record-form" role="tabpanel" aria-labelledby="packingSingleTab" data-packing-entry-panel="single">
+        <form id="packingRecordForm" class="packing-record-form standard-form standard-form-linear-layout" role="tabpanel" aria-labelledby="packingSingleTab" data-packing-entry-panel="single">
           <label class="packing-recorder-field form-recorder-field">
             <span>Recorded by</span>
             <input id="packingRecordedBy" type="text" maxlength="160" autocomplete="name">
@@ -160,7 +161,7 @@
           </div>
         </form>
 
-        <form id="packingBatchForm" class="packing-record-form packing-batch-form" role="tabpanel" aria-labelledby="packingBatchTab" data-packing-entry-panel="batch" hidden>
+        <form id="packingBatchForm" class="packing-record-form packing-batch-form standard-form standard-form-linear-layout" role="tabpanel" aria-labelledby="packingBatchTab" data-packing-entry-panel="batch" hidden>
           <label class="packing-recorder-field form-recorder-field">
             <span>Recorded by</span>
             <input id="packingBatchRecordedBy" type="text" maxlength="160" autocomplete="name" required>

@@ -19,6 +19,19 @@
   --label-font-size: 0.8rem;
   --section-font-size: 1rem;
   --supporting-font-size: 0.78rem;
+  --form-content-max-width: 1240px;
+  --form-panel-padding: 16px;
+  --form-panel-padding-phone: 16px;
+  --form-section-gap: 18px;
+  --form-control-min-height: 40px;
+  --form-control-min-height-touch: 44px;
+  --form-control-radius: 7px;
+  --form-control-padding-inline: 10px;
+  --form-control-font-size: 1rem;
+  --form-label-font-size: 0.74rem;
+  --form-hint-font-size: 0.72rem;
+  --form-legend-font-size: 0.95rem;
+  --form-textarea-min-height: 60px;
 }
 
 * {
@@ -980,7 +993,7 @@ body.brand-transition-active {
 }
 
 .collection-form-panel {
-  padding: 16px;
+  padding: var(--form-panel-padding);
 }
 
 .offline-access-band {
@@ -1013,7 +1026,7 @@ body.brand-transition-active {
 
 .form-page-content {
   width: 100%;
-  max-width: 1240px;
+  max-width: var(--form-content-max-width);
   min-width: 0;
   display: grid;
   align-content: start;
@@ -1027,7 +1040,7 @@ body.brand-transition-active {
 .form-record-panel {
   width: 100%;
   min-width: 0;
-  padding: 16px;
+  padding: var(--form-panel-padding);
 }
 
 .form-panel-toolbar {
@@ -1116,7 +1129,7 @@ body.brand-transition-active {
 
 .collection-form {
   display: grid;
-  gap: 18px;
+  gap: var(--form-section-gap);
 }
 
 .collector-name-field,
@@ -5506,7 +5519,7 @@ body[data-registration-pending] .registration-flow {
 
 .packing-record-form {
   display: grid;
-  gap: 18px;
+  gap: var(--form-section-gap);
 }
 
 .packing-record-form fieldset {
@@ -5525,7 +5538,7 @@ body[data-registration-pending] .registration-flow {
 .packing-record-form legend {
   padding: 0 10px 0 0;
   color: var(--text);
-  font-size: 0.95rem;
+  font-size: var(--form-legend-font-size);
   font-weight: 700;
 }
 
@@ -5534,7 +5547,7 @@ body[data-registration-pending] .registration-flow {
   display: grid;
   gap: 5px;
   color: var(--text-sec);
-  font-size: 0.74rem;
+  font-size: var(--form-label-font-size);
   font-weight: 600;
   text-transform: uppercase;
 }
@@ -5554,7 +5567,7 @@ body[data-registration-pending] .registration-flow {
 
 .packing-field-label {
   color: var(--text-sec);
-  font-size: 0.74rem;
+  font-size: var(--form-label-font-size);
   font-weight: 600;
   text-transform: uppercase;
 }
@@ -5613,7 +5626,7 @@ body[data-registration-pending] .registration-flow {
 
 .packing-field-hint {
   color: var(--text-muted);
-  font-size: 0.72rem;
+  font-size: var(--form-hint-font-size);
   font-weight: 400;
   text-transform: none;
 }
@@ -5624,10 +5637,10 @@ body[data-registration-pending] .registration-flow {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  min-height: 40px;
-  padding: 8px 10px;
+  min-height: var(--form-control-min-height);
+  padding: 8px var(--form-control-padding-inline);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--form-control-radius);
   background: var(--panel);
   color: var(--text);
   font: inherit;
@@ -5730,7 +5743,7 @@ body[data-registration-pending] .registration-flow {
 
 .process-record-form {
   display: grid;
-  gap: 18px;
+  gap: var(--form-section-gap);
 }
 
 .process-record-form fieldset {
@@ -5748,7 +5761,7 @@ body[data-registration-pending] .registration-flow {
 .process-record-form legend {
   padding: 0 10px 0 0;
   color: var(--text);
-  font-size: 0.95rem;
+  font-size: var(--form-legend-font-size);
   font-weight: 700;
 }
 
@@ -5785,7 +5798,7 @@ body[data-registration-pending] .registration-flow {
   display: grid;
   gap: 5px;
   color: var(--text-sec);
-  font-size: 0.74rem;
+  font-size: var(--form-label-font-size);
   font-weight: 600;
   text-transform: uppercase;
 }
@@ -5795,10 +5808,10 @@ body[data-registration-pending] .registration-flow {
 .process-record-form textarea {
   width: 100%;
   min-width: 0;
-  min-height: 40px;
-  padding: 8px 10px;
+  min-height: var(--form-control-min-height);
+  padding: 8px var(--form-control-padding-inline);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--form-control-radius);
   background: var(--panel);
   color: var(--text);
   font: inherit;
@@ -7129,7 +7142,7 @@ label input[type="checkbox"] {
   }
 
   .form-record-page .form-record-panel {
-    padding: 16px;
+    padding: var(--form-panel-padding-phone);
     border-right: 0;
     border-left: 0;
     border-radius: 0;
@@ -7324,7 +7337,7 @@ label input[type="checkbox"] {
   }
 
   .collection-form-panel {
-    padding: 16px;
+    padding: var(--form-panel-padding-phone);
   }
 
   .pending-records-band button {
