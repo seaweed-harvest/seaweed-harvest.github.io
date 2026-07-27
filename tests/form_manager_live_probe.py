@@ -21,6 +21,7 @@ def main():
     user_id, email, password = create_admin(keys)
     cosme_id = None
     submission_id = str(uuid.uuid4())
+    probe_name = f"Probe {submission_id[:8]}"
     access_token = None
     original_entry_access = None
     server = None
@@ -92,6 +93,60 @@ def main():
         assert context["records_private"] is True, context
         assert len(context["training_matrix"]) == 6, context
 
+        saved = request_json(
+            "POST",
+            f"{PROJECT_URL}/rest/v1/rpc/ag_public_shared_form_submission",
+            keys["anon"],
+            keys["anon"],
+            {
+                "p_share_token": form["share_link_id"],
+                "p_submission_id": submission_id,
+                "p_payload": {
+                    "form": "reef_nursery",
+                    "record": {
+                        "session": {
+                            "training_date": "2026-07-27",
+                            "location": "mkwiro",
+                            "start_time": "08:00",
+                            "finish_time": "09:00",
+                            "trainer_name": probe_name,
+                            "supporting_staff": None,
+                            "session_types": ["seeding"],
+                            "other_session_type": None,
+                            "weather_sea_conditions": None,
+                            "nursery_reference": "Review history probe",
+                        },
+                        "participants": [],
+                        "trainingDelivered": [],
+                        "practicalCompetencies": [],
+                        "seaweed": {},
+                        "raftRecords": [],
+                        "raftInspection": {},
+                    },
+                    "photos": [],
+                },
+                "p_submitter_name": probe_name,
+                "p_client_key": str(uuid.uuid4()),
+                "p_user_agent": "form-manager-live-probe",
+            },
+        )
+        assert saved["ok"] is True, saved
+        history = request_json(
+            "POST",
+            f"{PROJECT_URL}/rest/v1/rpc/ag_public_reef_review_submissions",
+            keys["anon"],
+            keys["anon"],
+            {
+                "p_share_token": form["share_link_id"],
+                "p_search": probe_name,
+                "p_sort": "training_date",
+                "p_direction": "desc",
+                "p_limit": 50,
+                "p_offset": 0,
+            },
+        )
+        assert any(row["session_id"] == saved["submission_id"] for row in history), history
+
         server, base_url = start_server()
         options = webdriver.ChromeOptions()
         options.add_argument("--headless=new")
@@ -112,7 +167,7 @@ def main():
         )
         assert driver.find_element(By.ID, "reefReviewNotice").is_displayed()
         assert not driver.find_element(By.ID, "reefNurserySidebar").is_displayed()
-        assert not driver.find_element(By.ID, "reefRecordsTab").is_displayed()
+        assert driver.find_element(By.ID, "reefRecordsTab").is_displayed()
         assert not driver.find_element(By.ID, "saveReefNursery").is_displayed()
         wait.until(
             lambda current: current.find_element(
@@ -123,6 +178,33 @@ def main():
             By.ID, "reefRecordNumber"
         ).get_attribute("textContent").strip()
         assert record_number == "Test submission", record_number
+        driver.find_element(By.ID, "reefRecordsTab").click()
+        search = driver.find_element(By.ID, "reefRecordsSearch")
+        search.clear()
+        search.send_keys(probe_name)
+        driver.find_element(By.ID, "reefRecordsLoad").click()
+        wait.until(
+            lambda current: probe_name
+            in current.find_element(By.ID, "reefRecordsRows").text
+        )
+        assert not driver.find_element(By.ID, "deleteReefRecords").is_displayed()
+        driver.find_element(
+            By.CSS_SELECTOR,
+            f'[data-select-record][value="{saved["submission_id"]}"]',
+        ).click()
+        driver.find_element(By.ID, "editReefRecord").click()
+        wait.until(
+            lambda current: current.find_element(
+                By.ID, "reefTrainerName"
+            ).get_attribute("value") == probe_name
+        )
+        assert (
+            driver.find_element(By.ID, "reefRecordNumber").text
+            == "Test submission"
+        )
+        assert "new test record" in driver.find_element(
+            By.ID, "reefNurseryStatus"
+        ).text.lower()
         browser_errors = [
             entry for entry in driver.get_log("browser")
             if entry.get("level") == "SEVERE"
@@ -130,25 +212,6 @@ def main():
         ]
         assert not browser_errors, browser_errors
 
-        saved = request_json(
-            "POST",
-            f"{PROJECT_URL}/rest/v1/rpc/ag_public_shared_form_submission",
-            keys["anon"],
-            keys["anon"],
-            {
-                "p_share_token": form["share_link_id"],
-                "p_submission_id": submission_id,
-                "p_payload": {
-                    "form": "reef_nursery",
-                    "record": {"session": {"trainer_name": "Live probe"}},
-                    "photos": [],
-                },
-                "p_submitter_name": "Live probe",
-                "p_client_key": str(uuid.uuid4()),
-                "p_user_agent": "form-manager-live-probe",
-            },
-        )
-        assert saved["ok"] is True, saved
         row = request_json(
             "GET",
             (
@@ -159,7 +222,7 @@ def main():
             keys["service_role"],
         )
         assert len(row) == 1 and row[0]["submission_kind"] == "test", row
-        print("PASS: revocable Reef review link stores an isolated test submission")
+        print("PASS: Reef review history reopens an isolated test submission")
     finally:
         if driver:
             driver.quit()

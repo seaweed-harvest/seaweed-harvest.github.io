@@ -82,7 +82,8 @@ def main():
         assert reef_row.find_element(
             By.CSS_SELECTOR, ".form-manager-records strong"
         ).text == "Private"
-        reef_access.select_by_value("review")
+        target_access = "private" if reef_access.first_selected_option.get_attribute("value") == "review" else "review"
+        reef_access.select_by_value(target_access)
         assert "is-dirty" in reef_row.get_attribute("class")
         assert reef_row.find_element(
             By.CSS_SELECTOR, '[data-form-action="save"]'

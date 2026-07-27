@@ -13,6 +13,8 @@ const state = {
 const els = {};
 let recordsRoot = document;
 let editHandler = null;
+let recordsLoader = null;
+let allowDelete = true;
 let initialized = false;
 
 const LOCATION_LABELS = {
@@ -44,6 +46,8 @@ export async function initReefNurseryRecords(options = {}) {
   initialized = true;
   recordsRoot = options.root || document;
   editHandler = typeof options.onEdit === "function" ? options.onEdit : null;
+  recordsLoader = typeof options.loadData === "function" ? options.loadData : null;
+  allowDelete = options.allowDelete !== false;
   [
     "reefRecordsCount", "reefRecordsSearch", "reefRecordsLoad",
     "reefRecordsSelectionActions", "reefRecordsSelectedCount", "editReefRecord",
@@ -63,19 +67,22 @@ export async function initReefNurseryRecords(options = {}) {
   els.selectAllReefRecords.addEventListener("change", selectAllVisible);
   els.reefRecordsRows.addEventListener("change", changeSelection);
   els.editReefRecord.addEventListener("click", editSelectedRecord);
-  els.deleteReefRecords.addEventListener("click", deleteSelectedRecords);
+  if (allowDelete) els.deleteReefRecords.addEventListener("click", deleteSelectedRecords);
+  else els.deleteReefRecords.hidden = true;
   els.previousReefRecords.addEventListener("click", () => changePage(-1));
   els.nextReefRecords.addEventListener("click", () => changePage(1));
   recordsRoot.querySelectorAll("[data-sort]").forEach((button) => {
     button.addEventListener("click", () => changeSort(button.dataset.sort));
   });
 
-  const access = options.access || await requireAggregatorAccess(
-      "COSME",
-      "can_access_reef_nursery",
-      "reef_nursery_records.html",
-      "form_reef_nursery"
-    );
+  const access = recordsLoader
+    ? true
+    : (options.access || await requireAggregatorAccess(
+        "COSME",
+        "can_access_reef_nursery",
+        "reef_nursery_records.html",
+        "form_reef_nursery"
+      ));
   if (!access) return;
   await loadRecords();
   return { reload: loadRecords };
@@ -84,13 +91,29 @@ export async function initReefNurseryRecords(options = {}) {
 async function loadRecords() {
   setStatus("Loading records...");
   setLoading(true);
-  const { data, error } = await authClient.rpc("ag_reef_nursery_records_v2", {
-    p_search: state.search || null,
-    p_sort: state.sort,
-    p_direction: state.direction,
-    p_limit: PAGE_SIZE,
-    p_offset: state.page * PAGE_SIZE
-  });
+  let data;
+  let error;
+  if (recordsLoader) {
+    try {
+      data = await recordsLoader({
+        search: state.search,
+        sort: state.sort,
+        direction: state.direction,
+        limit: PAGE_SIZE,
+        offset: state.page * PAGE_SIZE
+      });
+    } catch (loadError) {
+      error = loadError;
+    }
+  } else {
+    ({ data, error } = await authClient.rpc("ag_reef_nursery_records_v2", {
+      p_search: state.search || null,
+      p_sort: state.sort,
+      p_direction: state.direction,
+      p_limit: PAGE_SIZE,
+      p_offset: state.page * PAGE_SIZE
+    }));
+  }
   setLoading(false);
   if (error) {
     state.rows = [];
@@ -124,7 +147,7 @@ function renderRows() {
       row.innerHTML = `
         <td class="reef-select-column"><input type="checkbox" data-select-record value="${escapeHtml(record.session_id)}" aria-label="Select ${escapeHtml(record.record_number)}"></td>
         <td data-label="Record"><strong>${escapeHtml(record.record_number)}</strong></td>
-        <td data-label="Status"><span class="reef-record-status ${record.record_status === "draft" ? "is-draft" : "is-submitted"}">${record.record_status === "draft" ? "Draft" : "Submitted"}</span></td>
+        <td data-label="Status"><span class="reef-record-status ${record.record_status === "draft" ? "is-draft" : "is-submitted"}">${formatRecordStatus(record.record_status)}</span></td>
         <td data-label="Date">${escapeHtml(formatDate(record.training_date))}</td>
         <td data-label="Trainer">${escapeHtml(record.trainer_name || "-")}</td>
         <td data-label="Location">${escapeHtml(LOCATION_LABELS[record.location] || record.location || "-")}</td>
@@ -203,7 +226,10 @@ async function editSelectedRecord() {
   if (state.selected.size !== 1) return;
   const [sessionId] = state.selected;
   if (editHandler) {
-    await editHandler(sessionId);
+    await editHandler(
+      sessionId,
+      state.rows.find((record) => record.session_id === sessionId) || null
+    );
     return;
   }
   window.location.href = `./reef_nursery.html?record=${encodeURIComponent(sessionId)}`;
@@ -252,6 +278,12 @@ function formatSessionTypes(values) {
       return SESSION_TYPE_LABELS[value] || value;
     })
     .join(", ");
+}
+
+function formatRecordStatus(value) {
+  if (value === "draft") return "Draft";
+  if (value === "test") return "Review";
+  return "Submitted";
 }
 
 function setLoading(loading) {

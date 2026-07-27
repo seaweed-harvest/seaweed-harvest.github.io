@@ -2,7 +2,7 @@ import { APP_CONFIG } from "./config.js";
 import { authClient, requireAggregatorAccess } from "./auth_client.js?v=25";
 import { callPublicRpc } from "./supabase_client.js";
 import { setupFavoriteFormButton } from "./favorite_forms.js?v=3";
-import { initReefNurseryRecords } from "./reef_nursery_records.js?v=5";
+import { initReefNurseryRecords } from "./reef_nursery_records.js?v=6";
 
 const els = {};
 const PHOTO_BUCKET = "reef-nursery-photos";
@@ -69,6 +69,7 @@ async function init() {
     "reefPhotoViewer", "reefPhotoViewerImage", "reefPhotoViewerName",
     "reefClosePhotoViewer", "clearReefNursery", "favoriteReefNurseryForm",
     "reefNurseryStatus", "reefRecordsPanel", "reefRecordsTab", "reefStartNewRecord",
+    "reefRecordsSearch", "editReefRecord",
     "reefShareGateMessage", "reefReviewNotice"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
@@ -189,42 +190,7 @@ async function loadRecord(sessionId) {
   currentRecordStatus = data.record_status || "submitted";
   submissionId = data.submission_id;
   els.reefRecordNumber.textContent = data.record_number || "Existing record";
-  els.reefTrainingDate.value = String(data.training_date || "").slice(0, 10);
-  els.reefLocation.value = data.location || "";
-  els.reefStartTime.value = String(data.start_time || "").slice(0, 5);
-  els.reefFinishTime.value = String(data.finish_time || "").slice(0, 5);
-  els.reefTrainerName.value = data.trainer_name || "";
-  els.reefSupportingStaff.value = data.supporting_staff || "";
-  els.reefConditions.value = data.weather_sea_conditions || "";
-  els.reefNurseryReference.value = data.nursery_reference || "";
-  const raftInspection = data.raft_inspection || {};
-  els.reefRaftOverallCondition.value = raftInspection.overall_condition || "";
-  els.reefRaftSeaweedLines.value = raftInspection.seaweed_lines_attachments || "";
-  els.reefRaftHdpeFrame.value = raftInspection.hdpe_floating_frame || "";
-  els.reefRaftRiggingHarness.value = raftInspection.rigging_harness_bridle || "";
-
-  const sessionTypes = new Set(Array.isArray(data.session_types) ? data.session_types : []);
-  els.reefNurseryForm.querySelectorAll('[name="reefSessionType"]').forEach((control) => {
-    control.checked = sessionTypes.has(control.value);
-  });
-  els.reefOtherSessionType.value = data.other_session_type || "";
-  trainingDrafts.clear();
-  (Array.isArray(data.training_delivered) ? data.training_delivered : []).forEach((section) => {
-    trainingDrafts.set(section.section_key, {
-      activityIds: new Set((Array.isArray(section.activity_ids) ? section.activity_ids : []).map(String)),
-      otherText: String(section.other_text || "")
-    });
-  });
-  handleSessionTypesChange();
-
-  els.reefParticipantRows.replaceChildren();
-  (Array.isArray(data.participants) ? data.participants : []).forEach((participant) => {
-    addParticipantRow({ participant });
-  });
-  if (!els.reefParticipantRows.rows.length) addParticipantRow();
-  loadCompetencyDrafts(data.practical_competencies);
-
-  loadRaftSeaweedRecords(data.raft_seaweed_records, data.seaweed);
+  hydrateRecordFields(data);
 
   photoState.files = [];
   photoState.existing = await Promise.all((Array.isArray(data.photos) ? data.photos : []).map(async (photo) => {
@@ -263,9 +229,12 @@ async function initialiseReviewAccess(organisationCode) {
   document.querySelector(".app-header .header-actions").hidden = true;
   els.reefReviewNotice.hidden = false;
   els.favoriteReefNurseryForm.hidden = true;
-  els.reefRecordsTab.hidden = true;
   els.saveReefNursery.hidden = true;
   els.openReefTrainingMatrix.hidden = true;
+  els.reefRecordsPanel.querySelector("h3").textContent = "Previous review records";
+  els.reefRecordsSearch.placeholder = "Trainer, location or session type";
+  els.editReefRecord.textContent = "Use as starting point";
+  els.reefStartNewRecord.textContent = "New test record";
   setPhotoStatus("Up to 8 photos can be previewed. Review submissions store photo names only.");
   document.title = "Reef Nursery Review - Seaweed Harvest";
   return true;
@@ -319,15 +288,31 @@ async function ensureRecordsController() {
     return recordsController;
   }
   if (recordsControllerPromise) return recordsControllerPromise;
-  if (!reefAccess) return null;
+  if (!reefAccess && !isReviewMode()) return null;
 
   recordsControllerPromise = initReefNurseryRecords({
     root: els.reefRecordsPanel,
     access: reefAccess,
-    onEdit: async (sessionId) => {
-      history.replaceState({}, "", `./reef_nursery.html?record=${encodeURIComponent(sessionId)}`);
-      await loadRecord(sessionId);
-    }
+    allowDelete: !isReviewMode(),
+    loadData: isReviewMode()
+      ? async ({ search, sort, direction, limit, offset }) => callPublicRpc(
+        "ag_public_reef_review_submissions",
+        {
+          p_share_token: reviewShareToken,
+          p_search: search || null,
+          p_sort: sort,
+          p_direction: direction,
+          p_limit: limit,
+          p_offset: offset
+        }
+      )
+      : null,
+    onEdit: isReviewMode()
+      ? async (_submissionId, row) => loadReviewRecord(row)
+      : async (sessionId) => {
+        history.replaceState({}, "", `./reef_nursery.html?record=${encodeURIComponent(sessionId)}`);
+        await loadRecord(sessionId);
+      }
   }).then((controller) => {
     recordsController = controller;
     return controller;
@@ -338,6 +323,76 @@ async function ensureRecordsController() {
     recordsControllerPromise = null;
   });
   return recordsControllerPromise;
+}
+
+function loadReviewRecord(row) {
+  const record = row?.payload?.record;
+  if (!record?.session || typeof record.session !== "object") {
+    setStatus("That review record could not be opened.", "error");
+    return;
+  }
+
+  clearForm({ preserveStatus: true });
+  hydrateRecordFields({
+    ...record.session,
+    participants: record.participants,
+    training_delivered: record.trainingDelivered,
+    practical_competencies: record.practicalCompetencies,
+    seaweed: record.seaweed,
+    raft_seaweed_records: record.raftRecords,
+    raft_inspection: record.raftInspection
+  });
+  editingSessionId = null;
+  currentRecordStatus = "unsaved";
+  submissionId = crypto.randomUUID();
+  photoState.files = [];
+  photoState.existing = [];
+  renderPhotoPreview();
+  els.reefRecordNumber.textContent = "Test submission";
+  els.clearReefNursery.textContent = "Clear";
+  updateRecordActions();
+  showTab("session");
+  updateParticipantCount();
+  updateFieldHighlights();
+  setStatus("Previous review record loaded. Submitting will create a new test record.");
+}
+
+function hydrateRecordFields(data) {
+  els.reefTrainingDate.value = String(data.training_date || "").slice(0, 10);
+  els.reefLocation.value = data.location || "";
+  els.reefStartTime.value = String(data.start_time || "").slice(0, 5);
+  els.reefFinishTime.value = String(data.finish_time || "").slice(0, 5);
+  els.reefTrainerName.value = data.trainer_name || "";
+  els.reefSupportingStaff.value = data.supporting_staff || "";
+  els.reefConditions.value = data.weather_sea_conditions || "";
+  els.reefNurseryReference.value = data.nursery_reference || "";
+  const raftInspection = data.raft_inspection || {};
+  els.reefRaftOverallCondition.value = raftInspection.overall_condition || "";
+  els.reefRaftSeaweedLines.value = raftInspection.seaweed_lines_attachments || "";
+  els.reefRaftHdpeFrame.value = raftInspection.hdpe_floating_frame || "";
+  els.reefRaftRiggingHarness.value = raftInspection.rigging_harness_bridle || "";
+
+  const sessionTypes = new Set(Array.isArray(data.session_types) ? data.session_types : []);
+  els.reefNurseryForm.querySelectorAll('[name="reefSessionType"]').forEach((control) => {
+    control.checked = sessionTypes.has(control.value);
+  });
+  els.reefOtherSessionType.value = data.other_session_type || "";
+  trainingDrafts.clear();
+  (Array.isArray(data.training_delivered) ? data.training_delivered : []).forEach((section) => {
+    trainingDrafts.set(section.section_key, {
+      activityIds: new Set((Array.isArray(section.activity_ids) ? section.activity_ids : []).map(String)),
+      otherText: String(section.other_text || "")
+    });
+  });
+  handleSessionTypesChange();
+
+  els.reefParticipantRows.replaceChildren();
+  (Array.isArray(data.participants) ? data.participants : []).forEach((participant) => {
+    addParticipantRow({ participant });
+  });
+  if (!els.reefParticipantRows.rows.length) addParticipantRow();
+  loadCompetencyDrafts(data.practical_competencies);
+  loadRaftSeaweedRecords(data.raft_seaweed_records, data.seaweed);
 }
 
 function addParticipantRow({ focus = false, participant = {} } = {}) {

@@ -24,6 +24,9 @@ class FormManagerStaticTest(unittest.TestCase):
         cls.migration = read(
             "supabase/migrations/20260727170000_form_manager_and_sharing.sql"
         )
+        cls.review_history_migration = read(
+            "supabase/migrations/20260727173000_reef_review_previous_records.sql"
+        )
         cls.collection_edge = read_optional(
             "supabase/functions/public-collection/index.ts"
         )
@@ -83,6 +86,14 @@ class FormManagerStaticTest(unittest.TestCase):
         page = read("reef_nursery.html")
         self.assertIn("Review copy", page)
         self.assertIn("ag_public_shared_form_submission", reef)
+        self.assertIn("ag_public_reef_review_submissions", reef)
+        self.assertIn("Use as starting point", reef)
+        self.assertIn(
+            "function public.ag_public_reef_review_submissions",
+            self.review_history_migration,
+        )
+        self.assertIn("submission.share_link_id = v_link.id", self.review_history_migration)
+        self.assertIn("submission.form_key = 'form_reef_nursery'", self.review_history_migration)
         self.assertNotIn("It will not change COSME operational records.", page)
         self.assertIn("Test submission", reef)
 
