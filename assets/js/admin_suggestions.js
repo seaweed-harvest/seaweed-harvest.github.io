@@ -102,10 +102,11 @@ function renderSuggestions() {
       <p class="suggestion-message">${escapeHtml(row.message)}</p>
       <dl class="suggestion-meta">
         <div><dt>From</dt><dd>${escapeHtml(row.submitter_name || row.submitter_email || "Anonymous")}</dd></div>
-        <div><dt>Product</dt><dd>${escapeHtml(row.source_app === "tide" ? "Tide Planner" : "Seaweed Harvest")}</dd></div>
+        <div><dt>Product</dt><dd>${escapeHtml(productLabel(row.source_app))}</dd></div>
         <div><dt>Review</dt><dd>${escapeHtml(reviewLabel(row.review_decision))}</dd></div>
         <div><dt>Slack</dt><dd>${escapeHtml(row.slack_status || "-")}</dd></div>
       </dl>
+      ${automationPanel(row)}
       <div class="suggestion-links">
         ${row.page_url ? `<a href="${escapeAttribute(row.page_url)}" target="_blank" rel="noopener noreferrer">Open page</a>` : ""}
         ${row.photo_path ? `<button type="button" data-view-suggestion-photo="${escapeAttribute(row.photo_path)}">View screenshot</button>` : ""}
@@ -132,6 +133,11 @@ async function handleSuggestionAction(event) {
   const photoButton = event.target.closest("[data-view-suggestion-photo]");
   if (photoButton) {
     await showPhoto(photoButton.dataset.viewSuggestionPhoto);
+    return;
+  }
+  const retryButton = event.target.closest("[data-retry-ai-assist]");
+  if (retryButton) {
+    await retryAiAssist(retryButton);
     return;
   }
   const deleteButton = event.target.closest("[data-delete-suggestion]");
@@ -187,6 +193,26 @@ async function deleteSuggestion(button) {
   setStatus("Suggestion deleted.", "success");
 }
 
+async function retryAiAssist(button) {
+  const item = button.closest("[data-suggestion-id]");
+  if (!item) return;
+  button.disabled = true;
+  setStatus("Restarting AI Assist...");
+  const { data, error } = await authClient.functions.invoke("site-feedback", {
+    body: {
+      action: "retry_ai_assist",
+      feedback_id: item.dataset.suggestionId
+    }
+  });
+  button.disabled = false;
+  if (error || !data?.ok) {
+    setStatus(data?.error || error?.message || "AI Assist could not be restarted.", "error");
+    return;
+  }
+  await loadSuggestions();
+  setStatus("AI Assist restarted.", "success");
+}
+
 async function showPhoto(path) {
   setStatus("Opening screenshot...");
   const { data, error } = await authClient.storage.from(PHOTO_BUCKET).createSignedUrl(path, 300);
@@ -225,6 +251,56 @@ function reviewOptions(selected) {
 
 function reviewLabel(value) {
   return { approved: "Approved", review_required: "Review required", flagged: "Flagged" }[value] || value || "-";
+}
+
+function productLabel(value) {
+  return {
+    aggregation: "Seaweed Harvest",
+    green_space: "Green Space Log",
+    tide: "Tide Planner"
+  }[value] || value || "Unknown";
+}
+
+function automationPanel(row) {
+  if (!row.automation_enabled) return "";
+  const status = automationStatusLabel(row.automation_status);
+  const detail = row.automation_error_message || row.automation_summary || "AI Assist is preparing an assessment.";
+  const decision = [row.automation_decision, row.automation_risk_level]
+    .filter(Boolean)
+    .map((value) => String(value).replaceAll("_", " "))
+    .join(" / ");
+  return `
+    <section class="suggestion-ai-status" aria-label="AI Assist status">
+      <div>
+        <strong>AI Assist: ${escapeHtml(status)}</strong>
+        ${decision ? `<span>${escapeHtml(decision)}</span>` : ""}
+      </div>
+      <p>${escapeHtml(detail)}</p>
+      ${row.automation_pull_request_url
+        ? `<a href="${escapeAttribute(row.automation_pull_request_url)}" target="_blank" rel="noopener noreferrer">Open draft pull request</a>`
+        : ""}
+      ${["new", "failed", "cancelled"].includes(row.automation_status)
+        ? `<button type="button" data-retry-ai-assist>Retry AI Assist</button>`
+        : ""}
+    </section>`;
+}
+
+function automationStatusLabel(value) {
+  return {
+    new: "Requested",
+    queued: "Queued",
+    shadow_assessing: "Assessing",
+    dispatched: "Assessment dispatched",
+    assessing: "Assessing",
+    assessment_complete: "Assessment complete",
+    approval_required: "Approval required",
+    coding: "Preparing draft change",
+    testing: "Testing draft change",
+    pull_request_open: "Draft pull request ready",
+    held: "Held for review",
+    failed: "Failed",
+    cancelled: "Cancelled"
+  }[value] || String(value || "Requested").replaceAll("_", " ");
 }
 
 function formatDateTime(value) {

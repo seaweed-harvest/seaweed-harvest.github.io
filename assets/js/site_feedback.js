@@ -7,6 +7,7 @@ const MAX_MESSAGE_LENGTH = 2000;
 const MAX_PHOTO_BYTES = 700 * 1024;
 const PHOTO_TARGET_BYTES = 550 * 1024;
 const PHOTO_MAX_EDGE = 1920;
+const AI_ASSIST_OWNER_EMAIL = "bmichael@cascadiaseaweed.com";
 
 const COPY = {
   en: {
@@ -20,11 +21,16 @@ const COPY = {
     photoReady: "Photo ready.",
     photoError: "That image could not be prepared. Try another photo or screenshot.",
     removePhoto: "Remove image",
+    aiAssist: "AI Assist",
+    aiAssistHint: "Assess this request and prepare a draft change when it is safe.",
     quote: "Better ideas start with a question.",
     cancel: "Cancel",
     submit: "Send suggestion",
     sending: "Sending...",
     sent: "Thank you. Your suggestion was sent.",
+    sentAi: "Suggestion sent. AI Assist has started.",
+    sentAiQueued: "Suggestion sent. AI Assist is queued.",
+    sentWithoutAi: "Suggestion sent, but AI Assist was not started.",
     queued: "Saved on this device. It will send when online.",
     error: "The suggestion could not be sent. Please try again.",
     required: "Write a short suggestion before sending."
@@ -40,11 +46,16 @@ const COPY = {
     photoReady: "Picha iko tayari.",
     photoError: "Picha hiyo haikuweza kutayarishwa. Jaribu picha nyingine.",
     removePhoto: "Ondoa picha",
+    aiAssist: "Msaada wa AI",
+    aiAssistHint: "Ichambue na uandae rasimu ya mabadiliko ikiwa ni salama.",
     quote: "Mawazo bora huanza na swali.",
     cancel: "Ghairi",
     submit: "Tuma pendekezo",
     sending: "Inatuma...",
     sent: "Asante. Pendekezo lako limetumwa.",
+    sentAi: "Pendekezo limetumwa. Msaada wa AI umeanza.",
+    sentAiQueued: "Pendekezo limetumwa. Msaada wa AI unasubiri.",
+    sentWithoutAi: "Pendekezo limetumwa, lakini msaada wa AI haujaanza.",
     queued: "Limehifadhiwa kwenye kifaa. Litatumwa mtandao ukirudi.",
     error: "Pendekezo halikutumwa. Tafadhali jaribu tena.",
     required: "Andika pendekezo fupi kabla ya kutuma."
@@ -70,6 +81,7 @@ function initialiseFeedbackWidget() {
 
   const language = activeLanguage();
   const copy = COPY[language];
+  const aiAssistAvailable = signedInEmail().toLowerCase() === AI_ASSIST_OWNER_EMAIL;
   const root = document.createElement("div");
   root.dataset.siteFeedbackWidget = "true";
   root.className = "site-feedback-widget";
@@ -108,6 +120,13 @@ function initialiseFeedbackWidget() {
           <img alt="Selected suggestion screenshot">
           <button class="site-feedback-photo-remove" type="button">${copy.removePhoto}</button>
         </div>
+        <label class="site-feedback-ai-assist" ${aiAssistAvailable ? "" : "hidden"}>
+          <input name="aiAssist" type="checkbox" ${aiAssistAvailable ? "" : "disabled"}>
+          <span>
+            <strong>${copy.aiAssist}</strong>
+            <small>${copy.aiAssistHint}</small>
+          </span>
+        </label>
         <label class="site-feedback-honeypot" aria-hidden="true">
           <span>Website</span>
           <input name="website" type="text" tabindex="-1" autocomplete="off">
@@ -185,7 +204,8 @@ async function submitFeedback(event) {
     message,
     submitterName,
     website: form.elements.website.value,
-    photoDataUrl: widget.photo?.dataUrl || null
+    photoDataUrl: widget.photo?.dataUrl || null,
+    aiAssistRequested: Boolean(form.elements.aiAssist?.checked)
   });
 
   submit.disabled = true;
@@ -196,13 +216,19 @@ async function submitFeedback(event) {
     const response = await sendFeedback(payload);
     if (!response.ok) throw new Error(response.error || copy.error);
     form.elements.message.value = "";
+    if (form.elements.aiAssist) form.elements.aiAssist.checked = false;
     clearFeedbackPhoto();
-    setStatus(status, copy.sent, "success");
+    const completionMessage = payload.ai_assist_requested
+      ? response.ai_assist_accepted
+        ? response.ai_assist_dispatched ? copy.sentAi : copy.sentAiQueued
+        : copy.sentWithoutAi
+      : copy.sent;
+    setStatus(status, completionMessage, response.ai_assist_accepted === false ? "queued" : "success");
     if (response.celebration === "jenn-first-improvement") {
       closeDialog(widget.dialog, { restoreFocus: false });
       showCelebration(widget.celebration);
     } else {
-      window.setTimeout(() => closeDialog(widget.dialog), 1400);
+      window.setTimeout(() => closeDialog(widget.dialog), payload.ai_assist_requested ? 2200 : 1400);
     }
   } catch (error) {
     if (!navigator.onLine || isNetworkError(error)) {
@@ -350,7 +376,14 @@ function blobToDataUrl(blob) {
   });
 }
 
-function buildPayload({ feedbackType, message, submitterName, website, photoDataUrl }) {
+function buildPayload({
+  feedbackType,
+  message,
+  submitterName,
+  website,
+  photoDataUrl,
+  aiAssistRequested = false
+}) {
   const sourceApp = detectSourceApp();
   return {
     submission_id: crypto.randomUUID(),
@@ -364,6 +397,7 @@ function buildPayload({ feedbackType, message, submitterName, website, photoData
     client_token: clientToken(),
     user_agent: navigator.userAgent.slice(0, 500),
     photo_data_url: photoDataUrl,
+    ai_assist_requested: aiAssistRequested === true,
     website
   };
 }
@@ -490,6 +524,10 @@ function signedInName() {
     || "";
 }
 
+function signedInEmail() {
+  return String(authSession()?.user?.email || "");
+}
+
 function authSession() {
   try {
     const session = JSON.parse(localStorage.getItem("seaweed-ag-auth") || "null");
@@ -586,6 +624,12 @@ function injectStyles() {
     .site-feedback-photo-preview[hidden]{display:none}
     .site-feedback-photo-preview img{width:76px;height:58px;object-fit:cover;border-radius:4px;background:#fff}
     .site-feedback-photo-preview button{justify-self:start;min-height:36px;padding:6px 10px;border:1px solid var(--sf-line);border-radius:6px;background:#fff;color:var(--sf-ink);font:inherit;font-size:.8rem;font-weight:700;cursor:pointer}
+    .site-feedback-ai-assist{grid-template-columns:18px minmax(0,1fr)!important;align-items:start;gap:9px!important;padding:10px 11px;border:1px solid var(--sf-line);border-radius:6px;background:var(--sf-soft)}
+    .site-feedback-ai-assist[hidden]{display:none!important}
+    .site-feedback-ai-assist input{width:16px!important;height:16px!important;min-height:0!important;margin:2px 0 0;padding:0!important;accent-color:var(--sf-teal)}
+    .site-feedback-ai-assist span{display:grid;gap:2px;text-transform:none}
+    .site-feedback-ai-assist strong{font-size:.88rem}
+    .site-feedback-ai-assist small{color:#607b77;font-size:.76rem;font-weight:400;line-height:1.35;text-transform:none}
     .site-feedback-honeypot{position:absolute!important;left:-9999px!important;width:1px!important;height:1px!important;overflow:hidden!important}
     .site-feedback-status{min-height:1.3em;margin:0;font-size:.88rem;color:#476b67}
     .site-feedback-status[data-state=success]{color:#08724e}
