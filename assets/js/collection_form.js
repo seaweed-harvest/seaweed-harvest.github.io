@@ -1277,6 +1277,11 @@ function updateAddAnotherFarmerState() {
 function freezeCurrentFarmer() {
   const farmer = currentFarmerDraft();
   if (!farmer) return;
+  if (state.collectionFarmers.some((saved) => farmersSharePhone(saved, farmer))) {
+    setFarmerPhoneMatchHint("farmer.phoneAlreadyAdded");
+    setStatus(t("farmer.phoneAlreadyAdded"), "error");
+    return;
+  }
   if (state.collectionFarmers.some((saved) => farmerIdentityKey(saved) === farmerIdentityKey(farmer))) {
     setStatus(t("farmer.alreadyAdded"), "error");
     return;
@@ -1466,6 +1471,13 @@ function farmerIdentityKey(farmer) {
     farmer.community_id_snapshot || farmer.community_name_snapshot
   );
   return `custom:${name}:${phone}:${community}`;
+}
+
+function farmersSharePhone(left, right) {
+  const leftPhone = normalizedPhoneDigits(left.phone_snapshot);
+  const rightPhone = normalizedPhoneDigits(right.phone_snapshot);
+  return leftPhone.length >= FARMER_PHONE_LOOKUP_MIN_DIGITS
+    && leftPhone === rightPhone;
 }
 
 function assignNextFarmerId() {
@@ -2235,10 +2247,16 @@ function buildPayload(photoPaths = [], farmers = collectionFarmersForSubmission(
 function collectionFarmersForSubmission() {
   const farmers = effectiveCollectionFarmers();
   const identities = new Set();
+  const phones = new Set();
   farmers.forEach((farmer) => {
     const identity = farmerIdentityKey(farmer);
     if (identities.has(identity)) throw new Error(t("farmer.duplicateError"));
     identities.add(identity);
+    const phone = normalizedPhoneDigits(farmer.phone_snapshot);
+    if (phone.length >= FARMER_PHONE_LOOKUP_MIN_DIGITS && phones.has(phone)) {
+      throw new Error(t("farmer.phoneDuplicateError"));
+    }
+    if (phone.length >= FARMER_PHONE_LOOKUP_MIN_DIGITS) phones.add(phone);
   });
   return farmers;
 }
@@ -2248,6 +2266,7 @@ function farmerAllocationPayload(farmer) {
     farmer_record_id: farmer.farmer_record_id || null,
     farmer_id: farmer.farmer_id || null,
     farmer_name_snapshot: farmer.farmer_name_snapshot,
+    phone_snapshot: farmer.phone_snapshot || null,
     community_record_id: farmer.community_record_id || null,
     community_id_snapshot: farmer.community_id_snapshot || null,
     community_name_snapshot: farmer.community_name_snapshot || null,
