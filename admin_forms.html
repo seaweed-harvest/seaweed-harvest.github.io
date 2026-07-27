@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Form Manager - Seaweed Harvest</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+  <link rel="stylesheet" href="./assets/css/form_manager.css?v=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Seaweed Harvest">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./favicon.ico" sizes="any">
+  <link rel="icon" href="./assets/images/seaweed-harvest-icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
+  <script type="module" src="./assets/js/pwa_bootstrap.js"></script>
+</head>
+<body class="admin-console-page form-manager-page" data-auth-pending>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div><p class="eyebrow">Seaweed aggregation</p><h1>Admin</h1></div>
+      <div class="header-actions admin-header-controls">
+        <nav class="app-nav" aria-label="Main navigation"><a href="./collection.html">Collection</a><a href="./home.html">Home</a></nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell admin-shell admin-layout">
+    <aside class="admin-sidebar" aria-label="Application menu"></aside>
+
+    <section class="admin-content admin-page-section">
+      <section class="panel form-manager-panel">
+        <div class="section-head compact form-manager-heading">
+          <div>
+            <p class="eyebrow">Tools</p>
+            <h2>Form Manager</h2>
+            <p id="formManagerOrganisation" class="form-manager-organisation">Loading organisation...</p>
+          </div>
+          <button id="reloadFormManager" type="button">Reload</button>
+        </div>
+        <p id="formManagerStatus" class="admin-status" aria-live="polite"></p>
+
+        <div class="form-manager-key" aria-label="Access guide">
+          <span><strong>Entry</strong> controls who can open and submit a form.</span>
+          <span><strong>Records</strong> stay private to authorised users.</span>
+        </div>
+
+        <div id="formManagerRows" class="form-manager-list" aria-live="polite"></div>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="formShareDialog" class="form-share-dialog" aria-labelledby="formShareDialogTitle">
+    <div class="form-share-dialog-panel">
+      <div class="section-head compact">
+        <div>
+          <p class="eyebrow">Share form</p>
+          <h2 id="formShareDialogTitle">Form link</h2>
+        </div>
+        <button id="closeFormShareDialog" class="form-share-close" type="button" aria-label="Close" title="Close">&times;</button>
+      </div>
+      <p id="formShareDialogHelp"></p>
+      <label>Link
+        <input id="formShareLink" type="text" readonly>
+      </label>
+      <div class="button-row">
+        <button id="copyFormShareLink" type="button">Copy link</button>
+        <button id="openFormShareLink" type="button">Open form</button>
+      </div>
+      <p id="formShareDialogStatus" class="admin-status" aria-live="polite"></p>
+    </div>
+  </dialog>
+
+  <script type="module" src="./assets/js/admin_page.js?v=36"></script>
+  <script type="module" src="./assets/js/form_manager_page.js?v=1"></script>
+</body>
+</html>

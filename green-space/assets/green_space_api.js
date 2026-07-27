@@ -3,6 +3,15 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const PHOTO_BUCKET = "green-space-photos";
 const REQUEST_TIMEOUT_MS = 30000;
 
+export async function loadGreenSpaceEntryContext() {
+  const parameters = new URLSearchParams(window.location.search);
+  return rpc("ag_public_form_entry_context", {
+    p_form_key: "form_green_space",
+    p_organisation_code: "SANDBOX",
+    p_share_token: parameters.get("share") || null
+  });
+}
+
 export async function loadProjects(clientToken = null) {
   if (clientToken) {
     return submitGreenSpaceRecord({
@@ -59,10 +68,15 @@ export async function loadProjectPhotos(greenSpaceId) {
 }
 
 export async function submitGreenSpaceRecord(payload, accessToken = null) {
+  const parameters = new URLSearchParams(window.location.search);
   return request(`${SUPABASE_URL}/functions/v1/green-space-log`, {
     method: "POST",
     headers: publicHeaders(accessToken),
-    body: JSON.stringify(payload)
+    body: JSON.stringify({
+      ...payload,
+      organisation_code: "SANDBOX",
+      share_token: parameters.get("share") || null
+    })
   });
 }
 

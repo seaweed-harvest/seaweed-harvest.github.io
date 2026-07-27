@@ -15,7 +15,7 @@ const permissionDefinitions = [
   ["can_view_finance", "View financial data", "View prices, receipts and financial summaries."],
   ["can_manage_pricing", "Manage pricing", "Add, change or deactivate prices used for collection values and receipts."],
   ["can_export_data", "Export data", "Download data from the system for use outside it."],
-  ["can_manage_settings", "Form builder settings", "Change collection fields, grades and seaweed types."],
+  ["can_manage_settings", "Manage forms", "Control form entry access, sharing and collection form settings."],
   ["can_manage_users", "Invite and edit users", "View user emails and manage non-admin accounts."],
   ["can_manage_organisation_permissions", "Manage organisation permissions", "Choose which forms, records and tools are available to organisations you administer. Requires access to at least two organisations."],
   ["can_manage_admin_users", "Add or edit admin users", "Grant or change administrator access, except the protected owner."],

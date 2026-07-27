@@ -304,7 +304,8 @@ function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
 
   const tools = permittedLinks(profile, [
     { label: "Tags", href: "./tags.html", permission: "can_access_admin", capability: "tool_qr_tags" },
-    { label: "Settings", href: "./admin_builder.html", permission: "can_manage_settings", capability: "tool_form_builder" },
+    { label: "Form Manager", href: "./admin_forms.html", permission: "can_manage_settings", capability: "tool_form_builder" },
+    { label: "Form Builder", href: "./admin_builder.html", permission: "can_manage_settings", capability: "tool_form_builder" },
     { label: "Pricing Matrix", href: "./admin_pricing.html", permission: "can_view_finance", capability: "tool_pricing" },
     { label: "SMS Settings", href: "./admin_seaweedke.html", permission: "can_manage_sms_settings", capability: "tool_sms" }
   ]);
@@ -381,7 +382,7 @@ function formLinks(profile) {
 }
 
 function recordLinks(profile) {
-  const links = hasOrganisationCapability(profile, "form_intake_collection") ? [{
+  const links = (!profile || hasOrganisationCapability(profile, "form_intake_collection")) ? [{
     label: "Today's Intake",
     href: hasPermission(profile, "can_view_data") ? "./admin_today.html" : "./today.html",
     capability: "form_intake_collection"

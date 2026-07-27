@@ -106,7 +106,12 @@ async function syncOutboxItem(savedItem, currentUserId) {
 
     let path;
     if (item.mode === "public") {
-      path = await uploadPublicCollectionPhoto(photos[index].blob, item.submissionId, photos[index].id);
+      path = await uploadPublicCollectionPhoto(
+        photos[index].blob,
+        item.submissionId,
+        photos[index].id,
+        item.shareToken
+      );
     } else {
       path = authenticatedPhotoPath(item, photos[index]);
       await uploadStorageObject(PHOTO_BUCKET, path, photos[index].blob);
@@ -169,6 +174,8 @@ async function submitPublicCollection(payload, item) {
     body: JSON.stringify({
       submission_id: item.submissionId,
       collector_name: item.collectorName,
+      organisation_code: item.aggregatorCode || "MAWIMBI",
+      share_token: item.shareToken || null,
       website: item.website || "",
       collection: payload
     })
@@ -180,11 +187,13 @@ async function submitPublicCollection(payload, item) {
   return body.result;
 }
 
-async function uploadPublicCollectionPhoto(photo, submissionId, photoId) {
+async function uploadPublicCollectionPhoto(photo, submissionId, photoId, shareToken = null) {
   const query = new URLSearchParams({
     submission_id: submissionId,
-    photo_id: photoId
+    photo_id: photoId,
+    organisation_code: "MAWIMBI"
   });
+  if (shareToken) query.set("share_token", shareToken);
   const response = await fetchWithTimeout(`${APP_CONFIG.supabase.url}/functions/v1/public-collection-photo?${query}`, {
     method: "POST",
     headers: {

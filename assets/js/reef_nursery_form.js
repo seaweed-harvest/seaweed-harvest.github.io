@@ -1,5 +1,6 @@
 import { APP_CONFIG } from "./config.js";
 import { authClient, requireAggregatorAccess } from "./auth_client.js?v=25";
+import { callPublicRpc } from "./supabase_client.js";
 import { setupFavoriteFormButton } from "./favorite_forms.js?v=3";
 import { initReefNurseryRecords } from "./reef_nursery_records.js?v=5";
 
@@ -41,6 +42,9 @@ let currentRecordStatus = "unsaved";
 let recordsController = null;
 let reefAccess = null;
 let recordsControllerPromise = null;
+let reviewContext = null;
+let reviewShareToken = null;
+let reviewClientKey = null;
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -64,7 +68,8 @@ async function init() {
     "reefPhotoStatus", "reefPhotoPreview", "reefDropboxLink", "reefDropboxPending",
     "reefPhotoViewer", "reefPhotoViewerImage", "reefPhotoViewerName",
     "reefClosePhotoViewer", "clearReefNursery", "favoriteReefNurseryForm",
-    "reefNurseryStatus", "reefRecordsPanel", "reefStartNewRecord"
+    "reefNurseryStatus", "reefRecordsPanel", "reefRecordsTab", "reefStartNewRecord",
+    "reefShareGateMessage", "reefReviewNotice"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
   setupTabs();
@@ -112,35 +117,52 @@ async function init() {
   els.reefNurseryForm.addEventListener("input", updateFieldHighlights);
   els.reefNurseryForm.addEventListener("change", updateFieldHighlights);
 
-  const access = await requireAggregatorAccess(
-    "COSME",
-    "can_access_reef_nursery",
-    "reef_nursery.html",
-    "form_reef_nursery"
-  );
-  if (!access) return;
-  reefAccess = access;
-  photoState.userId = access.session?.user?.id || null;
-  await loadTrainingMatrix();
+  try {
+    const parameters = new URLSearchParams(window.location.search);
+    reviewShareToken = parameters.get("share");
+    const reviewOrganisation = parameters.get("org");
+    if (reviewShareToken && reviewOrganisation) {
+      const allowed = await initialiseReviewAccess(reviewOrganisation);
+      if (!allowed) return;
+      await loadTrainingMatrix();
+      initializeNewRecord();
+      return;
+    }
 
-  setupFavoriteFormButton({
-    button: els.favoriteReefNurseryForm,
-    formKey: "reef_nursery",
-    profile: access.profile,
-    client: authClient,
-    returnPage: "reef_nursery.html"
-  });
+    const access = await requireAggregatorAccess(
+      "COSME",
+      "can_access_reef_nursery",
+      "reef_nursery.html",
+      "form_reef_nursery"
+    );
+    if (!access) return;
+    reefAccess = access;
+    photoState.userId = access.session?.user?.id || null;
+    await loadTrainingMatrix();
 
-  const requestedRecord = new URLSearchParams(window.location.search).get("record");
-  if (requestedRecord) await loadRecord(requestedRecord);
-  else initializeNewRecord();
+    setupFavoriteFormButton({
+      button: els.favoriteReefNurseryForm,
+      formKey: "reef_nursery",
+      profile: access.profile,
+      client: authClient,
+      returnPage: "reef_nursery.html"
+    });
+
+    const requestedRecord = parameters.get("record");
+    if (requestedRecord) await loadRecord(requestedRecord);
+    else initializeNewRecord();
+  } catch (error) {
+    showShareGateError(error.message || "The Reef Nursery form could not be opened.");
+  } finally {
+    document.body.removeAttribute("data-auth-pending");
+  }
 }
 
 function initializeNewRecord() {
   editingSessionId = null;
   currentRecordStatus = "unsaved";
   submissionId = crypto.randomUUID();
-  els.reefRecordNumber.textContent = "New record";
+  els.reefRecordNumber.textContent = isReviewMode() ? "Test submission" : "New record";
   updateRecordActions();
   els.reefTrainingDate.value = kenyaDate();
   els.reefParticipantRows.replaceChildren();
@@ -220,6 +242,44 @@ async function loadRecord(sessionId) {
   updateFieldHighlights();
   setSaveActionsDisabled(false);
   setStatus(`${data.record_number} ${currentRecordStatus === "draft" ? "draft" : "record"} loaded.`);
+}
+
+async function initialiseReviewAccess(organisationCode) {
+  const context = await callPublicRpc("ag_public_form_entry_context", {
+    p_form_key: "form_reef_nursery",
+    p_organisation_code: organisationCode,
+    p_share_token: reviewShareToken
+  });
+  if (!context?.allowed || context.submission_kind !== "test") {
+    showShareGateError(context?.reason || "This review link is invalid or no longer active.");
+    return false;
+  }
+
+  reviewContext = context;
+  reviewClientKey = stableReviewClientKey();
+  document.body.classList.add("reef-review-mode");
+  document.querySelector(".app-header .eyebrow").textContent = "Shared review";
+  document.querySelector(".app-header h1").textContent = "Reef Nursery";
+  document.querySelector(".app-header .header-actions").hidden = true;
+  els.reefReviewNotice.hidden = false;
+  els.favoriteReefNurseryForm.hidden = true;
+  els.reefRecordsTab.hidden = true;
+  els.saveReefNursery.hidden = true;
+  els.openReefTrainingMatrix.hidden = true;
+  setPhotoStatus("Up to 8 photos can be previewed. Review submissions store photo names only.");
+  document.title = "Reef Nursery Review - Seaweed Harvest";
+  return true;
+}
+
+function showShareGateError(message) {
+  document.body.classList.add("reef-review-mode", "reef-review-denied");
+  document.querySelector(".app-header .eyebrow").textContent = "Shared review";
+  document.querySelector(".app-header h1").textContent = "Reef Nursery";
+  document.querySelector(".app-header .header-actions").hidden = true;
+  els.reefShareGateMessage.textContent = message;
+  els.reefShareGateMessage.hidden = false;
+  els.reefNurseryForm.hidden = true;
+  document.body.removeAttribute("data-auth-pending");
 }
 
 function setupTabs() {
@@ -519,6 +579,15 @@ function collectRaftSeaweedRecords() {
 }
 
 async function loadTrainingMatrix() {
+  if (isReviewMode()) {
+    trainingMatrix = normalizeTrainingMatrix(reviewContext.training_matrix);
+    if (trainingMatrix.length !== TRAINING_SECTION_KEYS.length) {
+      setSaveActionsDisabled(true);
+      els.reefTrainingEmpty.textContent = "Training matrix unavailable. Ask the sender for a new review link.";
+      setStatus("The review form configuration is incomplete.", "error");
+    }
+    return;
+  }
   const { data, error } = await authClient.rpc("ag_get_reef_training_matrix");
   if (error) {
     setSaveActionsDisabled(true);
@@ -1095,6 +1164,10 @@ async function saveDraft() {
 }
 
 async function persistSession(record, { submitAndReset }) {
+  if (isReviewMode()) {
+    await persistReviewSession(record);
+    return;
+  }
   setSaveActionsDisabled(true);
   let uploadedPhotos = [];
   let uploadsAttached = false;
@@ -1178,6 +1251,39 @@ async function persistSession(record, { submitAndReset }) {
       await removeUploadedPhotos(uploadedPhotos.map((photo) => photo.manifest.storage_path));
     }
     setStatus(error.message || "The Reef Nursery session could not be saved.", "error");
+  } finally {
+    setSaveActionsDisabled(false);
+  }
+}
+
+async function persistReviewSession(record) {
+  setSaveActionsDisabled(true);
+  setStatus("Submitting test record...");
+  try {
+    const photoMetadata = photoState.files.map((file) => ({
+      original_name: String(file.name || "photo").slice(0, 255),
+      byte_size: Number(file.size || 0),
+      content_type: String(file.type || "application/octet-stream").slice(0, 100)
+    }));
+    const trainerName = String(record.session.trainer_name || "").trim();
+    const { ok } = await callPublicRpc("ag_public_shared_form_submission", {
+      p_share_token: reviewShareToken,
+      p_submission_id: submissionId,
+      p_payload: {
+        form: "reef_nursery",
+        record,
+        photos: photoMetadata,
+        review_page: window.location.pathname
+      },
+      p_submitter_name: trainerName.length >= 2 ? trainerName : null,
+      p_client_key: reviewClientKey,
+      p_user_agent: navigator.userAgent
+    });
+    if (!ok) throw new Error("The test submission was not accepted.");
+    clearForm({ preserveStatus: true });
+    setStatus("Test submission received. Thank you for reviewing the Reef Nursery form.");
+  } catch (error) {
+    setStatus(error.message || "The test submission could not be saved.", "error");
   } finally {
     setSaveActionsDisabled(false);
   }
@@ -1379,9 +1485,9 @@ function validationError(message, tab, control) {
 function clearForm({ preserveStatus = false } = {}) {
   editingSessionId = null;
   currentRecordStatus = "unsaved";
-  history.replaceState({}, "", "./reef_nursery.html");
+  if (!isReviewMode()) history.replaceState({}, "", "./reef_nursery.html");
   els.reefNurseryForm.reset();
-  els.reefRecordNumber.textContent = "New record";
+  els.reefRecordNumber.textContent = isReviewMode() ? "Test submission" : "New record";
   els.reefTrainingDate.value = kenyaDate();
   els.reefParticipantRows.replaceChildren();
   trainingDrafts.clear();
@@ -1398,7 +1504,9 @@ function clearForm({ preserveStatus = false } = {}) {
   submissionId = crypto.randomUUID();
   updateRecordActions();
   els.clearReefNursery.textContent = "Clear";
-  document.title = "Reef Nursery - Seaweed Harvest";
+  document.title = isReviewMode()
+    ? "Reef Nursery Review - Seaweed Harvest"
+    : "Reef Nursery - Seaweed Harvest";
   showTab("session");
   els.reefSessionTypes.classList.remove("missing-selection");
   updateFieldHighlights();
@@ -1721,4 +1829,17 @@ function setStatus(message, status = "") {
   els.reefNurseryStatus.textContent = message;
   if (status) els.reefNurseryStatus.dataset.status = status;
   else delete els.reefNurseryStatus.dataset.status;
+}
+
+function isReviewMode() {
+  return Boolean(reviewContext?.allowed && reviewContext?.submission_kind === "test");
+}
+
+function stableReviewClientKey() {
+  const key = "seaweed-harvest:form-review-client";
+  const existing = localStorage.getItem(key);
+  if (existing && /^[0-9a-f-]{36}$/i.test(existing)) return existing;
+  const value = crypto.randomUUID();
+  localStorage.setItem(key, value);
+  return value;
 }

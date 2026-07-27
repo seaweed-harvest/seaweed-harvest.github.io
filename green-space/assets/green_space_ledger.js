@@ -2,7 +2,7 @@ import {
   loadAdminLedger,
   manageLedgerRecord,
   publicPhotoUrl
-} from "./green_space_api.js?v=6";
+} from "./green_space_api.js?v=7";
 import {
   authClient,
   currentProfile,

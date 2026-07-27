@@ -101,6 +101,7 @@ document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   cacheElements();
+  if (isSharedFormReviewRequest()) return;
   try {
     const permission = requiredPermissionForPage();
     const access = isCosmeOnlyPage()
@@ -547,6 +548,7 @@ function requiredPermissionForPage() {
     "admin_aggregators.html": "can_access_admin",
     "admin_finance.html": "can_view_finance",
     "admin_users.html": "can_manage_users",
+    "admin_forms.html": "can_manage_settings",
     "admin_builder.html": "can_manage_settings",
     "tags.html": "can_access_admin"
   };
@@ -568,6 +570,7 @@ function requiredOrganisationCapabilityForPage() {
     "reef_nursery_records.html": "form_reef_nursery",
     "dryer_table.html": "form_dryer_table",
     "tags.html": "tool_qr_tags",
+    "admin_forms.html": "tool_form_builder",
     "admin_builder.html": "tool_form_builder",
     "admin_pricing.html": "tool_pricing",
     "admin_notifications.html": "tool_notifications",
@@ -585,6 +588,12 @@ function isCosmeOnlyPage() {
 
 function currentPageFile() {
   return window.location.pathname.split("/").pop() || "home.html";
+}
+
+function isSharedFormReviewRequest() {
+  if (currentPageFile() !== "reef_nursery.html") return false;
+  const parameters = new URLSearchParams(window.location.search);
+  return Boolean(parameters.get("share") && parameters.get("org"));
 }
 
 async function loadAdminData() {

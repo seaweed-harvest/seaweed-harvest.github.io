@@ -49,6 +49,7 @@ const state = {
   aggregatorContext: null,
   publicContextPromise: null,
   publicMode: true,
+  publicShareToken: null,
   canOverridePrice: false,
   submissionId: crypto.randomUUID(),
   addingNewCommunity: false,
@@ -97,6 +98,7 @@ const COLLECTOR_NAME_STORAGE_KEY = "seaweed_harvest:collector_name";
 const COLLECTION_COMMUNITY_STORAGE_KEY = "seaweed_harvest:collection_day_community";
 const LEGACY_FORM_REFERENCE_KEY = "mawimbi-collection-form";
 const MAWIMBI_CONTEXT_KEY = "mawimbi-context";
+const MAWIMBI_ENTRY_ACCESS_KEY = "mawimbi-form-entry-access";
 const FARMER_PHONE_LOOKUP_MIN_DIGITS = 5;
 const FARMER_PHONE_LOOKUP_DELAY_MS = 250;
 
@@ -297,6 +299,34 @@ function renderOfflineAccessState() {
 }
 
 async function loadPublicMawimbiContext() {
+  const parameters = new URLSearchParams(window.location.search);
+  const requestedOrganisation = String(parameters.get("org") || "MAWIMBI").trim().toUpperCase();
+  if (requestedOrganisation !== "MAWIMBI") {
+    throw new Error("This public Collection form is not available for that organisation.");
+  }
+  state.publicShareToken = parameters.get("share") || null;
+
+  let entryContext;
+  try {
+    entryContext = await callPublicRpc("ag_public_form_entry_context", {
+      p_form_key: "form_intake_collection",
+      p_organisation_code: "MAWIMBI",
+      p_share_token: state.publicShareToken
+    });
+    if (entryContext?.allowed && state.offline.ready) {
+      await saveReferenceSnapshot(MAWIMBI_ENTRY_ACCESS_KEY, entryContext);
+    }
+  } catch (error) {
+    const cached = state.offline.ready
+      ? await loadReferenceSnapshot(MAWIMBI_ENTRY_ACCESS_KEY)
+      : null;
+    if (!cached?.value?.allowed) throw error;
+    entryContext = cached.value;
+  }
+  if (!entryContext?.allowed) {
+    throw new Error(entryContext?.reason || "The Collection form is not available.");
+  }
+
   let aggregator;
   try {
     aggregator = await callPublicRpc("ag_public_mawimbi_context");
@@ -2092,6 +2122,7 @@ async function submitCollection(event) {
       ownerUserId: state.publicMode ? null : state.session?.user?.id || null,
       aggregatorId: state.aggregatorContext?.active_aggregator_id || null,
       aggregatorCode: state.aggregatorContext?.active_aggregator?.aggregator_code || null,
+      shareToken: state.publicMode ? state.publicShareToken : null,
       collectorName: String(els.collectorName.value || "").trim(),
       website: els.collectionWebsite.value,
       payload,

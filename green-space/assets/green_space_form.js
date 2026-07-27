@@ -1,5 +1,6 @@
 import {
   deleteProjectPhoto,
+  loadGreenSpaceEntryContext,
   loadLedger,
   loadProjectPhotos,
   loadProjects,
@@ -7,7 +8,7 @@ import {
   setProjectCover,
   submitGreenSpaceRecord,
   uploadProjectPhoto
-} from "./green_space_api.js?v=6";
+} from "./green_space_api.js?v=7";
 
 const LAST_PROJECT_KEY = "girls:last-project-id";
 const CLIENT_TOKEN_KEY = "girls:client-token";
@@ -120,7 +121,23 @@ async function initialise() {
   resetObservationTimer();
   setMode("project");
   renderWordCount();
+  try {
+    const entryContext = await loadGreenSpaceEntryContext();
+    if (!entryContext?.allowed) {
+      disableGreenSpaceEntry(entryContext?.reason || "This form is not available.");
+      return;
+    }
+  } catch (error) {
+    disableGreenSpaceEntry(error.message || "Form access could not be verified.");
+    return;
+  }
   await refreshProjects();
+}
+
+function disableGreenSpaceEntry(message) {
+  els.girlsReflectionForm.querySelectorAll("button, input, select, textarea")
+    .forEach((control) => { control.disabled = true; });
+  setStatus(message, true);
 }
 
 async function refreshProjects(selectedId = localStorage.getItem(LAST_PROJECT_KEY)) {

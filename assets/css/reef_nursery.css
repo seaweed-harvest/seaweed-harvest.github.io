@@ -1484,3 +1484,49 @@
     min-height: 32px;
   }
 }
+/* A shared review is intentionally isolated from the signed-in admin shell. */
+.reef-review-mode .admin-sidebar,
+.reef-review-mode .admin-sidebar-reveal,
+.reef-review-mode .mobile-drawer-overlay {
+  display: none !important;
+}
+
+.reef-review-mode .admin-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.reef-review-mode .form-record-panel {
+  width: min(1180px, 100%);
+  margin-inline: auto;
+}
+
+.reef-review-notice,
+.reef-share-gate-message {
+  margin-bottom: 14px;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel-soft);
+  font-size: var(--supporting-font-size);
+}
+
+.reef-review-notice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 12px;
+  color: var(--text-muted);
+}
+
+.reef-review-notice strong {
+  color: var(--accent);
+}
+
+.reef-share-gate-message {
+  color: #8a310d;
+  border-color: #efc39f;
+  background: #fff7ed;
+}
+
+.reef-review-denied .reef-nursery-panel > .form-panel-toolbar {
+  margin-bottom: 12px;
+}
