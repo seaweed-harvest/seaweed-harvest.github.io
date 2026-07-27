@@ -291,10 +291,10 @@ function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
   }
 
   const registry = permittedLinks(profile, [
-    { label: "Aggregators", href: "./admin_aggregators.html", permission: "can_access_admin" },
+    { label: "Organisations", href: "./admin_aggregators.html", permission: "can_access_admin" },
     { label: "Communities", href: "./admin_community_registry.html", permission: "can_view_registry" },
     { label: "Farmers", href: "./admin_member_registry.html", permission: "can_view_registry" },
-    { label: "Admin Users", href: "./admin_users.html", permission: "can_manage_users" }
+    { label: "Permissions", href: "./admin_users.html", permission: "can_manage_users" }
   ]);
   if (registry.length) {
     const group = drawerGroup("User Registry", registry, currentFile);
@@ -303,10 +303,10 @@ function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
   }
 
   const tools = permittedLinks(profile, [
-    { label: "Tags", href: "./tags.html", permission: "can_access_admin" },
-    { label: "Settings", href: "./admin_builder.html", permission: "can_manage_settings" },
-    { label: "Pricing Matrix", href: "./admin_pricing.html", permission: "can_view_finance" },
-    { label: "SMS Settings", href: "./admin_seaweedke.html", permission: "can_manage_sms_settings" }
+    { label: "Tags", href: "./tags.html", permission: "can_access_admin", capability: "tool_qr_tags" },
+    { label: "Settings", href: "./admin_builder.html", permission: "can_manage_settings", capability: "tool_form_builder" },
+    { label: "Pricing Matrix", href: "./admin_pricing.html", permission: "can_view_finance", capability: "tool_pricing" },
+    { label: "SMS Settings", href: "./admin_seaweedke.html", permission: "can_manage_sms_settings", capability: "tool_sms" }
   ]);
   if (tools.length) {
     const group = drawerGroup("Tools", tools, currentFile);
@@ -362,30 +362,31 @@ function navigationLink(link, currentFile) {
 
 function formLinks(profile) {
   const links = [
-    { label: "1. Site Water Samples", href: "./site_water_sample.html", permission: "can_submit_collection" },
-    { label: "2. Intake Collection", href: "./collection.html" },
-    { label: "3. Stock Record", href: "./stabilization_packing.html", permission: "can_submit_collection" },
-    { label: "4. Process Record", href: "./process_record.html", permission: "can_submit_collection" }
+    { label: "1. Site Water Samples", href: "./site_water_sample.html", permission: "can_submit_collection", capability: "form_site_water_samples" },
+    { label: "2. Intake Collection", href: "./collection.html", capability: "form_intake_collection", publicFallback: true },
+    { label: "3. Stock Record", href: "./stabilization_packing.html", permission: "can_submit_collection", capability: "form_stock_record" },
+    { label: "4. Process Record", href: "./process_record.html", permission: "can_submit_collection", capability: "form_process_record" }
   ];
   if (hasPermission(profile, "can_access_reef_nursery")) {
-    links.push({ label: "Reef Nursery", href: "./reef_nursery.html", requiredAggregator: "COSME" });
-    links.push({ label: "Dryer Table", href: "./dryer_table.html", requiredAggregator: "COSME" });
+    links.push({ label: "Reef Nursery", href: "./reef_nursery.html", requiredAggregator: "COSME", capability: "form_reef_nursery" });
+    links.push({ label: "Dryer Table", href: "./dryer_table.html", requiredAggregator: "COSME", capability: "form_dryer_table" });
   }
   return links.filter((link) => hasLinkAccess(profile, link));
 }
 
 function recordLinks(profile) {
-  const links = [{
+  const links = hasOrganisationCapability(profile, "form_intake_collection") ? [{
     label: "Today's Intake",
-    href: hasPermission(profile, "can_view_data") ? "./admin_today.html" : "./today.html"
-  }];
+    href: hasPermission(profile, "can_view_data") ? "./admin_today.html" : "./today.html",
+    capability: "form_intake_collection"
+  }] : [];
   return links.concat(permittedLinks(profile, [
-    { label: "Dataset Dashboard", href: "./dataset_dashboard.html", permission: "can_view_dashboard", className: "app-nav-desktop-only" },
-    { label: "Record Ledgers", href: "./records.html", permission: "can_view_data", className: "app-nav-desktop-only" },
-    { label: "Reef Nursery Records", href: "./reef_nursery_records.html", permission: "can_access_reef_nursery", requiredAggregator: "COSME", className: "app-nav-desktop-only" },
-    { label: "Finance Review", href: "./admin_finance.html", permission: "can_view_finance", className: "app-nav-desktop-only" },
-    { label: "Receipts", href: "./admin_receipts.html", permission: "can_view_data", className: "app-nav-desktop-only" },
-    { label: "Notifications", href: "./admin_notifications.html", permission: "can_view_notifications", className: "app-nav-desktop-only" }
+    { label: "Dataset Dashboard", href: "./dataset_dashboard.html", permission: "can_view_dashboard", capability: "form_intake_collection", className: "app-nav-desktop-only" },
+    { label: "Record Ledgers", href: "./records.html", permission: "can_view_data", capabilityAny: ["form_site_water_samples", "form_intake_collection", "form_stock_record", "form_process_record"], className: "app-nav-desktop-only" },
+    { label: "Reef Nursery Records", href: "./reef_nursery_records.html", permission: "can_access_reef_nursery", requiredAggregator: "COSME", capability: "form_reef_nursery", className: "app-nav-desktop-only" },
+    { label: "Finance Review", href: "./admin_finance.html", permission: "can_view_finance", capability: "form_intake_collection", className: "app-nav-desktop-only" },
+    { label: "Receipts", href: "./admin_receipts.html", permission: "can_view_data", capability: "form_intake_collection", className: "app-nav-desktop-only" },
+    { label: "Notifications", href: "./admin_notifications.html", permission: "can_view_notifications", capability: "tool_notifications", className: "app-nav-desktop-only" }
   ]));
 }
 
@@ -397,7 +398,11 @@ function hasLinkAccess(profile, link) {
   const permitted = !link.permission || hasPermission(profile, link.permission);
   const correctAggregator = !link.requiredAggregator
     || activeAggregatorCode(profile) === String(link.requiredAggregator).trim().toUpperCase();
-  return permitted && correctAggregator;
+  const capabilityAllowed = (!profile && link.publicFallback)
+    || (!link.capability && !link.capabilityAny)
+    || (link.capability && hasOrganisationCapability(profile, link.capability))
+    || (link.capabilityAny || []).some((capability) => hasOrganisationCapability(profile, capability));
+  return permitted && correctAggregator && capabilityAllowed;
 }
 
 function hasPermission(profile, permission) {
@@ -407,6 +412,10 @@ function hasPermission(profile, permission) {
 
 function activeAggregatorCode(profile) {
   return String(profile?.active_aggregator_code || "").trim().toUpperCase();
+}
+
+function hasOrganisationCapability(profile, capability) {
+  return Boolean(profile?.organisation_capabilities?.[capability]);
 }
 
 function isProtectedOwner(profile) {

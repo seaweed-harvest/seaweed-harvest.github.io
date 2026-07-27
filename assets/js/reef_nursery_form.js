@@ -1,6 +1,6 @@
 import { APP_CONFIG } from "./config.js";
-import { authClient, requireAggregatorAccess } from "./auth_client.js?v=24";
-import { setupFavoriteFormButton } from "./favorite_forms.js?v=2";
+import { authClient, requireAggregatorAccess } from "./auth_client.js?v=25";
+import { setupFavoriteFormButton } from "./favorite_forms.js?v=3";
 import { initReefNurseryRecords } from "./reef_nursery_records.js?v=5";
 
 const els = {};
@@ -115,7 +115,8 @@ async function init() {
   const access = await requireAggregatorAccess(
     "COSME",
     "can_access_reef_nursery",
-    "reef_nursery.html"
+    "reef_nursery.html",
+    "form_reef_nursery"
   );
   if (!access) return;
   reefAccess = access;

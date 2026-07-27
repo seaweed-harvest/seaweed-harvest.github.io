@@ -1,0 +1,123 @@
+.permission-page-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-soft);
+}
+
+.permission-page-tabs button {
+  min-width: 140px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.permission-page-tabs button[aria-selected="true"] {
+  border-color: var(--border);
+  background: var(--panel);
+  color: var(--accent);
+}
+
+.permission-workspace {
+  margin-top: 14px;
+}
+
+.organisation-permissions-panel {
+  max-width: 1180px;
+}
+
+.organisation-permissions-intro {
+  max-width: 780px;
+  margin: 0 0 18px;
+  color: var(--text-muted);
+}
+
+.organisation-capability-group {
+  min-width: 0;
+  margin: 0 0 18px;
+  padding: 0;
+  border: 0;
+}
+
+.organisation-capability-group legend {
+  width: 100%;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.organisation-capability-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
+}
+
+.organisation-capability-option {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  min-width: 0;
+  padding: 13px 4px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.organisation-capability-option input {
+  width: 16px;
+  height: 16px;
+  margin: 3px 0 0;
+}
+
+.organisation-capability-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.organisation-capability-copy strong {
+  font-size: 0.95rem;
+}
+
+.organisation-capability-copy small {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.organisation-capability-badge {
+  display: inline-block;
+  width: max-content;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px solid #e5bd58;
+  border-radius: 999px;
+  color: #795500;
+  background: #fff8dc;
+  font-size: 0.7rem;
+  font-weight: 700;
+  vertical-align: 1px;
+}
+
+.organisation-permissions-actions {
+  align-items: center;
+}
+
+@media (max-width: 760px) {
+  .permission-page-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .permission-page-tabs button {
+    min-width: 0;
+  }
+
+  .organisation-capability-list {
+    grid-template-columns: 1fr;
+  }
+}

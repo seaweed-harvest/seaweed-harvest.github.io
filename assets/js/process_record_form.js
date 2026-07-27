@@ -1,5 +1,5 @@
-import { authClient, requireAdminAccess } from "./auth_client.js";
-import { setupFavoriteFormButton } from "./favorite_forms.js?v=2";
+import { authClient, requireOrganisationCapability } from "./auth_client.js";
+import { setupFavoriteFormButton } from "./favorite_forms.js?v=3";
 import { selectRows } from "./supabase_client.js";
 
 const PHOTO_BUCKET = "process-record-photos";
@@ -30,7 +30,11 @@ async function init() {
     "clearProcessRecord", "processRecordStatus", "favoriteProcessForm"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
-  state.access = await requireAdminAccess("can_submit_collection");
+  state.access = await requireOrganisationCapability(
+    "form_process_record",
+    "can_submit_collection",
+    "process_record.html"
+  );
   if (!state.access) return;
 
   setupFavoriteFormButton({

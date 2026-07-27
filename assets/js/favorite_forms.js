@@ -4,28 +4,32 @@ export const FAVORITE_FORMS = [
     label: "Site Water Samples",
     description: "Record spring tide water measurements",
     href: "./site_water_sample.html",
-    permission: "can_submit_collection"
+    permission: "can_submit_collection",
+    capability: "form_site_water_samples"
   },
   {
     key: "collection",
     label: "Intake Collection",
     description: "Record harvested seaweed",
     href: "./collection.html",
-    permission: "can_submit_collection"
+    permission: "can_submit_collection",
+    capability: "form_intake_collection"
   },
   {
     key: "stabilization_packing",
     label: "Stock Record",
     description: "Record stabilisation, stock volume, and QC measurements",
     href: "./stabilization_packing.html",
-    permission: "can_submit_collection"
+    permission: "can_submit_collection",
+    capability: "form_stock_record"
   },
   {
     key: "process_record",
     label: "Process Record",
     description: "Record processing weights, output, and production checks",
     href: "./process_record.html",
-    permission: "can_submit_collection"
+    permission: "can_submit_collection",
+    capability: "form_process_record"
   },
   {
     key: "reef_nursery",
@@ -33,7 +37,8 @@ export const FAVORITE_FORMS = [
     description: "Record nursery training sessions and participants",
     href: "./reef_nursery.html",
     permission: "can_access_reef_nursery",
-    requiredAggregator: "COSME"
+    requiredAggregator: "COSME",
+    capability: "form_reef_nursery"
   },
   {
     key: "dryer_table",
@@ -41,7 +46,8 @@ export const FAVORITE_FORMS = [
     description: "Record wet and dry weights across dryer table bays",
     href: "./dryer_table.html",
     permission: "can_access_reef_nursery",
-    requiredAggregator: "COSME"
+    requiredAggregator: "COSME",
+    capability: "form_dryer_table"
   }
 ];
 
@@ -57,6 +63,7 @@ export function availableFavoriteForms(profile) {
   return FAVORITE_FORMS.filter((form) => (
     hasPermission(profile, form.permission)
     && (!form.requiredAggregator || activeAggregatorCode(profile) === form.requiredAggregator)
+    && Boolean(profile?.organisation_capabilities?.[form.capability])
   ));
 }
 

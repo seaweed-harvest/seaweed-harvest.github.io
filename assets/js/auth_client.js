@@ -93,7 +93,33 @@ export async function requireAdminAccess(permission = "can_access_admin") {
   return { session, profile };
 }
 
-export async function requireAggregatorAccess(aggregatorCode, permission, returnPage) {
+export function hasOrganisationCapability(profile, capability) {
+  if (!capability) return true;
+  return Boolean(profile?.organisation_capabilities?.[capability]);
+}
+
+export async function requireOrganisationCapability(
+  capability,
+  permission = "can_submit_collection",
+  returnPage = currentPage()
+) {
+  const access = await requireAdminAccess(permission);
+  if (!access) return null;
+  if (!hasOrganisationCapability(access.profile, capability)) {
+    window.location.replace(
+      `./access_pending.html?reason=${encodeURIComponent("This form or dataset is not enabled for the active organisation.")}&return=${encodeURIComponent(returnPage)}`
+    );
+    return null;
+  }
+  return access;
+}
+
+export async function requireAggregatorAccess(
+  aggregatorCode,
+  permission,
+  returnPage,
+  capability = null
+) {
   const access = await requireAdminAccess(permission);
   if (!access) return null;
 
@@ -103,7 +129,9 @@ export async function requireAggregatorAccess(aggregatorCode, permission, return
     (item) => String(item.aggregator_code || "").toUpperCase() === expectedCode
   );
   const activeCode = String(context.active_aggregator?.aggregator_code || "").trim().toUpperCase();
-  if (!aggregator || activeCode !== expectedCode) {
+  if (!aggregator
+      || activeCode !== expectedCode
+      || (capability && !hasOrganisationCapability(access.profile, capability))) {
     window.location.replace("./access_pending.html");
     return null;
   }

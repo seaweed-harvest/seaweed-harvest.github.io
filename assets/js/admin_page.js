@@ -3,13 +3,14 @@ import { hasMapCoordinates as hasGps, mapCoordinates } from "./map_coordinates.j
 import { dataModeLabel, selectRows } from "./supabase_client.js";
 import {
   currentAccessToken,
+  hasOrganisationCapability,
   requireAdminAccess,
   requireAggregatorAccess,
   setupAccountControls
-} from "./auth_client.js?v=24";
+} from "./auth_client.js?v=25";
 import { applyDashboardPreferences } from "./dashboard_preferences.js";
-import { renderFavoriteForms } from "./favorite_forms.js?v=2";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=10";
+import { renderFavoriteForms } from "./favorite_forms.js?v=3";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=11";
 import { moonEvents } from "./moon_calendar.js";
 
 const TABLES = {
@@ -107,6 +108,12 @@ async function init() {
       : await requireAdminAccess(permission);
     if (!access) return;
     state.profile = access.profile;
+    const organisationCapability = requiredOrganisationCapabilityForPage();
+    if (organisationCapability
+        && !hasOrganisationCapability(state.profile, organisationCapability)) {
+      window.location.replace("./access_pending.html");
+      return;
+    }
   } catch (error) {
     window.location.replace(`./login.html?error=${encodeURIComponent(error.message)}`);
     return;
@@ -544,6 +551,29 @@ function requiredPermissionForPage() {
     "tags.html": "can_access_admin"
   };
   return permissions[file] || "can_access_admin";
+}
+
+function requiredOrganisationCapabilityForPage() {
+  const capabilities = {
+    "admin_today.html": "form_intake_collection",
+    "admin_monthly.html": "form_intake_collection",
+    "admin_community.html": "form_intake_collection",
+    "admin_ledger.html": "form_intake_collection",
+    "admin_receipts.html": "form_intake_collection",
+    "admin_finance.html": "form_intake_collection",
+    "site_water_sample.html": "form_site_water_samples",
+    "stabilization_packing.html": "form_stock_record",
+    "process_record.html": "form_process_record",
+    "reef_nursery.html": "form_reef_nursery",
+    "reef_nursery_records.html": "form_reef_nursery",
+    "dryer_table.html": "form_dryer_table",
+    "tags.html": "tool_qr_tags",
+    "admin_builder.html": "tool_form_builder",
+    "admin_pricing.html": "tool_pricing",
+    "admin_notifications.html": "tool_notifications",
+    "admin_seaweedke.html": "tool_sms"
+  };
+  return capabilities[currentPageFile()] || null;
 }
 
 function isCosmeOnlyPage() {

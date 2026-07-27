@@ -60,7 +60,7 @@ function renderAggregators() {
       <td>${row.active ? "Active" : "Inactive"}</td>
       <td>${state.profile.app_role === "system_admin" ? `<button type="button" data-edit-aggregator="${row.id}">Edit</button>` : ""}</td>
     </tr>
-  `).join("") || '<tr><td colspan="10">No aggregators.</td></tr>';
+  `).join("") || '<tr><td colspan="10">No organisations.</td></tr>';
 }
 
 function openAggregatorEditor(row = {}) {

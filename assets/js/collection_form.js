@@ -28,8 +28,8 @@ import {
 import { syncPendingCollections } from "./offline_sync.js";
 import { completeLaunchSplash } from "./app_transition.js";
 import { createOperationFeedback } from "./operation_feedback.js";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=10";
-import { setupFavoriteFormButton } from "./favorite_forms.js?v=2";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=11";
+import { setupFavoriteFormButton } from "./favorite_forms.js?v=3";
 import { setPrintValue, setupPdfWorksheet } from "./print_worksheet.js";
 
 const state = {
@@ -183,6 +183,18 @@ async function initialiseCollectionAccess() {
   }
 
   const profile = state.profile;
+  if (state.session
+      && profile?.account_status === "active"
+      && profile.active_aggregator_code
+      && !state.authApi.hasOrganisationCapability(
+        profile,
+        "form_intake_collection"
+      )) {
+    window.location.replace(
+      "./access_pending.html?reason=Intake%20Collection%20is%20not%20enabled%20for%20the%20active%20organisation.&return=collection.html"
+    );
+    throw new Error("Intake Collection is not enabled for the active organisation.");
+  }
   const canUseAuthenticatedRoute = Boolean(
     state.session
     && profile?.account_status === "active"
@@ -210,6 +222,7 @@ async function initialiseCollectionAccess() {
         canOverridePrice: state.canOverridePrice,
         appRole: profile.app_role,
         activeMembershipRole: profile.active_membership_role,
+        organisationCapabilities: profile.organisation_capabilities,
         aggregator: state.aggregatorContext.active_aggregator,
         validatedAt: new Date().toISOString()
       });
@@ -254,8 +267,12 @@ async function restoreOfflineCollectionAccess() {
     account_status: snapshot.accountStatus,
     can_submit_collection: snapshot.canSubmitCollection,
     app_role: snapshot.appRole,
-    active_membership_role: snapshot.activeMembershipRole
+    active_membership_role: snapshot.activeMembershipRole,
+    organisation_capabilities: snapshot.organisationCapabilities
   };
+  if (!state.profile.organisation_capabilities?.form_intake_collection) {
+    return false;
+  }
   state.aggregatorContext = {
     active_aggregator_id: snapshot.aggregator.id,
     active_aggregator: snapshot.aggregator,

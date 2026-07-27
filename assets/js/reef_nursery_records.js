@@ -1,4 +1,4 @@
-import { authClient, requireAggregatorAccess } from "./auth_client.js?v=24";
+import { authClient, requireAggregatorAccess } from "./auth_client.js?v=25";
 
 const PAGE_SIZE = 50;
 const state = {
@@ -73,7 +73,8 @@ export async function initReefNurseryRecords(options = {}) {
   const access = options.access || await requireAggregatorAccess(
       "COSME",
       "can_access_reef_nursery",
-      "reef_nursery_records.html"
+      "reef_nursery_records.html",
+      "form_reef_nursery"
     );
   if (!access) return;
   await loadRecords();

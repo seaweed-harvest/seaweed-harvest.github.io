@@ -2,9 +2,9 @@ import {
   authClient,
   requireAggregatorAccess,
   setupAccountControls
-} from "./auth_client.js?v=24";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=10";
-import { setupFavoriteFormButton } from "./favorite_forms.js?v=2";
+} from "./auth_client.js?v=25";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=11";
+import { setupFavoriteFormButton } from "./favorite_forms.js?v=3";
 
 document.addEventListener("DOMContentLoaded", initializeDryerTablePage);
 
@@ -13,7 +13,8 @@ async function initializeDryerTablePage() {
     const access = await requireAggregatorAccess(
       "COSME",
       "can_access_reef_nursery",
-      "dryer_table.html"
+      "dryer_table.html",
+      "form_dryer_table"
     );
     if (!access) return;
 

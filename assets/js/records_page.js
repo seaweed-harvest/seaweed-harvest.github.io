@@ -1,4 +1,8 @@
-import { authClient, requireAdminAccess } from "./auth_client.js";
+import {
+  authClient,
+  hasOrganisationCapability,
+  requireAdminAccess
+} from "./auth_client.js";
 import { moonEvents } from "./moon_calendar.js";
 import { selectRows } from "./supabase_client.js";
 
@@ -129,6 +133,13 @@ const REPORTS = {
   }
 };
 
+const CATEGORY_CAPABILITIES = {
+  site_sample: "form_site_water_samples",
+  intake: "form_intake_collection",
+  stock: "form_stock_record",
+  process: "form_process_record"
+};
+
 const state = {
   category: "intake",
   mode: "all",
@@ -187,6 +198,10 @@ async function init() {
 
   setDateDefaults();
   readUrlState();
+  if (!configureAvailableCategories(access.profile)) {
+    window.location.replace("./access_pending.html");
+    return;
+  }
   bindEvents();
   try {
     const communities = await selectRows(
@@ -206,6 +221,18 @@ async function init() {
   } catch (error) {
     setStatus(error.message, "error");
   }
+}
+
+function configureAvailableCategories(profile) {
+  const available = Object.entries(CATEGORY_CAPABILITIES)
+    .filter(([, capability]) => hasOrganisationCapability(profile, capability))
+    .map(([category]) => category);
+
+  els.formLedgerCategories.querySelectorAll("[data-ledger-category]").forEach((button) => {
+    button.hidden = !available.includes(button.dataset.ledgerCategory);
+  });
+  if (!available.includes(state.category)) state.category = available[0] || "";
+  return Boolean(state.category);
 }
 
 function bindEvents() {

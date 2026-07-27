@@ -1,10 +1,10 @@
 import {
   authClient,
-  requireAdminAccess,
+  requireOrganisationCapability,
   setupAccountControls
-} from "./auth_client.js?v=23";
+} from "./auth_client.js?v=25";
 import { dataModeLabel } from "./supabase_client.js";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=10";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=11";
 
 const FARMER_PAGE_SIZE = 50;
 
@@ -24,7 +24,11 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   cacheElements();
   try {
-    const access = await requireAdminAccess("can_view_dashboard");
+    const access = await requireOrganisationCapability(
+      "form_intake_collection",
+      "can_view_dashboard",
+      "dataset_dashboard.html"
+    );
     if (!access) return;
     state.profile = access.profile;
   } catch (error) {

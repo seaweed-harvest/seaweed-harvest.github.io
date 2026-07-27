@@ -46,7 +46,35 @@ const roleLabels = {
   system_admin: "System admin"
 };
 
-const state = { users: [], registrations: [], passwordHelp: [], communities: [], aggregators: [], activity: [], actor: null, editingUser: null };
+const organisationCapabilityDefinitions = {
+  forms: [
+    ["form_site_water_samples", "1. Site Water Samples", "Form and connected site-sample records."],
+    ["form_intake_collection", "2. Intake Collection", "Collection form, Today's Intake, collection ledger, receipts and finance views."],
+    ["form_stock_record", "3. Stock Record", "BioStim stock form and connected stock records."],
+    ["form_process_record", "4. Process Record", "Processing form and connected process records."],
+    ["form_reef_nursery", "Reef Nursery", "COSME nursery form, photos and connected records."],
+    ["form_dryer_table", "Dryer Table", "COSME dryer form and the connected Station dataset."]
+  ],
+  tools: [
+    ["tool_qr_tags", "QR code tags", "Generate and print QR identification tags.", "development"],
+    ["tool_sms", "Text messaging", "SMS configuration and delivery tools.", "development"],
+    ["tool_form_builder", "Form builder", "Configure form fields, grades and seaweed types.", "development"],
+    ["tool_pricing", "Pricing matrix", "Set organisation pricing rules."],
+    ["tool_notifications", "Notifications", "View and manage notification delivery."]
+  ]
+};
+
+const state = {
+  users: [],
+  registrations: [],
+  passwordHelp: [],
+  communities: [],
+  aggregators: [],
+  activity: [],
+  organisationPermissions: null,
+  actor: null,
+  editingUser: null
+};
 const els = {};
 const pendingPasswordResetUserKey = "seaweed-pending-password-reset-user";
 
@@ -62,7 +90,13 @@ async function init() {
     "temporaryPasswordDialog", "temporaryPasswordForm", "temporaryPasswordRequestId", "temporaryPasswordAccount", "temporaryPasswordValue", "generateTemporaryPassword", "saveTemporaryPassword", "copyTemporaryPassword", "closeTemporaryPassword", "temporaryPasswordStatus",
     "passwordResetLinkDialog", "passwordResetLinkAccount", "passwordResetLinkInstructions", "passwordResetLinkField", "passwordResetLinkValue", "copyPasswordResetLink", "closePasswordResetLink", "passwordResetLinkStatus",
     "farmerRegistrationCount", "farmerRegistrationRows", "farmerRegistrationStatus",
-    "userActivityPanel", "userActivityCount", "userActivityRows"
+    "userActivityPanel", "userActivityCount", "userActivityRows",
+    "permissionPageTabs", "organisationPermissionsTab", "userPermissionsTab",
+    "organisationPermissionsWorkspace", "userPermissionsWorkspace",
+    "organisationPermissionsForm", "organisationPermissionsName",
+    "organisationPermissionsCode", "organisationFormPermissions",
+    "organisationToolPermissions", "saveOrganisationPermissions",
+    "organisationPermissionsStatus"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
   const access = await requireAdminAccess("can_manage_users");
@@ -78,11 +112,14 @@ async function init() {
   renderDashboardInputs("invite", els.inviteRole.value);
   configureFarmerRoleFields("invite");
   configureInviteContactMode();
+  selectPermissionTab(location.hash === "#users" ? "users" : "organisation", false);
   await loadPageData();
   await resumePasswordResetLink();
 }
 
 function bindEvents() {
+  els.permissionPageTabs.addEventListener("click", handlePermissionTabClick);
+  els.organisationPermissionsForm.addEventListener("submit", saveOrganisationPermissions);
   els.reloadUsers.addEventListener("click", loadPageData);
   els.inviteEmail.addEventListener("input", configureInviteContactMode);
   els.inviteRole.addEventListener("change", () => {
@@ -121,24 +158,28 @@ async function loadPageData() {
     const activityRequest = canViewUserActivity()
       ? authClient.rpc("ag_admin_activity_log", { p_limit: 20 })
       : Promise.resolve({ data: [], error: null });
-    const [usersResponse, registrationsResponse, passwordHelpResponse, activityResponse, aggregatorResponse, communities] = await Promise.all([
+    const [usersResponse, registrationsResponse, passwordHelpResponse, activityResponse, aggregatorResponse, organisationResponse, communities] = await Promise.all([
       authClient.rpc("ag_admin_user_directory"),
       authClient.rpc("ag_admin_farmer_registration_requests"),
       invokeAdminUsers({ action: "list_password_help" }),
       activityRequest,
       authClient.rpc("ag_admin_user_aggregator_options"),
+      authClient.rpc("ag_admin_organisation_permissions"),
       selectRows(APP_CONFIG.tables.communities, "select=community_id,community_name&order=community_name.asc")
     ]);
     if (usersResponse.error) throw usersResponse.error;
     if (registrationsResponse.error) throw registrationsResponse.error;
     if (activityResponse.error) throw activityResponse.error;
     if (aggregatorResponse.error) throw aggregatorResponse.error;
+    if (organisationResponse.error) throw organisationResponse.error;
     state.users = usersResponse.data || [];
     state.registrations = registrationsResponse.data || [];
     state.passwordHelp = passwordHelpResponse.requests || [];
     state.activity = activityResponse.data || [];
     state.aggregators = aggregatorResponse.data || [];
+    state.organisationPermissions = organisationResponse.data || null;
     state.communities = communities;
+    renderOrganisationPermissions();
     renderCommunityOptions();
     renderAggregatorInputs("invite", defaultInviteAggregatorIds());
     renderUsers();
@@ -148,6 +189,93 @@ async function loadPageData() {
     setStatus(els.inviteStatus, "");
   } catch (error) {
     setStatus(els.inviteStatus, error.message, "error");
+  }
+}
+
+function handlePermissionTabClick(event) {
+  const button = event.target.closest("[role='tab']");
+  if (!button) return;
+  selectPermissionTab(button === els.userPermissionsTab ? "users" : "organisation");
+}
+
+function selectPermissionTab(tab, updateHash = true) {
+  const usersSelected = tab === "users";
+  els.organisationPermissionsTab.setAttribute("aria-selected", String(!usersSelected));
+  els.userPermissionsTab.setAttribute("aria-selected", String(usersSelected));
+  els.organisationPermissionsWorkspace.hidden = usersSelected;
+  els.userPermissionsWorkspace.hidden = !usersSelected;
+  if (updateHash) history.replaceState(null, "", usersSelected ? "#users" : "#organisation");
+}
+
+function renderOrganisationPermissions() {
+  const settings = state.organisationPermissions;
+  if (!settings?.organisation) {
+    els.organisationPermissionsName.textContent = "Organisation permissions";
+    els.organisationPermissionsCode.textContent = "-";
+    els.organisationFormPermissions.innerHTML = "";
+    els.organisationToolPermissions.innerHTML = "";
+    els.saveOrganisationPermissions.disabled = true;
+    return;
+  }
+
+  els.organisationPermissionsName.textContent = settings.organisation.name;
+  els.organisationPermissionsCode.textContent = settings.organisation.code;
+  renderOrganisationCapabilityGroup(
+    els.organisationFormPermissions,
+    organisationCapabilityDefinitions.forms,
+    settings
+  );
+  renderOrganisationCapabilityGroup(
+    els.organisationToolPermissions,
+    organisationCapabilityDefinitions.tools,
+    settings
+  );
+  els.saveOrganisationPermissions.disabled = !settings.can_edit;
+  els.saveOrganisationPermissions.title = settings.can_edit
+    ? ""
+    : "Organisation administrator and form settings permissions are required";
+  setStatus(
+    els.organisationPermissionsStatus,
+    settings.can_edit ? "" : "You can view these settings but cannot change them."
+  );
+}
+
+function renderOrganisationCapabilityGroup(container, definitions, settings) {
+  container.innerHTML = definitions.map(([key, label, description, status]) => `
+    <label class="organisation-capability-option">
+      <input type="checkbox" data-organisation-capability="${escapeHtml(key)}"
+        ${settings.capabilities?.[key] ? "checked" : ""}
+        ${settings.can_edit ? "" : "disabled"}>
+      <span class="organisation-capability-copy">
+        <strong>${escapeHtml(label)}${status ? ` <span class="organisation-capability-badge">In development</span>` : ""}</strong>
+        <small>${escapeHtml(description)}</small>
+      </span>
+    </label>
+  `).join("");
+}
+
+async function saveOrganisationPermissions(event) {
+  event.preventDefault();
+  if (!state.organisationPermissions?.can_edit) return;
+  const capabilities = Object.fromEntries(
+    [...document.querySelectorAll("[data-organisation-capability]")]
+      .map((input) => [input.dataset.organisationCapability, input.checked])
+  );
+  els.saveOrganisationPermissions.disabled = true;
+  setStatus(els.organisationPermissionsStatus, "Saving...");
+  try {
+    const { data, error } = await authClient.rpc(
+      "ag_admin_save_organisation_permissions",
+      { p_capabilities: capabilities }
+    );
+    if (error) throw error;
+    state.organisationPermissions = data;
+    renderOrganisationPermissions();
+    setStatus(els.organisationPermissionsStatus, "Organisation permissions saved.");
+    await currentProfile(true);
+  } catch (error) {
+    setStatus(els.organisationPermissionsStatus, error.message, "error");
+    els.saveOrganisationPermissions.disabled = false;
   }
 }
 
@@ -165,7 +293,7 @@ async function inviteUser(event) {
   }
   const aggregatorIds = selectedAggregatorIds("invite");
   if (!aggregatorIds.length) {
-    setStatus(els.inviteStatus, "Select at least one aggregator.", "error");
+    setStatus(els.inviteStatus, "Select at least one organisation.", "error");
     return;
   }
   if (!readDashboardWidgets("invite").length) {
@@ -210,7 +338,7 @@ async function saveUser(event) {
   event.preventDefault();
   const aggregatorIds = selectedAggregatorIds("edit");
   if (els.editUserRole.value !== "system_admin" && !aggregatorIds.length) {
-    setStatus(els.editUserMessage, "Select at least one aggregator.", "error");
+    setStatus(els.editUserMessage, "Select at least one organisation.", "error");
     return;
   }
   if (!readDashboardWidgets("edit").length) {
@@ -614,7 +742,7 @@ function renderAggregatorInputs(prefix, selectedIds = [], allAggregators = false
     ? new Set(rows.map((row) => String(row.id)))
     : new Set((selectedIds || []).map(String));
   if (allAggregators && !greenSpaceOnly) {
-    container.innerHTML = '<label class="aggregator-access-option"><input type="checkbox" checked disabled> All current and future aggregators</label>';
+    container.innerHTML = '<label class="aggregator-access-option"><input type="checkbox" checked disabled> All current and future organisations</label>';
     return;
   }
   container.innerHTML = rows.map((row) => `

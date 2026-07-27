@@ -1,6 +1,6 @@
 import { APP_CONFIG } from "./config.js";
-import { authClient, requireAdminAccess } from "./auth_client.js";
-import { setupFavoriteFormButton } from "./favorite_forms.js?v=2";
+import { authClient, requireOrganisationCapability } from "./auth_client.js";
+import { setupFavoriteFormButton } from "./favorite_forms.js?v=3";
 import { setPrintValue, setupPdfWorksheet } from "./print_worksheet.js";
 import { selectRows } from "./supabase_client.js";
 
@@ -34,7 +34,11 @@ async function init() {
     prepare: prepareSiteSampleWorksheet
   });
 
-  const access = await requireAdminAccess("can_submit_collection");
+  const access = await requireOrganisationCapability(
+    "form_site_water_samples",
+    "can_submit_collection",
+    "site_water_sample.html"
+  );
   if (!access) return;
 
   setupFavoriteFormButton({

@@ -1,5 +1,9 @@
-import { authClient, currentAggregatorContext, requireAdminAccess } from "./auth_client.js";
-import { setupFavoriteFormButton } from "./favorite_forms.js?v=2";
+import {
+  authClient,
+  currentAggregatorContext,
+  requireOrganisationCapability
+} from "./auth_client.js";
+import { setupFavoriteFormButton } from "./favorite_forms.js?v=3";
 import { selectRows } from "./supabase_client.js";
 import { setPrintValue, setupPdfWorksheet } from "./print_worksheet.js";
 import { installSuggestedInput } from "./suggested_input.js";
@@ -44,7 +48,11 @@ async function init() {
     prepare: preparePackingWorksheet
   });
 
-  const access = await requireAdminAccess("can_submit_collection");
+  const access = await requireOrganisationCapability(
+    "form_stock_record",
+    "can_submit_collection",
+    "stabilization_packing.html"
+  );
   if (!access) return;
   cartonSuggestion = installSuggestedInput(els.cartonSerial);
 
