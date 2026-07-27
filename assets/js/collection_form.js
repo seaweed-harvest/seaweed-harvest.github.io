@@ -1221,8 +1221,9 @@ function updateQuickReference() {
 }
 
 function currentFarmerDraft() {
-  const farmerName = combinedManualFarmerName() || state.selectedFarmer?.name || "";
-  if (!farmerName || state.pendingFarmer) return null;
+  const manualFarmerName = combinedManualFarmerName();
+  const farmerName = manualFarmerName || state.selectedFarmer?.name || "";
+  if (!farmerName || (state.pendingFarmer && !manualFarmerName)) return null;
 
   const community = selectedFarmerCommunity() || findCommunityFromText(els.manualCommunityInput.value);
   const manualCommunityName = normalizedCommunityNameInput(els.manualCommunityInput.value);
@@ -1403,8 +1404,26 @@ function updateIndividualFarmerWeightStatus() {
   const farmers = effectiveCollectionFarmers();
   const entered = farmers.filter((farmer) => farmer.weight_kg !== null);
   if (!entered.length) {
-    status.textContent = t("farmer.weightsOptional");
-    status.dataset.status = "";
+    const totalWeight = nullableNumber(els.sackWeightKg.value);
+    if (totalWeight === null) {
+      status.textContent = t("farmer.weightsOptional");
+      status.dataset.status = "";
+      return;
+    }
+    const allocations = equalFarmerWeightAllocations(farmers, totalWeight);
+    const equalShare = allocations.every(
+      (farmer) => farmer.weight_kg === allocations[0]?.weight_kg
+    );
+    status.textContent = equalShare
+      ? t("farmer.weightsEqualSplit", {
+        total: formatCompactNumber(totalWeight),
+        share: formatCompactNumber(allocations[0]?.weight_kg)
+      })
+      : t("farmer.weightsEqualSplitRounded", {
+        total: formatCompactNumber(totalWeight),
+        count: farmers.length
+      });
+    status.dataset.status = "ok";
     return;
   }
 
@@ -1424,9 +1443,12 @@ function updateIndividualFarmerWeightStatus() {
 function farmerIdentityKey(farmer) {
   if (farmer.farmer_record_id) return `record:${farmer.farmer_record_id}`;
   if (farmer.farmer_id) return `id:${String(farmer.farmer_id).toUpperCase()}`;
+  const name = normalizeCommunitySearchText(farmer.farmer_name_snapshot);
   const phone = normalizedPhoneDigits(farmer.phone_snapshot);
-  if (phone.length >= FARMER_PHONE_LOOKUP_MIN_DIGITS) return `phone:${phone}`;
-  return `name:${normalizeCommunitySearchText(farmer.farmer_name_snapshot)}:${normalizeCommunitySearchText(farmer.community_name_snapshot)}`;
+  const community = normalizeCommunitySearchText(
+    farmer.community_id_snapshot || farmer.community_name_snapshot
+  );
+  return `custom:${name}:${phone}:${community}`;
 }
 
 function assignNextFarmerId() {
@@ -2150,15 +2172,15 @@ function buildPayload(photoPaths = [], farmers = collectionFarmersForSubmission(
   const community = communitySelection.community;
   const communityName = community?.community_name || communitySelection.name;
   const weight = requiredNumber(els.sackWeightKg.value, t("harvest.weight"));
-  validateIndividualFarmerWeights(farmers, weight);
+  const farmerAllocations = validateIndividualFarmerWeights(farmers, weight);
   const seaweedType = nullableText(els.seaweedType.value) || state.defaultSeaweedType;
   const gradeCode = requiredText(els.seaweedGrade.value, t("harvest.grade")).toUpperCase();
   const ungraded = gradeCode === "UNGRADED";
   const collectedAt = els.collectedAt.value ? new Date(els.collectedAt.value) : new Date();
-  const primaryFarmer = farmers[0] || null;
+  const primaryFarmer = farmerAllocations[0] || null;
   const customFields = customFieldPayload();
-  if (farmers.length) {
-    customFields.collection_farmers = farmers.map(farmerAllocationPayload);
+  if (farmerAllocations.length) {
+    customFields.collection_farmers = farmerAllocations.map(farmerAllocationPayload);
     customFields.farm_size_value = primaryFarmer.farm_size_value;
     customFields.farm_size_unit = primaryFarmer.farm_size_unit;
   }
@@ -2219,9 +2241,9 @@ function farmerAllocationPayload(farmer) {
 }
 
 function validateIndividualFarmerWeights(farmers, totalWeight) {
-  if (farmers.length < 2) return;
+  if (!farmers.length) return farmers;
   const entered = farmers.filter((farmer) => farmer.weight_kg !== null);
-  if (!entered.length) return;
+  if (!entered.length) return equalFarmerWeightAllocations(farmers, totalWeight);
   if (entered.length !== farmers.length) throw new Error(t("farmer.weightsCompleteError"));
   const allocated = entered.reduce((total, farmer) => total + Number(farmer.weight_kg || 0), 0);
   if (Math.abs(allocated - totalWeight) >= 0.005) {
@@ -2230,6 +2252,18 @@ function validateIndividualFarmerWeights(farmers, totalWeight) {
       total: formatCompactNumber(totalWeight)
     }));
   }
+  return farmers;
+}
+
+function equalFarmerWeightAllocations(farmers, totalWeight) {
+  if (!farmers.length) return [];
+  const totalHundredths = Math.round(Number(totalWeight) * 100);
+  const baseHundredths = Math.floor(totalHundredths / farmers.length);
+  const remainder = totalHundredths - (baseHundredths * farmers.length);
+  return farmers.map((farmer, index) => ({
+    ...farmer,
+    weight_kg: (baseHundredths + (index < remainder ? 1 : 0)) / 100
+  }));
 }
 
 function validateCollectionPricing(payload) {
