@@ -183,22 +183,51 @@ def main():
             ).is_displayed()
         )
         assert driver.find_element(By.ID, "userDirectoryRows").is_displayed()
+        invite_form_access = driver.execute_script(
+            """
+            return {
+              groups: [...document.querySelectorAll(
+                '#inviteFormAccess [data-user-form-access-group]'
+              )].map((group) => ({
+                organisation: group.dataset.userFormAccessGroup,
+                forms: [...group.querySelectorAll(
+                  '[data-user-form-access="invite"]'
+                )].map((input) => ({
+                  key: input.value,
+                  checked: input.checked
+                }))
+              }))
+            };
+            """
+        )
+        assert len(invite_form_access["groups"]) == 1, invite_form_access
+        assert invite_form_access["groups"][0]["organisation"] == cosme_id
+        assert {
+            row["key"] for row in invite_form_access["groups"][0]["forms"]
+        } == {"form_reef_nursery", "form_dryer_table"}
+        assert all(
+            row["checked"] for row in invite_form_access["groups"][0]["forms"]
+        )
+
         users_layout = driver.execute_script(
             """
             const panel = document.querySelector('#userPermissionsWorkspace > .panel');
             const styles = getComputedStyle(panel);
             const heading = panel.querySelector('h2');
+            const formGroup = document.querySelector('.user-form-access-group');
             return {
               paddingLeft: parseFloat(styles.paddingLeft),
               paddingRight: parseFloat(styles.paddingRight),
               panelLeft: panel.getBoundingClientRect().left,
-              headingLeft: heading.getBoundingClientRect().left
+              headingLeft: heading.getBoundingClientRect().left,
+              formGroupPadding: parseFloat(getComputedStyle(formGroup).paddingLeft)
             };
             """
         )
         assert users_layout["paddingLeft"] >= 14, users_layout
         assert users_layout["paddingRight"] >= 14, users_layout
         assert users_layout["headingLeft"] - users_layout["panelLeft"] >= 14, users_layout
+        assert users_layout["formGroupPadding"] >= 10, users_layout
 
         desktop_path = pathlib.Path(tempfile.gettempdir()) / "user-permissions-desktop.png"
         driver.save_screenshot(str(desktop_path))

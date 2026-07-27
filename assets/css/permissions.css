@@ -137,6 +137,56 @@
   align-items: center;
 }
 
+.user-form-access-groups {
+  display: grid;
+  gap: var(--form-field-gap);
+}
+
+.user-form-access-group {
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel-soft);
+}
+
+.user-form-access-group h3 {
+  margin: 0 0 9px;
+  color: var(--text);
+  font-size: var(--label-font-size);
+  line-height: 1.35;
+}
+
+.user-form-access-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+
+.user-form-access-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-sec);
+  font-size: var(--supporting-font-size);
+  font-weight: 600;
+  line-height: 1.35;
+  text-transform: none;
+}
+
+.user-form-access-option input {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.user-form-access-empty {
+  color: var(--text-muted);
+  font-size: var(--supporting-font-size);
+}
+
 @media (max-width: 760px) {
   .permission-page-tabs {
     display: grid;
@@ -156,5 +206,9 @@
     width: 100%;
     grid-template-columns: 1fr;
     gap: 5px;
+  }
+
+  .user-form-access-options {
+    grid-template-columns: 1fr;
   }
 }

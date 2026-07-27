@@ -15,6 +15,10 @@ class OrganisationPermissionsStaticTest(unittest.TestCase):
             ROOT
             / "supabase/migrations/20260727150000_multi_organisation_permission_controls.sql"
         ).read_text(encoding="utf-8")
+        cls.user_form_access_migration = (
+            ROOT
+            / "supabase/migrations/20260727160000_user_organisation_form_access.sql"
+        ).read_text(encoding="utf-8")
         cls.page = (ROOT / "admin_users.html").read_text(encoding="utf-8")
         cls.users = (ROOT / "assets/js/users_page.js").read_text(encoding="utf-8")
         cls.navigation = (ROOT / "assets/js/app_navigation.js").read_text(encoding="utf-8")
@@ -104,6 +108,31 @@ class OrganisationPermissionsStaticTest(unittest.TestCase):
         self.assertIn(
             "state.organisationPermissionAccess?.can_access",
             self.users,
+        )
+
+    def test_user_form_access_is_per_organisation_and_secure(self):
+        migration = self.user_form_access_migration
+        self.assertIn("add column if not exists form_access jsonb", migration)
+        self.assertIn("form_access is null", migration)
+        self.assertIn("ag_effective_organisation_capabilities", migration)
+        self.assertIn("v_form_access is null", migration)
+        self.assertIn(
+            "public.ag_effective_organisation_capabilities(\n"
+            "    v_organisation_id,\n"
+            "    (select auth.uid())",
+            migration,
+        )
+        self.assertIn("ag_admin_user_form_access", migration)
+        self.assertIn("to service_role", migration)
+        self.assertIn('id="inviteFormAccess"', self.page)
+        self.assertIn('id="editFormAccess"', self.page)
+        self.assertIn("organisation_form_access: readUserFormAccess", self.users)
+        self.assertIn("ag_admin_user_form_access", self.users)
+        self.assertIn("form_access: organisationFormAccess", self.admin_users)
+        self.assertIn("ag_effective_organisation_capabilities", self.admin_users)
+        self.assertIn(
+            "You cannot grant form access you do not have",
+            self.admin_users,
         )
 
     def test_sandbox_defaults_to_green_space_only(self):

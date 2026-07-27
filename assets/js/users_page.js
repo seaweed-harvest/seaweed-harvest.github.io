@@ -87,9 +87,9 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   [
     "reloadUsers", "inviteUserForm", "inviteEmail", "invitePhone", "inviteName", "inviteRole",
-    "inviteCommunity", "inviteFarmerIdField", "inviteFarmerId", "inviteTemporaryPasswordField", "inviteTemporaryPassword", "inviteAggregators", "invitePermissions", "inviteDashboardPreferences", "inviteStatus", "userDirectoryRows",
+    "inviteCommunity", "inviteFarmerIdField", "inviteFarmerId", "inviteTemporaryPasswordField", "inviteTemporaryPassword", "inviteAggregators", "inviteFormAccessFieldset", "inviteFormAccess", "invitePermissions", "inviteDashboardPreferences", "inviteStatus", "userDirectoryRows",
     "userEditorPanel", "closeUserEditor", "editUserForm", "editUserId", "editUserEmail",
-    "editUserName", "editUserRole", "editUserStatus", "editUserCommunity", "editFarmerIdField", "editFarmerId", "editAggregators", "editPermissions", "editDashboardPreferences",
+    "editUserName", "editUserRole", "editUserStatus", "editUserCommunity", "editFarmerIdField", "editFarmerId", "editAggregators", "editFormAccessFieldset", "editFormAccess", "editPermissions", "editDashboardPreferences",
     "editUserMessage", "deleteUser", "passwordHelpCount", "passwordHelpRows", "passwordHelpStatus",
     "temporaryPasswordDialog", "temporaryPasswordForm", "temporaryPasswordRequestId", "temporaryPasswordAccount", "temporaryPasswordValue", "generateTemporaryPassword", "saveTemporaryPassword", "copyTemporaryPassword", "closeTemporaryPassword", "temporaryPasswordStatus",
     "passwordResetLinkDialog", "passwordResetLinkAccount", "passwordResetLinkInstructions", "passwordResetLinkField", "passwordResetLinkValue", "copyPasswordResetLink", "closePasswordResetLink", "passwordResetLinkStatus",
@@ -129,21 +129,30 @@ function bindEvents() {
   els.reloadUsers.addEventListener("click", loadPageData);
   els.inviteEmail.addEventListener("input", configureInviteContactMode);
   els.inviteRole.addEventListener("change", () => {
+    const formAccess = readUserFormAccess("invite");
     applyRolePreset("invite", els.inviteRole.value);
     renderDashboardInputs("invite", els.inviteRole.value);
     configureFarmerRoleFields("invite");
-    renderAggregatorInputs("invite", selectedAggregatorIds("invite"));
+    renderAggregatorInputs("invite", selectedAggregatorIds("invite"), false, formAccess);
   });
   els.inviteAggregators.addEventListener("change", () => {
+    renderUserFormAccess("invite", readUserFormAccess("invite"));
     updateOrganisationPermissionEligibility("invite");
   });
   els.editUserRole.addEventListener("change", () => {
+    const formAccess = readUserFormAccess("edit");
     applyRolePreset("edit", els.editUserRole.value);
     renderDashboardInputs("edit", els.editUserRole.value);
     configureFarmerRoleFields("edit");
-    renderAggregatorInputs("edit", selectedAggregatorIds("edit"), els.editUserRole.value === "system_admin");
+    renderAggregatorInputs(
+      "edit",
+      selectedAggregatorIds("edit"),
+      els.editUserRole.value === "system_admin",
+      formAccess
+    );
   });
   els.editAggregators.addEventListener("change", () => {
+    renderUserFormAccess("edit", readUserFormAccess("edit"));
     updateOrganisationPermissionEligibility("edit");
   });
   els.inviteUserForm.addEventListener("submit", inviteUser);
@@ -374,6 +383,7 @@ async function inviteUser(event) {
       community_id: nullableText(els.inviteCommunity.value),
       farmer_id: nullableText(els.inviteFarmerId.value),
       aggregator_ids: aggregatorIds,
+      organisation_form_access: readUserFormAccess("invite"),
       permissions: readPermissions("invite"),
       dashboard_widgets: readDashboardWidgets("invite")
     });
@@ -418,6 +428,7 @@ async function saveUser(event) {
       community_id: nullableText(els.editUserCommunity.value),
       farmer_id: nullableText(els.editFarmerId.value),
       aggregator_ids: aggregatorIds,
+      organisation_form_access: readUserFormAccess("edit"),
       permissions: readPermissions("edit"),
       dashboard_widgets: readDashboardWidgets("edit")
     });
@@ -537,7 +548,7 @@ function renderActivity() {
   `).join("") : '<tr><td colspan="4">No activity recorded yet.</td></tr>';
 }
 
-function handleUserTableClick(event) {
+async function handleUserTableClick(event) {
   const resetButton = event.target.closest("[data-password-reset-link]");
   if (resetButton) {
     createPasswordResetLink(resetButton.dataset.passwordResetLink);
@@ -548,22 +559,39 @@ function handleUserTableClick(event) {
   const user = state.users.find((row) => row.id === button.dataset.editUser);
   if (!user || user.is_protected_owner) return;
 
-  state.editingUser = user;
-  els.editUserId.value = user.id;
-  els.editUserEmail.value = user.email || user.phone || "";
-  els.editUserName.value = user.display_name || "";
-  els.editUserRole.value = user.app_role;
-  els.editUserStatus.value = user.account_status;
-  els.editUserCommunity.value = user.community_id || "";
-  els.editFarmerId.value = user.farmer_id || "";
-  configureFarmerRoleFields("edit");
-  renderAggregatorInputs("edit", user.aggregator_ids || [], user.all_aggregators);
-  els.deleteUser.disabled = user.id === state.actor?.id;
-  els.deleteUser.title = user.id === state.actor?.id ? "You cannot delete your own account" : "Delete this user account";
-  writePermissions("edit", user);
-  renderDashboardInputs("edit", user.app_role, user.dashboard_preferences);
-  els.userEditorPanel.hidden = false;
-  els.userEditorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  setStatus(els.editUserMessage, "Loading form access...");
+  try {
+    const { data: formAccess, error } = await authClient.rpc(
+      "ag_admin_user_form_access",
+      { p_user_id: user.id }
+    );
+    if (error) throw error;
+
+    state.editingUser = user;
+    els.editUserId.value = user.id;
+    els.editUserEmail.value = user.email || user.phone || "";
+    els.editUserName.value = user.display_name || "";
+    els.editUserRole.value = user.app_role;
+    els.editUserStatus.value = user.account_status;
+    els.editUserCommunity.value = user.community_id || "";
+    els.editFarmerId.value = user.farmer_id || "";
+    configureFarmerRoleFields("edit");
+    renderAggregatorInputs(
+      "edit",
+      user.aggregator_ids || [],
+      user.all_aggregators,
+      formAccess || {}
+    );
+    els.deleteUser.disabled = user.id === state.actor?.id;
+    els.deleteUser.title = user.id === state.actor?.id ? "You cannot delete your own account" : "Delete this user account";
+    writePermissions("edit", user);
+    renderDashboardInputs("edit", user.app_role, user.dashboard_preferences);
+    setStatus(els.editUserMessage, "");
+    els.userEditorPanel.hidden = false;
+    els.userEditorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (error) {
+    setStatus(els.inviteStatus, error.message, "error");
+  }
 }
 
 function canCreatePasswordResetLink(user) {
@@ -793,7 +821,7 @@ function renderCommunityOptions() {
   });
 }
 
-function renderAggregatorInputs(prefix, selectedIds = [], allAggregators = false) {
+function renderAggregatorInputs(prefix, selectedIds = [], allAggregators = false, formAccess = undefined) {
   const container = prefix === "invite" ? els.inviteAggregators : els.editAggregators;
   const role = prefix === "invite" ? els.inviteRole.value : els.editUserRole.value;
   const greenSpaceOnly = role === "green_space_teacher";
@@ -805,6 +833,7 @@ function renderAggregatorInputs(prefix, selectedIds = [], allAggregators = false
     : new Set((selectedIds || []).map(String));
   if (allAggregators && !greenSpaceOnly) {
     container.innerHTML = '<label class="aggregator-access-option"><input type="checkbox" checked disabled> All current and future organisations</label>';
+    renderUserFormAccess(prefix, {});
     return;
   }
   container.innerHTML = rows.map((row) => `
@@ -819,12 +848,80 @@ function renderAggregatorInputs(prefix, selectedIds = [], allAggregators = false
       '<span class="field-help">Green Space teachers are limited to the Green Space form and ledger within SANDBOX.</span>'
     );
   }
+  renderUserFormAccess(prefix, formAccess);
   updateOrganisationPermissionEligibility(prefix);
+}
+
+function renderUserFormAccess(prefix, accessMap = undefined) {
+  const container = prefix === "invite" ? els.inviteFormAccess : els.editFormAccess;
+  const fieldset = prefix === "invite" ? els.inviteFormAccessFieldset : els.editFormAccessFieldset;
+  const role = prefix === "invite" ? els.inviteRole.value : els.editUserRole.value;
+  if (role === "system_admin") {
+    fieldset.hidden = true;
+    container.innerHTML = "";
+    return;
+  }
+
+  fieldset.hidden = false;
+  const selected = new Set(selectedAggregatorIds(prefix).map(String));
+  const groups = state.aggregators
+    .filter((organisation) => selected.has(String(organisation.id)))
+    .map((organisation) => {
+      const organisationId = String(organisation.id);
+      const availableForms = organisationCapabilityDefinitions.forms.filter(
+        ([key]) => Boolean(organisation.capabilities?.[key])
+      );
+      if (!availableForms.length) return "";
+      const hasStoredAccess = accessMap
+        && Object.prototype.hasOwnProperty.call(accessMap, organisationId);
+      const storedAccess = hasStoredAccess ? accessMap[organisationId] : undefined;
+      const options = availableForms.map(([key, label]) => {
+        const checked = storedAccess === null
+          || storedAccess === undefined
+          || storedAccess?.[key] === true;
+        return `
+          <label class="user-form-access-option">
+            <input type="checkbox"
+              data-user-form-access="${prefix}"
+              data-organisation-id="${escapeHtml(organisationId)}"
+              value="${escapeHtml(key)}"${checked ? " checked" : ""}>
+            <span>${escapeHtml(label)}</span>
+          </label>`;
+      }).join("");
+      return `
+        <section class="user-form-access-group" data-user-form-access-group="${escapeHtml(organisationId)}">
+          <h3>${escapeHtml(organisation.aggregator_code)} - ${escapeHtml(organisation.organisation_name)}</h3>
+          <div class="user-form-access-options">${options}</div>
+        </section>`;
+    })
+    .filter(Boolean);
+
+  container.innerHTML = groups.join("")
+    || '<span class="user-form-access-empty">Select an organisation to choose its forms.</span>';
+}
+
+function readUserFormAccess(prefix) {
+  const container = prefix === "invite" ? els.inviteFormAccess : els.editFormAccess;
+  const selected = selectedAggregatorIds(prefix).map(String);
+  const formKeys = organisationCapabilityDefinitions.forms.map(([key]) => key);
+  return Object.fromEntries(selected.map((organisationId) => {
+    const values = Object.fromEntries(formKeys.map((key) => [key, false]));
+    container.querySelectorAll(
+      `[data-user-form-access="${prefix}"][data-organisation-id="${cssEscape(organisationId)}"]`
+    ).forEach((input) => {
+      values[input.value] = input.checked;
+    });
+    return [organisationId, values];
+  }));
 }
 
 function selectedAggregatorIds(prefix) {
   const container = prefix === "invite" ? els.inviteAggregators : els.editAggregators;
   return [...container.querySelectorAll(`[data-aggregator-access="${prefix}"]:checked`)].map((input) => input.value);
+}
+
+function cssEscape(value) {
+  return window.CSS?.escape ? window.CSS.escape(String(value)) : String(value).replace(/["\\]/g, "\\$&");
 }
 
 function defaultInviteAggregatorIds() {

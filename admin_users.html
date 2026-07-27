@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Permissions - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/permissions.css?v=2">
+  <link rel="stylesheet" href="./assets/css/permissions.css?v=3">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -98,6 +98,10 @@
             <legend>Organisation access</legend>
             <div id="inviteAggregators" class="aggregator-access-options"></div>
           </fieldset>
+          <fieldset id="inviteFormAccessFieldset" class="user-form-access-fieldset wide-field">
+            <legend>Form access</legend>
+            <div id="inviteFormAccess" class="user-form-access-groups"></div>
+          </fieldset>
           <fieldset class="permission-fieldset wide-field">
             <legend>Permissions</legend>
             <div id="invitePermissions" class="permission-grid"></div>
@@ -141,6 +145,10 @@
           <fieldset class="aggregator-access-fieldset wide-field">
             <legend>Organisation access</legend>
             <div id="editAggregators" class="aggregator-access-options"></div>
+          </fieldset>
+          <fieldset id="editFormAccessFieldset" class="user-form-access-fieldset wide-field">
+            <legend>Form access</legend>
+            <div id="editFormAccess" class="user-form-access-groups"></div>
           </fieldset>
           <fieldset class="permission-fieldset wide-field"><legend>Permissions</legend><div id="editPermissions" class="permission-grid"></div></fieldset>
           <fieldset class="permission-fieldset wide-field"><legend>Dashboard display</legend><div id="editDashboardPreferences" class="dashboard-preference-options"></div></fieldset>
@@ -211,6 +219,6 @@
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
   <script type="module" src="./assets/js/admin_page.js?v=35"></script>
-  <script type="module" src="./assets/js/users_page.js?v=9"></script>
+  <script type="module" src="./assets/js/users_page.js?v=10"></script>
 </body>
 </html>

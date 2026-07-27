@@ -64,7 +64,7 @@ def create_single_organisation_admin(keys):
         },
         "return=minimal",
     )
-    return user["id"], email, password
+    return user["id"], email, password, bati["id"]
 
 
 def password_session(keys, email, password):
@@ -186,7 +186,7 @@ def main():
             "COSME process submission",
         )
 
-        scoped_user_id, scoped_email, scoped_password = (
+        scoped_user_id, scoped_email, scoped_password, bati_id = (
             create_single_organisation_admin(keys)
         )
         scoped_token = password_session(keys, scoped_email, scoped_password)
@@ -206,7 +206,56 @@ def main():
                 f"Single-organisation user received organisation details: {single_scope}"
             )
 
-        add_cosme_membership(keys, scoped_user_id)
+        scoped_cosme_id = add_cosme_membership(keys, scoped_user_id)
+        update_result = request_json(
+            "POST",
+            f"{PROJECT_URL}/functions/v1/admin-users",
+            keys["anon"],
+            token,
+            {
+                "action": "update",
+                "user_id": scoped_user_id,
+                "app_role": "company_admin",
+                "account_status": "active",
+                "aggregator_ids": [bati_id, scoped_cosme_id],
+                "organisation_form_access": {
+                    bati_id: {
+                        "form_site_water_samples": True,
+                        "form_intake_collection": True,
+                        "form_stock_record": False,
+                        "form_process_record": False,
+                        "form_reef_nursery": False,
+                        "form_dryer_table": False,
+                        "form_green_space": False,
+                    }
+                }
+            },
+        )
+        if not update_result.get("ok"):
+            raise AssertionError(f"User form access update failed: {update_result}")
+        scoped_profile = request_json(
+            "POST",
+            f"{PROJECT_URL}/rest/v1/rpc/ag_my_profile",
+            keys["anon"],
+            scoped_token,
+            {},
+        )
+        scoped_capabilities = scoped_profile["organisation_capabilities"]
+        if not scoped_capabilities.get("form_intake_collection"):
+            raise AssertionError("User-specific access hid an allowed collection form")
+        if scoped_capabilities.get("form_process_record"):
+            raise AssertionError("User-specific access did not hide Process Record")
+        expect_denied(
+            lambda: request_json(
+                "POST",
+                f"{PROJECT_URL}/rest/v1/rpc/ag_form_record_summary",
+                keys["anon"],
+                scoped_token,
+                {"p_record_type": "process"},
+            ),
+            "user-restricted process summary",
+        )
+
         multi_scope = request_json(
             "POST",
             f"{PROJECT_URL}/rest/v1/rpc/ag_admin_organisation_permission_options",
