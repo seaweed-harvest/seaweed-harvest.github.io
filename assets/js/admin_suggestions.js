@@ -4,9 +4,8 @@ import {
   routeForProfile,
   setupAccountControls
 } from "./auth_client.js?v=23";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=12";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=13";
 
-const OWNER_EMAIL = "bmichael@cascadiaseaweed.com";
 const PHOTO_BUCKET = "site-feedback-photos";
 const state = { rows: [], profile: null };
 const els = {};
@@ -24,11 +23,6 @@ async function init() {
   try {
     const access = await requireAuthenticatedAccount("admin_suggestions.html");
     if (!access) return;
-    const email = String(access.profile?.email || access.session?.user?.email || "").toLowerCase();
-    if (email !== OWNER_EMAIL) {
-      window.location.replace("./access_pending.html");
-      return;
-    }
     state.profile = access.profile;
     setupAccountControls(state.profile);
     const dashboardHref = routeForProfile(state.profile);
@@ -135,9 +129,9 @@ async function handleSuggestionAction(event) {
     await showPhoto(photoButton.dataset.viewSuggestionPhoto);
     return;
   }
-  const queueButton = event.target.closest("[data-queue-chatgpt-assist]");
-  if (queueButton) {
-    await queueChatGptAssist(queueButton);
+  const approveButton = event.target.closest("[data-approve-suggestion-implementation]");
+  if (approveButton) {
+    await approveSuggestionImplementation(approveButton);
     return;
   }
   const deleteButton = event.target.closest("[data-delete-suggestion]");
@@ -193,24 +187,29 @@ async function deleteSuggestion(button) {
   setStatus("Suggestion deleted.", "success");
 }
 
-async function queueChatGptAssist(button) {
+async function approveSuggestionImplementation(button) {
   const item = button.closest("[data-suggestion-id]");
   if (!item) return;
   button.disabled = true;
-  setStatus("Sending the request to the ChatGPT/Codex queue...");
+  setStatus("Approving the low-risk implementation...");
   const { data, error } = await authClient.functions.invoke("site-feedback", {
     body: {
-      action: "queue_chatgpt_assist",
+      action: "approve_implementation",
       feedback_id: item.dataset.suggestionId
     }
   });
   button.disabled = false;
   if (error || !data?.ok) {
-    setStatus(data?.error || error?.message || "The ChatGPT/Codex queue notice could not be sent.", "error");
+    setStatus(data?.error || error?.message || "The implementation could not be approved.", "error");
     return;
   }
   await loadSuggestions();
-  setStatus("Request added to the ChatGPT/Codex queue.", "success");
+  setStatus(
+    data.dispatched
+      ? "Implementation approved and sent for a branch and draft pull request."
+      : "Implementation approved. It remains queued until automation is available.",
+    "success"
+  );
 }
 
 async function showPhoto(path) {
@@ -264,10 +263,9 @@ function productLabel(value) {
 function automationPanel(row) {
   if (!row.automation_enabled) {
     return `
-      <section class="suggestion-ai-status" aria-label="ChatGPT/Codex queue">
-        <div><strong>AI Assist: Not queued</strong></div>
-        <p>Add this suggestion to the owner's connected ChatGPT/Codex review queue.</p>
-        <button type="button" data-queue-chatgpt-assist>Add to ChatGPT/Codex queue</button>
+      <section class="suggestion-workflow-status" aria-label="Suggestion workflow">
+        <div><strong>Workflow: Manual review</strong></div>
+        <p>This suggestion was not submitted by an authenticated account.</p>
       </section>`;
   }
   const status = automationStatusLabel(row.automation_status);
@@ -278,24 +276,32 @@ function automationPanel(row) {
     .filter(Boolean)
     .map((value) => String(value).replaceAll("_", " "))
     .join(" / ");
+  const canApprove = ["assessment_complete", "approval_required"].includes(row.automation_run_state)
+    && row.automation_decision === "implement"
+    && row.automation_risk_level === "low"
+    && row.automation_lane === "A"
+    && row.automation_can_auto_implement !== true
+    && !row.implementation_approved_at;
   return `
-    <section class="suggestion-ai-status" aria-label="AI Assist status">
+    <section class="suggestion-workflow-status" aria-label="Implementation workflow status">
       <div>
-        <strong>AI Assist: ${escapeHtml(status)}</strong>
+        <strong>Workflow: ${escapeHtml(status)}</strong>
         ${decision ? `<span>${escapeHtml(decision)}</span>` : ""}
       </div>
       <p>${escapeHtml(detail)}</p>
       ${row.automation_pull_request_url
         ? `<a href="${escapeAttribute(row.automation_pull_request_url)}" target="_blank" rel="noopener noreferrer">Open draft pull request</a>`
         : ""}
-      <button type="button" data-queue-chatgpt-assist>Send queue notice again</button>
+      ${canApprove
+        ? '<button type="button" data-approve-suggestion-implementation>Approve implementation</button>'
+        : ""}
     </section>`;
 }
 
 function automationStatusLabel(value) {
   return {
     new: "Requested",
-    queued: "Queued for ChatGPT/Codex",
+    queued: "Queued for assessment",
     shadow_assessing: "Assessing",
     dispatched: "Assessment dispatched",
     assessing: "Assessing",

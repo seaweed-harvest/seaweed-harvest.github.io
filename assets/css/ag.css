@@ -1393,7 +1393,7 @@ body.brand-transition-active {
   white-space: nowrap;
 }
 
-.suggestion-ai-status {
+.suggestion-workflow-status {
   display: grid;
   gap: 0.35rem;
   padding: 0.7rem 0.8rem;
@@ -1402,24 +1402,24 @@ body.brand-transition-active {
   border-radius: 6px;
 }
 
-.suggestion-ai-status > div {
+.suggestion-workflow-status > div {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 0.75rem;
 }
 
-.suggestion-ai-status span,
-.suggestion-ai-status p {
+.suggestion-workflow-status span,
+.suggestion-workflow-status p {
   color: var(--text-muted);
 }
 
-.suggestion-ai-status p {
+.suggestion-workflow-status p {
   margin: 0;
 }
 
-.suggestion-ai-status a,
-.suggestion-ai-status button {
+.suggestion-workflow-status a,
+.suggestion-workflow-status button {
   justify-self: start;
 }
 

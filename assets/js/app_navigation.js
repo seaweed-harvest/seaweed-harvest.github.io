@@ -1,7 +1,6 @@
 const MOBILE_NAV_QUERY = "(max-width: 980px)";
 const SIDEBAR_PINNED_KEY = "seaweed_ag:admin_sidebar_pinned";
 const SIDEBAR_GROUP_KEY_PREFIX = "seaweed_ag:admin_menu:";
-const PROTECTED_OWNER_EMAIL = "bmichael@cascadiaseaweed.com";
 
 export function setupAppNavigation(options = {}) {
   const header = options.header || document.querySelector(".app-header");
@@ -427,7 +426,7 @@ function hasOrganisationCapability(profile, capability) {
 }
 
 function isProtectedOwner(profile) {
-  return String(profile?.email || "").trim().toLowerCase() === PROTECTED_OWNER_EMAIL;
+  return profile?.is_protected_owner === true;
 }
 
 function dashboardRoute(profile) {

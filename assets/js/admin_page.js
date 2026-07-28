@@ -10,7 +10,7 @@ import {
 } from "./auth_client.js?v=25";
 import { applyDashboardPreferences } from "./dashboard_preferences.js";
 import { renderFavoriteForms } from "./favorite_forms.js?v=3";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=12";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=13";
 import { moonEvents } from "./moon_calendar.js";
 
 const TABLES = {

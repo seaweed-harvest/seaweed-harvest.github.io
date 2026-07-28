@@ -13,7 +13,7 @@ import {
   dashboardSelection,
   saveDashboardPreferences
 } from "./dashboard_preferences.js";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=12";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=13";
 import {
   listOutboxItems,
   loadOfflineCollectionAccess,
