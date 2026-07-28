@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Ledger Transcriptions - Seaweed Harvest</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+  <link rel="stylesheet" href="./assets/css/historical_records.css?v=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Seaweed Harvest">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./favicon.ico" sizes="any">
+  <link rel="icon" href="./assets/images/seaweed-harvest-icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
+  <script type="module" src="./assets/js/pwa_bootstrap.js"></script>
+</head>
+<body class="admin-console-page historical-records-page" data-auth-pending>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <p class="eyebrow">Sandbox records</p>
+        <h1>Ledger Transcriptions</h1>
+      </div>
+      <div class="header-actions admin-header-controls">
+        <nav class="app-nav" aria-label="Main navigation">
+          <a href="./home.html">Home</a>
+        </nav>
+        <span id="historicalConnectionStatus" class="status-pill status-muted">Loading</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell admin-shell admin-layout">
+    <aside id="historicalSidebar" class="admin-sidebar" aria-label="Application menu"></aside>
+
+    <section class="admin-content admin-page-section historical-records-content">
+      <section class="panel historical-records-panel">
+        <div class="section-head compact historical-title-row">
+          <div>
+            <h2>Historical records</h2>
+            <p id="historicalDatasetMeta" class="field-hint">Loading Sandbox dataset...</p>
+          </div>
+          <button id="reloadHistoricalRecords" type="button">Reload</button>
+        </div>
+
+        <div class="historical-summary-strip" aria-label="Historical dataset summary">
+          <article><span>Records</span><strong id="historicalTotalRows">--</strong></article>
+          <article><span>Total kg</span><strong id="historicalTotalKg">--</strong></article>
+          <article><span>Source identities</span><strong id="historicalIdentityCount">--</strong></article>
+          <article><span>Communities</span><strong id="historicalCommunityCount">--</strong></article>
+          <article><span>Date range</span><strong id="historicalDateRange">--</strong></article>
+        </div>
+
+        <nav class="ledger-view-tabs historical-view-tabs" aria-label="Ledger transcription views" role="tablist">
+          <button id="historicalAllTab" type="button" role="tab" data-historical-view="all" aria-selected="true">All records</button>
+          <button id="historicalMonthlyTab" type="button" role="tab" data-historical-view="monthly" aria-selected="false">Monthly</button>
+          <button id="historicalCommunitiesTab" type="button" role="tab" data-historical-view="communities" aria-selected="false">Communities</button>
+        </nav>
+
+        <section id="historicalAllView" class="historical-view-panel" role="tabpanel" aria-labelledby="historicalAllTab">
+          <div class="admin-toolbar historical-filter-grid">
+            <label>
+              Search
+              <input id="historicalSearch" type="search" autocomplete="off" placeholder="Farmer, community or source entry">
+            </label>
+            <label>
+              Period
+              <select id="historicalPeriod"><option value="">All periods</option></select>
+            </label>
+            <label>
+              Community
+              <select id="historicalCommunity"><option value="">All communities</option></select>
+            </label>
+            <label>
+              Seaweed type
+              <select id="historicalSeaweedType"><option value="">All types</option></select>
+            </label>
+            <div class="historical-filter-actions">
+              <button id="loadHistoricalRows" type="button">Load</button>
+              <button id="exportHistoricalCsv" type="button">Export CSV</button>
+            </div>
+          </div>
+
+          <div class="ledger-pagination historical-pagination">
+            <button id="historicalPreviousPage" type="button">Previous</button>
+            <span id="historicalPageStatus" class="admin-status">Page 1</span>
+            <button id="historicalNextPage" type="button">Next</button>
+            <span id="historicalFilteredCount" class="status-pill">0 records</span>
+          </div>
+
+          <div class="responsive-table-wrap historical-table-wrap">
+            <table class="management-table admin-data-table historical-table">
+              <thead>
+                <tr>
+                  <th><button type="button" data-historical-sort="ledger_date">Ledger date</button></th>
+                  <th><button type="button" data-historical-sort="community">Community</button></th>
+                  <th><button type="button" data-historical-sort="member">Source identity</button></th>
+                  <th>Product</th>
+                  <th>Seaweed type</th>
+                  <th>Form</th>
+                  <th><button type="button" data-historical-sort="quantity_kg">Quantity kg</button></th>
+                  <th>Price/kg KES</th>
+                  <th>Written KES</th>
+                  <th>Difference KES</th>
+                  <th>Review</th>
+                  <th><button type="button" data-historical-sort="source_entry">Source entry</button></th>
+                </tr>
+              </thead>
+              <tbody id="historicalRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="historicalMonthlyView" class="historical-view-panel" role="tabpanel" aria-labelledby="historicalMonthlyTab" hidden>
+          <div class="admin-toolbar historical-summary-filters">
+            <label>
+              Year
+              <select id="historicalMonthlyYear"><option value="">All years</option></select>
+            </label>
+            <label>
+              Community
+              <select id="historicalMonthlyCommunity"><option value="">All communities</option></select>
+            </label>
+            <button id="loadHistoricalMonthly" type="button">Load</button>
+          </div>
+          <div class="section-head compact">
+            <div>
+              <h3>Monthly records</h3>
+              <p class="field-hint">Source month and year precision is retained.</p>
+            </div>
+            <span id="historicalMonthlyCount" class="status-pill">0 periods</span>
+          </div>
+          <div class="responsive-table-wrap historical-table-wrap">
+            <table class="management-table admin-data-table historical-table">
+              <thead>
+                <tr>
+                  <th>Period</th>
+                  <th>Records</th>
+                  <th>Positive quantities</th>
+                  <th>Source identities</th>
+                  <th>Communities</th>
+                  <th>Seaweed types</th>
+                  <th>Total kg</th>
+                  <th>Review rows</th>
+                  <th>Possible date range</th>
+                </tr>
+              </thead>
+              <tbody id="historicalMonthlyRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="historicalCommunitiesView" class="historical-view-panel" role="tabpanel" aria-labelledby="historicalCommunitiesTab" hidden>
+          <div class="admin-toolbar historical-community-search">
+            <label>
+              Search communities
+              <input id="historicalCommunitySearch" type="search" autocomplete="off" placeholder="Community or source group">
+            </label>
+            <button id="loadHistoricalCommunities" type="button">Search</button>
+          </div>
+          <div class="section-head compact">
+            <div>
+              <h3>Community records</h3>
+              <p class="field-hint">Select a community to open its full historical ledger.</p>
+            </div>
+            <span id="historicalCommunitiesCount" class="status-pill">0 communities</span>
+          </div>
+          <div class="responsive-table-wrap historical-table-wrap">
+            <table class="management-table admin-data-table historical-table historical-community-table">
+              <thead>
+                <tr>
+                  <th>Community</th>
+                  <th>Mapped registry location</th>
+                  <th>Records</th>
+                  <th>Source identities</th>
+                  <th>Total kg</th>
+                  <th>Seaweed types</th>
+                  <th>Day dates</th>
+                  <th>Month dates</th>
+                  <th>Year dates</th>
+                  <th>Date review</th>
+                  <th>Possible date range</th>
+                </tr>
+              </thead>
+              <tbody id="historicalCommunityRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <p id="historicalRecordsStatus" class="admin-status" aria-live="polite"></p>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
+  <script type="module" src="./assets/js/historical_records_page.js?v=1"></script>
+</body>
+</html>

@@ -1,0 +1,229 @@
+.historical-records-content {
+  min-width: 0;
+}
+
+.historical-records-panel {
+  min-width: 0;
+  padding: 16px;
+}
+
+.historical-title-row {
+  align-items: flex-start;
+}
+
+.historical-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  margin: 12px 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+
+.historical-summary-strip article {
+  min-width: 0;
+  padding: 9px 11px;
+  border-right: 1px solid var(--border);
+  background: var(--panel-soft);
+}
+
+.historical-summary-strip article:last-child {
+  border-right: 0;
+}
+
+.historical-summary-strip span,
+.historical-summary-strip strong {
+  display: block;
+}
+
+.historical-summary-strip span {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.historical-summary-strip strong {
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.historical-view-tabs {
+  margin-bottom: 14px;
+}
+
+.historical-view-panel {
+  min-width: 0;
+}
+
+.historical-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.35fr) repeat(3, minmax(160px, 1fr)) auto;
+  align-items: end;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.historical-filter-grid label,
+.historical-summary-filters label,
+.historical-community-search label {
+  min-width: 0;
+}
+
+.historical-filter-grid input,
+.historical-filter-grid select,
+.historical-summary-filters select,
+.historical-community-search input {
+  width: 100%;
+}
+
+.historical-filter-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.historical-pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.historical-pagination .status-pill {
+  margin-left: auto;
+}
+
+.historical-summary-filters,
+.historical-community-search {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.historical-summary-filters label {
+  flex: 0 1 280px;
+}
+
+.historical-community-search label {
+  flex: 1 1 320px;
+  max-width: 560px;
+}
+
+.historical-table-wrap {
+  max-height: min(68vh, 720px);
+}
+
+.historical-table {
+  font-size: 0.79rem;
+}
+
+.historical-table th,
+.historical-table td {
+  height: 38px;
+  padding: 7px 9px;
+  white-space: nowrap;
+}
+
+.historical-table th button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+}
+
+.historical-table th button:hover {
+  color: var(--accent);
+}
+
+.historical-table td:nth-child(2),
+.historical-table td:nth-child(3),
+.historical-table td:nth-child(4) {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.historical-date-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.historical-precision {
+  padding: 2px 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.historical-review {
+  color: #8a5a00;
+}
+
+.historical-community-table tbody tr[data-community-key] {
+  cursor: pointer;
+}
+
+.historical-community-table tbody tr[data-community-key]:hover td {
+  background: rgba(15, 118, 110, 0.07);
+}
+
+@media (max-width: 1180px) {
+  .historical-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .historical-filter-actions {
+    align-self: end;
+  }
+}
+
+@media (max-width: 720px) {
+  .historical-records-panel {
+    padding: 12px;
+  }
+
+  .historical-summary-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .historical-summary-strip article {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .historical-summary-strip article:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .historical-summary-strip article:last-child {
+    grid-column: 1 / -1;
+    border-bottom: 0;
+  }
+
+  .historical-filter-grid,
+  .historical-summary-filters,
+  .historical-community-search {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .historical-filter-actions button {
+    flex: 1 1 0;
+  }
+
+  .historical-pagination {
+    flex-wrap: wrap;
+  }
+
+  .historical-pagination .status-pill {
+    margin-left: 0;
+  }
+}

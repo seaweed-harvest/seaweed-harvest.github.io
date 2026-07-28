@@ -388,6 +388,7 @@ function recordLinks(profile) {
     capability: "form_intake_collection"
   }] : [];
   return links.concat(permittedLinks(profile, [
+    { label: "Ledger Transcriptions", href: "./historical_records.html", permission: "can_view_data", requiredAggregator: "SANDBOX" },
     { label: "Dataset Dashboard", href: "./dataset_dashboard.html", permission: "can_view_dashboard", capability: "form_intake_collection", className: "app-nav-desktop-only" },
     { label: "Record Ledgers", href: "./records.html", permission: "can_view_data", capabilityAny: ["form_site_water_samples", "form_intake_collection", "form_stock_record", "form_process_record"], className: "app-nav-desktop-only" },
     { label: "Reef Nursery Records", href: "./reef_nursery_records.html", permission: "can_access_reef_nursery", requiredAggregator: "COSME", capability: "form_reef_nursery", className: "app-nav-desktop-only" },
