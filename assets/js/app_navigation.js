@@ -285,9 +285,6 @@ function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
 
   drawer.append(drawerGroup("Forms", formLinks(profile), currentFile, true));
   drawer.append(drawerGroup("Records", recordLinks(profile), currentFile));
-  if (isProtectedOwner(profile)) {
-    drawer.append(navigationLink({ label: "Suggestions", href: "./admin_suggestions.html" }, currentFile));
-  }
 
   const registry = permittedLinks(profile, [
     { label: "Organisations", href: "./admin_aggregators.html", permission: "can_access_admin" },
@@ -302,6 +299,13 @@ function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
   }
 
   const tools = permittedLinks(profile, [
+    { label: "Dataset Dashboard", href: "./dataset_dashboard.html", permission: "can_view_dashboard", capability: "form_intake_collection", className: "app-nav-desktop-only" },
+    { label: "Finance Review", href: "./admin_finance.html", permission: "can_view_finance", capability: "form_intake_collection", className: "app-nav-desktop-only" },
+    { label: "Receipts", href: "./admin_receipts.html", permission: "can_view_data", capability: "form_intake_collection", className: "app-nav-desktop-only" },
+    { label: "Notifications", href: "./admin_notifications.html", permission: "can_view_notifications", capability: "tool_notifications", className: "app-nav-desktop-only" },
+    ...(isProtectedOwner(profile)
+      ? [{ label: "Suggestions", href: "./admin_suggestions.html", className: "app-nav-desktop-only" }]
+      : []),
     { label: "Tags", href: "./tags.html", permission: "can_access_admin", capability: "tool_qr_tags" },
     { label: "Form Manager", href: "./admin_forms.html", permission: "can_manage_settings", capability: "tool_form_builder" },
     { label: "Form Builder", href: "./admin_builder.html", permission: "can_manage_settings", capability: "tool_form_builder" },
@@ -388,14 +392,10 @@ function recordLinks(profile) {
   }] : [];
   return links.concat(permittedLinks(profile, [
     { label: "Ledger Transcriptions", href: "./historical_records.html", permission: "can_view_data", requiredAggregator: "SANDBOX" },
-    { label: "Dataset Dashboard", href: "./dataset_dashboard.html", permission: "can_view_dashboard", capability: "form_intake_collection", className: "app-nav-desktop-only" },
     { label: "Record Ledgers", href: "./records.html", permission: "can_view_data", capabilityAny: ["form_site_water_samples", "form_intake_collection", "form_stock_record", "form_process_record"], className: "app-nav-desktop-only" },
     { label: "Photos", href: "./photos.html", permission: "can_view_data", capabilityAny: ["form_intake_collection", "form_process_record", "form_reef_nursery"], className: "app-nav-desktop-only" },
     { label: "Deleted Records", href: "./deleted_records.html", permission: "can_view_data", capabilityAny: ["form_site_water_samples", "form_intake_collection", "form_stock_record", "form_process_record"], className: "app-nav-desktop-only" },
-    { label: "Reef Nursery Records", href: "./reef_nursery_records.html", permission: "can_access_reef_nursery", requiredAggregator: "COSME", capability: "form_reef_nursery", className: "app-nav-desktop-only" },
-    { label: "Finance Review", href: "./admin_finance.html", permission: "can_view_finance", capability: "form_intake_collection", className: "app-nav-desktop-only" },
-    { label: "Receipts", href: "./admin_receipts.html", permission: "can_view_data", capability: "form_intake_collection", className: "app-nav-desktop-only" },
-    { label: "Notifications", href: "./admin_notifications.html", permission: "can_view_notifications", capability: "tool_notifications", className: "app-nav-desktop-only" }
+    { label: "Reef Nursery Records", href: "./reef_nursery_records.html", permission: "can_access_reef_nursery", requiredAggregator: "COSME", capability: "form_reef_nursery", className: "app-nav-desktop-only" }
   ]));
 }
 
