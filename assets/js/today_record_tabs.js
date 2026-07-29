@@ -1,4 +1,4 @@
-import { authClient, currentSession } from "./auth_client.js";
+import { currentSession } from "./auth_client.js";
 import { callRpc, selectRows } from "./supabase_client.js";
 
 const CATEGORY_CONFIG = {
@@ -48,6 +48,8 @@ document.addEventListener("DOMContentLoaded", init);
 function init() {
   els.todayRecordTabs = document.getElementById("todayRecordTabs");
   els.todayIntakeDate = document.getElementById("todayIntakeDate");
+  els.todayRefresh = document.getElementById("reloadPublicToday")
+    || document.getElementById("reloadTodayIntake");
   if (!els.todayRecordTabs) return;
   if (els.todayIntakeDate?.matches("input[type='date']") && !els.todayIntakeDate.value) {
     els.todayIntakeDate.value = initialRecordDate();
@@ -74,6 +76,9 @@ function init() {
     if (button) void activateTab(button.dataset.todayRecordTab);
   });
   els.todayRecordTabs.addEventListener("keydown", handleTabKeydown);
+  els.todayRefresh?.addEventListener("click", () => {
+    if (state.active !== "intake") void loadSupplementalRecords({ force: true });
+  });
   if (els.todayIntakeDate?.matches("input[type='date']")) {
     els.todayIntakeDate.addEventListener("change", () => {
       updateDateInUrl();
@@ -446,24 +451,11 @@ async function deleteSelected(config) {
     .map((row) => row.id);
   if (!ids.length || category.editing.size) return;
   const label = `${ids.length} ${categoryLabel(key).toLowerCase()} record${ids.length === 1 ? "" : "s"}`;
-  if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
+  if (!window.confirm(`Delete ${label}? It will remain in Deleted Records for 30 days.`)) return;
 
   els[`${config.prefix}DeleteSelected`].disabled = true;
   setCategoryStatus(config, `Deleting ${label}...`);
   try {
-    const photoPaths = key === "process-record"
-      ? category.rows
-        .filter((row) => ids.includes(row.id) && row.photo_path)
-        .map((row) => row.photo_path)
-      : [];
-    if (photoPaths.length) {
-      const { error: photoError } = await authClient.storage
-        .from("process-record-photos")
-        .remove(photoPaths);
-      if (photoError) {
-        throw new Error(`The sample photo could not be removed. ${photoError.message}`);
-      }
-    }
     const result = await callRpc("ag_delete_daily_form_records", {
       p_record_type: config.rpcType,
       p_record_ids: ids
@@ -471,7 +463,7 @@ async function deleteSelected(config) {
     state.loadedDate = null;
     await loadSupplementalRecords({ force: true });
     const count = Number(result?.deleted_count || ids.length);
-    setCategoryStatus(config, `${count} record${count === 1 ? "" : "s"} deleted.`);
+    setCategoryStatus(config, `${count} record${count === 1 ? "" : "s"} moved to Deleted Records.`);
   } catch (error) {
     setCategoryStatus(config, error.message || "Selected records could not be deleted.", "error");
     updateActionUi(key);

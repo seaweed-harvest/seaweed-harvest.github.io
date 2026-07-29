@@ -411,7 +411,7 @@ function addParticipantRow({ focus = false, participant = {} } = {}) {
       </select>
     </td>
     <td data-label="Actions">
-      <button class="reef-remove-participant" type="button" data-remove-participant aria-label="Remove participant" title="Remove participant">
+      <button class="reef-remove-participant standard-repeat-remove" type="button" data-remove-participant aria-label="Remove participant" title="Remove participant">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"></path></svg>
       </button>
     </td>`;
@@ -1642,11 +1642,11 @@ function renderPhotoPreview() {
   els.reefPhotoPreview.replaceChildren();
   photoState.existing.forEach((photo, index) => {
     const card = document.createElement("article");
-    card.className = "reef-photo-card reef-photo-card-existing";
+    card.className = "reef-photo-card reef-photo-card-existing standard-photo-card";
 
     const view = document.createElement("button");
     view.type = "button";
-    view.className = "reef-photo-view";
+    view.className = "reef-photo-view standard-photo-view";
     view.dataset.viewExistingPhoto = String(index);
     view.setAttribute("aria-label", `View saved photo ${index + 1}`);
 
@@ -1661,11 +1661,11 @@ function renderPhotoPreview() {
   });
   photoState.files.forEach((file, index) => {
     const card = document.createElement("article");
-    card.className = "reef-photo-card";
+    card.className = "reef-photo-card standard-photo-card";
 
     const view = document.createElement("button");
     view.type = "button";
-    view.className = "reef-photo-view";
+    view.className = "reef-photo-view standard-photo-view";
     view.dataset.viewPhoto = String(index);
     view.setAttribute("aria-label", `View photo ${index + 1}`);
 
@@ -1682,7 +1682,7 @@ function renderPhotoPreview() {
 
     const remove = document.createElement("button");
     remove.type = "button";
-    remove.className = "reef-photo-remove";
+    remove.className = "reef-photo-remove standard-photo-remove";
     remove.dataset.removePhoto = String(index);
     remove.setAttribute("aria-label", `Remove photo ${index + 1}`);
     remove.title = "Remove photo";

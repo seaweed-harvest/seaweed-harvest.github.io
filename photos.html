@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Photos - Seaweed Harvest</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Seaweed Harvest">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./favicon.ico" sizes="any">
+  <link rel="icon" href="./assets/images/seaweed-harvest-icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
+  <script type="module" src="./assets/js/pwa_bootstrap.js"></script>
+</head>
+<body class="admin-console-page photo-library-page" data-auth-pending>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div><p class="eyebrow">Seaweed aggregation</p><h1>Photos</h1></div>
+      <div class="header-actions admin-header-controls">
+        <nav class="app-nav" aria-label="Main navigation">
+          <a href="./collection.html">Collection</a>
+          <a href="./home.html">Home</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell admin-shell admin-layout">
+    <aside id="photoSidebar" class="admin-sidebar" aria-label="Application menu"></aside>
+    <section class="admin-content">
+      <section class="panel admin-page-section photo-library-panel">
+        <div class="section-head compact">
+          <h2>Photos</h2>
+          <div class="button-row compact-actions">
+            <button id="togglePhotoGallery" type="button" aria-pressed="false">Show thumbnails</button>
+            <span id="photoLibraryCount" class="status-pill">0 photos</span>
+          </div>
+        </div>
+
+        <div class="admin-toolbar photo-library-filters">
+          <label>From<input id="photoFrom" type="date"></label>
+          <label>To<input id="photoTo" type="date"></label>
+          <label>
+            Record type
+            <select id="photoSource">
+              <option value="">All records</option>
+              <option value="intake">Intake Collection</option>
+              <option value="process">Process Record</option>
+              <option value="reef_nursery">Reef Nursery</option>
+            </select>
+          </label>
+          <label>Community<select id="photoCommunity"><option value="">All communities</option></select></label>
+          <label>
+            Grade
+            <select id="photoGrade">
+              <option value="">All grades</option>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+            </select>
+          </label>
+          <label>Recorded by<input id="photoRecorder" type="search" autocomplete="off"></label>
+          <button id="applyPhotoFilters" type="button">Apply filters</button>
+        </div>
+
+        <div class="ledger-pagination photo-library-pagination">
+          <button id="photoPrevious" type="button">Previous</button>
+          <span id="photoPageStatus" class="admin-status">Page 1</span>
+          <button id="photoNext" type="button">Next</button>
+        </div>
+
+        <div class="responsive-table-wrap">
+          <table class="management-table admin-data-table photo-library-table">
+            <thead>
+              <tr>
+                <th>Photo</th>
+                <th><button type="button" data-photo-sort="taken_at">Date and time</button></th>
+                <th><button type="button" data-photo-sort="source_label">Record type</button></th>
+                <th>Reference</th>
+                <th><button type="button" data-photo-sort="community_name">Community</button></th>
+                <th><button type="button" data-photo-sort="recorder_name">Recorded by</button></th>
+                <th>Seaweed type</th>
+                <th><button type="button" data-photo-sort="grade_code">Grade</button></th>
+              </tr>
+            </thead>
+            <tbody id="photoLibraryRows"></tbody>
+          </table>
+        </div>
+
+        <div id="photoGallery" class="photo-library-gallery" hidden></div>
+        <p id="photoLibraryStatus" class="admin-status" aria-live="polite"></p>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
+  <script type="module" src="./assets/js/photos_page.js?v=1"></script>
+</body>
+</html>

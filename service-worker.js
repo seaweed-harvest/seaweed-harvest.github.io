@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v108";
+const CACHE_VERSION = "seaweed-harvest-collection-v111";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -13,6 +13,8 @@ const APP_SHELL = [
   "./reef_nursery_records.html",
   "./dryer_table.html",
   "./records.html",
+  "./photos.html",
+  "./deleted_records.html",
   "./historical_records.html",
   "./dataset_dashboard.html",
   "./today.html",
@@ -58,6 +60,10 @@ const APP_SHELL = [
   "./assets/js/dryer_table_form.js",
   "./assets/js/dryer_table_language.js",
   "./assets/js/records_page.js",
+  "./assets/js/photos_page.js",
+  "./assets/js/deleted_records_page.js",
+  "./assets/js/photo_viewer.js",
+  "./assets/js/farmer_card.js",
   "./assets/js/dataset_dashboard_page.js",
   "./assets/js/historical_records_page.js",
   "./assets/js/admin_page.js",

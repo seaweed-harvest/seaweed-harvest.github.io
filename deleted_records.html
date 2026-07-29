@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Deleted Records - Seaweed Harvest</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Seaweed Harvest">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./favicon.ico" sizes="any">
+  <link rel="icon" href="./assets/images/seaweed-harvest-icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
+  <script type="module" src="./assets/js/pwa_bootstrap.js"></script>
+</head>
+<body class="admin-console-page deleted-records-page" data-auth-pending>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div><p class="eyebrow">Seaweed aggregation</p><h1>Deleted Records</h1></div>
+      <div class="header-actions admin-header-controls">
+        <nav class="app-nav" aria-label="Main navigation">
+          <a href="./collection.html">Collection</a>
+          <a href="./home.html">Home</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell admin-shell admin-layout">
+    <aside id="deletedSidebar" class="admin-sidebar" aria-label="Application menu"></aside>
+    <section class="admin-content">
+      <section class="panel admin-page-section deleted-records-panel">
+        <div class="section-head compact">
+          <div>
+            <h2>Deleted Records</h2>
+            <p class="field-hint">Retained for 30 days.</p>
+          </div>
+          <span id="deletedRecordCount" class="status-pill">0 records</span>
+        </div>
+
+        <div class="admin-toolbar deleted-record-filters">
+          <label>Deleted from<input id="deletedFrom" type="date"></label>
+          <label>Deleted to<input id="deletedTo" type="date"></label>
+          <label>
+            Record type
+            <select id="deletedSource">
+              <option value="">All records</option>
+              <option value="intake">Intake Collection</option>
+              <option value="process">Process Record</option>
+              <option value="site_sample">Site Water Sample</option>
+              <option value="stock">Stock Record</option>
+            </select>
+          </label>
+          <label>Search<input id="deletedSearch" type="search" autocomplete="off" placeholder="Reference, farmer, community"></label>
+          <button id="applyDeletedFilters" type="button">Apply filters</button>
+        </div>
+
+        <div id="deletedRecordActions" class="today-edit-actions" hidden>
+          <span id="deletedSelectedCount" class="status-pill">0 selected</span>
+          <button id="permanentlyDeleteRecords" class="danger-button" type="button">Delete permanently</button>
+        </div>
+
+        <div class="ledger-pagination deleted-record-pagination">
+          <button id="deletedPrevious" type="button">Previous</button>
+          <span id="deletedPageStatus" class="admin-status">Page 1</span>
+          <button id="deletedNext" type="button">Next</button>
+        </div>
+
+        <div class="responsive-table-wrap">
+          <table class="management-table admin-data-table deleted-records-table">
+            <thead>
+              <tr>
+                <th id="deletedSelectionHeading" class="selection-cell"><input id="deletedSelectAll" type="checkbox" aria-label="Select all visible deleted records"></th>
+                <th>Deleted</th>
+                <th>Record type</th>
+                <th>Reference</th>
+                <th>Record date</th>
+                <th>Farmer</th>
+                <th>Community</th>
+                <th>Weight kg</th>
+                <th>Total KSH</th>
+                <th>Recorded by</th>
+                <th>Deleted by</th>
+                <th>Photos</th>
+                <th>Permanent deletion</th>
+              </tr>
+            </thead>
+            <tbody id="deletedRecordRows"></tbody>
+          </table>
+        </div>
+        <p id="deletedRecordStatus" class="admin-status" aria-live="polite"></p>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
+  <script type="module" src="./assets/js/deleted_records_page.js?v=1"></script>
+</body>
+</html>

@@ -7,8 +7,8 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Reef Nursery - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/reef_nursery.css?v=8">
-  <link rel="stylesheet" href="./assets/css/form_foundation.css?v=1">
+  <link rel="stylesheet" href="./assets/css/reef_nursery.css?v=9">
+  <link rel="stylesheet" href="./assets/css/form_foundation.css?v=2">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -52,18 +52,18 @@
         <div id="reefReviewNotice" class="reef-review-notice" hidden>Review copy</div>
 
         <form id="reefNurseryForm" class="reef-nursery-form standard-form standard-form-tabbed-layout" novalidate>
-          <nav id="reefNurseryTabs" class="reef-form-tabs" aria-label="Reef nursery record sections" role="tablist">
-            <button id="reefSessionTab" type="button" role="tab" aria-selected="true" aria-controls="reefSessionPanel" data-reef-tab="session">Session details</button>
-            <button id="reefParticipantsTab" type="button" role="tab" aria-selected="false" aria-controls="reefParticipantsPanel" data-reef-tab="participants">Participants</button>
-            <button id="reefTrainingTab" type="button" role="tab" aria-selected="false" aria-controls="reefTrainingPanel" data-reef-tab="training">Training delivered</button>
-            <button id="reefCompetencyTab" type="button" role="tab" aria-selected="false" aria-controls="reefCompetencyPanel" data-reef-tab="competency">Competency Assessment</button>
-            <button id="reefSeaweedTab" type="button" role="tab" aria-selected="false" aria-controls="reefSeaweedPanel" data-reef-tab="seaweed">Seaweed Record</button>
-            <button id="reefRaftTab" type="button" role="tab" aria-selected="false" aria-controls="reefRaftPanel" data-reef-tab="raft">Raft inspection</button>
-            <button id="reefPhotosTab" type="button" role="tab" aria-selected="false" aria-controls="reefPhotosPanel" data-reef-tab="photos">Photos</button>
-            <button id="reefRecordsTab" type="button" role="tab" aria-selected="false" aria-controls="reefRecordsPanel" data-reef-tab="records">Previous records</button>
+          <nav id="reefNurseryTabs" class="reef-form-tabs standard-tabs" aria-label="Reef nursery record sections" role="tablist">
+            <button id="reefSessionTab" class="standard-tab" type="button" role="tab" aria-selected="true" aria-controls="reefSessionPanel" data-reef-tab="session">Session details</button>
+            <button id="reefParticipantsTab" class="standard-tab" type="button" role="tab" aria-selected="false" aria-controls="reefParticipantsPanel" data-reef-tab="participants">Participants</button>
+            <button id="reefTrainingTab" class="standard-tab" type="button" role="tab" aria-selected="false" aria-controls="reefTrainingPanel" data-reef-tab="training">Training delivered</button>
+            <button id="reefCompetencyTab" class="standard-tab" type="button" role="tab" aria-selected="false" aria-controls="reefCompetencyPanel" data-reef-tab="competency">Competency Assessment</button>
+            <button id="reefSeaweedTab" class="standard-tab" type="button" role="tab" aria-selected="false" aria-controls="reefSeaweedPanel" data-reef-tab="seaweed">Seaweed Record</button>
+            <button id="reefRaftTab" class="standard-tab" type="button" role="tab" aria-selected="false" aria-controls="reefRaftPanel" data-reef-tab="raft">Raft inspection</button>
+            <button id="reefPhotosTab" class="standard-tab" type="button" role="tab" aria-selected="false" aria-controls="reefPhotosPanel" data-reef-tab="photos">Photos</button>
+            <button id="reefRecordsTab" class="standard-tab" type="button" role="tab" aria-selected="false" aria-controls="reefRecordsPanel" data-reef-tab="records">Previous records</button>
           </nav>
 
-          <section id="reefSessionPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefSessionTab" data-reef-panel="session">
+          <section id="reefSessionPanel" class="reef-tab-panel standard-tab-panel" role="tabpanel" aria-labelledby="reefSessionTab" data-reef-panel="session">
             <fieldset>
               <legend>Session details</legend>
               <div class="reef-record-meta" aria-label="Record number">
@@ -122,18 +122,18 @@
             </fieldset>
           </section>
 
-          <section id="reefParticipantsPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefParticipantsTab" data-reef-panel="participants" hidden>
+          <section id="reefParticipantsPanel" class="reef-tab-panel standard-tab-panel" role="tabpanel" aria-labelledby="reefParticipantsTab" data-reef-panel="participants" hidden>
             <fieldset>
               <legend>Participants</legend>
-              <div class="reef-participant-toolbar">
+              <div class="reef-participant-toolbar standard-repeat-toolbar">
                 <span id="reefParticipantCount" class="status-pill">1 participant</span>
-                <button id="addReefParticipant" class="secondary-action reef-add-row" type="button">
+                <button id="addReefParticipant" class="secondary-action reef-add-row standard-repeat-add" type="button">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
                   <span>Add participant</span>
                 </button>
               </div>
-              <div class="reef-participant-table-wrap">
-                <table class="reef-participant-table">
+              <div class="reef-participant-table-wrap standard-repeat-table-wrap">
+                <table class="reef-participant-table standard-repeat-table">
                   <thead><tr><th>Participant name</th><th>Farmer ID / phone</th><th>Gender</th><th><span class="reef-visually-hidden">Actions</span></th></tr></thead>
                   <tbody id="reefParticipantRows"></tbody>
                 </table>
@@ -141,7 +141,7 @@
             </fieldset>
           </section>
 
-          <section id="reefTrainingPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefTrainingTab" data-reef-panel="training" hidden>
+          <section id="reefTrainingPanel" class="reef-tab-panel standard-tab-panel" role="tabpanel" aria-labelledby="reefTrainingTab" data-reef-panel="training" hidden>
             <fieldset>
               <legend>Training delivered</legend>
               <p id="reefTrainingEmpty" class="reef-training-empty">Select the session types first.</p>
@@ -152,7 +152,7 @@
             </fieldset>
           </section>
 
-          <section id="reefCompetencyPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefCompetencyTab" data-reef-panel="competency" hidden>
+          <section id="reefCompetencyPanel" class="reef-tab-panel standard-tab-panel" role="tabpanel" aria-labelledby="reefCompetencyTab" data-reef-panel="competency" hidden>
             <fieldset>
               <legend>Competency Assessment</legend>
               <p class="reef-competency-help">Select an all-participants result, or use + to add individual participant results.</p>
@@ -161,7 +161,7 @@
             </fieldset>
           </section>
 
-          <section id="reefSeaweedPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefSeaweedTab" data-reef-panel="seaweed" hidden>
+          <section id="reefSeaweedPanel" class="reef-tab-panel standard-tab-panel" role="tabpanel" aria-labelledby="reefSeaweedTab" data-reef-panel="seaweed" hidden>
             <fieldset>
               <legend>Seaweed Record</legend>
               <div class="reef-raft-selection-field">
@@ -175,7 +175,7 @@
             </fieldset>
           </section>
 
-          <section id="reefPhotosPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefPhotosTab" data-reef-panel="photos" hidden>
+          <section id="reefPhotosPanel" class="reef-tab-panel standard-tab-panel" role="tabpanel" aria-labelledby="reefPhotosTab" data-reef-panel="photos" hidden>
             <fieldset>
               <legend>Photos</legend>
               <div class="reef-dropbox-row">
@@ -183,24 +183,24 @@
                 <a id="reefDropboxLink" href="#" target="_blank" rel="noopener noreferrer" hidden>Open Dropbox folder</a>
                 <span id="reefDropboxPending">Dropbox link pending.</span>
               </div>
-              <div class="reef-photo-toolbar">
-                <button id="reefTakePhoto" class="secondary-action reef-photo-action" type="button">
+              <div class="reef-photo-toolbar standard-photo-toolbar">
+                <button id="reefTakePhoto" class="secondary-action reef-photo-action standard-photo-action" type="button">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4 16 6h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l1.5-2z"></path><circle cx="12" cy="13" r="3"></circle></svg>
                   <span>Take photo</span>
                 </button>
-                <button id="reefChoosePhotos" class="secondary-action reef-photo-action" type="button">
+                <button id="reefChoosePhotos" class="secondary-action reef-photo-action standard-photo-action" type="button">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>
                   <span>Choose photos</span>
                 </button>
               </div>
-              <input id="reefCameraPhoto" class="reef-hidden-file" type="file" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
-              <input id="reefGalleryPhotos" class="reef-hidden-file" type="file" accept="image/*" multiple tabindex="-1" aria-hidden="true">
-              <p id="reefPhotoStatus" class="reef-photo-status" aria-live="polite">Up to 8 photos. Compressed before upload.</p>
-              <div id="reefPhotoPreview" class="reef-photo-grid" aria-live="polite"></div>
+              <input id="reefCameraPhoto" class="reef-hidden-file standard-hidden-file" type="file" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
+              <input id="reefGalleryPhotos" class="reef-hidden-file standard-hidden-file" type="file" accept="image/*" multiple tabindex="-1" aria-hidden="true">
+              <p id="reefPhotoStatus" class="reef-photo-status standard-photo-status" aria-live="polite">Up to 8 photos. Compressed before upload.</p>
+              <div id="reefPhotoPreview" class="reef-photo-grid standard-photo-grid" aria-live="polite"></div>
             </fieldset>
           </section>
 
-          <section id="reefRaftPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefRaftTab" data-reef-panel="raft" hidden>
+          <section id="reefRaftPanel" class="reef-tab-panel standard-tab-panel" role="tabpanel" aria-labelledby="reefRaftTab" data-reef-panel="raft" hidden>
             <fieldset>
               <legend>Raft inspection</legend>
               <div class="reef-inspection-grid">
@@ -248,7 +248,7 @@
             </fieldset>
           </section>
 
-          <section id="reefRecordsPanel" class="reef-tab-panel" role="tabpanel" aria-labelledby="reefRecordsTab" data-reef-panel="records" hidden>
+          <section id="reefRecordsPanel" class="reef-tab-panel standard-tab-panel" role="tabpanel" aria-labelledby="reefRecordsTab" data-reef-panel="records" hidden>
             <div class="reef-embedded-records">
               <div class="section-head compact">
                 <div>
@@ -293,7 +293,7 @@
             </div>
           </section>
 
-          <div class="button-row reef-form-actions">
+          <div class="button-row reef-form-actions standard-form-actions">
             <button id="saveReefNursery" type="button">Save draft</button>
             <button id="submitReefNursery" type="submit">Submit and start new</button>
             <button id="clearReefNursery" type="button">Clear</button>
@@ -331,6 +331,6 @@
     </form>
   </dialog>
   <script type="module" src="./assets/js/admin_page.js?v=36"></script>
-  <script type="module" src="./assets/js/reef_nursery_form.js?v=22"></script>
+  <script type="module" src="./assets/js/reef_nursery_form.js?v=23"></script>
 </body>
 </html>

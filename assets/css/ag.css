@@ -9,8 +9,10 @@
   --border: #c9e3dc;
   --border-soft: #e0efeb;
   --accent: #0f766e;
+  --accent-soft: rgba(15, 118, 110, 0.09);
   --danger: #ef4444;
   --warn: #f59e0b;
+  --success: #237a57;
   --shadow: 0 4px 12px rgba(31, 75, 68, 0.08);
   --layout-gap: 14px;
   --page-section-padding: 16px;
@@ -2680,6 +2682,8 @@ body.has-fixed-table-scrollbar {
 
 .admin-page-section,
 .admin-dashboard-panel {
+  min-width: 0;
+  max-width: 100%;
   padding: var(--page-section-padding);
 }
 
@@ -4098,6 +4102,269 @@ body:not([data-today-record-category="intake"]) [data-today-intake-only] {
 .registry-table .selection-cell input[type="checkbox"] {
   width: 15px;
   height: 15px;
+}
+
+.today-heading-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.today-heading-title h2 {
+  margin: 0;
+}
+
+.icon-button,
+button.icon-button {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 7px;
+}
+
+.icon-button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.refresh-records-button {
+  border-color: transparent;
+  background: transparent;
+}
+
+.refresh-records-button:hover,
+.refresh-records-button:focus-visible {
+  border-color: var(--border);
+  background: var(--panel-soft);
+}
+
+.table-total-row th,
+.table-total-row td {
+  border-top: 2px solid var(--border);
+  background: var(--panel-soft);
+  font-weight: 700;
+}
+
+.photo-count-button,
+.farmer-card-link {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+}
+
+.photo-count-button:hover,
+.photo-count-button:focus-visible,
+.farmer-card-link:hover,
+.farmer-card-link:focus-visible {
+  background: transparent;
+  color: var(--accent-strong);
+  text-decoration: underline;
+}
+
+.record-photo-dialog,
+.farmer-detail-dialog {
+  width: min(920px, calc(100vw - 28px));
+  max-height: calc(100vh - 28px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 18px 46px rgba(18, 54, 47, 0.22);
+}
+
+.record-photo-dialog::backdrop,
+.farmer-detail-dialog::backdrop {
+  background: rgba(18, 54, 47, 0.38);
+}
+
+.record-photo-dialog-panel,
+.farmer-detail-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.record-photo-dialog-head,
+.farmer-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.record-photo-dialog-head h2,
+.farmer-detail-head h2,
+.farmer-detail-head p {
+  margin: 0;
+}
+
+.record-photo-dialog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+  overflow: auto;
+}
+
+.record-photo-dialog-grid figure {
+  min-width: 0;
+  margin: 0;
+}
+
+.record-photo-dialog-grid img {
+  width: 100%;
+  max-height: 72vh;
+  display: block;
+  object-fit: contain;
+  background: var(--panel-soft);
+}
+
+.farmer-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.farmer-detail-grid label {
+  display: grid;
+  gap: 5px;
+}
+
+.farmer-detail-wide {
+  grid-column: 1 / -1;
+}
+
+.farmer-detail-dialog:not(.is-editing) input,
+.farmer-detail-dialog:not(.is-editing) select,
+.farmer-detail-dialog:not(.is-editing) textarea {
+  border-color: transparent;
+  background: var(--panel-soft);
+}
+
+.farmer-detail-dialog.is-editing {
+  border-color: #e5b84d;
+}
+
+.farmer-detail-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.farmer-detail-actions [data-farmer-status] {
+  margin-right: auto;
+  color: var(--text-sec);
+}
+
+.photo-library-filters {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(120px, 1fr)) auto;
+  align-items: end;
+}
+
+.deleted-record-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr)) auto;
+  align-items: end;
+}
+
+.photo-library-pagination,
+.deleted-record-pagination {
+  margin: 10px 0 8px;
+}
+
+.photo-library-table {
+  min-width: 1050px;
+}
+
+.deleted-records-table {
+  min-width: 1580px;
+}
+
+.photo-library-table th,
+.photo-library-table td,
+.deleted-records-table th,
+.deleted-records-table td {
+  min-width: 88px;
+  padding: 5px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.photo-library-table th,
+.deleted-records-table th {
+  resize: horizontal;
+  overflow: auto;
+}
+
+.photo-library-table tbody tr {
+  cursor: pointer;
+}
+
+.photo-library-table tbody tr:hover {
+  background: var(--panel-soft);
+}
+
+.photo-library-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.photo-library-gallery[hidden] {
+  display: none;
+}
+
+.photo-library-thumbnail {
+  min-width: 0;
+  height: 172px;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--text-sec);
+  text-align: left;
+}
+
+.photo-library-thumbnail img {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: cover;
+}
+
+.photo-library-thumbnail span {
+  padding: 6px 8px;
+  overflow: hidden;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.photo-library-thumbnail.is-loading {
+  background: var(--panel-soft);
 }
 
 .tag-shell {
@@ -6901,6 +7168,28 @@ label input[type="checkbox"] {
 }
 
 @media (max-width: 620px) {
+  .farmer-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .farmer-detail-wide {
+    grid-column: 1;
+  }
+
+  .record-photo-dialog-panel,
+  .farmer-detail-panel {
+    padding: 12px;
+  }
+
+  .photo-library-filters,
+  .deleted-record-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .photo-library-gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .form-record-page .app-shell {
     width: 100%;
     max-width: 100%;

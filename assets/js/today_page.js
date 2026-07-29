@@ -10,6 +10,7 @@ import {
 import { syncPendingCollections } from "./offline_sync.js";
 import { createOperationFeedback } from "./operation_feedback.js";
 import { setupAppNavigation } from "./app_navigation.js?v=13";
+import { photoButtonMarkup, setupPhotoViewer } from "./photo_viewer.js?v=1";
 
 const COLLECTOR_NAME_STORAGE_KEY = "seaweed_harvest:collector_name";
 const state = {
@@ -53,6 +54,8 @@ async function init() {
     "todaySyncAll",
     "publicTodaySyncHeader",
     "publicTodayCount",
+    "publicTodayWeightTotal",
+    "publicTodayKshTotal",
     "reloadPublicToday",
     "publicTodayEditActions",
     "publicTodaySelectedCount",
@@ -74,6 +77,7 @@ async function init() {
     "todayOperationFeedback"
   ].forEach((id) => { els[id] = document.getElementById(id); });
   operationFeedback = createOperationFeedback(els.todayOperationFeedback);
+  setupPhotoViewer(document);
 
   if (!els.todayIntakeDate.value) els.todayIntakeDate.value = selectedRecordDate();
   els.todayIntakeDate.addEventListener("change", () => {
@@ -343,6 +347,8 @@ function localItemToRow(item) {
   return {
     id: synced ? result.collection_id : `local:${item.submissionId}`,
     collected_at: payload.collected_at || item.createdAt,
+    farmer_id: payload.farmer_id || null,
+    farmer_record_id: payload.farmer_record_id || null,
     farmer_name_snapshot: payload.farmer_name_snapshot || item.summary?.farmer || null,
     sack_weight_kg: payload.sack_weight_kg ?? item.summary?.weightKg ?? null,
     total_price: payload.total_price ?? null,
@@ -351,6 +357,7 @@ function localItemToRow(item) {
     community_id: payload.community_id || null,
     community_name_snapshot: payload.community_name_snapshot || item.summary?.community || null,
     recorded_by_name: payload.collector_name || item.collectorName || null,
+    photo_urls: Array.isArray(payload.photo_urls) ? payload.photo_urls : [],
     transaction_id: result.transaction_id || payload.transaction_id || item.summary?.transactionId || null,
     updated_at: result.updated_at || null,
     _localRecord: !synced,
@@ -430,8 +437,9 @@ function updateSelectedDateInUrl() {
 
 function renderRows() {
   els.publicTodayCount.textContent = `${state.rows.length} row${state.rows.length === 1 ? "" : "s"}`;
+  renderTodayTotals();
   if (!state.rows.length) {
-    els.publicTodayRows.innerHTML = `<tr><td colspan="11" class="empty-state">${state.authenticated
+    els.publicTodayRows.innerHTML = `<tr><td colspan="12" class="empty-state">${state.authenticated
       ? "No intake has been recorded for this date."
       : "No collection records have been saved on this device for this date."}</td></tr>`;
     renderOlderRows();
@@ -451,12 +459,13 @@ function renderRows() {
         <td class="today-sync-status-cell">${syncStatusHtml(row)}</td>
         <td class="selection-cell">${manageable ? `<input type="checkbox" data-public-today-select="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(row.transaction_id || "intake row")}"${state.selectedIds.has(id) ? " checked" : ""}${state.editingIds.size ? " disabled" : ""}>` : ""}</td>
         <td>${escapeHtml(formatTime(row.collected_at))}</td>
-        <td>${editing ? textControl(id, "farmer_name_snapshot", draft.farmer_name_snapshot, "today-farmer-editor", 150) : escapeHtml(row.farmer_name_snapshot || "-")}</td>
+        <td>${editing ? textControl(id, "farmer_name_snapshot", draft.farmer_name_snapshot, "today-farmer-editor", 150) : escapeHtml(joinValues(row.farmer_id, row.farmer_name_snapshot))}</td>
         <td>${editing ? numberControl(id, "sack_weight_kg", draft.sack_weight_kg, 0.01, 0.01) : escapeHtml(formatNumber(row.sack_weight_kg))}</td>
         <td>${escapeHtml(formatNumber(row.total_price))}</td>
         <td>${editing ? selectControl(id, "seaweed_type", draft.seaweed_type, seaweedTypeOptions(row)) : escapeHtml(titleCase(row.seaweed_type))}</td>
         <td>${editing ? selectControl(id, "grade_code", draft.grade_code, gradeOptions(row)) : escapeHtml(displayGrade(row.grade_code))}</td>
         <td>${editing ? selectControl(id, "community_id", draft.community_id, communityOptions(row)) : escapeHtml(joinValues(row.community_id, row.community_name_snapshot))}</td>
+        <td>${photoButtonMarkup(row.photo_urls, "collection-photos", photoLabel(row.photo_urls))}</td>
         <td>${editing ? textControl(id, "recorded_by_name", draft.recorded_by_name, "today-collector-editor", 100) : escapeHtml(row.recorded_by_name || "-")}</td>
         <td class="transaction-id-column"><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
       </tr>
@@ -464,6 +473,23 @@ function renderRows() {
   }).join("");
   renderOlderRows();
   updateSelectionUi();
+}
+
+function renderTodayTotals() {
+  const totals = state.rows.reduce((result, row) => {
+    const weight = Number(row.sack_weight_kg);
+    const ksh = Number(row.total_price);
+    if (Number.isFinite(weight)) result.weight += weight;
+    if (Number.isFinite(ksh)) result.ksh += ksh;
+    return result;
+  }, { weight: 0, ksh: 0 });
+  if (els.publicTodayWeightTotal) els.publicTodayWeightTotal.textContent = formatNumber(totals.weight);
+  if (els.publicTodayKshTotal) els.publicTodayKshTotal.textContent = formatNumber(totals.ksh);
+}
+
+function photoLabel(paths) {
+  const count = Array.isArray(paths) ? paths.filter(Boolean).length : 0;
+  return count ? `${count} photo${count === 1 ? "" : "s"}` : "";
 }
 
 function renderOlderRows() {
@@ -483,7 +509,7 @@ function renderOlderRows() {
         <td class="today-sync-status-cell">${syncStatusHtml(row)}</td>
         <td class="selection-cell"><input type="checkbox" data-public-today-select="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(row.transaction_id || "older local record")}"${state.selectedIds.has(id) ? " checked" : ""}${state.editingIds.size ? " disabled" : ""}></td>
         <td>${escapeHtml(formatDateTime(row.collected_at))}</td>
-        <td>${escapeHtml(row.farmer_name_snapshot || "-")}</td>
+        <td>${escapeHtml(joinValues(row.farmer_id, row.farmer_name_snapshot))}</td>
         <td>${escapeHtml(formatNumber(row.sack_weight_kg))}</td>
         <td>${escapeHtml(formatNumber(row.total_price))}</td>
         <td>${escapeHtml(titleCase(row.seaweed_type))}</td>
@@ -575,7 +601,9 @@ async function deleteSelectedRecords() {
   ].filter(Boolean).join(" and ");
   const confirmed = window.confirm(
     `Delete ${count} selected record${count === 1 ? "" : "s"} (${locations})?\n\n`
-      + "This permanently removes the selected intake data and cannot be undone."
+      + (serverRows.length
+        ? "Synced records will remain in Deleted Records for 30 days."
+        : "Records stored only on this device cannot be recovered after deletion.")
   );
   if (!confirmed) return;
 

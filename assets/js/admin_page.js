@@ -12,6 +12,8 @@ import { applyDashboardPreferences } from "./dashboard_preferences.js";
 import { renderFavoriteForms } from "./favorite_forms.js?v=3";
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=13";
 import { moonEvents } from "./moon_calendar.js";
+import { farmerButtonMarkup, setupFarmerCards } from "./farmer_card.js?v=1";
+import { photoButtonMarkup, setupPhotoViewer } from "./photo_viewer.js?v=1";
 
 const TABLES = {
   overview: "ag_secure_admin_overview",
@@ -129,6 +131,9 @@ async function init() {
     sidebar,
     dashboardHref: "./home.html"
   });
+  setupPhotoViewer(document);
+  setupFarmerCards(document);
+  document.addEventListener("farmer-card-updated", () => void loadAdminData());
   renderFavoriteForms(document.getElementById("adminFavoriteForms"), state.profile);
   applyDashboardPreferences(state.profile);
   document.body.removeAttribute("data-auth-pending");
@@ -213,6 +218,8 @@ function cacheElements() {
     "communityRecordNextPage",
     "communityRecordPageStatus",
     "todayIntakeCount",
+    "todayIntakeWeightTotal",
+    "todayIntakeKshTotal",
     "todayIntakeDate",
     "reloadTodayIntake",
     "todayIntakeStatus",
@@ -1606,7 +1613,7 @@ function renderCalendarDayRecords() {
   els.calendarDayRecordRows.innerHTML = state.calendarDayRows.map((row) => `
     <tr>
       <td>${escapeHtml(formatDateTime(row.collected_at))}</td>
-      <td>${inlineCell([row.farmer_id, row.farmer_name_snapshot])}</td>
+      <td>${farmerButtonMarkup(row.farmer_id, row.farmer_name_snapshot)}</td>
       <td>${escapeHtml(formatKg(row.sack_weight_kg))}</td>
       <td>${escapeHtml(formatSeaweedType(row.seaweed_type))}</td>
       <td>${escapeHtml(row.seaweed_grade || "Ungraded")}</td>
@@ -2280,7 +2287,7 @@ async function loadTodayIntake(options = {}) {
   } catch (error) {
     state.todayIntakeRows = [];
     els.todayIntakeCount.textContent = "Error";
-    els.todayIntakeRows.innerHTML = emptyRow(13, writeErrorMessage(error));
+    els.todayIntakeRows.innerHTML = emptyRow(14, writeErrorMessage(error));
     setTodayIntakeStatus("Could not load intake rows.", "error");
   }
 }
@@ -2291,6 +2298,7 @@ function renderTodayIntake() {
   const canEdit = canEditTodayIntake();
   const editing = state.editingTodayIntakeIds.size > 0;
   els.todayIntakeCount.textContent = `${state.todayIntakeRows.length} rows`;
+  renderTodayIntakeTotals();
   els.todayIntakeRows.innerHTML = sortedTodayIntakeRows().map((row) => {
     const id = String(row.id || "");
     const checked = state.selectedTodayIntakeIds.has(id) ? " checked" : "";
@@ -2304,7 +2312,7 @@ function renderTodayIntake() {
       <tr data-today-row="${escapeAttribute(id)}" class="${rowClasses}">
         <td class="selection-cell"${canEdit ? "" : " hidden"}><input type="checkbox" data-today-id="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(row.transaction_id || "intake row")}"${checked}${editing ? " disabled" : ""}></td>
         <td>${escapeHtml(formatTime(row.collected_at))}</td>
-        <td>${isEditing ? todaySelectControl(id, "farmer_id", draft.farmer_id, todayMemberOptions(row)) : inlineCell([row.farmer_id, row.farmer_name_snapshot])}</td>
+        <td>${isEditing ? todaySelectControl(id, "farmer_id", draft.farmer_id, todayMemberOptions(row)) : farmerButtonMarkup(row.farmer_id, row.farmer_name_snapshot)}</td>
         <td>${isEditing ? todayNumberControl(id, "sack_weight_kg", draft.sack_weight_kg, "today-number-editor", 0.01, 0.01) : escapeHtml(formatKg(row.sack_weight_kg))}</td>
         <td data-today-total="${escapeAttribute(id)}">${escapeHtml(formatMoney(isEditing ? todayDraftTotal(draft, row.total_price) : row.total_price))}</td>
         <td>${isEditing ? todayTextControl(id, "sack_id", draft.sack_id, "today-sack-editor", 80) : escapeHtml(row.sack_id || "-")}</td>
@@ -2313,13 +2321,26 @@ function renderTodayIntake() {
         <td>${isEditing ? todaySelectControl(id, "community_id", draft.community_id, todayCommunityOptions(row)) : inlineCell([row.community_id, row.community_name_snapshot])}</td>
         <td>${isEditing ? todayNumberControl(id, "price_per_kg", draft.price_per_kg, "today-number-editor", 0.01, 0) : escapeHtml(formatMoney(row.price_per_kg))}</td>
         <td>${isEditing ? todayTextControl(id, "notes", draft.notes, "today-notes-editor", 1000) : escapeHtml(row.notes || "-")}</td>
+        <td>${photoButtonMarkup(row.photo_urls, "collection-photos")}</td>
         <td>${escapeHtml(collectorName(row) || "-")}</td>
         <td class="transaction-id-column"><strong>${escapeHtml(row.transaction_id || "-")}</strong></td>
       </tr>
     `;
-  }).join("") || emptyRow(13, "No intake rows recorded for this date.");
+  }).join("") || emptyRow(14, "No intake rows recorded for this date.");
 
   updateTodaySelectionUi();
+}
+
+function renderTodayIntakeTotals() {
+  const totals = state.todayIntakeRows.reduce((result, row) => {
+    const weight = Number(row.sack_weight_kg);
+    const ksh = Number(row.total_price);
+    if (Number.isFinite(weight)) result.weight += weight;
+    if (Number.isFinite(ksh)) result.ksh += ksh;
+    return result;
+  }, { weight: 0, ksh: 0 });
+  if (els.todayIntakeWeightTotal) els.todayIntakeWeightTotal.textContent = formatKg(totals.weight);
+  if (els.todayIntakeKshTotal) els.todayIntakeKshTotal.textContent = formatMoney(totals.ksh);
 }
 
 function handleTodayIntakeTableChange(event) {
@@ -2618,7 +2639,7 @@ async function deleteTodayIntakeSelection() {
   const rows = state.todayIntakeRows.filter((row) => state.selectedTodayIntakeIds.has(String(row.id || "")));
   if (!rows.length) return;
   const label = `${rows.length} selected intake row${rows.length === 1 ? "" : "s"}`;
-  if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
+  if (!window.confirm(`Delete ${label}? It will remain in Deleted Records for 30 days.`)) return;
 
   els.todayDeleteSelected.disabled = true;
   setTodayIntakeStatus(`Deleting ${label}...`);
@@ -2626,8 +2647,8 @@ async function deleteTodayIntakeSelection() {
     const result = await deleteCollectionRows(rows);
     const deletedCount = Number(result.deleted_count || rows.length);
     await loadTodayIntake({ quiet: true });
-    const cleanupNote = result.photo_cleanup_pending ? " Photo cleanup will be retried." : "";
-    setTodayIntakeStatus(`Deleted ${deletedCount} row${deletedCount === 1 ? "" : "s"}.${cleanupNote}`);
+    if (els.monthlyCalendar) await loadMonthly({ quiet: true });
+    setTodayIntakeStatus(`Moved ${deletedCount} row${deletedCount === 1 ? "" : "s"} to Deleted Records.`);
   } catch (error) {
     setTodayIntakeStatus(writeErrorMessage(error), "error");
     updateTodaySelectionUi();
@@ -2700,7 +2721,7 @@ function renderLedger() {
         <td class="selection-cell"${canEdit ? "" : " hidden"}><input type="checkbox" data-ledger-select-id="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(row.transaction_id || "ledger row")}"${checked}${editing ? " disabled" : ""}></td>
         <td>${escapeHtml(formatDateTime(row.collected_at))}</td>
         <td>${isEditing ? ledgerSelectControl(id, "community_id", draft.community_id, todayCommunityOptions(row)) : inlineCell([row.community_id, row.community_name_snapshot])}</td>
-        <td>${isEditing ? ledgerSelectControl(id, "farmer_id", draft.farmer_id, todayMemberOptions(row)) : inlineCell([row.farmer_id, row.farmer_name_snapshot])}</td>
+        <td>${isEditing ? ledgerSelectControl(id, "farmer_id", draft.farmer_id, todayMemberOptions(row)) : farmerButtonMarkup(row.farmer_id, row.farmer_name_snapshot)}</td>
         <td>${isEditing ? ledgerTextControl(id, "sack_id", draft.sack_id, "today-sack-editor", 80) : escapeHtml(row.sack_id || "-")}</td>
         <td>${isEditing ? ledgerNumberControl(id, "sack_weight_kg", draft.sack_weight_kg, "today-number-editor", 0.01, 0.01) : escapeHtml(formatKg(row.sack_weight_kg))}</td>
         <td data-ledger-total="${escapeAttribute(id)}">${escapeHtml(formatMoney(isEditing ? todayDraftTotal(draft, row.total_price) : row.total_price))}</td>
@@ -2709,7 +2730,7 @@ function renderLedger() {
         <td>${isEditing ? ledgerSelectControl(id, "grade_code", draft.grade_code, todayGradeOptions(row)) : escapeHtml(row.seaweed_grade || "-")}</td>
         <td>${isEditing ? ledgerNumberControl(id, "price_per_kg", draft.price_per_kg, "today-number-editor", 0.01, 0) : escapeHtml(formatMoney(row.price_per_kg))}</td>
         <td>${escapeHtml(formatCoordinatePair(row.gps_latitude, row.gps_longitude))}</td>
-        <td>${escapeHtml(photoCount(row.photo_urls))}</td>
+        <td>${photoButtonMarkup(row.photo_urls, "collection-photos")}</td>
         <td>${isEditing ? ledgerTextControl(id, "notes", draft.notes, "today-notes-editor", 1000) : escapeHtml(row.notes || "-")}</td>
         ${state.customLedgerFields.map((field) => `<td>${escapeHtml(formatCustomFieldValue(row.custom_fields?.[field.field_key], field))}</td>`).join("")}
         <td>${inlineCell([collectorName(row), row.recorded_by_email])}</td>
@@ -2908,7 +2929,7 @@ async function deleteLedgerSelection() {
   const rows = state.ledgerRows.filter((row) => state.selectedLedgerIds.has(String(row.id || "")));
   if (!rows.length) return;
   const label = `${rows.length} selected ledger row${rows.length === 1 ? "" : "s"}`;
-  if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
+  if (!window.confirm(`Delete ${label}? It will remain in Deleted Records for 30 days.`)) return;
   els.ledgerDeleteSelected.disabled = true;
   setLedgerActionStatus(`Deleting ${label}...`);
   try {
@@ -2916,8 +2937,8 @@ async function deleteLedgerSelection() {
     const deletedCount = Number(result.deleted_count || rows.length);
     if (state.ledgerPage > 0 && state.ledgerRows.length === deletedCount) state.ledgerPage -= 1;
     await loadLedger({ quiet: true });
-    const cleanupNote = result.photo_cleanup_pending ? " Photo cleanup will be retried." : "";
-    setLedgerActionStatus(`Deleted ${deletedCount} row${deletedCount === 1 ? "" : "s"}.${cleanupNote}`);
+    if (els.monthlyCalendar) await loadMonthly({ quiet: true });
+    setLedgerActionStatus(`Moved ${deletedCount} row${deletedCount === 1 ? "" : "s"} to Deleted Records.`);
   } catch (error) {
     setLedgerActionStatus(writeErrorMessage(error), "error");
     updateLedgerSelectionUi();

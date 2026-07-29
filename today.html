@@ -45,7 +45,12 @@
     </section>
     <section class="panel public-intake-panel">
       <div class="today-records-heading">
-        <h2>Today's records</h2>
+        <div class="today-heading-title">
+          <h2>Today's records</h2>
+          <button id="reloadPublicToday" class="icon-button refresh-records-button" type="button" aria-label="Refresh today's records" title="Refresh">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.2 6.5L3 16"></path><path d="M3 21v-5h5"></path><path d="M3 12A9 9 0 0 1 18.2 5.5L21 8"></path><path d="M21 3v5h-5"></path></svg>
+          </button>
+        </div>
         <div id="todayRecordTabs" class="today-record-tabs" role="tablist" aria-label="Today's record category">
           <button id="todaySiteSampleTab" type="button" role="tab" aria-selected="false" aria-controls="todaySiteSamplePanel" data-today-record-tab="site-sample">1. Site Water Samples</button>
           <button id="todayIntakeTab" type="button" role="tab" aria-selected="true" aria-controls="todayIntakePanel" data-today-record-tab="intake">2. Intake Collection</button>
@@ -64,7 +69,6 @@
         <div class="button-row compact-actions">
           <span id="publicTodayCount" class="status-pill">0 rows</span>
           <button id="todaySyncAll" type="button" hidden>Sync all local records</button>
-          <button id="reloadPublicToday" type="button">Reload</button>
         </div>
       </div>
 
@@ -95,13 +99,22 @@
               <th>Type</th>
               <th>Grade</th>
               <th>Community</th>
+              <th>Photos</th>
               <th>Collector</th>
               <th class="transaction-id-column">Transaction ID</th>
             </tr>
           </thead>
           <tbody id="publicTodayRows">
-            <tr><td colspan="11" class="empty-state">Loading intake records...</td></tr>
+            <tr><td colspan="12" class="empty-state">Loading intake records...</td></tr>
           </tbody>
+          <tfoot>
+            <tr class="table-total-row">
+              <th colspan="4" scope="row">Totals</th>
+              <td id="publicTodayWeightTotal">0</td>
+              <td id="publicTodayKshTotal">0</td>
+              <td colspan="6"></td>
+            </tr>
+          </tfoot>
         </table>
       </div>
       <p id="publicTodayStatus" class="admin-status" aria-live="polite"></p>
@@ -112,7 +125,6 @@
           <h3>Process records</h3>
           <div class="button-row compact-actions">
             <span id="todayProcessRecordCount" class="status-pill">0 rows</span>
-            <button id="reloadTodayProcessRecords" type="button">Reload</button>
           </div>
         </div>
         <div id="todayProcessRecordActions" class="today-edit-actions" hidden>
@@ -153,7 +165,6 @@
           <h3>Site samples</h3>
           <div class="button-row compact-actions">
             <span id="todaySiteSampleCount" class="status-pill">0 rows</span>
-            <button id="reloadTodaySiteSamples" type="button">Reload</button>
           </div>
         </div>
         <div id="todaySiteSampleActions" class="today-edit-actions" hidden>
@@ -193,7 +204,6 @@
           <h3>BioStim stock records</h3>
           <div class="button-row compact-actions">
             <span id="todayStockRecordCount" class="status-pill">0 rows</span>
-            <button id="reloadTodayStockRecords" type="button">Reload</button>
           </div>
         </div>
         <div id="todayStockRecordActions" class="today-edit-actions" hidden>
@@ -280,7 +290,7 @@
   </section>
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
-  <script type="module" src="./assets/js/today_record_tabs.js?v=3"></script>
-  <script type="module" src="./assets/js/today_page.js?v=9"></script>
+  <script type="module" src="./assets/js/today_record_tabs.js?v=4"></script>
+  <script type="module" src="./assets/js/today_page.js?v=10"></script>
 </body>
 </html>

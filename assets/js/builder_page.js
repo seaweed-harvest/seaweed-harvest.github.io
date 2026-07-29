@@ -1,4 +1,9 @@
 import { authClient, requireAdminAccess } from "./auth_client.js";
+import {
+  FORM_DEFINITION_SCHEMA_VERSION,
+  ledgerColumnsFromDefinition,
+  renderFormDefinition
+} from "./form_definition_renderer.js";
 
 const FIELD_TYPES = {
   short_text: "Short text",
@@ -26,6 +31,27 @@ const CORE_FIELD_TYPES = {
   long_text: "Long text",
   read_only: "Generated text",
   file: "Photo upload"
+};
+
+const DEFINITION_FIELD_TYPES = {
+  short_text: "text",
+  long_text: "textarea",
+  number: "number",
+  decimal: "number",
+  currency: "currency",
+  single_select: "select",
+  multi_select: "multi-select",
+  checkbox: "checkbox",
+  date: "date",
+  time: "time",
+  datetime: "datetime",
+  email: "email",
+  phone: "tel",
+  calculation: "calculation",
+  read_only: "readonly",
+  file: "file",
+  gps: "gps",
+  qr_text: "qr-text"
 };
 
 const TEMPLATES = {
@@ -248,40 +274,134 @@ function renderPreview() {
   if (!state.settings) return;
   const coreRows = readFieldRows().filter((row) => row.visible).sort((a, b) => a.display_order - b.display_order);
   const customRows = readCustomRows().filter((row) => row.active).sort((a, b) => a.display_order - b.display_order);
-  els.builderPreviewStatus.textContent = `${coreRows.length + customRows.length} fields`;
-  els.builderFormPreview.innerHTML = [...coreRows.map(previewCoreField), ...customRows.map(previewField)].join("") || '<p class="muted-cell">No fields are visible.</p>';
-}
-
-function previewCoreField(row) {
-  const title = `${html(row.label || humanizeKey(row.field_key))}${row.required ? " *" : ""}`;
-  if (row.field_type === "long_text") return `<label>${title}<textarea rows="2" disabled></textarea></label>`;
-  if (row.field_type === "single_select") {
-    const rows = row.field_key === "seaweed_grade"
-      ? (state.settings.grade_prices || []).filter((item) => item.active)
-      : (state.settings.seaweed_types || []).filter((item) => item.active);
-    const options = rows.map((item) => `<option>${html(item.label || item.grade || item.type_key)}</option>`).join("");
-    return `<label>${title}<select disabled><option>Select</option>${options}</select></label>`;
+  if (!coreRows.length && !customRows.length) {
+    els.builderPreviewStatus.textContent = "No visible fields";
+    const empty = document.createElement("p");
+    empty.className = "muted-cell";
+    empty.textContent = "No fields are visible.";
+    els.builderFormPreview.replaceChildren(empty);
+    return;
   }
-  const inputType = { datetime: "datetime-local", decimal: "number", currency: "number" }[row.field_type] || "text";
-  return `<label>${title}<input type="${inputType}" disabled value="${attr(row.default_value || "")}"></label>`;
+
+  try {
+    const definition = collectionFormDefinition(coreRows, customRows);
+    const result = renderFormDefinition(els.builderFormPreview, definition);
+    els.builderPreviewStatus.textContent = `${fieldCount(result.definition)} fields · ${result.ledgerColumns.length} ledger columns`;
+  } catch (error) {
+    els.builderPreviewStatus.textContent = "Definition needs attention";
+    const message = document.createElement("p");
+    message.className = "admin-status";
+    message.dataset.status = "error";
+    message.textContent = error.message;
+    els.builderFormPreview.replaceChildren(message);
+  }
 }
 
-function previewField(row) {
-  const title = `${html(row.label || row.field_key)}${row.unit ? ` (${html(row.unit)})` : ""}${row.required ? " *" : ""}`;
-  if (row.field_type === "checkbox") return `<label class="check-row"><input type="checkbox" disabled ${String(row.default_value).toLowerCase() === "true" ? "checked" : ""}> ${title}</label>`;
-  if (row.field_type === "long_text") return `<label>${title}<textarea rows="2" disabled placeholder="${attr(row.placeholder || "")}"></textarea></label>`;
-  if (row.field_type === "single_select" || row.field_type === "multi_select") return `<label>${title}<select ${row.field_type === "multi_select" ? "multiple" : ""} disabled><option>${html(row.default_value || "Select")}</option>${row.options.map((option) => `<option>${html(option)}</option>`).join("")}</select></label>`;
-  const inputType = { number: "number", currency: "number", calculation: "number", date: "date", time: "time", datetime: "datetime-local", email: "email", phone: "tel" }[row.field_type] || "text";
-  return `<label>${title}<input type="${inputType}" disabled value="${attr(row.default_value || "")}" placeholder="${attr(row.placeholder || "")}" ${row.field_type === "calculation" ? "readonly" : ""}></label>`;
+function collectionFormDefinition(coreRows = readFieldRows(), customRows = readCustomRows()) {
+  const activeCore = coreRows.filter((row) => row.visible).sort(byDisplayOrder);
+  const activeCustom = customRows.filter((row) => row.active).sort(byDisplayOrder);
+  const customDefinitions = activeCustom.map(customFieldDefinition);
+  return {
+    schemaVersion: FORM_DEFINITION_SCHEMA_VERSION,
+    id: "collection",
+    title: "Intake Collection",
+    template: "grid",
+    sections: [{
+      id: "collection-fields",
+      title: "Collection fields",
+      description: "Preview of the published field order and states.",
+      columns: 3,
+      fields: [...activeCore.map(coreFieldDefinition), ...customDefinitions]
+    }],
+    ledgerColumns: activeCustom
+      .filter((row) => row.show_in_ledger)
+      .map((row) => ({
+        key: row.field_key,
+        label: row.label || humanizeKey(row.field_key),
+        type: definitionFieldType(row.field_type),
+        unit: row.unit || ""
+      }))
+  };
+}
+
+function coreFieldDefinition(row) {
+  const type = definitionFieldType(row.field_type);
+  const defaultValue = row.default_value || "";
+  return {
+    key: row.field_key,
+    label: row.label || humanizeKey(row.field_key),
+    type,
+    options: type === "select" || type === "multi-select" ? coreFieldOptions(row) : [],
+    defaultValue,
+    required: Boolean(row.required),
+    readOnly: type === "readonly",
+    calculated: type === "calculation",
+    suggested: Boolean(defaultValue) && !["readonly", "calculation"].includes(type)
+  };
+}
+
+function customFieldDefinition(row) {
+  const type = definitionFieldType(row.field_type);
+  const decimalPlaces = Math.max(0, Math.min(6, Number(row.decimal_places) || 0));
+  const defaultValue = row.default_value || "";
+  return {
+    key: row.field_key,
+    label: row.label || humanizeKey(row.field_key),
+    type,
+    hint: type === "calculation" && row.formula ? "Calculated from the configured formula." : "",
+    placeholder: row.placeholder || "",
+    unit: row.unit || "",
+    options: type === "select" || type === "multi-select" ? (row.options || []) : [],
+    defaultValue,
+    required: Boolean(row.required),
+    readOnly: type === "readonly",
+    calculated: type === "calculation",
+    suggested: Boolean(defaultValue) && !["readonly", "calculation"].includes(type),
+    min: row.min_value,
+    max: row.max_value,
+    step: ["number", "currency", "calculation"].includes(type) ? 10 ** -decimalPlaces : null
+  };
+}
+
+function coreFieldOptions(row) {
+  const configuredRows = row.field_key === "seaweed_grade"
+    ? (state.settings.grade_prices || []).filter((item) => item.active)
+    : (state.settings.seaweed_types || []).filter((item) => item.active);
+  const options = configuredRows
+    .map((item) => item.label || item.grade || item.type_key)
+    .filter(Boolean);
+  return options.length ? options : ["No options configured"];
+}
+
+function definitionFieldType(type) {
+  return DEFINITION_FIELD_TYPES[type] || "text";
+}
+
+function byDisplayOrder(left, right) {
+  return Number(left.display_order) - Number(right.display_order);
+}
+
+function fieldCount(definition) {
+  return definition.sections.reduce((total, section) => total + section.fields.length, 0);
 }
 
 function renderSummary() {
   if (!state.settings) return;
   const coreRows = readFieldRows();
   const customRows = readCustomRows();
+  const activeFieldCount = coreRows.filter((row) => row.visible).length
+    + customRows.filter((row) => row.active).length;
+  let ledgerColumnCount = customRows.filter((row) => row.active && row.show_in_ledger).length;
+  if (activeFieldCount) {
+    try {
+      ledgerColumnCount = ledgerColumnsFromDefinition(collectionFormDefinition(coreRows, customRows)).length;
+    } catch {
+      // The preview reports definition errors while an editor row is incomplete.
+    }
+  }
   els.builderTotalFieldCount.textContent = `${customRows.length} additional fields`;
-  els.builderActiveFieldCount.textContent = `${coreRows.filter((row) => row.visible).length + customRows.filter((row) => row.active).length} form fields`;
-  els.builderLedgerFieldCount.textContent = `${customRows.filter((row) => row.active && row.show_in_ledger).length} added ledger columns`;
+  els.builderActiveFieldCount.textContent = `${activeFieldCount} form fields`;
+  els.builderLedgerFieldCount.textContent = `${ledgerColumnCount} added ledger columns`;
 }
 
 function readCustomRows() {
