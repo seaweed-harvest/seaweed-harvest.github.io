@@ -242,7 +242,7 @@ function setStatus(message, type = "") {
 
 function stack(values) {
   const clean = values.map((value) => String(value || "").trim()).filter(Boolean);
-  return clean.length ? clean.map((value) => `<span>${escapeHtml(value)}</span>`).join("<br>") : "-";
+  return clean.length ? escapeHtml(clean.join(" - ")) : "-";
 }
 
 function emptyRow(columns, message) {
