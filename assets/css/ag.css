@@ -1509,6 +1509,11 @@ body.brand-transition-active {
   max-width: 1500px;
 }
 
+.public-intake-shell.admin-layout > section {
+  grid-column: 2;
+  width: 100%;
+}
+
 .public-intake-panel {
   padding: 16px;
 }
@@ -3632,6 +3637,14 @@ button:disabled {
   font-size: 1rem;
   line-height: 1.2;
   text-overflow: ellipsis;
+}
+
+.operational-summary-value {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
 }
 
 .operational-summary-metric small {
@@ -6245,6 +6258,14 @@ body[data-registration-pending] .registration-flow {
   margin-top: 3px;
   color: var(--text);
   font-size: 1.12rem;
+}
+
+.form-ledger-value {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
 }
 
 .form-ledger-metric small {

@@ -9,7 +9,7 @@ import {
 } from "./offline_store.js";
 import { syncPendingCollections } from "./offline_sync.js";
 import { createOperationFeedback } from "./operation_feedback.js";
-import { setupAppNavigation } from "./app_navigation.js?v=13";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=14";
 import { photoButtonMarkup, setupPhotoViewer } from "./photo_viewer.js?v=1";
 
 const COLLECTOR_NAME_STORAGE_KEY = "seaweed_harvest:collector_name";
@@ -33,7 +33,8 @@ const state = {
   editingIds: new Set(),
   dirtyIds: new Set(),
   drafts: new Map(),
-  profile: null
+  profile: null,
+  sidebar: null
 };
 const els = {};
 let operationFeedback = null;
@@ -42,6 +43,8 @@ document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   [
+    "todayMain",
+    "todaySidebar",
     "todayAdminLink",
     "todaySignInLink",
     "todayConnectionStatus",
@@ -115,7 +118,7 @@ async function init() {
   });
 
   await setupOptionalAccount();
-  setupAppNavigation({ profile: state.profile });
+  setupAppNavigation({ profile: state.profile, sidebar: state.sidebar });
   await loadToday();
   void autoSyncLocalRecords();
 }
@@ -170,6 +173,11 @@ async function setupOptionalAccount() {
     state.authenticated = true;
     state.accessToken = session.access_token;
     state.canEditCollections = profile.app_role === "system_admin" || Boolean(profile.can_edit_collections);
+
+    els.todayMain.classList.add("admin-layout");
+    els.todaySidebar.hidden = false;
+    state.sidebar = populateAppSidebar(els.todaySidebar, { profile });
+    document.body.classList.add("admin-console-page");
 
     els.todaySignInLink.hidden = true;
     els.todayAdminLink.hidden = !(profile.account_status === "active"

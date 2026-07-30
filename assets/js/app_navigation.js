@@ -387,7 +387,7 @@ function formLinks(profile) {
 function recordLinks(profile) {
   const links = (!profile || hasOrganisationCapability(profile, "form_intake_collection")) ? [{
     label: "Today's Intake",
-    href: hasPermission(profile, "can_view_data") ? "./admin_today.html" : "./today.html",
+    href: "./today.html",
     capability: "form_intake_collection"
   }] : [];
   return links.concat(permittedLinks(profile, [

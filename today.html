@@ -36,7 +36,8 @@
     </div>
   </header>
 
-  <main class="app-shell public-intake-shell">
+  <main id="todayMain" class="app-shell public-intake-shell">
+    <aside id="todaySidebar" class="admin-sidebar" aria-label="Application menu" hidden></aside>
     <section id="todayPendingRecordsBand" class="pending-records-band" role="status" aria-live="polite" hidden>
       <span class="pending-records-icon" aria-hidden="true">!</span>
       <strong id="todayPendingRecordsLabel">Device offline.</strong>
@@ -303,6 +304,6 @@
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
   <script type="module" src="./assets/js/today_record_tabs.js?v=5"></script>
-  <script type="module" src="./assets/js/today_page.js?v=10"></script>
+  <script type="module" src="./assets/js/today_page.js?v=11"></script>
 </body>
 </html>

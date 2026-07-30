@@ -3,7 +3,7 @@ import {
   requireAggregatorAccess,
   setupAccountControls
 } from "./auth_client.js?v=25";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=13";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=14";
 import { setupFavoriteFormButton } from "./favorite_forms.js?v=3";
 
 document.addEventListener("DOMContentLoaded", initializeDryerTablePage);

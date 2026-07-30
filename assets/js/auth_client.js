@@ -567,7 +567,7 @@ export function routeForProfile(profile) {
   if (profile?.app_role === "system_admin" || profile?.can_view_dashboard) return "./home.html";
   if (profile?.can_view_registry) return "./admin_member_registry.html";
   if (profile?.can_view_map) return "./admin_map.html";
-  if (profile?.can_view_data) return "./admin_today.html";
+  if (profile?.can_view_data) return "./today.html";
   if (profile?.can_view_finance) return "./admin_finance.html";
   if (profile?.can_manage_users) return "./admin_users.html";
   if (profile?.can_manage_settings) return "./admin_builder.html";

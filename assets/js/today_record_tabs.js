@@ -276,7 +276,7 @@ function summaryGroup(title, metrics) {
 
 function metric(label, value, unit = "") {
   const formatted = formatSummaryNumber(value);
-  return `<div class="operational-summary-metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(formatted)}</strong>${unit ? `<small>${escapeHtml(unit)}</small>` : ""}</div>`;
+  return `<div class="operational-summary-metric"><span>${escapeHtml(label)}</span><div class="operational-summary-value"><strong>${escapeHtml(formatted)}</strong>${unit ? `<small>${escapeHtml(unit)}</small>` : ""}</div></div>`;
 }
 
 function textMetric(label, value, wide = false) {

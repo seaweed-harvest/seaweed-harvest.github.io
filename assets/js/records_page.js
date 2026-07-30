@@ -660,8 +660,10 @@ function renderOperationalSummaryTotals() {
   els.operationalSummaryTotals.innerHTML = metrics.map(([label, value, unit]) => `
     <div class="form-ledger-metric">
       <span>${escapeHtml(label)}</span>
-      <strong>${typeof value === "string" ? escapeHtml(value) : escapeHtml(formatNumber(value))}</strong>
-      ${unit ? `<small>${escapeHtml(unit)}</small>` : ""}
+      <div class="form-ledger-value">
+        <strong>${typeof value === "string" ? escapeHtml(value) : escapeHtml(formatNumber(value))}</strong>
+        ${unit ? `<small>${escapeHtml(unit)}</small>` : ""}
+      </div>
     </div>`).join("");
 }
 

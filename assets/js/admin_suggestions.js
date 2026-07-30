@@ -4,7 +4,7 @@ import {
   routeForProfile,
   setupAccountControls
 } from "./auth_client.js?v=23";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=13";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=14";
 
 const PHOTO_BUCKET = "site-feedback-photos";
 const state = { rows: [], profile: null };
