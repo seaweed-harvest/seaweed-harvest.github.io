@@ -235,7 +235,7 @@ function renderSummarySignedOut() {
 function renderSummary(summary) {
   const siteCount = numberValue(summary.site_sample_count);
   const siteLocations = String(summary.site_locations || "").trim();
-  const intakeCommunities = String(summary.intake_community_names || "").trim();
+  const intakeCommunities = communityBreakdown(summary);
   els.todaySummaryPeriod.textContent = formatDateLabel(recordDate());
   els.todaySummaryDashboard.innerHTML = [
     summaryGroup("Intake collection", [
@@ -246,7 +246,7 @@ function renderSummary(summary) {
       metric("Grade C", summary.grade_c_kg, "kg"),
       metric("Farmers", summary.farmer_count),
       metric("Collections", summary.collection_count),
-      textMetric("Communities", intakeCommunities || "No community recorded", "full")
+      communityWeightMetric(intakeCommunities)
     ]),
     summaryGroup("Site water samples", siteCount
       ? [
@@ -259,11 +259,13 @@ function renderSummary(summary) {
     summaryGroup("Stock record", [
       metric("Total volume", summary.stock_volume_l, "L"),
       metric("Containers filled", summary.stock_container_count),
-      textMetric("Sodium benzoate", summary.stock_sodium_benzoate_range || "-"),
-      textMetric("Citric acid", summary.stock_citric_acid_range || "-"),
-      textMetric("Salinity", summary.stock_salinity_range || "-"),
-      textMetric("pH", summary.stock_ph_range || "-"),
-      textMetric("EC", summary.stock_ec_range || "-", true)
+      ...(numberValue(summary.stock_volume_l) > 0 ? [
+        plainTextMetric("Sodium benzoate", summary.stock_sodium_benzoate_range || "-"),
+        plainTextMetric("Citric acid", summary.stock_citric_acid_range || "-"),
+        plainTextMetric("Salinity", summary.stock_salinity_range || "-"),
+        plainTextMetric("pH", summary.stock_ph_range || "-"),
+        plainTextMetric("EC", summary.stock_ec_range || "-", true)
+      ] : [])
     ]),
     summaryGroup("Process record", [
       metric("Received seaweed", summary.process_received_kg, "kg"),
@@ -293,6 +295,43 @@ function textMetric(label, value, width = false) {
     ? " operational-summary-metric-full"
     : width ? " operational-summary-metric-wide" : "";
   return `<div class="operational-summary-metric${modifier}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || "-")}</strong></div>`;
+}
+
+function plainTextMetric(label, value, width = false) {
+  const modifier = width === "full"
+    ? " operational-summary-metric-full"
+    : width ? " operational-summary-metric-wide" : "";
+  return `<div class="operational-summary-metric${modifier}"><span>${escapeHtml(label)}</span><div class="operational-summary-plain-text">${escapeHtml(value || "-")}</div></div>`;
+}
+
+function communityBreakdown(summary) {
+  if (Array.isArray(summary.intake_community_breakdown)) {
+    return summary.intake_community_breakdown
+      .map((item) => ({
+        name: String(item?.community_name || "").trim(),
+        weightKg: numberValue(item?.weight_kg)
+      }))
+      .filter((item) => item.name);
+  }
+  return String(summary.intake_community_names || "")
+    .split(",")
+    .map((name) => ({
+      name: name.trim().replace(/^CID\d+\s*-\s*/i, ""),
+      weightKg: null
+    }))
+    .filter((item) => item.name);
+}
+
+function communityWeightMetric(communities) {
+  const rows = communities.length
+    ? communities.map((community) => {
+        const weight = community.weightKg === null
+          ? ""
+          : `${formatSummaryNumber(community.weightKg)}kg - `;
+        return `<div>${escapeHtml(`${weight}${community.name}`)}</div>`;
+      }).join("")
+    : "<div>No community recorded</div>";
+  return `<div class="operational-summary-metric operational-summary-metric-full"><span>Communities</span><div class="operational-summary-community-lines">${rows}</div></div>`;
 }
 
 async function loadEditorOptions() {
