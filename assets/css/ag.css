@@ -3646,6 +3646,7 @@ button:disabled {
   margin-top: 2px;
   overflow: hidden;
   font-size: 1rem;
+  font-weight: 400;
   line-height: 1.2;
   text-overflow: ellipsis;
 }
@@ -3675,7 +3676,7 @@ button:disabled {
 .operational-summary-metric small {
   color: var(--text-sec);
   font-size: 0.68rem;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 body:not([data-today-record-category="intake"]) [data-today-intake-only] {
