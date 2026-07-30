@@ -28,14 +28,20 @@ async function init() {
     "packingSalinity", "packingSalinityUnit", "packingPh",
     "packingEc", "packingStabilizerYes", "packingStabilizerNo", "packingStabilizerFields",
     "packingChemical", "packingDose", "packingDoseUnit", "packingDoseDefault", "packingNotes",
+    "packingCitricAcidYes", "packingCitricAcidNo", "packingCitricAcidFields",
+    "packingCitricAcidChemical", "packingCitricAcidDose", "packingCitricAcidDoseUnit",
+    "packingCitricAcidDoseDefault",
     "savePackingRecord", "clearPackingRecord", "favoritePackingForm", "printPackingWorksheet", "packingRecordStatus",
     "packingPrintWorksheet", "printPackingRecordedBy", "printPackingChemical",
     "printPackingWeightHeader", "printPackingSalinityHeader", "printPackingDoseHeader",
     "packingEntryTabs", "packingSingleTab", "packingBatchTab", "packingBatchForm",
     "packingBatchRecordedBy", "packingBatchFirst", "packingBatchLast", "packingBatchDate",
     "packingBatchSpecies", "packingBatchVolume", "packingBatchVolumeUnit",
-    "packingBatchStabilizerAdded", "packingBatchStabilizerFields",
-    "packingBatchDose", "packingBatchDoseUnit",
+    "packingBatchStabilizerYes", "packingBatchStabilizerNo", "packingBatchStabilizerFields",
+    "packingBatchChemical", "packingBatchDose", "packingBatchDoseUnit", "packingBatchDoseDefault",
+    "packingBatchCitricAcidYes", "packingBatchCitricAcidNo", "packingBatchCitricAcidFields",
+    "packingBatchCitricAcidChemical", "packingBatchCitricAcidDose",
+    "packingBatchCitricAcidDoseUnit", "packingBatchCitricAcidDoseDefault",
     "packingBatchNotes", "packingBatchCount", "savePackingBatch", "clearPackingBatch",
     "packingBatchStatus"
   ].forEach((id) => { els[id] = document.getElementById(id); });
@@ -86,10 +92,16 @@ async function init() {
   els.packingRecordForm.querySelectorAll('[name="packingStabilizerAdded"]').forEach((control) => {
     control.addEventListener("change", handleStabilizerChange);
   });
-  els.packingDoseDefault.addEventListener("change", handleDoseDefaultChange);
-  els.packingDose.addEventListener("input", saveCheckedDoseDefault);
-  els.packingDoseUnit.addEventListener("change", saveCheckedDoseDefault);
-  els.packingBatchStabilizerAdded.addEventListener("change", updateBatchStabilizerControls);
+  els.packingRecordForm.querySelectorAll('[name="packingCitricAcidAdded"]').forEach((control) => {
+    control.addEventListener("change", handleStabilizerChange);
+  });
+  els.packingBatchForm.querySelectorAll('[name="packingBatchStabilizerAdded"], [name="packingBatchCitricAcidAdded"]').forEach((control) => {
+    control.addEventListener("change", updateBatchStabilizerControls);
+  });
+  allDoseConfigs().forEach((config) => {
+    config.defaultControl.addEventListener("change", () => handleDoseDefaultChange(config));
+    config.dose.addEventListener("input", () => saveCheckedDoseDefault(config));
+  });
 
   try {
     const [context, species, formContextResult] = await Promise.all([
@@ -132,6 +144,7 @@ async function submitRecord(event) {
   event.preventDefault();
   if (!els.packingRecordForm.reportValidity()) return;
   const stabilizerAdded = selectedStabilizerAdded();
+  const citricAcidAdded = selectedCitricAcidAdded();
 
   els.savePackingRecord.disabled = true;
   setStatus("Saving...");
@@ -154,6 +167,9 @@ async function submitRecord(event) {
         stabilizer_added: stabilizerAdded ?? false,
         chemical_dose_value: stabilizerAdded ? numberOrNull(els.packingDose.value) : null,
         chemical_dose_unit: els.packingDoseUnit.value,
+        citric_acid_added: citricAcidAdded ?? false,
+        citric_acid_dose_value: citricAcidAdded ? numberOrNull(els.packingCitricAcidDose.value) : null,
+        citric_acid_dose_unit: els.packingCitricAcidDoseUnit.value,
         notes: textOrNull(els.packingNotes.value)
       }
     });
@@ -199,7 +215,15 @@ function selectedRecordType() {
 }
 
 function selectedStabilizerAdded() {
-  const value = els.packingRecordForm.querySelector('[name="packingStabilizerAdded"]:checked')?.value;
+  return selectedYesNo(els.packingRecordForm, "packingStabilizerAdded");
+}
+
+function selectedCitricAcidAdded() {
+  return selectedYesNo(els.packingRecordForm, "packingCitricAcidAdded");
+}
+
+function selectedYesNo(form, name) {
+  const value = form.querySelector(`[name="${name}"]:checked`)?.value;
   if (value === "yes") return true;
   if (value === "no") return false;
   return null;
@@ -211,20 +235,7 @@ function handleStabilizerChange() {
 }
 
 function updateStabilizerControls() {
-  const selected = selectedStabilizerAdded();
-  const enabled = selected === true;
-  els.packingStabilizerFields.setAttribute("aria-disabled", String(!enabled));
-  els.packingChemical.disabled = !enabled;
-  els.packingDose.disabled = !enabled;
-  els.packingDoseUnit.disabled = !enabled;
-  els.packingDoseDefault.disabled = !enabled;
-  els.packingDose.required = false;
-  if (selected !== false) {
-    applyDoseDefault();
-  } else {
-    els.packingDose.value = "";
-    els.packingDoseDefault.checked = false;
-  }
+  updateChemicalControls(singleDoseConfigs());
 }
 
 function handleRecordTypeChange() {
@@ -270,55 +281,55 @@ function nextSerialAfter(serial) {
   return next.padStart(Math.max(width, next.length), "0");
 }
 
-function handleDoseDefaultChange() {
-  if (!els.packingDoseDefault.checked) {
-    localStorage.removeItem(doseDefaultKey());
-    setStatus("Default chemical dose cleared.");
+function handleDoseDefaultChange(config) {
+  if (!config.defaultControl.checked) {
+    localStorage.removeItem(doseDefaultKey(config.kind));
+    setStatus(`Default ${config.label} dose cleared.`);
     return;
   }
-  if (els.packingDose.value === "") {
-    els.packingDoseDefault.checked = false;
-    els.packingDose.focus();
-    setStatus("Enter a chemical dose before setting the default.", "error");
+  if (config.dose.value === "") {
+    config.defaultControl.checked = false;
+    config.dose.focus();
+    setStatus(`Enter a ${config.label} dose before setting the default.`, "error");
     return;
   }
-  saveCheckedDoseDefault();
-  setStatus(`Default dose set to ${els.packingDose.value} ${els.packingDoseUnit.value}.`);
+  saveCheckedDoseDefault(config);
+  setStatus(`Default ${config.label} dose set to ${config.dose.value} g/container.`);
 }
 
-function saveCheckedDoseDefault() {
-  if (!els.packingDoseDefault.checked || els.packingDose.value === "") return;
-  localStorage.setItem(doseDefaultKey(), JSON.stringify({
-    value: els.packingDose.value,
-    unit: els.packingDoseUnit.value
+function saveCheckedDoseDefault(config = singleDoseConfigs()[0]) {
+  if (!config.defaultControl.checked || config.dose.value === "") return;
+  localStorage.setItem(doseDefaultKey(config.kind), JSON.stringify({
+    value: config.dose.value,
+    unit: "g/container"
   }));
 }
 
-function applyDoseDefault() {
-  els.packingDoseDefault.checked = false;
+function applyDoseDefault(config = singleDoseConfigs()[0]) {
+  config.defaultControl.checked = false;
   try {
-    const saved = JSON.parse(localStorage.getItem(doseDefaultKey()) || "null");
+    const saved = JSON.parse(localStorage.getItem(doseDefaultKey(config.kind)) || "null");
     if (!saved || saved.value === "" || !Number.isFinite(Number(saved.value))) return;
-    els.packingDose.value = String(saved.value);
-    if ([...els.packingDoseUnit.options].some((option) => option.value === saved.unit)) {
-      els.packingDoseUnit.value = saved.unit;
-    }
-    els.packingDoseDefault.checked = true;
+    config.dose.value = String(saved.value);
+    config.defaultControl.checked = true;
   } catch {
-    localStorage.removeItem(doseDefaultKey());
+    localStorage.removeItem(doseDefaultKey(config.kind));
   }
 }
 
-function doseDefaultKey() {
-  return `seaweed-harvest:packing-dose-default:${doseDefaultScope}`;
+function doseDefaultKey(kind = "sodium-benzoate") {
+  const prefix = kind === "sodium-benzoate"
+    ? "seaweed-harvest:packing-dose-default"
+    : `seaweed-harvest:packing-${kind}-dose-default`;
+  return `${prefix}:${doseDefaultScope}`;
 }
 
 function preparePackingWorksheet() {
   setPrintValue(els.printPackingRecordedBy, els.packingRecordedBy.value);
-  setPrintValue(els.printPackingChemical, els.packingChemical.value);
+  setPrintValue(els.printPackingChemical, `${els.packingChemical.value}; ${els.packingCitricAcidChemical.value}`);
   els.printPackingWeightHeader.dataset.pdfUnit = els.packingWeightUnit.value || "L";
   els.printPackingSalinityHeader.dataset.pdfUnit = els.packingSalinityUnit.value || "PSU";
-  els.printPackingDoseHeader.dataset.pdfUnit = els.packingDoseUnit.value || "g/container";
+  els.printPackingDoseHeader.dataset.pdfUnit = "g/container";
 }
 
 function resetInputs(nextSerial = nextCartonSerial) {
@@ -329,6 +340,7 @@ function resetInputs(nextSerial = nextCartonSerial) {
   els.packingSpecies.value = defaultSpecies;
   els.packingRecordedBy.value = recordedBy;
   els.packingChemical.value = "Sodium benzoate";
+  els.packingCitricAcidChemical.value = "Citric acid";
   setNewCartonMode();
   updateStabilizerControls();
   updateFieldHighlights();
@@ -366,7 +378,8 @@ async function submitBatch(event) {
   els.savePackingBatch.disabled = true;
   setBatchStatus(`Saving ${count} containers...`);
   try {
-    const stabilizerAdded = els.packingBatchStabilizerAdded.checked;
+    const stabilizerAdded = selectedYesNo(els.packingBatchForm, "packingBatchStabilizerAdded");
+    const citricAcidAdded = selectedYesNo(els.packingBatchForm, "packingBatchCitricAcidAdded");
     const { data, error } = await authClient.rpc("ag_submit_stabilization_packing_batch_v2", {
       p_batch_submission_id: batchSubmissionId,
       p_record: {
@@ -377,11 +390,16 @@ async function submitBatch(event) {
         recorded_by_name: textOrNull(els.packingBatchRecordedBy.value),
         volume_value: Number(els.packingBatchVolume.value),
         volume_unit: els.packingBatchVolumeUnit.value,
-        stabilizer_added: stabilizerAdded,
+        stabilizer_added: stabilizerAdded ?? false,
         chemical_dose_value: stabilizerAdded
           ? numberOrNull(els.packingBatchDose.value)
           : null,
         chemical_dose_unit: els.packingBatchDoseUnit.value,
+        citric_acid_added: citricAcidAdded ?? false,
+        citric_acid_dose_value: citricAcidAdded
+          ? numberOrNull(els.packingBatchCitricAcidDose.value)
+          : null,
+        citric_acid_dose_unit: els.packingBatchCitricAcidDoseUnit.value,
         notes: textOrNull(els.packingBatchNotes.value)
       }
     });
@@ -425,15 +443,74 @@ function setBatchRangeDefaults() {
 }
 
 function updateBatchStabilizerControls() {
-  const enabled = els.packingBatchStabilizerAdded.checked;
-  els.packingBatchStabilizerFields.setAttribute("aria-disabled", String(!enabled));
-  [
-    els.packingBatchDose,
-    els.packingBatchDoseUnit
-  ].forEach((control) => { control.disabled = !enabled; });
-  if (!enabled) {
-    els.packingBatchDose.value = "";
-  }
+  updateChemicalControls(batchDoseConfigs());
+}
+
+function updateChemicalControls(configs) {
+  configs.forEach((config) => {
+    const selected = selectedYesNo(config.form, config.addedName);
+    const enabled = selected === true;
+    config.fields.setAttribute("aria-disabled", String(!enabled));
+    config.dose.disabled = !enabled;
+    config.defaultControl.disabled = !enabled;
+    config.dose.required = false;
+    if (selected !== false) {
+      applyDoseDefault(config);
+    } else {
+      config.dose.value = "";
+      config.defaultControl.checked = false;
+    }
+  });
+}
+
+function singleDoseConfigs() {
+  return [
+    {
+      kind: "sodium-benzoate",
+      label: "sodium benzoate",
+      form: els.packingRecordForm,
+      addedName: "packingStabilizerAdded",
+      fields: els.packingStabilizerFields,
+      dose: els.packingDose,
+      defaultControl: els.packingDoseDefault
+    },
+    {
+      kind: "citric-acid",
+      label: "citric acid",
+      form: els.packingRecordForm,
+      addedName: "packingCitricAcidAdded",
+      fields: els.packingCitricAcidFields,
+      dose: els.packingCitricAcidDose,
+      defaultControl: els.packingCitricAcidDoseDefault
+    }
+  ];
+}
+
+function batchDoseConfigs() {
+  return [
+    {
+      kind: "sodium-benzoate",
+      label: "sodium benzoate",
+      form: els.packingBatchForm,
+      addedName: "packingBatchStabilizerAdded",
+      fields: els.packingBatchStabilizerFields,
+      dose: els.packingBatchDose,
+      defaultControl: els.packingBatchDoseDefault
+    },
+    {
+      kind: "citric-acid",
+      label: "citric acid",
+      form: els.packingBatchForm,
+      addedName: "packingBatchCitricAcidAdded",
+      fields: els.packingBatchCitricAcidFields,
+      dose: els.packingBatchCitricAcidDose,
+      defaultControl: els.packingBatchCitricAcidDoseDefault
+    }
+  ];
+}
+
+function allDoseConfigs() {
+  return [...singleDoseConfigs(), ...batchDoseConfigs()];
 }
 
 function updateBatchState() {

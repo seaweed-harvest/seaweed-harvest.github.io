@@ -102,33 +102,62 @@
 
           <fieldset>
             <legend>Stabilisation</legend>
-            <div class="packing-stabilizer-choice">
-              <span class="standard-field-label">Stabiliser added?</span>
-              <div class="standard-segmented-control packing-stabilizer-control" role="radiogroup" aria-label="Stabiliser added">
-                <label>
-                  <input id="packingStabilizerYes" type="radio" name="packingStabilizerAdded" value="yes">
-                  <span>Yes</span>
+            <div class="packing-chemical-block">
+              <div class="packing-stabilizer-choice">
+                <span class="standard-field-label">Sodium benzoate added?</span>
+                <div class="standard-segmented-control packing-stabilizer-control" role="radiogroup" aria-label="Sodium benzoate added">
+                  <label>
+                    <input id="packingStabilizerYes" type="radio" name="packingStabilizerAdded" value="yes">
+                    <span>Yes</span>
+                  </label>
+                  <label>
+                    <input id="packingStabilizerNo" type="radio" name="packingStabilizerAdded" value="no">
+                    <span>No</span>
+                  </label>
+                </div>
+              </div>
+              <div id="packingStabilizerFields" class="packing-stabilizer-fields" aria-disabled="true">
+                <label class="packing-chemical-field">Chemical
+                  <input id="packingChemical" type="text" value="Sodium benzoate" readonly>
                 </label>
-                <label>
-                  <input id="packingStabilizerNo" type="radio" name="packingStabilizerAdded" value="no">
-                  <span>No</span>
+                <label class="packing-dose-field">Chemical dose (g/container)
+                  <input id="packingDose" type="number" min="0.001" max="100000" step="0.001" inputmode="decimal" disabled>
+                  <input id="packingDoseUnit" type="hidden" value="g/container">
+                </label>
+                <label class="packing-dose-default-row">
+                  <input id="packingDoseDefault" type="checkbox" disabled>
+                  <span>Set as default</span>
                 </label>
               </div>
             </div>
-            <div id="packingStabilizerFields" class="packing-stabilizer-fields" aria-disabled="true">
-              <label class="packing-chemical-field">Chemical
-                <input id="packingChemical" type="text" value="Sodium benzoate" readonly>
-              </label>
-              <label class="packing-dose-field">Chemical dose
-                <input id="packingDose" type="number" min="0.001" max="100000" step="0.001" inputmode="decimal" disabled>
-              </label>
-              <label class="packing-dose-unit-field">Unit
-                <select id="packingDoseUnit" aria-label="Chemical dose unit" disabled><option value="g/container">g per container</option></select>
-              </label>
-              <label class="packing-dose-default-row">
-                <input id="packingDoseDefault" type="checkbox" disabled>
-                <span>Set as default</span>
-              </label>
+
+            <div class="packing-chemical-block">
+              <div class="packing-stabilizer-choice">
+                <span class="standard-field-label">Citric acid added?</span>
+                <div class="standard-segmented-control packing-stabilizer-control" role="radiogroup" aria-label="Citric acid added">
+                  <label>
+                    <input id="packingCitricAcidYes" type="radio" name="packingCitricAcidAdded" value="yes">
+                    <span>Yes</span>
+                  </label>
+                  <label>
+                    <input id="packingCitricAcidNo" type="radio" name="packingCitricAcidAdded" value="no">
+                    <span>No</span>
+                  </label>
+                </div>
+              </div>
+              <div id="packingCitricAcidFields" class="packing-stabilizer-fields" aria-disabled="true">
+                <label class="packing-chemical-field">Chemical
+                  <input id="packingCitricAcidChemical" type="text" value="Citric acid" readonly>
+                </label>
+                <label class="packing-dose-field">Chemical dose (g/container)
+                  <input id="packingCitricAcidDose" type="number" min="0.001" max="100000" step="0.001" inputmode="decimal" disabled>
+                  <input id="packingCitricAcidDoseUnit" type="hidden" value="g/container">
+                </label>
+                <label class="packing-dose-default-row">
+                  <input id="packingCitricAcidDoseDefault" type="checkbox" disabled>
+                  <span>Set as default</span>
+                </label>
+              </div>
             </div>
           </fieldset>
 
@@ -195,17 +224,62 @@
 
           <fieldset>
             <legend>Stabilisation</legend>
-            <label class="packing-batch-stabilizer-toggle">
-              <input id="packingBatchStabilizerAdded" type="checkbox">
-              <span>Stabiliser added</span>
-            </label>
-            <div id="packingBatchStabilizerFields" class="packing-stabilizer-fields" aria-disabled="true">
-              <label>Stabiliser per container
-                <input id="packingBatchDose" type="number" min="0" max="100000" step="0.001" inputmode="decimal" disabled>
-              </label>
-              <label>Unit
-                <select id="packingBatchDoseUnit" disabled><option value="g/container">g per container</option></select>
-              </label>
+            <div class="packing-chemical-block">
+              <div class="packing-stabilizer-choice">
+                <span class="standard-field-label">Sodium benzoate added?</span>
+                <div class="standard-segmented-control packing-stabilizer-control" role="radiogroup" aria-label="Batch sodium benzoate added">
+                  <label>
+                    <input id="packingBatchStabilizerYes" type="radio" name="packingBatchStabilizerAdded" value="yes">
+                    <span>Yes</span>
+                  </label>
+                  <label>
+                    <input id="packingBatchStabilizerNo" type="radio" name="packingBatchStabilizerAdded" value="no">
+                    <span>No</span>
+                  </label>
+                </div>
+              </div>
+              <div id="packingBatchStabilizerFields" class="packing-stabilizer-fields" aria-disabled="true">
+                <label>Chemical
+                  <input id="packingBatchChemical" type="text" value="Sodium benzoate" readonly>
+                </label>
+                <label>Chemical dose (g/container)
+                  <input id="packingBatchDose" type="number" min="0.001" max="100000" step="0.001" inputmode="decimal" disabled>
+                  <input id="packingBatchDoseUnit" type="hidden" value="g/container">
+                </label>
+                <label class="packing-dose-default-row">
+                  <input id="packingBatchDoseDefault" type="checkbox" disabled>
+                  <span>Set as default</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="packing-chemical-block">
+              <div class="packing-stabilizer-choice">
+                <span class="standard-field-label">Citric acid added?</span>
+                <div class="standard-segmented-control packing-stabilizer-control" role="radiogroup" aria-label="Batch citric acid added">
+                  <label>
+                    <input id="packingBatchCitricAcidYes" type="radio" name="packingBatchCitricAcidAdded" value="yes">
+                    <span>Yes</span>
+                  </label>
+                  <label>
+                    <input id="packingBatchCitricAcidNo" type="radio" name="packingBatchCitricAcidAdded" value="no">
+                    <span>No</span>
+                  </label>
+                </div>
+              </div>
+              <div id="packingBatchCitricAcidFields" class="packing-stabilizer-fields" aria-disabled="true">
+                <label>Chemical
+                  <input id="packingBatchCitricAcidChemical" type="text" value="Citric acid" readonly>
+                </label>
+                <label>Chemical dose (g/container)
+                  <input id="packingBatchCitricAcidDose" type="number" min="0.001" max="100000" step="0.001" inputmode="decimal" disabled>
+                  <input id="packingBatchCitricAcidDoseUnit" type="hidden" value="g/container">
+                </label>
+                <label class="packing-dose-default-row">
+                  <input id="packingBatchCitricAcidDoseDefault" type="checkbox" disabled>
+                  <span>Set as default</span>
+                </label>
+              </div>
             </div>
           </fieldset>
 
@@ -236,7 +310,7 @@
       </header>
       <div class="ag-print-meta">
         <div><span>Recorded by</span><strong id="printPackingRecordedBy"></strong></div>
-        <div><span>Chemical</span><strong id="printPackingChemical">Sodium benzoate</strong></div>
+        <div><span>Chemicals</span><strong id="printPackingChemical">Sodium benzoate; Citric acid</strong></div>
       </div>
       <table class="ag-print-table ag-print-packing-table" data-pdf-widths="3,7,13,10,7,8,5,6,7,8,9,17">
         <colgroup>
@@ -252,7 +326,7 @@
             <th id="printPackingSalinityHeader" scope="col" data-pdf-unit="PSU">Salinity</th>
             <th scope="col">pH</th>
             <th scope="col" data-pdf-unit="mS/cm">EC</th>
-            <th scope="col">Stabiliser Y/N</th>
+            <th scope="col">Chemicals Y/N</th>
             <th id="printPackingDoseHeader" scope="col" data-pdf-unit="g/container">Dose</th>
             <th scope="col">Recorded by</th>
             <th scope="col">Notes</th>
@@ -268,6 +342,6 @@
     </article>
   </section>
   <script type="module" src="./assets/js/admin_page.js?v=35"></script>
-  <script type="module" src="./assets/js/stabilization_packing_form.js?v=13"></script>
+  <script type="module" src="./assets/js/stabilization_packing_form.js?v=14"></script>
 </body>
 </html>

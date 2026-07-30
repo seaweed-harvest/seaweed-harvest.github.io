@@ -427,7 +427,7 @@ function renderStockRow(row) {
       <td>${editing ? speciesControl(key, id, draft.species) : escapeHtml(speciesLabel(row.species))}</td>
       <td>${editing ? measurementEditor(key, id, "weight_value", draft.weight_value, "weight_unit", draft.weight_unit, ["L", "mL"], true) : escapeHtml(measurement(row.weight_value, row.weight_unit))}</td>
       <td>${editing ? booleanControl(key, id, "stabilizer_added", draft.stabilizer_added) : escapeHtml(booleanLabel(row.stabilizer_added))}</td>
-      <td>${editing ? measurementEditor(key, id, "chemical_dose_value", draft.chemical_dose_value, "chemical_dose_unit", draft.chemical_dose_unit, ["g/container"]) : escapeHtml(measurement(row.chemical_dose_value, row.chemical_dose_unit))}</td>
+      <td>${editing ? stockChemicalEditor(key, id, draft) : escapeHtml(stockChemicalSummary(row))}</td>
       <td>${editing ? measurementEditor(key, id, "salinity_value", draft.salinity_value, "salinity_unit", draft.salinity_unit, ["PSU", "ppt"]) : escapeHtml(measurement(row.salinity_value, row.salinity_unit))}</td>
       <td>${editing ? numberControl(key, id, "ph_value", draft.ph_value) : escapeHtml(formatNumber(row.ph_value))}</td>
       <td>${editing ? numberControl(key, id, "electrical_conductivity_ms_cm", draft.electrical_conductivity_ms_cm) : escapeHtml(measurement(row.electrical_conductivity_ms_cm, "mS/cm"))}</td>
@@ -665,6 +665,9 @@ function stockDraft(row) {
     stabilizer_added: String(Boolean(row.stabilizer_added)),
     chemical_dose_value: nullableValue(row.chemical_dose_value),
     chemical_dose_unit: row.chemical_dose_unit || "g/container",
+    citric_acid_added: String(Boolean(row.citric_acid_added)),
+    citric_acid_dose_value: nullableValue(row.citric_acid_dose_value),
+    citric_acid_dose_unit: row.citric_acid_dose_unit || "g/container",
     salinity_value: nullableValue(row.salinity_value),
     salinity_unit: row.salinity_unit || "PSU",
     ph_value: nullableValue(row.ph_value),
@@ -718,6 +721,9 @@ function serializeDraft(key, row, draft) {
     stabilizer_added: draft.stabilizer_added === "true",
     chemical_dose_value: numberOrNull(draft.chemical_dose_value),
     chemical_dose_unit: draft.chemical_dose_unit,
+    citric_acid_added: draft.citric_acid_added === "true",
+    citric_acid_dose_value: numberOrNull(draft.citric_acid_dose_value),
+    citric_acid_dose_unit: draft.citric_acid_dose_unit,
     salinity_value: numberOrNull(draft.salinity_value),
     salinity_unit: draft.salinity_unit,
     ph_value: numberOrNull(draft.ph_value),
@@ -785,6 +791,14 @@ function measurementEditor(key, id, valueField, value, unitField, unit, units, r
   return `<span class="form-record-measure-editor">${inputControl(key, id, valueField, value, "number", { min: required ? 0.001 : 0, step: 0.001, required })}${selectControl(key, id, unitField, unit, units.map((item) => ({ value: item, label: item })))}</span>`;
 }
 
+function stockChemicalEditor(key, id, draft) {
+  return `
+    <span class="stock-chemical-editor">
+      <span><small>Sodium benzoate</small>${numberControl(key, id, "chemical_dose_value", draft.chemical_dose_value)}</span>
+      <span><small>Citric acid</small>${booleanControl(key, id, "citric_acid_added", draft.citric_acid_added)}${numberControl(key, id, "citric_acid_dose_value", draft.citric_acid_dose_value)}</span>
+    </span>`;
+}
+
 function recordDate() {
   if (els.todayIntakeDate?.matches("input[type='date']") && els.todayIntakeDate.value) {
     return els.todayIntakeDate.value;
@@ -826,6 +840,28 @@ function categoryLabel(key) {
 function stockEntryLabel(row) {
   const type = row.record_type === "retest" ? "Retest" : "New";
   return row.test_sequence ? `${type} ${row.test_sequence}` : type;
+}
+
+function stockChemicalSummary(row) {
+  const chemicals = [];
+  if (row.stabilizer_added) {
+    chemicals.push(chemicalDoseLabel(
+      row.chemical_dose_value,
+      row.chemical_name || "Sodium benzoate"
+    ));
+  }
+  if (row.citric_acid_added) {
+    chemicals.push(chemicalDoseLabel(
+      row.citric_acid_dose_value,
+      row.citric_acid_name || "Citric acid"
+    ));
+  }
+  return chemicals.filter(Boolean).join("; ") || "-";
+}
+
+function chemicalDoseLabel(value, chemicalName) {
+  const dose = formatNumber(value);
+  return dose === "-" ? chemicalName : `${dose}g ${chemicalName}`;
 }
 
 function speciesLabel(value) {

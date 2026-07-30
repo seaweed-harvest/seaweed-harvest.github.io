@@ -1399,7 +1399,7 @@ function cellValue(row, field) {
     return [row.community_id_snapshot, value].filter(Boolean).join(" - ") || "-";
   }
   if (field === "weight_value") return measurement(value, row.weight_unit);
-  if (field === "chemical_dose_value") return measurement(value, row.chemical_dose_unit);
+  if (field === "chemical_dose_value") return stockChemicalSummary(row);
   if (field === "salinity_value") return measurement(value, row.salinity_unit);
   if (field === "tds_value") return measurement(value, row.tds_unit);
   if (field === "has_photo") return value ? "Yes" : "No";
@@ -1413,6 +1413,28 @@ function cellValue(row, field) {
     return formatNumber(value);
   }
   return value === null || value === undefined || value === "" ? "-" : String(value);
+}
+
+function stockChemicalSummary(row) {
+  const chemicals = [];
+  if (row.stabilizer_added) {
+    chemicals.push(chemicalDoseLabel(
+      row.chemical_dose_value,
+      row.chemical_name || "Sodium benzoate"
+    ));
+  }
+  if (row.citric_acid_added) {
+    chemicals.push(chemicalDoseLabel(
+      row.citric_acid_dose_value,
+      row.citric_acid_name || "Citric acid"
+    ));
+  }
+  return chemicals.filter(Boolean).join("; ") || "-";
+}
+
+function chemicalDoseLabel(value, chemicalName) {
+  const dose = formatNumber(value);
+  return dose === "-" ? chemicalName : `${dose}g ${chemicalName}`;
 }
 
 function sortRows() {
