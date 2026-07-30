@@ -3616,6 +3616,10 @@ button:disabled {
   grid-column: span 2;
 }
 
+.operational-summary-metric-full {
+  grid-column: 1 / -1;
+}
+
 .operational-summary-metric span,
 .operational-summary-metric strong {
   display: block;

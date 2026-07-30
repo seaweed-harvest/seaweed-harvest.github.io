@@ -235,6 +235,7 @@ function renderSummarySignedOut() {
 function renderSummary(summary) {
   const siteCount = numberValue(summary.site_sample_count);
   const siteLocations = String(summary.site_locations || "").trim();
+  const intakeCommunities = String(summary.intake_community_names || "").trim();
   els.todaySummaryPeriod.textContent = formatDateLabel(recordDate());
   els.todaySummaryDashboard.innerHTML = [
     summaryGroup("Intake collection", [
@@ -243,9 +244,9 @@ function renderSummary(summary) {
       metric("Grade A", summary.grade_a_kg, "kg"),
       metric("Grade B", summary.grade_b_kg, "kg"),
       metric("Grade C", summary.grade_c_kg, "kg"),
-      metric("Communities", summary.community_count),
       metric("Farmers", summary.farmer_count),
-      metric("Collections", summary.collection_count)
+      metric("Collections", summary.collection_count),
+      textMetric("Communities", intakeCommunities || "No community recorded", "full")
     ]),
     summaryGroup("Site water samples", siteCount
       ? [
@@ -266,8 +267,9 @@ function renderSummary(summary) {
       metric("Lost seaweed", summary.process_lost_kg, "kg"),
       textMetric("Total processing time", formatDuration(summary.process_minutes)),
       metric("Avg Wet Pulp Per Press", summary.process_avg_wet_pulp_per_press, "kg"),
+      metric("Number of presses", summary.process_press_count),
       metric("Wet/dry extraction", summary.process_wet_dry_percent, "%"),
-      metric("Dry pulp / received", summary.process_dry_received_percent, "%")
+      metric("Stock L / intake kg", summary.stock_l_per_intake_kg, "L/kg", 3)
     ], "operational-summary-group-process")
   ].join("");
 }
@@ -277,13 +279,16 @@ function summaryGroup(title, metrics, extraClass = "") {
   return `<section class="${className}"><h4>${escapeHtml(title)}</h4><div class="operational-summary-metrics">${metrics.join("")}</div></section>`;
 }
 
-function metric(label, value, unit = "") {
-  const formatted = formatSummaryNumber(value);
+function metric(label, value, unit = "", maximumFractionDigits = 2) {
+  const formatted = formatSummaryNumber(value, maximumFractionDigits);
   return `<div class="operational-summary-metric"><span>${escapeHtml(label)}</span><div class="operational-summary-value"><strong>${escapeHtml(formatted)}</strong>${unit ? `<small>${escapeHtml(unit)}</small>` : ""}</div></div>`;
 }
 
-function textMetric(label, value, wide = false) {
-  return `<div class="operational-summary-metric${wide ? " operational-summary-metric-wide" : ""}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || "-")}</strong></div>`;
+function textMetric(label, value, width = false) {
+  const modifier = width === "full"
+    ? " operational-summary-metric-full"
+    : width ? " operational-summary-metric-wide" : "";
+  return `<div class="operational-summary-metric${modifier}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || "-")}</strong></div>`;
 }
 
 async function loadEditorOptions() {
@@ -897,10 +902,10 @@ function formatNumber(value) {
     : "-";
 }
 
-function formatSummaryNumber(value) {
+function formatSummaryNumber(value, maximumFractionDigits = 2) {
   const number = Number(value);
   return Number.isFinite(number)
-    ? number.toLocaleString("en-KE", { maximumFractionDigits: 2 })
+    ? number.toLocaleString("en-KE", { maximumFractionDigits })
     : "0";
 }
 

@@ -617,7 +617,7 @@ function renderOperationalSummary(errorMessage = "") {
   renderOperationalSummaryTotals();
   if (errorMessage || !rows.length) {
     els.operationalSummaryRows.innerHTML = emptyRow(
-      20,
+      21,
       errorMessage || "No records were found in this period."
     );
     return;
@@ -632,7 +632,7 @@ function renderOperationalSummary(errorMessage = "") {
       <td>${escapeHtml(formatNumber(row.grade_c_kg))}</td>
       <td>${escapeHtml(formatInteger(row.collection_count))}</td>
       <td>${escapeHtml(formatInteger(row.farmer_count))}</td>
-      <td>${escapeHtml(formatInteger(row.community_count))}</td>
+      <td title="${escapeAttribute(row.intake_community_names || "")}">${escapeHtml(formatInteger(row.community_count))}</td>
       <td>${escapeHtml(formatInteger(row.site_sample_count))}</td>
       <td title="${escapeAttribute(row.site_locations || "")}">${escapeHtml(row.site_locations || "-")}</td>
       <td>${escapeHtml(formatNumber(row.stock_volume_l))}</td>
@@ -642,8 +642,9 @@ function renderOperationalSummary(errorMessage = "") {
       <td>${escapeHtml(formatNumber(row.process_pressed_liquid_l))}</td>
       <td>${escapeHtml(formatNumber(row.process_lost_kg))}</td>
       <td>${escapeHtml(formatDuration(row.process_minutes))}</td>
+      <td>${escapeHtml(formatInteger(row.process_press_count))}</td>
       <td>${escapeHtml(formatNumber(row.process_avg_wet_pulp_per_press))}</td>
-      <td>${escapeHtml(formatNumber(row.process_dry_received_percent))}</td>
+      <td>${escapeHtml(formatRatio(row.stock_l_per_intake_kg))}</td>
     </tr>`).join("");
 }
 
@@ -1648,6 +1649,14 @@ function formatNumber(value) {
   const number = Number(value);
   return Number.isFinite(number)
     ? number.toLocaleString("en-KE", { maximumFractionDigits: 2 })
+    : String(value);
+}
+
+function formatRatio(value) {
+  if (value === null || value === undefined || value === "") return "-";
+  const number = Number(value);
+  return Number.isFinite(number)
+    ? number.toLocaleString("en-KE", { maximumFractionDigits: 3 })
     : String(value);
 }
 
