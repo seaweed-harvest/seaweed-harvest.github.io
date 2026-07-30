@@ -40,11 +40,83 @@
             <p class="field-hint">Filtered operational records, newest first.</p>
           </div>
           <nav id="formLedgerCategories" class="today-record-tabs form-ledger-category-tabs" aria-label="Record ledger category">
+            <button type="button" data-ledger-category="summary" aria-selected="false">Summary</button>
             <button type="button" data-ledger-category="site_sample" aria-selected="false">1. Site Water Samples</button>
             <button type="button" data-ledger-category="intake" aria-selected="false">2. Intake Collection</button>
             <button type="button" data-ledger-category="stock" aria-selected="false">3. Stock Record</button>
             <button type="button" data-ledger-category="process" aria-selected="true">4. Process Record</button>
           </nav>
+        </div>
+
+        <div id="operationalSummaryWorkspace" hidden>
+          <div class="form-ledger-view-heading">
+            <div>
+              <h3>Operations summary</h3>
+              <p class="field-hint">Results across intake, site samples, stock and processing.</p>
+            </div>
+            <span id="operationalSummaryCount" class="status-pill">0 periods</span>
+          </div>
+          <div class="admin-card-body standalone">
+            <div class="admin-toolbar admin-filter-grid operational-summary-filters">
+              <label>
+                Group by
+                <select id="operationalSummaryGrouping">
+                  <option value="week">Week</option>
+                  <option value="month" selected>Month</option>
+                  <option value="year">Year</option>
+                </select>
+              </label>
+              <label>
+                From
+                <input id="operationalSummaryFrom" type="date">
+              </label>
+              <label>
+                To
+                <input id="operationalSummaryTo" type="date">
+              </label>
+              <label>
+                Community
+                <select id="operationalSummaryCommunity">
+                  <option value="">All communities</option>
+                </select>
+              </label>
+              <button id="loadOperationalSummary" type="button">Apply filters</button>
+            </div>
+            <p id="operationalSummaryScopeNote" class="form-ledger-note" hidden>Community filtering applies to intake collection and site samples. Stock and process results remain organisation-wide.</p>
+            <div id="operationalSummaryTotals" class="form-ledger-metric-strip operational-summary-totals" aria-label="Selected period totals"></div>
+            <div class="responsive-table-wrap operational-summary-table-wrap">
+              <table class="management-table admin-data-table operational-summary-table">
+                <thead>
+                  <tr>
+                    <th>Period</th>
+                    <th>Collected kg</th>
+                    <th>Total KSH</th>
+                    <th>A kg</th>
+                    <th>B kg</th>
+                    <th>C kg</th>
+                    <th>Collections</th>
+                    <th>Farmers</th>
+                    <th>Communities</th>
+                    <th>Site samples</th>
+                    <th>Sample locations</th>
+                    <th>Stock L</th>
+                    <th>Containers</th>
+                    <th>QC containers</th>
+                    <th>Received kg</th>
+                    <th>Pressed L</th>
+                    <th>Lost kg</th>
+                    <th>Process time</th>
+                    <th>Avg wet pulp/press kg</th>
+                    <th>Dry pulp/received %</th>
+                  </tr>
+                </thead>
+                <tbody id="operationalSummaryRows">
+                  <tr><td colspan="20" class="empty-state">Open Summary to load results.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p id="operationalSummaryStatus" class="admin-status" aria-live="polite"></p>
+          </div>
         </div>
 
         <div id="collectionLedgerWorkspace" hidden>
@@ -492,6 +564,6 @@
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
   <script type="module" src="./assets/js/admin_page.js?v=37"></script>
-  <script type="module" src="./assets/js/records_page.js?v=8"></script>
+  <script type="module" src="./assets/js/records_page.js?v=9"></script>
 </body>
 </html>

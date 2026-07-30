@@ -28,6 +28,7 @@ const CATEGORY_CONFIG = {
 const state = {
   active: "intake",
   loadedDate: null,
+  summaryLoadedDate: null,
   loading: false,
   species: [],
   communities: [],
@@ -50,6 +51,9 @@ function init() {
   els.todayIntakeDate = document.getElementById("todayIntakeDate");
   els.todayRefresh = document.getElementById("reloadPublicToday")
     || document.getElementById("reloadTodayIntake");
+  els.todaySummaryDashboard = document.getElementById("todaySummaryDashboard");
+  els.todaySummaryPeriod = document.getElementById("todaySummaryPeriod");
+  els.todaySummaryStatus = document.getElementById("todaySummaryStatus");
   if (!els.todayRecordTabs) return;
   if (els.todayIntakeDate?.matches("input[type='date']") && !els.todayIntakeDate.value) {
     els.todayIntakeDate.value = initialRecordDate();
@@ -77,19 +81,22 @@ function init() {
   });
   els.todayRecordTabs.addEventListener("keydown", handleTabKeydown);
   els.todayRefresh?.addEventListener("click", () => {
-    if (state.active !== "intake") void loadSupplementalRecords({ force: true });
+    if (state.active === "summary") void loadSummary({ force: true });
+    else if (state.active !== "intake") void loadSupplementalRecords({ force: true });
   });
   if (els.todayIntakeDate?.matches("input[type='date']")) {
     els.todayIntakeDate.addEventListener("change", () => {
       updateDateInUrl();
       state.loadedDate = null;
+      state.summaryLoadedDate = null;
       clearAllEditStates();
-      if (state.active !== "intake") void loadSupplementalRecords();
+      if (state.active === "summary") void loadSummary();
+      else if (state.active !== "intake") void loadSupplementalRecords();
     });
   }
 
   const requested = new URLSearchParams(window.location.search).get("records");
-  const category = requested && (requested === "intake" || CATEGORY_CONFIG[requested])
+  const category = requested && (requested === "intake" || requested === "summary" || CATEGORY_CONFIG[requested])
     ? requested
     : "intake";
   void activateTab(category, { updateUrl: false });
@@ -126,7 +133,8 @@ async function activateTab(category, options = {}) {
     else url.searchParams.set("records", category);
     window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
   }
-  if (category !== "intake") await loadSupplementalRecords();
+  if (category === "summary") await loadSummary();
+  else if (category !== "intake") await loadSupplementalRecords();
 }
 
 function handleTabKeydown(event) {
@@ -181,6 +189,100 @@ async function loadSupplementalRecords(options = {}) {
   }
 }
 
+async function loadSummary(options = {}) {
+  const date = recordDate();
+  if (!options.force && state.summaryLoadedDate === date) return;
+  if (state.loading) return;
+
+  state.loading = true;
+  setLoadingState(true);
+  setSummaryStatus("Loading day summary...");
+  try {
+    const session = await currentSession();
+    if (!session) {
+      state.summaryLoadedDate = null;
+      renderSummarySignedOut();
+      return;
+    }
+    const result = await callRpc("ag_sec_operational_summary", {
+      p_start_date: date,
+      p_end_date: date,
+      p_grouping: "day",
+      p_community_id: null
+    });
+    renderSummary(result?.totals || {});
+    state.summaryLoadedDate = date;
+    setSummaryStatus("");
+  } catch (error) {
+    state.summaryLoadedDate = null;
+    const message = !navigator.onLine
+      ? "Device offline. The day summary will load when reception returns."
+      : (error?.message || "The day summary could not be loaded.");
+    els.todaySummaryDashboard.innerHTML = `<p class="empty-state">${escapeHtml(message)}</p>`;
+    setSummaryStatus(message, "error");
+  } finally {
+    state.loading = false;
+    setLoadingState(false);
+  }
+}
+
+function renderSummarySignedOut() {
+  const signIn = `<a href="./login.html?return=${encodeURIComponent(returnPage())}">Sign in</a>`;
+  els.todaySummaryDashboard.innerHTML = `<p class="empty-state">${signIn} to view operational results.</p>`;
+  setSummaryStatus("");
+}
+
+function renderSummary(summary) {
+  const siteCount = numberValue(summary.site_sample_count);
+  const siteLocations = String(summary.site_locations || "").trim();
+  els.todaySummaryPeriod.textContent = formatDateLabel(recordDate());
+  els.todaySummaryDashboard.innerHTML = [
+    summaryGroup("Intake collection", [
+      metric("Total weight", summary.intake_weight_kg, "kg"),
+      metric("Total cost", summary.intake_value_ksh, "KSH"),
+      metric("Grade A", summary.grade_a_kg, "kg"),
+      metric("Grade B", summary.grade_b_kg, "kg"),
+      metric("Grade C", summary.grade_c_kg, "kg"),
+      metric("Communities", summary.community_count),
+      metric("Farmers", summary.farmer_count),
+      metric("Collections", summary.collection_count)
+    ]),
+    summaryGroup("Site water samples", siteCount
+      ? [
+          metric("Samples", siteCount),
+          metric("Locations", summary.site_location_count),
+          textMetric("Sampled at", siteLocations || "Location not recorded", true)
+        ]
+      : [textMetric("Status", "No site water sample taken", true)]
+    ),
+    summaryGroup("Stock record", [
+      metric("Total volume", summary.stock_volume_l, "L"),
+      metric("Containers filled", summary.stock_container_count),
+      metric("Containers with QC", summary.stock_qc_container_count)
+    ]),
+    summaryGroup("Process record", [
+      metric("Received seaweed", summary.process_received_kg, "kg"),
+      metric("Pressed liquid", summary.process_pressed_liquid_l, "L"),
+      metric("Lost seaweed", summary.process_lost_kg, "kg"),
+      textMetric("Processing time", formatDuration(summary.process_minutes)),
+      metric("Avg wet pulp per press", summary.process_avg_wet_pulp_per_press, "kg")
+    ])
+  ].join("");
+}
+
+function summaryGroup(title, metrics) {
+  return `<section class="operational-summary-group"><h4>${escapeHtml(title)}</h4><div class="operational-summary-metrics">${metrics.join("")}</div></section>`;
+}
+
+function metric(label, value, unit = "") {
+  const formatted = formatSummaryNumber(value);
+  return `<div class="operational-summary-metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(formatted)}</strong>${unit ? `<small>${escapeHtml(unit)}</small>` : ""}</div>`;
+}
+
+function textMetric(label, value, wide = false) {
+  return `<div class="operational-summary-metric${wide ? " operational-summary-metric-wide" : ""}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || "-")}</strong></div>`;
+}
+
 async function loadEditorOptions() {
   const requests = [];
   if (!state.species.length) {
@@ -211,6 +313,7 @@ function setLoadingState(loading) {
   if (loading && CATEGORY_CONFIG[state.active]) {
     setCategoryStatus(CATEGORY_CONFIG[state.active], "Loading records...");
   }
+  if (loading && state.active === "summary") setSummaryStatus("Loading day summary...");
 }
 
 function renderSignedOutState() {
@@ -753,6 +856,42 @@ function formatNumber(value) {
   return Number.isFinite(number)
     ? number.toLocaleString("en-KE", { maximumFractionDigits: 3 })
     : "-";
+}
+
+function formatSummaryNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number)
+    ? number.toLocaleString("en-KE", { maximumFractionDigits: 2 })
+    : "0";
+}
+
+function numberValue(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function formatDuration(value) {
+  const minutes = Math.max(0, Math.round(numberValue(value)));
+  if (!minutes) return "0 min";
+  const hours = Math.floor(minutes / 60);
+  const remaining = minutes % 60;
+  if (!hours) return `${remaining} min`;
+  return remaining ? `${hours} h ${remaining} min` : `${hours} h`;
+}
+
+function formatDateLabel(value) {
+  const [year, month, day] = String(value || "").split("-").map(Number);
+  if (!year || !month || !day) return "Selected date";
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric", month: "short", year: "numeric"
+  }).format(new Date(Date.UTC(year, month - 1, day)));
+}
+
+function setSummaryStatus(message, type = "") {
+  if (!els.todaySummaryStatus) return;
+  els.todaySummaryStatus.textContent = message || "";
+  if (type) els.todaySummaryStatus.dataset.status = type;
+  else delete els.todaySummaryStatus.dataset.status;
 }
 
 function formatTime(value) {

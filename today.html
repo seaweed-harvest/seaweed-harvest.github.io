@@ -52,6 +52,7 @@
           </button>
         </div>
         <div id="todayRecordTabs" class="today-record-tabs" role="tablist" aria-label="Today's record category">
+          <button id="todaySummaryTab" type="button" role="tab" aria-selected="false" aria-controls="todaySummaryPanel" data-today-record-tab="summary">Today's Summary</button>
           <button id="todaySiteSampleTab" type="button" role="tab" aria-selected="false" aria-controls="todaySiteSamplePanel" data-today-record-tab="site-sample">1. Site Water Samples</button>
           <button id="todayIntakeTab" type="button" role="tab" aria-selected="true" aria-controls="todayIntakePanel" data-today-record-tab="intake">2. Intake Collection</button>
           <button id="todayStockRecordTab" type="button" role="tab" aria-selected="false" aria-controls="todayStockRecordPanel" data-today-record-tab="stock-record">3. Stock Record</button>
@@ -61,6 +62,17 @@
       <div class="today-shared-date">
         <label for="todayIntakeDate">Record date</label>
         <input id="todayIntakeDate" type="date">
+      </div>
+
+      <div id="todaySummaryPanel" class="today-record-panel" role="tabpanel" aria-labelledby="todaySummaryTab" data-today-record-panel="summary" hidden>
+        <div class="section-head compact">
+          <h3>Day summary</h3>
+          <span id="todaySummaryPeriod" class="status-pill">Selected date</span>
+        </div>
+        <div id="todaySummaryDashboard" class="operational-summary-dashboard" aria-live="polite">
+          <p class="empty-state">Open this tab to load the day summary.</p>
+        </div>
+        <p id="todaySummaryStatus" class="admin-status" aria-live="polite"></p>
       </div>
 
       <div id="todayIntakePanel" class="today-record-panel" role="tabpanel" aria-labelledby="todayIntakeTab" data-today-record-panel="intake">
@@ -290,7 +302,7 @@
   </section>
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
-  <script type="module" src="./assets/js/today_record_tabs.js?v=4"></script>
+  <script type="module" src="./assets/js/today_record_tabs.js?v=5"></script>
   <script type="module" src="./assets/js/today_page.js?v=10"></script>
 </body>
 </html>

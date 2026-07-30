@@ -23,7 +23,7 @@ async function init() {
     "processStartTime", "processEndTime", "processSpecies", "processReceivedKg",
     "processReceivedHint", "processPressedLiquidL", "processPressedLiquidHint",
     "processWetPulpKg", "processDryPulpKg",
-    "processLostSeaweedKg", "processPressCount", "processAveragePress",
+    "processLostSeaweedKg", "processPressCount", "processTotalTime", "processAveragePress",
     "processWetDryRatio", "processStockProductRatio", "processPhoto",
     "processPhotoHint", "processPhotoPreview", "processPhotoImage", "processPhotoName",
     "deleteProcessPhoto", "processNotes", "saveProcessRecord",
@@ -225,6 +225,10 @@ function updateCalculations() {
   const dry = positiveNumber(els.processDryPulpKg.value);
   const received = positiveNumber(els.processReceivedKg.value);
   const presses = positiveNumber(els.processPressCount.value);
+  els.processTotalTime.textContent = processingDuration(
+    els.processStartTime.value,
+    els.processEndTime.value
+  );
   els.processAveragePress.textContent = wet !== null && presses !== null
     ? `${formatNumber(wet / presses)} kg`
     : "-";
@@ -234,6 +238,17 @@ function updateCalculations() {
   els.processStockProductRatio.textContent = dry !== null && received !== null
     ? `${formatNumber((dry / received) * 100)}%`
     : "-";
+}
+
+function processingDuration(startValue, endValue) {
+  if (!startValue || !endValue || endValue <= startValue) return "-";
+  const [startHour, startMinute] = startValue.split(":").map(Number);
+  const [endHour, endMinute] = endValue.split(":").map(Number);
+  const minutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  if (!hours) return `${remainder} min`;
+  return remainder ? `${hours} h ${remainder} min` : `${hours} h`;
 }
 
 function updateFieldHighlights() {

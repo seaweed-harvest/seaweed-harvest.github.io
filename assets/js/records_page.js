@@ -22,9 +22,9 @@ const COLUMNS = {
     ["dry_pulp_kg", "Dry pulp kg"],
     ["lost_seaweed_kg", "Lost kg"],
     ["number_of_presses", "Presses"],
-    ["press_average_batch_kg", "Average press kg"],
+    ["press_average_batch_kg", "Avg wet pulp/press kg"],
     ["wet_dry_ratio_percent", "Wet/dry %"],
-    ["stock_product_ratio_percent", "Stock/product %"],
+    ["stock_product_ratio_percent", "Dry pulp/received %"],
     ["recorded_by_name", "Recorded by"],
     ["has_photo", "Photo"],
     ["notes", "Notes"]
@@ -71,7 +71,7 @@ const REPORTS = {
       ["lost_kg", "Lost kg", "number"],
       ["press_count", "Presses", "integer"],
       ["avg_wet_dry_percent", "Avg wet/dry %", "number"],
-      ["avg_stock_product_percent", "Avg stock/product %", "number"],
+      ["avg_stock_product_percent", "Avg dry pulp/received %", "number"],
       ["first_record_date", "First date", "date"],
       ["last_record_date", "Last date", "date"]
     ],
@@ -170,7 +170,9 @@ const state = {
   editingFormRecordIds: new Set(),
   dirtyFormRecordIds: new Set(),
   formRecordDrafts: new Map(),
-  formRecordOriginals: new Map()
+  formRecordOriginals: new Map(),
+  operationalSummaryRows: [],
+  operationalSummaryTotals: {}
 };
 
 const els = {};
@@ -179,6 +181,11 @@ document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   [
+    "operationalSummaryWorkspace", "operationalSummaryCount",
+    "operationalSummaryGrouping", "operationalSummaryFrom", "operationalSummaryTo",
+    "operationalSummaryCommunity", "loadOperationalSummary",
+    "operationalSummaryScopeNote", "operationalSummaryTotals",
+    "operationalSummaryRows", "operationalSummaryStatus",
     "collectionLedgerWorkspace", "formLedgerWorkspace",
     "formLedgerCount", "formLedgerCategories", "formLedgerViews", "formLedgerCommunityTab",
     "formLedgerAllPanel", "formLedgerMonthlyPanel", "formLedgerCommunityPanel",
@@ -229,13 +236,13 @@ async function init() {
     state.communities = communities;
     state.species = species;
     state.communities.forEach((community) => {
-      els.formLedgerMonthlyCommunity.append(new Option(
-        `${community.community_id} - ${community.community_name}`,
-        community.community_id
-      ));
+      const label = `${community.community_id} - ${community.community_name}`;
+      els.formLedgerMonthlyCommunity.append(new Option(label, community.community_id));
+      els.operationalSummaryCommunity.append(new Option(label, community.community_id));
     });
     const requestedCommunity = new URLSearchParams(window.location.search).get("community");
     if (requestedCommunity) els.formLedgerMonthlyCommunity.value = requestedCommunity;
+    if (requestedCommunity) els.operationalSummaryCommunity.value = requestedCommunity;
     updateControls();
     await loadCurrentView();
   } catch (error) {
@@ -244,9 +251,9 @@ async function init() {
 }
 
 function configureAvailableCategories(profile) {
-  const available = Object.entries(CATEGORY_CAPABILITIES)
+  const available = ["summary", ...Object.entries(CATEGORY_CAPABILITIES)
     .filter(([, capability]) => hasOrganisationCapability(profile, capability))
-    .map(([category]) => category);
+    .map(([category]) => category)];
 
   els.formLedgerCategories.querySelectorAll("[data-ledger-category]").forEach((button) => {
     button.hidden = !available.includes(button.dataset.ledgerCategory);
@@ -265,7 +272,7 @@ function bindEvents() {
     }
     state.category = button.dataset.ledgerCategory;
     resetFormRecordEditState();
-    if (state.category !== "site_sample" && state.mode === "community") state.mode = "all";
+    if (!["site_sample", "summary"].includes(state.category) && state.mode === "community") state.mode = "all";
     resetPages();
     updateControls();
     if (state.category === "intake") {
@@ -337,6 +344,10 @@ function bindEvents() {
   els.formLedgerDiscardEdits.addEventListener("click", discardFormRecordEdits);
   els.formLedgerDeleteSelected.addEventListener("click", deleteSelectedFormRecords);
   els.exportFormLedger.addEventListener("click", exportCsv);
+  els.loadOperationalSummary.addEventListener("click", () => {
+    syncUrl();
+    void loadOperationalSummary();
+  });
 }
 
 function setDateDefaults() {
@@ -349,11 +360,13 @@ function setDateDefaults() {
   els.formLedgerCommunityFrom.value = start;
   els.formLedgerCommunityTo.value = end;
   els.formLedgerYear.value = end.slice(0, 4);
+  els.operationalSummaryFrom.value = `${end.slice(0, 4)}-01-01`;
+  els.operationalSummaryTo.value = end;
 }
 
 function readUrlState() {
   const params = new URLSearchParams(window.location.search);
-  if (["intake", "process", "site_sample", "stock"].includes(params.get("category"))) {
+  if (["summary", "intake", "process", "site_sample", "stock"].includes(params.get("category"))) {
     state.category = params.get("category");
   }
   if (["all", "monthly", "community"].includes(params.get("view"))) {
@@ -370,16 +383,27 @@ function readUrlState() {
   }
   if (/^\d{4}$/.test(params.get("year") || "")) els.formLedgerYear.value = params.get("year");
   els.formLedgerSearch.value = params.get("search") || "";
+  if (["week", "month", "year"].includes(params.get("grouping"))) {
+    els.operationalSummaryGrouping.value = params.get("grouping");
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(params.get("summary_from") || "")) {
+    els.operationalSummaryFrom.value = params.get("summary_from");
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(params.get("summary_to") || "")) {
+    els.operationalSummaryTo.value = params.get("summary_to");
+  }
 }
 
 function updateControls() {
   els.formLedgerCategories.querySelectorAll("[data-ledger-category]").forEach((button) => {
     button.setAttribute("aria-selected", String(button.dataset.ledgerCategory === state.category));
   });
+  const summarySelected = state.category === "summary";
   const intakeSelected = state.category === "intake";
+  els.operationalSummaryWorkspace.hidden = !summarySelected;
   els.collectionLedgerWorkspace.hidden = !intakeSelected;
-  els.formLedgerWorkspace.hidden = intakeSelected;
-  if (intakeSelected) return;
+  els.formLedgerWorkspace.hidden = summarySelected || intakeSelected;
+  if (summarySelected || intakeSelected) return;
 
   els.formLedgerViews.querySelectorAll("[data-ledger-mode]").forEach((button) => {
     button.setAttribute("aria-selected", String(button.dataset.ledgerMode === state.mode));
@@ -395,6 +419,10 @@ function updateControls() {
 }
 
 async function loadCurrentView() {
+  if (state.category === "summary") {
+    await loadOperationalSummary();
+    return;
+  }
   if (state.category === "intake") return;
   if (state.mode === "monthly") await loadMonthlyReport();
   else if (state.mode === "community") await loadCommunityReport();
@@ -548,6 +576,107 @@ function renderAllHead(target = els.formLedgerHead) {
   if (managed) {
     document.getElementById("formLedgerSelectAll")?.addEventListener("change", toggleAllFormRecords);
   }
+}
+
+async function loadOperationalSummary() {
+  const range = selectedDateRange(els.operationalSummaryFrom, els.operationalSummaryTo);
+  if (!range) return;
+  state.loading = true;
+  setLoading(true);
+  setOperationalSummaryStatus("Loading summary...");
+  els.operationalSummaryCount.textContent = "Loading";
+  try {
+    const communityId = els.operationalSummaryCommunity.value || null;
+    const { data, error } = await authClient.rpc("ag_sec_operational_summary", {
+      p_start_date: range.start,
+      p_end_date: range.end,
+      p_grouping: els.operationalSummaryGrouping.value,
+      p_community_id: communityId
+    });
+    if (error) throw error;
+    const result = Array.isArray(data) ? data[0] : data;
+    state.operationalSummaryRows = Array.isArray(result?.rows) ? result.rows : [];
+    state.operationalSummaryTotals = result?.totals || {};
+    renderOperationalSummary();
+    setOperationalSummaryStatus("");
+  } catch (error) {
+    state.operationalSummaryRows = [];
+    state.operationalSummaryTotals = {};
+    renderOperationalSummary(error.message || "Summary could not be loaded.");
+    setOperationalSummaryStatus(error.message || "Summary could not be loaded.", "error");
+  } finally {
+    state.loading = false;
+    setLoading(false);
+  }
+}
+
+function renderOperationalSummary(errorMessage = "") {
+  const rows = state.operationalSummaryRows;
+  els.operationalSummaryCount.textContent = `${rows.length} period${rows.length === 1 ? "" : "s"}`;
+  els.operationalSummaryScopeNote.hidden = !els.operationalSummaryCommunity.value;
+  renderOperationalSummaryTotals();
+  if (errorMessage || !rows.length) {
+    els.operationalSummaryRows.innerHTML = emptyRow(
+      20,
+      errorMessage || "No records were found in this period."
+    );
+    return;
+  }
+  els.operationalSummaryRows.innerHTML = rows.map((row) => `
+    <tr>
+      <td><strong>${escapeHtml(summaryPeriodLabel(row))}</strong></td>
+      <td>${escapeHtml(formatNumber(row.intake_weight_kg))}</td>
+      <td>${escapeHtml(formatNumber(row.intake_value_ksh))}</td>
+      <td>${escapeHtml(formatNumber(row.grade_a_kg))}</td>
+      <td>${escapeHtml(formatNumber(row.grade_b_kg))}</td>
+      <td>${escapeHtml(formatNumber(row.grade_c_kg))}</td>
+      <td>${escapeHtml(formatInteger(row.collection_count))}</td>
+      <td>${escapeHtml(formatInteger(row.farmer_count))}</td>
+      <td>${escapeHtml(formatInteger(row.community_count))}</td>
+      <td>${escapeHtml(formatInteger(row.site_sample_count))}</td>
+      <td title="${escapeAttribute(row.site_locations || "")}">${escapeHtml(row.site_locations || "-")}</td>
+      <td>${escapeHtml(formatNumber(row.stock_volume_l))}</td>
+      <td>${escapeHtml(formatInteger(row.stock_container_count))}</td>
+      <td>${escapeHtml(formatInteger(row.stock_qc_container_count))}</td>
+      <td>${escapeHtml(formatNumber(row.process_received_kg))}</td>
+      <td>${escapeHtml(formatNumber(row.process_pressed_liquid_l))}</td>
+      <td>${escapeHtml(formatNumber(row.process_lost_kg))}</td>
+      <td>${escapeHtml(formatDuration(row.process_minutes))}</td>
+      <td>${escapeHtml(formatNumber(row.process_avg_wet_pulp_per_press))}</td>
+      <td>${escapeHtml(formatNumber(row.process_dry_received_percent))}</td>
+    </tr>`).join("");
+}
+
+function renderOperationalSummaryTotals() {
+  const total = state.operationalSummaryTotals;
+  const metrics = [
+    ["Intake", total.intake_weight_kg, "kg"],
+    ["Value", total.intake_value_ksh, "KSH"],
+    ["Site samples", total.site_sample_count, ""],
+    ["Stock", total.stock_volume_l, "L"],
+    ["Processed", total.process_received_kg, "kg"],
+    ["Processing time", formatDuration(total.process_minutes), ""]
+  ];
+  els.operationalSummaryTotals.innerHTML = metrics.map(([label, value, unit]) => `
+    <div class="form-ledger-metric">
+      <span>${escapeHtml(label)}</span>
+      <strong>${typeof value === "string" ? escapeHtml(value) : escapeHtml(formatNumber(value))}</strong>
+      ${unit ? `<small>${escapeHtml(unit)}</small>` : ""}
+    </div>`).join("");
+}
+
+function summaryPeriodLabel(row) {
+  const grouping = els.operationalSummaryGrouping.value;
+  if (grouping === "year") return String(row.period_start || "").slice(0, 4);
+  if (grouping === "month") {
+    const [year, month] = String(row.period_start || "").split("-").map(Number);
+    if (year && month) {
+      return new Intl.DateTimeFormat("en-GB", {
+        month: "short", year: "numeric"
+      }).format(new Date(Date.UTC(year, month - 1, 1)));
+    }
+  }
+  return `${formatDate(row.period_start)} - ${formatDate(row.period_end)}`;
 }
 
 function renderAllRows(errorMessage = "") {
@@ -1409,6 +1538,23 @@ function renderPageStatus(page, total, status, previous, next) {
 function syncUrl() {
   const url = new URL(window.location.href);
   url.searchParams.set("category", state.category);
+  if (state.category === "summary") {
+    url.searchParams.delete("view");
+    url.searchParams.delete("year");
+    url.searchParams.delete("from");
+    url.searchParams.delete("to");
+    url.searchParams.delete("search");
+    url.searchParams.set("grouping", els.operationalSummaryGrouping.value);
+    url.searchParams.set("summary_from", els.operationalSummaryFrom.value);
+    url.searchParams.set("summary_to", els.operationalSummaryTo.value);
+    if (els.operationalSummaryCommunity.value) {
+      url.searchParams.set("community", els.operationalSummaryCommunity.value);
+    } else {
+      url.searchParams.delete("community");
+    }
+    window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+    return;
+  }
   if (state.category === "intake") {
     window.history.replaceState({}, "", `${url.pathname}${url.search}`);
     return;
@@ -1447,7 +1593,7 @@ function activateIntakeView() {
 function setLoading(loading) {
   [
     els.loadFormLedger, els.exportFormLedger, els.loadFormLedgerMonthly,
-    els.loadFormLedgerCommunity
+    els.loadFormLedgerCommunity, els.loadOperationalSummary
   ].forEach((button) => { button.disabled = loading; });
   els.previousFormLedgerPage.disabled = loading || state.page === 0;
   els.nextFormLedgerPage.disabled = loading || (state.page + 1) * PAGE_SIZE >= state.total;
@@ -1501,6 +1647,16 @@ function formatDateTime(value) {
 
 function titleCase(value) {
   return String(value || "-").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatDuration(value) {
+  const number = Number(value);
+  const minutes = Number.isFinite(number) ? Math.max(0, Math.round(number)) : 0;
+  if (!minutes) return "0 min";
+  const hours = Math.floor(minutes / 60);
+  const remaining = minutes % 60;
+  if (!hours) return `${remaining} min`;
+  return remaining ? `${hours} h ${remaining} min` : `${hours} h`;
 }
 
 function shortTime(value) {
@@ -1577,6 +1733,12 @@ function setStatus(message, type = "") {
 
 function escapeAttribute(value) {
   return escapeHtml(value);
+}
+
+function setOperationalSummaryStatus(message, type = "") {
+  els.operationalSummaryStatus.textContent = message || "";
+  if (type) els.operationalSummaryStatus.dataset.status = type;
+  else delete els.operationalSummaryStatus.dataset.status;
 }
 
 function cssEscape(value) {
