@@ -264,14 +264,17 @@ function renderSummary(summary) {
       metric("Received seaweed", summary.process_received_kg, "kg"),
       metric("Pressed liquid", summary.process_pressed_liquid_l, "L"),
       metric("Lost seaweed", summary.process_lost_kg, "kg"),
-      textMetric("Processing time", formatDuration(summary.process_minutes)),
-      metric("Avg wet pulp per press", summary.process_avg_wet_pulp_per_press, "kg")
-    ])
+      textMetric("Total processing time", formatDuration(summary.process_minutes)),
+      metric("Avg Wet Pulp Per Press", summary.process_avg_wet_pulp_per_press, "kg"),
+      metric("Wet/dry extraction", summary.process_wet_dry_percent, "%"),
+      metric("Dry pulp / received", summary.process_dry_received_percent, "%")
+    ], "operational-summary-group-process")
   ].join("");
 }
 
-function summaryGroup(title, metrics) {
-  return `<section class="operational-summary-group"><h4>${escapeHtml(title)}</h4><div class="operational-summary-metrics">${metrics.join("")}</div></section>`;
+function summaryGroup(title, metrics, extraClass = "") {
+  const className = ["operational-summary-group", extraClass].filter(Boolean).join(" ");
+  return `<section class="${className}"><h4>${escapeHtml(title)}</h4><div class="operational-summary-metrics">${metrics.join("")}</div></section>`;
 }
 
 function metric(label, value, unit = "") {

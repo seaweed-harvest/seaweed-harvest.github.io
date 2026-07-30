@@ -3631,6 +3631,13 @@ button:disabled {
   white-space: nowrap;
 }
 
+.operational-summary-group-process .operational-summary-metric span {
+  min-height: 2.3em;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
 .operational-summary-metric strong {
   margin-top: 2px;
   overflow: hidden;
