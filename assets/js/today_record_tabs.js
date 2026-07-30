@@ -240,7 +240,7 @@ function renderSummary(summary) {
   els.todaySummaryDashboard.innerHTML = [
     summaryGroup("Intake collection", [
       metric("Total weight", summary.intake_weight_kg, "kg"),
-      metric("Total cost", summary.intake_value_ksh, "KSH"),
+      metric("Total paid", summary.intake_value_ksh, "KSH"),
       metric("Grade A", summary.grade_a_kg, "kg"),
       metric("Grade B", summary.grade_b_kg, "kg"),
       metric("Grade C", summary.grade_c_kg, "kg"),
@@ -259,7 +259,11 @@ function renderSummary(summary) {
     summaryGroup("Stock record", [
       metric("Total volume", summary.stock_volume_l, "L"),
       metric("Containers filled", summary.stock_container_count),
-      metric("Containers with QC", summary.stock_qc_container_count)
+      textMetric("Sodium benzoate", summary.stock_sodium_benzoate_range || "-"),
+      textMetric("Citric acid", summary.stock_citric_acid_range || "-"),
+      textMetric("Salinity", summary.stock_salinity_range || "-"),
+      textMetric("pH", summary.stock_ph_range || "-"),
+      textMetric("EC", summary.stock_ec_range || "-", true)
     ]),
     summaryGroup("Process record", [
       metric("Received seaweed", summary.process_received_kg, "kg"),

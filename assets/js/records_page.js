@@ -617,7 +617,7 @@ function renderOperationalSummary(errorMessage = "") {
   renderOperationalSummaryTotals();
   if (errorMessage || !rows.length) {
     els.operationalSummaryRows.innerHTML = emptyRow(
-      21,
+      25,
       errorMessage || "No records were found in this period."
     );
     return;
@@ -637,7 +637,11 @@ function renderOperationalSummary(errorMessage = "") {
       <td title="${escapeAttribute(row.site_locations || "")}">${escapeHtml(row.site_locations || "-")}</td>
       <td>${escapeHtml(formatNumber(row.stock_volume_l))}</td>
       <td>${escapeHtml(formatInteger(row.stock_container_count))}</td>
-      <td>${escapeHtml(formatInteger(row.stock_qc_container_count))}</td>
+      <td>${escapeHtml(row.stock_sodium_benzoate_range || "-")}</td>
+      <td>${escapeHtml(row.stock_citric_acid_range || "-")}</td>
+      <td>${escapeHtml(row.stock_salinity_range || "-")}</td>
+      <td>${escapeHtml(row.stock_ph_range || "-")}</td>
+      <td>${escapeHtml(row.stock_ec_range || "-")}</td>
       <td>${escapeHtml(formatNumber(row.process_received_kg))}</td>
       <td>${escapeHtml(formatNumber(row.process_pressed_liquid_l))}</td>
       <td>${escapeHtml(formatNumber(row.process_lost_kg))}</td>
@@ -652,7 +656,7 @@ function renderOperationalSummaryTotals() {
   const total = state.operationalSummaryTotals;
   const metrics = [
     ["Intake", total.intake_weight_kg, "kg"],
-    ["Value", total.intake_value_ksh, "KSH"],
+    ["Paid", total.intake_value_ksh, "KSH"],
     ["Site samples", total.site_sample_count, ""],
     ["Stock", total.stock_volume_l, "L"],
     ["Processed", total.process_received_kg, "kg"],
