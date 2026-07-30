@@ -1651,23 +1651,49 @@ function ensureTransactionId() {
 
 function makeTransactionId() {
   const now = new Date();
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Nairobi",
+    year: "2-digit",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(now).map((part) => [part.type, part.value]));
   const stamp = [
-    String(now.getFullYear()).slice(-2),
-    String(now.getMonth() + 1).padStart(2, "0"),
-    String(now.getDate()).padStart(2, "0"),
+    parts.year,
+    parts.month,
+    parts.day,
     "-",
-    String(now.getHours()).padStart(2, "0"),
-    String(now.getMinutes()).padStart(2, "0"),
-    String(now.getSeconds()).padStart(2, "0")
+    parts.hour,
+    parts.minute,
+    parts.second
   ].join("");
   const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
   return `TXN-${stamp}-${suffix}`;
 }
 
 function setDefaultDateTime() {
-  const now = new Date();
-  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-  els.collectedAt.value = local.toISOString().slice(0, 16);
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Nairobi",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(new Date()).map((part) => [part.type, part.value]));
+  els.collectedAt.value = `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
+function kenyaDateTime(value) {
+  const input = String(value || "").trim();
+  if (!input) return new Date();
+  const normalized = input.length === 16 ? `${input}:00` : input;
+  const date = new Date(`${normalized}+03:00`);
+  if (Number.isNaN(date.getTime())) throw new Error("Enter a valid collection date and time.");
+  return date;
 }
 
 function captureGps() {
@@ -2236,7 +2262,7 @@ function buildPayload(photoPaths = [], farmers = collectionFarmersForSubmission(
   const seaweedType = nullableText(els.seaweedType.value) || state.defaultSeaweedType;
   const gradeCode = requiredText(els.seaweedGrade.value, t("harvest.grade")).toUpperCase();
   const ungraded = gradeCode === "UNGRADED";
-  const collectedAt = els.collectedAt.value ? new Date(els.collectedAt.value) : new Date();
+  const collectedAt = kenyaDateTime(els.collectedAt.value);
   const primaryFarmer = farmerAllocations[0] || null;
   const customFields = customFieldPayload();
   if (farmerAllocations.length) {

@@ -3405,7 +3405,8 @@ function formatDate(value) {
   return date.toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "short",
-    year: "numeric"
+    year: "numeric",
+    timeZone: "Africa/Nairobi"
   });
 }
 
@@ -3418,7 +3419,8 @@ function formatDateTime(value) {
     month: "short",
     year: "numeric",
     hour: "2-digit",
-    minute: "2-digit"
+    minute: "2-digit",
+    timeZone: "Africa/Nairobi"
   });
 }
 
@@ -3440,7 +3442,8 @@ function formatMonth(value) {
   if (Number.isNaN(date.getTime())) return String(value);
   return date.toLocaleDateString("en-GB", {
     month: "short",
-    year: "numeric"
+    year: "numeric",
+    timeZone: "Africa/Nairobi"
   });
 }
 
