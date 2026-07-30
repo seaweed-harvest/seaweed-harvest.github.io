@@ -233,7 +233,7 @@ function updateCalculations() {
     ? `${formatNumber(wet / presses)} kg`
     : "-";
   els.processWetDryRatio.textContent = dry !== null && wet !== null
-    ? `${formatNumber((dry / wet) * 100)}%`
+    ? `${formatPercentage(((wet - dry) / wet) * 100)}%`
     : "-";
   els.processStockProductRatio.textContent = dry !== null && received !== null
     ? `${formatNumber((dry / received) * 100)}%`
@@ -386,6 +386,10 @@ function textOrNull(value) {
 
 function formatNumber(value) {
   return Number(value).toLocaleString("en-KE", { maximumFractionDigits: 3 });
+}
+
+function formatPercentage(value) {
+  return Number(value).toLocaleString("en-KE", { maximumFractionDigits: 1 });
 }
 
 function formatFileSize(bytes) {
