@@ -141,6 +141,7 @@ const CATEGORY_CAPABILITIES = {
 };
 
 const state = {
+  profile: null,
   category: "intake",
   mode: "all",
   rows: [],
@@ -162,7 +163,14 @@ const state = {
   selectedCommunityName: "",
   communityRecordRows: [],
   communityRecordTotal: 0,
-  communityRecordPage: 0
+  communityRecordPage: 0,
+  communities: [],
+  species: [],
+  selectedFormRecordIds: new Set(),
+  editingFormRecordIds: new Set(),
+  dirtyFormRecordIds: new Set(),
+  formRecordDrafts: new Map(),
+  formRecordOriginals: new Map()
 };
 
 const els = {};
@@ -177,6 +185,9 @@ async function init() {
     "formLedgerFrom", "formLedgerTo", "formLedgerSearch", "loadFormLedger",
     "exportFormLedger", "previousFormLedgerPage", "formLedgerPageStatus",
     "nextFormLedgerPage", "formLedgerHead", "formLedgerRows", "formLedgerStatus",
+    "formLedgerEditActions", "formLedgerSelectedCount", "formLedgerStartEdit",
+    "formLedgerSaveEdits", "formLedgerDiscardEdits", "formLedgerDeleteSelected",
+    "formLedgerActionStatus",
     "formLedgerYear", "formLedgerMonthlyCommunityField", "formLedgerMonthlyCommunity",
     "loadFormLedgerMonthly", "formLedgerMonthlyTitle", "formLedgerMonthlyMetrics",
     "formLedgerMonthlyHead", "formLedgerMonthlyRows", "formLedgerCalendarStatus",
@@ -195,6 +206,7 @@ async function init() {
 
   const access = await requireAdminAccess("can_view_data");
   if (!access) return;
+  state.profile = access.profile;
 
   setDateDefaults();
   readUrlState();
@@ -204,11 +216,19 @@ async function init() {
   }
   bindEvents();
   try {
-    const communities = await selectRows(
-      "ag_secure_communities",
-      "select=community_id,community_name&order=community_name.asc"
-    );
-    communities.forEach((community) => {
+    const [communities, species] = await Promise.all([
+      selectRows(
+        "ag_secure_communities",
+        "select=id,community_id,community_name&order=community_name.asc"
+      ),
+      selectRows(
+        "ag_public_seaweed_type_settings",
+        "select=type_key,label,common_name&order=display_order.asc"
+      )
+    ]);
+    state.communities = communities;
+    state.species = species;
+    state.communities.forEach((community) => {
       els.formLedgerMonthlyCommunity.append(new Option(
         `${community.community_id} - ${community.community_name}`,
         community.community_id
@@ -238,12 +258,13 @@ function configureAvailableCategories(profile) {
 function bindEvents() {
   els.formLedgerCategories.addEventListener("click", (event) => {
     const button = event.target.closest("[data-ledger-category]");
-    if (!button || state.loading) return;
+    if (!button || state.loading || state.editingFormRecordIds.size) return;
     if (state.category === "intake") {
       const currentView = new URLSearchParams(window.location.search).get("view");
       if (["all", "monthly", "community"].includes(currentView)) state.mode = currentView;
     }
     state.category = button.dataset.ledgerCategory;
+    resetFormRecordEditState();
     if (state.category !== "site_sample" && state.mode === "community") state.mode = "all";
     resetPages();
     updateControls();
@@ -256,14 +277,16 @@ function bindEvents() {
   });
   els.formLedgerViews.addEventListener("click", (event) => {
     const button = event.target.closest("[data-ledger-mode]");
-    if (!button || button.hidden || state.loading) return;
+    if (!button || button.hidden || state.loading || state.editingFormRecordIds.size) return;
     state.mode = button.dataset.ledgerMode;
+    resetFormRecordEditState();
     resetPages();
     updateControls();
     syncUrl();
     void loadCurrentView();
   });
   els.loadFormLedger.addEventListener("click", () => {
+    resetFormRecordEditState();
     state.page = 0;
     syncUrl();
     void loadAllRecords();
@@ -282,6 +305,7 @@ function bindEvents() {
   });
   els.formLedgerSearch.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
+    resetFormRecordEditState();
     state.page = 0;
     syncUrl();
     void loadAllRecords();
@@ -296,7 +320,7 @@ function bindEvents() {
   els.formLedgerCommunityRows.addEventListener("click", selectCommunity);
   els.formLedgerHead.addEventListener("click", (event) => {
     const button = event.target.closest("[data-form-ledger-sort]");
-    if (!button) return;
+    if (!button || state.editingFormRecordIds.size) return;
     const field = button.dataset.formLedgerSort;
     if (state.sort === field) state.direction = state.direction === "asc" ? "desc" : "asc";
     else {
@@ -306,6 +330,12 @@ function bindEvents() {
     sortRows();
     renderAllRows();
   });
+  els.formLedgerRows.addEventListener("change", handleFormRecordTableChange);
+  els.formLedgerRows.addEventListener("input", handleFormRecordDraftInput);
+  els.formLedgerStartEdit.addEventListener("click", startFormRecordEdit);
+  els.formLedgerSaveEdits.addEventListener("click", saveFormRecordEdits);
+  els.formLedgerDiscardEdits.addEventListener("click", discardFormRecordEdits);
+  els.formLedgerDeleteSelected.addEventListener("click", deleteSelectedFormRecords);
   els.exportFormLedger.addEventListener("click", exportCsv);
 }
 
@@ -507,19 +537,30 @@ async function summaryRpc(start, end, communityId) {
 }
 
 function renderAllHead(target = els.formLedgerHead) {
-  target.innerHTML = `<tr>${COLUMNS[state.category].map(([field, label]) => `
+  const managed = target === els.formLedgerHead && canManageFormRecords();
+  target.innerHTML = `<tr>${managed ? `
+    <th class="selection-cell">
+      <input id="formLedgerSelectAll" type="checkbox" aria-label="Select all editable records on this page">
+    </th>` : ""}${COLUMNS[state.category].map(([field, label]) => `
     <th aria-sort="${state.sort === field ? (state.direction === "asc" ? "ascending" : "descending") : "none"}">
       <button type="button" data-form-ledger-sort="${escapeAttribute(field)}">${escapeHtml(label)}${state.sort === field ? ` ${state.direction === "asc" ? "up" : "down"}` : ""}</button>
     </th>`).join("")}</tr>`;
+  if (managed) {
+    document.getElementById("formLedgerSelectAll")?.addEventListener("change", toggleAllFormRecords);
+  }
 }
 
 function renderAllRows(errorMessage = "") {
   const columns = COLUMNS[state.category];
+  const managed = canManageFormRecords();
   els.formLedgerCount.textContent = rowCount(state.total);
   if (errorMessage || !state.rows.length) {
-    els.formLedgerRows.innerHTML = emptyRow(columns.length, errorMessage || "No records match the current filters.");
+    els.formLedgerRows.innerHTML = emptyRow(
+      columns.length + (managed ? 1 : 0),
+      errorMessage || "No records match the current filters."
+    );
   } else {
-    els.formLedgerRows.innerHTML = recordRowsHtml(state.rows);
+    els.formLedgerRows.innerHTML = recordRowsHtml(state.rows, { managed });
   }
   renderPageStatus(
     state.page,
@@ -528,6 +569,7 @@ function renderAllRows(errorMessage = "") {
     els.previousFormLedgerPage,
     els.nextFormLedgerPage
   );
+  updateFormRecordSelectionUi();
 }
 
 function renderMonthlyMetrics() {
@@ -734,11 +776,456 @@ async function loadCommunityRecords(options = {}) {
   }
 }
 
-function recordRowsHtml(rows) {
+function recordRowsHtml(rows, options = {}) {
   const columns = COLUMNS[state.category];
-  return rows.map((row) => `
-    <tr>${columns.map(([field]) => `<td>${escapeHtml(cellValue(row, field))}</td>`).join("")}</tr>
-  `).join("");
+  return rows.map((row) => {
+    const id = String(row.id || "");
+    const editing = options.managed && state.editingFormRecordIds.has(id);
+    const dirty = options.managed && state.dirtyFormRecordIds.has(id);
+    const draft = state.formRecordDrafts.get(id) || formRecordDraft(row);
+    const classes = [
+      editing ? "today-row-editing" : "",
+      dirty ? "today-row-dirty" : ""
+    ].filter(Boolean).join(" ");
+    const selection = options.managed
+      ? `<td class="selection-cell"><input type="checkbox" data-form-ledger-select="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(recordReference(row))}"${state.selectedFormRecordIds.has(id) ? " checked" : ""}${editing ? " disabled" : ""}></td>`
+      : "";
+    return `
+      <tr data-form-ledger-row="${escapeAttribute(id)}" class="${classes}">
+        ${selection}
+        ${columns.map(([field, label]) => `<td>${editing
+          ? formRecordEditor(row, field, label, draft)
+          : escapeHtml(cellValue(row, field))}</td>`).join("")}
+      </tr>`;
+  }).join("");
+}
+
+function handleFormRecordTableChange(event) {
+  const checkbox = event.target.closest("[data-form-ledger-select]");
+  if (checkbox) {
+    if (state.editingFormRecordIds.size) return;
+    const id = checkbox.dataset.formLedgerSelect;
+    if (checkbox.checked) state.selectedFormRecordIds.add(id);
+    else state.selectedFormRecordIds.delete(id);
+    updateFormRecordSelectionUi();
+    return;
+  }
+  handleFormRecordDraftInput(event);
+}
+
+function handleFormRecordDraftInput(event) {
+  const control = event.target.closest("[data-form-ledger-field]");
+  if (!control) return;
+  const id = control.dataset.formLedgerId;
+  const draft = state.formRecordDrafts.get(id);
+  if (!draft || !state.editingFormRecordIds.has(id)) return;
+  draft[control.dataset.formLedgerField] = control.value;
+  const original = state.formRecordOriginals.get(id);
+  const dirty = !draftsEqual(draft, original);
+  if (dirty) state.dirtyFormRecordIds.add(id);
+  else state.dirtyFormRecordIds.delete(id);
+  const row = els.formLedgerRows.querySelector(
+    `[data-form-ledger-row="${cssEscape(id)}"]`
+  );
+  row?.classList.toggle("today-row-dirty", dirty);
+  updateFormRecordSelectionUi();
+}
+
+function toggleAllFormRecords(event) {
+  if (state.editingFormRecordIds.size || !canManageFormRecords()) return;
+  state.selectedFormRecordIds.clear();
+  if (event.currentTarget.checked) {
+    state.rows.forEach((row) => {
+      if (row.id) state.selectedFormRecordIds.add(String(row.id));
+    });
+  }
+  renderAllRows();
+}
+
+function updateFormRecordSelectionUi() {
+  if (!els.formLedgerEditActions) return;
+  const canManage = canManageFormRecords();
+  const selected = state.selectedFormRecordIds.size;
+  const editing = state.editingFormRecordIds.size > 0;
+  const dirty = state.dirtyFormRecordIds.size;
+  els.formLedgerEditActions.hidden = !canManage || (!selected && !editing);
+  els.formLedgerSelectedCount.textContent = `${selected} selected`;
+  els.formLedgerStartEdit.hidden = editing;
+  els.formLedgerStartEdit.disabled = !selected;
+  els.formLedgerStartEdit.textContent = selected > 1 ? `Edit ${selected}` : "Edit";
+  els.formLedgerSaveEdits.hidden = !editing;
+  els.formLedgerSaveEdits.disabled = !dirty;
+  els.formLedgerSaveEdits.textContent = dirty > 1 ? `Save ${dirty}` : "Save";
+  els.formLedgerDiscardEdits.hidden = !editing;
+  els.formLedgerDeleteSelected.hidden = editing;
+  els.formLedgerDeleteSelected.disabled = !selected;
+  els.formLedgerDeleteSelected.textContent = selected > 1 ? `Delete ${selected}` : "Delete";
+
+  const selectAll = document.getElementById("formLedgerSelectAll");
+  if (selectAll) {
+    const eligible = state.rows.filter((row) => row.id);
+    const selectedEligible = eligible.filter((row) => (
+      state.selectedFormRecordIds.has(String(row.id))
+    )).length;
+    selectAll.checked = eligible.length > 0 && selectedEligible === eligible.length;
+    selectAll.indeterminate = selectedEligible > 0 && selectedEligible < eligible.length;
+    selectAll.disabled = editing || !eligible.length;
+  }
+
+  [
+    els.formLedgerFrom, els.formLedgerTo, els.formLedgerSearch, els.loadFormLedger,
+    els.exportFormLedger, els.previousFormLedgerPage, els.nextFormLedgerPage
+  ].forEach((control) => {
+    if (control) control.disabled = editing;
+  });
+  els.formLedgerCategories.querySelectorAll("[data-ledger-category]").forEach((button) => {
+    button.disabled = editing;
+  });
+  els.formLedgerViews.querySelectorAll("[data-ledger-mode]").forEach((button) => {
+    button.disabled = editing;
+  });
+  els.formLedgerHead.querySelectorAll("[data-form-ledger-sort]").forEach((button) => {
+    button.disabled = editing;
+  });
+}
+
+function startFormRecordEdit() {
+  if (!canManageFormRecords() || !state.selectedFormRecordIds.size) return;
+  state.editingFormRecordIds = new Set(state.selectedFormRecordIds);
+  state.dirtyFormRecordIds.clear();
+  state.formRecordDrafts.clear();
+  state.formRecordOriginals.clear();
+  state.rows.forEach((row) => {
+    const id = String(row.id || "");
+    if (!state.editingFormRecordIds.has(id)) return;
+    const draft = formRecordDraft(row);
+    state.formRecordDrafts.set(id, structuredClone(draft));
+    state.formRecordOriginals.set(id, structuredClone(draft));
+  });
+  renderAllRows();
+  setFormRecordActionStatus(
+    `Editing ${state.editingFormRecordIds.size} selected record${state.editingFormRecordIds.size === 1 ? "" : "s"}.`
+  );
+  els.formLedgerRows.querySelector("[data-form-ledger-field]")?.focus();
+}
+
+function discardFormRecordEdits() {
+  resetFormRecordEditState();
+  renderAllHead();
+  renderAllRows();
+  setFormRecordActionStatus("Changes discarded. Nothing was saved.");
+}
+
+async function saveFormRecordEdits() {
+  const invalid = [...els.formLedgerRows.querySelectorAll("[data-form-ledger-field]")]
+    .find((control) => !control.checkValidity());
+  if (invalid) {
+    invalid.reportValidity();
+    return;
+  }
+  const updates = state.rows
+    .filter((row) => state.dirtyFormRecordIds.has(String(row.id)))
+    .map((row) => serializeFormRecordDraft(
+      row,
+      state.formRecordDrafts.get(String(row.id))
+    ));
+  if (!updates.length) return;
+
+  els.formLedgerSaveEdits.disabled = true;
+  els.formLedgerDiscardEdits.disabled = true;
+  setFormRecordActionStatus(`Saving ${updates.length} record${updates.length === 1 ? "" : "s"}...`);
+  const { data, error } = await authClient.rpc("ag_update_daily_form_records", {
+    p_record_type: state.category,
+    p_updates: updates
+  });
+  if (error) {
+    setFormRecordActionStatus(error.message || "Changes could not be saved.", "error");
+    els.formLedgerSaveEdits.disabled = false;
+    els.formLedgerDiscardEdits.disabled = false;
+    return;
+  }
+
+  const updated = Number(data?.updated_count || updates.length);
+  resetFormRecordEditState();
+  await loadAllRecords();
+  setFormRecordActionStatus(`${updated} record${updated === 1 ? "" : "s"} saved.`);
+}
+
+async function deleteSelectedFormRecords() {
+  if (!canManageFormRecords() || state.editingFormRecordIds.size) return;
+  const ids = state.rows
+    .filter((row) => state.selectedFormRecordIds.has(String(row.id)))
+    .map((row) => row.id);
+  if (!ids.length) return;
+  const label = `${ids.length} record${ids.length === 1 ? "" : "s"}`;
+  if (!window.confirm(`Delete ${label}? ${ids.length === 1 ? "It" : "They"} will remain in Deleted Records for 30 days.`)) return;
+
+  els.formLedgerDeleteSelected.disabled = true;
+  setFormRecordActionStatus(`Deleting ${label}...`);
+  const { data, error } = await authClient.rpc("ag_delete_daily_form_records", {
+    p_record_type: state.category,
+    p_record_ids: ids
+  });
+  if (error) {
+    setFormRecordActionStatus(error.message || "Selected records could not be deleted.", "error");
+    els.formLedgerDeleteSelected.disabled = false;
+    return;
+  }
+
+  const deleted = Number(data?.deleted_count || ids.length);
+  if (state.page > 0 && deleted === state.rows.length) state.page -= 1;
+  resetFormRecordEditState();
+  await loadAllRecords();
+  setFormRecordActionStatus(
+    `${deleted} record${deleted === 1 ? "" : "s"} moved to Deleted Records.`
+  );
+}
+
+function formRecordDraft(row) {
+  if (state.category === "process") {
+    return {
+      process_date: row.record_date || "",
+      start_time: shortTime(row.start_time),
+      end_time: shortTime(row.end_time),
+      species: row.species || "",
+      received_seaweed_kg: nullableValue(row.received_seaweed_kg),
+      wet_pulp_kg: nullableValue(row.wet_pulp_kg),
+      pressed_liquid_l: nullableValue(row.pressed_liquid_l),
+      dry_pulp_kg: nullableValue(row.dry_pulp_kg),
+      lost_seaweed_kg: nullableValue(row.lost_seaweed_kg),
+      number_of_presses: nullableValue(row.number_of_presses),
+      recorded_by_name: row.recorded_by_name || "",
+      notes: row.notes || ""
+    };
+  }
+  if (state.category === "site_sample") {
+    return {
+      sampled_at: dateTimeInputValue(row.recorded_at),
+      tide_stage: row.tide_stage || "",
+      temperature_c: nullableValue(row.temperature_c),
+      salinity_value: nullableValue(row.salinity_value),
+      salinity_unit: row.salinity_unit || "PSU",
+      tds_value: nullableValue(row.tds_value),
+      tds_unit: row.tds_unit || "mg/L",
+      electrical_conductivity_ms_cm: nullableValue(row.electrical_conductivity_ms_cm),
+      e_coli_sample_taken: row.e_coli_sample_taken === null
+        || row.e_coli_sample_taken === undefined
+        ? ""
+        : String(Boolean(row.e_coli_sample_taken)),
+      recorded_by_name: row.recorded_by_name || "",
+      notes: row.notes || ""
+    };
+  }
+  return {
+    packed_on: row.record_date || "",
+    carton_serial: row.record_number || "",
+    species: row.species || "",
+    weight_value: nullableValue(row.weight_value),
+    weight_unit: row.weight_unit || "L",
+    stabilizer_added: row.stabilizer_added === null
+      || row.stabilizer_added === undefined
+      ? ""
+      : String(Boolean(row.stabilizer_added)),
+    chemical_dose_value: nullableValue(row.chemical_dose_value),
+    chemical_dose_unit: row.chemical_dose_unit || "g/container",
+    salinity_value: nullableValue(row.salinity_value),
+    salinity_unit: row.salinity_unit || "PSU",
+    ph_value: nullableValue(row.ph_value),
+    electrical_conductivity_ms_cm: nullableValue(row.electrical_conductivity_ms_cm),
+    recorded_by_name: row.recorded_by_name || "",
+    notes: row.notes || ""
+  };
+}
+
+function serializeFormRecordDraft(row, draft) {
+  const base = { id: row.id, expected_updated_at: row.updated_at };
+  if (state.category === "process") {
+    return {
+      ...base,
+      process_date: draft.process_date,
+      start_time: draft.start_time || null,
+      end_time: draft.end_time || null,
+      species: draft.species,
+      received_seaweed_kg: numberOrNull(draft.received_seaweed_kg),
+      wet_pulp_kg: numberOrNull(draft.wet_pulp_kg),
+      pressed_liquid_l: numberOrNull(draft.pressed_liquid_l),
+      dry_pulp_kg: numberOrNull(draft.dry_pulp_kg),
+      lost_seaweed_kg: numberOrNull(draft.lost_seaweed_kg),
+      number_of_presses: integerOrNull(draft.number_of_presses),
+      recorded_by_name: draft.recorded_by_name.trim(),
+      notes: textOrNull(draft.notes)
+    };
+  }
+  if (state.category === "site_sample") {
+    return {
+      ...base,
+      sampled_at: nairobiDateTime(draft.sampled_at),
+      tide_stage: textOrNull(draft.tide_stage),
+      temperature_c: numberOrNull(draft.temperature_c),
+      salinity_value: numberOrNull(draft.salinity_value),
+      salinity_unit: draft.salinity_unit,
+      tds_value: numberOrNull(draft.tds_value),
+      tds_unit: draft.tds_unit,
+      electrical_conductivity_ms_cm: numberOrNull(draft.electrical_conductivity_ms_cm),
+      e_coli_sample_taken: booleanOrNull(draft.e_coli_sample_taken),
+      recorded_by_name: draft.recorded_by_name.trim(),
+      notes: textOrNull(draft.notes)
+    };
+  }
+  return {
+    ...base,
+    packed_on: draft.packed_on,
+    carton_serial: draft.carton_serial.trim(),
+    species: draft.species,
+    weight_value: numberOrNull(draft.weight_value),
+    weight_unit: draft.weight_unit,
+    stabilizer_added: booleanOrNull(draft.stabilizer_added),
+    chemical_dose_value: numberOrNull(draft.chemical_dose_value),
+    chemical_dose_unit: draft.chemical_dose_unit,
+    salinity_value: numberOrNull(draft.salinity_value),
+    salinity_unit: draft.salinity_unit,
+    ph_value: numberOrNull(draft.ph_value),
+    electrical_conductivity_ms_cm: numberOrNull(draft.electrical_conductivity_ms_cm),
+    recorded_by_name: draft.recorded_by_name.trim(),
+    notes: textOrNull(draft.notes)
+  };
+}
+
+function formRecordEditor(row, field, label, draft) {
+  const id = String(row.id || "");
+  if (state.category === "process") {
+    if (field === "record_date") return formRecordInput(id, "process_date", draft.process_date, "date", label, { required: true });
+    if (field === "start_time" || field === "end_time") return formRecordInput(id, field, draft[field], "time", label);
+    if (field === "species") return formRecordSpeciesSelect(id, draft.species, label);
+    if (["received_seaweed_kg", "wet_pulp_kg", "pressed_liquid_l", "dry_pulp_kg", "lost_seaweed_kg"].includes(field)) {
+      return formRecordNumberInput(id, field, draft[field], label);
+    }
+    if (field === "number_of_presses") return formRecordInput(id, field, draft[field], "number", label, { min: 0, step: 1 });
+    if (field === "recorded_by_name") return formRecordInput(id, field, draft[field], "text", label, { required: true, maxlength: 160 });
+    if (field === "notes") return formRecordInput(id, field, draft[field], "text", label, { maxlength: 1000 });
+  } else if (state.category === "site_sample") {
+    if (field === "recorded_at") return formRecordInput(id, "sampled_at", draft.sampled_at, "datetime-local", label, { required: true });
+    if (field === "tide_stage") {
+      return formRecordSelect(id, field, draft[field], label, [
+        ["", "Not set"], ["spring_low", "Spring low"], ["spring_high", "Spring high"]
+      ]);
+    }
+    if (field === "temperature_c" || field === "electrical_conductivity_ms_cm") {
+      return formRecordNumberInput(id, field, draft[field], label);
+    }
+    if (field === "salinity_value") {
+      return formRecordMeasurement(id, "salinity_value", draft.salinity_value, "salinity_unit", draft.salinity_unit, ["PSU", "ppt"], label);
+    }
+    if (field === "tds_value") {
+      return formRecordMeasurement(id, "tds_value", draft.tds_value, "tds_unit", draft.tds_unit, ["mg/L", "g/L", "ppt"], label);
+    }
+    if (field === "e_coli_sample_taken") return formRecordBooleanSelect(id, field, draft[field], label);
+    if (field === "recorded_by_name") return formRecordInput(id, field, draft[field], "text", label, { required: true, maxlength: 160 });
+    if (field === "notes") return formRecordInput(id, field, draft[field], "text", label, { maxlength: 1000 });
+  } else {
+    if (field === "record_date") return formRecordInput(id, "packed_on", draft.packed_on, "date", label, { required: true });
+    if (field === "record_number") {
+      return formRecordInput(id, "carton_serial", draft.carton_serial, "text", label, {
+        required: true, maxlength: 30, pattern: "[0-9]+"
+      });
+    }
+    if (field === "species") return formRecordSpeciesSelect(id, draft.species, label);
+    if (field === "weight_value") {
+      return formRecordMeasurement(id, "weight_value", draft.weight_value, "weight_unit", draft.weight_unit, ["L", "mL"], label, true);
+    }
+    if (field === "stabilizer_added") return formRecordBooleanSelect(id, field, draft[field], label, true);
+    if (field === "chemical_dose_value") {
+      return formRecordMeasurement(id, "chemical_dose_value", draft.chemical_dose_value, "chemical_dose_unit", draft.chemical_dose_unit, ["g/container"], label);
+    }
+    if (field === "salinity_value") {
+      return formRecordMeasurement(id, "salinity_value", draft.salinity_value, "salinity_unit", draft.salinity_unit, ["PSU", "ppt"], label);
+    }
+    if (field === "ph_value" || field === "electrical_conductivity_ms_cm") {
+      return formRecordNumberInput(id, field, draft[field], label);
+    }
+    if (field === "recorded_by_name") return formRecordInput(id, field, draft[field], "text", label, { required: true, maxlength: 160 });
+    if (field === "notes") return formRecordInput(id, field, draft[field], "text", label, { maxlength: 1000 });
+  }
+  return escapeHtml(cellValue(row, field));
+}
+
+function formRecordInput(id, field, value, type, label, options = {}) {
+  const attributes = [
+    `type="${type}"`,
+    `value="${escapeAttribute(value)}"`,
+    `aria-label="${escapeAttribute(label)}"`,
+    `data-form-ledger-id="${escapeAttribute(id)}"`,
+    `data-form-ledger-field="${escapeAttribute(field)}"`,
+    options.required ? "required" : "",
+    options.min !== undefined ? `min="${options.min}"` : "",
+    options.max !== undefined ? `max="${options.max}"` : "",
+    options.step !== undefined ? `step="${options.step}"` : "",
+    options.maxlength ? `maxlength="${options.maxlength}"` : "",
+    options.pattern ? `pattern="${escapeAttribute(options.pattern)}"` : ""
+  ].filter(Boolean).join(" ");
+  return `<input class="today-inline-editor form-record-inline-editor" ${attributes}>`;
+}
+
+function formRecordNumberInput(id, field, value, label) {
+  return formRecordInput(id, field, value, "number", label, { min: 0, step: 0.001 });
+}
+
+function formRecordSelect(id, field, value, label, options) {
+  const current = String(value ?? "");
+  const available = [...options];
+  if (current && !available.some(([optionValue]) => String(optionValue) === current)) {
+    available.push([current, current]);
+  }
+  return `<select class="today-inline-editor form-record-inline-editor" aria-label="${escapeAttribute(label)}" data-form-ledger-id="${escapeAttribute(id)}" data-form-ledger-field="${escapeAttribute(field)}">${available.map(([optionValue, optionLabel]) => `<option value="${escapeAttribute(optionValue)}"${String(optionValue) === current ? " selected" : ""}>${escapeHtml(optionLabel)}</option>`).join("")}</select>`;
+}
+
+function formRecordSpeciesSelect(id, value, label) {
+  const options = state.species.map((species) => [
+    species.type_key,
+    species.common_name ? `${species.label} (${species.common_name})` : species.label
+  ]);
+  return formRecordSelect(id, "species", value, label, options);
+}
+
+function formRecordBooleanSelect(id, field, value, label, required = false) {
+  const options = required
+    ? [["true", "Yes"], ["false", "No"]]
+    : [["", "Not set"], ["true", "Yes"], ["false", "No"]];
+  return formRecordSelect(id, field, value, label, options);
+}
+
+function formRecordMeasurement(id, valueField, value, unitField, unit, units, label, required = false) {
+  return `<span class="form-record-measure-editor">${formRecordInput(
+    id,
+    valueField,
+    value,
+    "number",
+    label,
+    { min: required ? 0.001 : 0, step: 0.001, required }
+  )}${formRecordSelect(id, unitField, unit, `${label} unit`, units.map((item) => [item, item]))}</span>`;
+}
+
+function resetFormRecordEditState() {
+  state.selectedFormRecordIds.clear();
+  state.editingFormRecordIds.clear();
+  state.dirtyFormRecordIds.clear();
+  state.formRecordDrafts.clear();
+  state.formRecordOriginals.clear();
+}
+
+function canManageFormRecords() {
+  return state.profile?.app_role === "system_admin"
+    || Boolean(state.profile?.can_edit_collections);
+}
+
+function setFormRecordActionStatus(message, type = "") {
+  els.formLedgerActionStatus.textContent = message || "";
+  if (type) els.formLedgerActionStatus.dataset.status = type;
+  else delete els.formLedgerActionStatus.dataset.status;
+}
+
+function recordReference(row) {
+  return row.record_number || row.transaction_id || "record";
 }
 
 function metricsHtml(metrics, values) {
@@ -850,7 +1337,8 @@ function downloadCsv(rows) {
 
 function changeAllPage(direction) {
   const next = state.page + direction;
-  if (next < 0 || next * PAGE_SIZE >= state.total || state.loading) return;
+  if (next < 0 || next * PAGE_SIZE >= state.total || state.loading || state.editingFormRecordIds.size) return;
+  resetFormRecordEditState();
   state.page = next;
   void loadAllRecords();
 }
@@ -1015,6 +1503,58 @@ function titleCase(value) {
   return String(value || "-").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function shortTime(value) {
+  return String(value || "").slice(0, 5);
+}
+
+function dateTimeInputValue(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: "Africa/Nairobi"
+  }).formatToParts(date).map((part) => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
+function nairobiDateTime(value) {
+  const input = String(value || "").trim();
+  return input ? new Date(`${input}:00+03:00`).toISOString() : null;
+}
+
+function nullableValue(value) {
+  return value === null || value === undefined ? "" : String(value);
+}
+
+function numberOrNull(value) {
+  if (String(value ?? "").trim() === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function integerOrNull(value) {
+  const number = numberOrNull(value);
+  return number === null ? null : Math.trunc(number);
+}
+
+function booleanOrNull(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  return String(value) === "true";
+}
+
+function textOrNull(value) {
+  return String(value || "").trim() || null;
+}
+
+function draftsEqual(first, second) {
+  return JSON.stringify(first || {}) === JSON.stringify(second || {});
+}
+
 function kenyaDate() {
   return new Intl.DateTimeFormat("en-CA", {
     year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Africa/Nairobi"
@@ -1037,6 +1577,11 @@ function setStatus(message, type = "") {
 
 function escapeAttribute(value) {
   return escapeHtml(value);
+}
+
+function cssEscape(value) {
+  if (window.CSS?.escape) return window.CSS.escape(value);
+  return String(value).replace(/["\\]/g, "\\$&");
 }
 
 function escapeHtml(value) {

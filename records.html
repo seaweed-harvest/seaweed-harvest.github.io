@@ -347,6 +347,15 @@
             <button id="nextFormLedgerPage" type="button">Next</button>
           </div>
 
+          <div id="formLedgerEditActions" class="today-edit-actions" hidden>
+            <span id="formLedgerSelectedCount" class="status-pill">0 selected</span>
+            <button id="formLedgerStartEdit" type="button">Edit</button>
+            <button id="formLedgerSaveEdits" type="button" hidden disabled>Save</button>
+            <button id="formLedgerDiscardEdits" type="button" hidden>Discard changes</button>
+            <button id="formLedgerDeleteSelected" class="danger-button" type="button">Delete</button>
+          </div>
+          <span id="formLedgerActionStatus" class="admin-status ledger-action-status" aria-live="polite"></span>
+
           <div class="responsive-table-wrap form-ledger-table-wrap">
             <table class="management-table admin-data-table form-ledger-table">
               <thead id="formLedgerHead"></thead>
@@ -483,6 +492,6 @@
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
   <script type="module" src="./assets/js/admin_page.js?v=36"></script>
-  <script type="module" src="./assets/js/records_page.js?v=7"></script>
+  <script type="module" src="./assets/js/records_page.js?v=8"></script>
 </body>
 </html>

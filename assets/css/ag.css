@@ -6084,11 +6084,13 @@ body[data-registration-pending] .registration-flow {
   font-size: 0.72rem;
 }
 
-.today-category-table .today-row-editing td {
+.today-category-table .today-row-editing td,
+.form-ledger-table .today-row-editing td {
   background: #fffdf5;
 }
 
-.today-category-table .today-row-dirty td {
+.today-category-table .today-row-dirty td,
+.form-ledger-table .today-row-dirty td {
   background: #fff4cf;
 }
 
@@ -6225,6 +6227,15 @@ body[data-registration-pending] .registration-flow {
   font: inherit;
   text-transform: inherit;
   white-space: nowrap;
+}
+
+.form-ledger-table .form-record-inline-editor[type="date"],
+.form-ledger-table .form-record-inline-editor[type="datetime-local"] {
+  width: 158px;
+}
+
+.form-ledger-table .form-record-inline-editor[type="datetime-local"] {
+  width: 190px;
 }
 
 .form-ledger-table td:last-child {
