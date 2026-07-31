@@ -1706,7 +1706,10 @@ function handleLedgerViewKeydown(event) {
 function syncLedgerUrl() {
   if (!els.ledgerViewTabs) return;
   const url = new URL(window.location.href);
-  setUrlFilter(url, "view", state.ledgerView === "all" ? "" : state.ledgerView);
+  const ledgerView = state.ledgerView === "all" && currentPageFile() !== "records.html"
+    ? ""
+    : state.ledgerView;
+  setUrlFilter(url, "view", ledgerView);
   setUrlFilter(url, "period", els.ledgerPeriodPreset?.value === "30" ? "" : els.ledgerPeriodPreset?.value);
   setUrlFilter(url, "month", els.ledgerMonth?.value);
   setUrlFilter(url, "from", els.ledgerStartDate?.value);

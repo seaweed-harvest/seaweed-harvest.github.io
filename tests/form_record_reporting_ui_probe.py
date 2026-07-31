@@ -32,11 +32,52 @@ def main():
         driver.find_element(By.CSS_SELECTOR, "#loginForm button[type='submit']").click()
         wait.until(lambda current: "home.html" in current.current_url)
 
-        driver.get(f"{base_url}/records.html?category=process&view=monthly")
+        driver.get(f"{base_url}/records.html")
+        wait.until(lambda current: current.find_element(
+            By.ID, "recordTodayWorkspace"
+        ).is_displayed())
+        wait.until(lambda current: current.execute_script(
+            "return document.body.dataset.recordPeriod || '';"
+        ) == "today")
+        wait.until(lambda current: current.find_element(
+            By.ID, "todaySummaryPanel"
+        ).is_displayed())
+        assert driver.find_element(By.ID, "todayIntakeDate").is_displayed()
+        period_buttons = driver.find_elements(By.CSS_SELECTOR, "#recordPeriodTabs [data-record-period]")
+        assert [button.text for button in period_buttons] == [
+            "Today's Record",
+            "Monthly Records",
+            "Community Records",
+            "All Records",
+        ]
+        period_state = driver.find_element(
+            By.CSS_SELECTOR, '#recordPeriodTabs [data-record-period="today"]'
+        ).get_attribute("aria-selected")
+        assert period_state == "true", period_state
+        assert driver.find_element(
+            By.CSS_SELECTOR, '[data-today-record-tab="summary"]'
+        ).get_attribute("aria-selected") == "true"
+
+        daily_desktop = pathlib.Path(tempfile.gettempdir()) / "record-ledgers-today-desktop.png"
+        driver.save_screenshot(str(daily_desktop))
+        screenshots.append(daily_desktop)
+
+        driver.find_element(By.CSS_SELECTOR, '#recordPeriodTabs [data-record-period="monthly"]').click()
+        wait.until(lambda current: current.find_element(
+            By.ID, "operationalSummaryWorkspace"
+        ).is_displayed())
+        assert not driver.find_element(By.ID, "recordTodayWorkspace").is_displayed()
+        assert driver.find_element(
+            By.CSS_SELECTOR, '[data-ledger-category="summary"]'
+        ).get_attribute("aria-selected") == "true"
+        wait.until(lambda current: current.find_element(
+            By.ID, "loadOperationalSummary"
+        ).is_enabled())
+
+        driver.find_element(By.CSS_SELECTOR, '[data-ledger-category="process"]').click()
         wait.until(lambda current: len(current.find_elements(
             By.CSS_SELECTOR, "#formLedgerCalendar .collection-calendar-month"
         )) == 4)
-        assert not driver.find_element(By.ID, "formLedgerCommunityTab").is_displayed()
         heading_layout = driver.execute_script(
             """
             const heading = document.querySelector(".form-ledger-heading").getBoundingClientRect();
@@ -79,12 +120,12 @@ def main():
 
         driver.find_element(By.CSS_SELECTOR, '[data-ledger-category="site_sample"]').click()
         wait.until(lambda current: current.find_element(
-            By.ID, "formLedgerCommunityTab"
-        ).is_displayed())
-        wait.until(lambda current: current.find_element(
             By.ID, "loadFormLedgerMonthly"
         ).is_enabled())
-        driver.find_element(By.ID, "formLedgerCommunityTab").click()
+        assert driver.find_element(
+            By.CSS_SELECTOR, '#recordPeriodTabs [data-record-period="community"]'
+        ).is_displayed()
+        driver.find_element(By.CSS_SELECTOR, '#recordPeriodTabs [data-record-period="community"]').click()
         wait.until(lambda current: current.find_element(
             By.ID, "formLedgerCommunityPanel"
         ).is_displayed())
@@ -100,26 +141,44 @@ def main():
         driver.save_screenshot(str(desktop))
         screenshots.append(desktop)
 
+        driver.find_element(By.CSS_SELECTOR, '#recordPeriodTabs [data-record-period="today"]').click()
+        wait.until(lambda current: current.find_element(
+            By.ID, "recordTodayWorkspace"
+        ).is_displayed())
+        assert driver.find_element(
+            By.CSS_SELECTOR, '[data-today-record-tab="site-sample"]'
+        ).get_attribute("aria-selected") == "true"
+
         driver.set_window_size(390, 844)
         driver.get(f"{base_url}/records.html?category=site_sample&view=monthly")
-        wait.until(lambda current: len(current.find_elements(
-            By.CSS_SELECTOR, "#formLedgerCalendar .collection-calendar-month"
-        )) == 4)
+        wait.until(lambda current: current.find_element(
+            By.ID, "recordTodayWorkspace"
+        ).is_displayed())
+        wait.until(lambda current: current.execute_script(
+            "return document.body.dataset.recordPeriod || '';"
+        ) == "today")
         mobile = driver.execute_script(
             """
-            const tabs = document.getElementById("formLedgerCategories");
+            const tabs = document.getElementById("todayRecordTabs");
+            const periods = [...document.querySelectorAll("#recordPeriodTabs [data-record-period]")]
+              .filter((button) => getComputedStyle(button).display !== "none")
+              .map((button) => button.dataset.recordPeriod);
             return {
               viewport: document.documentElement.clientWidth,
               scrollWidth: document.documentElement.scrollWidth,
               tabClientWidth: tabs.clientWidth,
               tabScrollWidth: tabs.scrollWidth,
-              months: document.querySelectorAll("#formLedgerCalendar .collection-calendar-month").length
+              periods,
+              dailyVisible: !document.getElementById("recordTodayWorkspace").hidden,
+              historicalVisible: !document.getElementById("formLedgerCategories").hidden
             };
             """
         )
         assert mobile["scrollWidth"] <= mobile["viewport"] + 1, mobile
         assert mobile["tabScrollWidth"] >= mobile["tabClientWidth"], mobile
-        assert mobile["months"] == 4, mobile
+        assert mobile["periods"] == ["today"], mobile
+        assert mobile["dailyVisible"], mobile
+        assert not mobile["historicalVisible"], mobile
 
         mobile_shot = pathlib.Path(tempfile.gettempdir()) / "form-record-reporting-mobile.png"
         driver.save_screenshot(str(mobile_shot))

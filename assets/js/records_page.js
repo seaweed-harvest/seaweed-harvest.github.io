@@ -140,10 +140,24 @@ const CATEGORY_CAPABILITIES = {
   process: "form_process_record"
 };
 
+const DAILY_CATEGORY_BY_LEDGER = {
+  summary: "summary",
+  site_sample: "site-sample",
+  intake: "intake",
+  stock: "stock-record",
+  process: "process-record"
+};
+
+const LEDGER_CATEGORY_BY_DAILY = Object.fromEntries(
+  Object.entries(DAILY_CATEGORY_BY_LEDGER).map(([ledger, daily]) => [daily, ledger])
+);
+
+const MOBILE_RECORDS_QUERY = "(max-width: 980px)";
+
 const state = {
   profile: null,
-  category: "intake",
-  mode: "all",
+  category: "summary",
+  mode: "today",
   rows: [],
   total: 0,
   page: 0,
@@ -186,6 +200,7 @@ async function init() {
     "operationalSummaryCommunity", "loadOperationalSummary",
     "operationalSummaryScopeNote", "operationalSummaryTotals",
     "operationalSummaryRows", "operationalSummaryStatus",
+    "recordPeriodTabs", "recordTodayWorkspace", "todayRecordTabs", "reloadTodayIntake",
     "collectionLedgerWorkspace", "formLedgerWorkspace",
     "formLedgerCount", "formLedgerCategories", "formLedgerViews", "formLedgerCommunityTab",
     "formLedgerAllPanel", "formLedgerMonthlyPanel", "formLedgerCommunityPanel",
@@ -244,7 +259,9 @@ async function init() {
     if (requestedCommunity) els.formLedgerMonthlyCommunity.value = requestedCommunity;
     if (requestedCommunity) els.operationalSummaryCommunity.value = requestedCommunity;
     updateControls();
-    await loadCurrentView();
+    if (state.mode === "today") activateTodayCategory();
+    else if (state.category === "intake") activateIntakeView();
+    else await loadCurrentView();
   } catch (error) {
     setStatus(error.message, "error");
   }
@@ -258,21 +275,34 @@ function configureAvailableCategories(profile) {
   els.formLedgerCategories.querySelectorAll("[data-ledger-category]").forEach((button) => {
     button.hidden = !available.includes(button.dataset.ledgerCategory);
   });
+  els.todayRecordTabs?.querySelectorAll("[data-today-record-tab]").forEach((button) => {
+    const category = LEDGER_CATEGORY_BY_DAILY[button.dataset.todayRecordTab];
+    button.hidden = !available.includes(category);
+  });
   if (!available.includes(state.category)) state.category = available[0] || "";
   return Boolean(state.category);
 }
 
 function bindEvents() {
+  els.recordPeriodTabs?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-record-period]");
+    if (!button || button.hidden || state.loading || hasOpenRecordEdits()) return;
+    void selectRecordPeriod(button.dataset.recordPeriod);
+  });
+  els.recordPeriodTabs?.addEventListener("keydown", handleRecordPeriodKeydown);
+  document.addEventListener("today-record-category-change", (event) => {
+    if (state.mode !== "today") return;
+    const category = LEDGER_CATEGORY_BY_DAILY[event.detail?.category];
+    if (!category || category === state.category) return;
+    state.category = category;
+    syncUrl();
+  });
   els.formLedgerCategories.addEventListener("click", (event) => {
     const button = event.target.closest("[data-ledger-category]");
     if (!button || state.loading || state.editingFormRecordIds.size) return;
-    if (state.category === "intake") {
-      const currentView = new URLSearchParams(window.location.search).get("view");
-      if (["all", "monthly", "community"].includes(currentView)) state.mode = currentView;
-    }
     state.category = button.dataset.ledgerCategory;
     resetFormRecordEditState();
-    if (!["site_sample", "summary"].includes(state.category) && state.mode === "community") state.mode = "all";
+    if (!["site_sample", "summary", "intake"].includes(state.category) && state.mode === "community") state.mode = "all";
     resetPages();
     updateControls();
     if (state.category === "intake") {
@@ -348,6 +378,70 @@ function bindEvents() {
     syncUrl();
     void loadOperationalSummary();
   });
+  window.matchMedia(MOBILE_RECORDS_QUERY).addEventListener("change", (event) => {
+    if (event.matches && state.mode !== "today" && !hasOpenRecordEdits()) {
+      void selectRecordPeriod("today");
+    }
+  });
+}
+
+async function selectRecordPeriod(requestedMode) {
+  const allowed = ["today", "monthly", "community", "all"];
+  let nextMode = allowed.includes(requestedMode) ? requestedMode : "today";
+  if (window.matchMedia(MOBILE_RECORDS_QUERY).matches) nextMode = "today";
+  if (nextMode === "community"
+      && !["summary", "intake", "site_sample"].includes(state.category)) {
+    state.category = "summary";
+  }
+  state.mode = nextMode;
+  resetFormRecordEditState();
+  resetPages();
+  updateControls();
+  syncUrl();
+  if (state.mode === "today") {
+    activateTodayCategory();
+    return;
+  }
+  if (state.category === "intake") {
+    activateIntakeView();
+    return;
+  }
+  await loadCurrentView();
+}
+
+function activateTodayCategory() {
+  const dailyCategory = DAILY_CATEGORY_BY_LEDGER[state.category] || "summary";
+  const button = els.todayRecordTabs?.querySelector(
+    `[data-today-record-tab="${dailyCategory}"]:not([hidden])`
+  ) || els.todayRecordTabs?.querySelector('[data-today-record-tab="summary"]');
+  button?.click();
+}
+
+function handleRecordPeriodKeydown(event) {
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  const buttons = [...els.recordPeriodTabs.querySelectorAll("[data-record-period]")]
+    .filter((button) => !button.hidden && getComputedStyle(button).display !== "none");
+  const current = buttons.indexOf(event.target.closest("[data-record-period]"));
+  if (current < 0 || hasOpenRecordEdits()) return;
+  event.preventDefault();
+  let next = current;
+  if (event.key === "ArrowLeft") next = (current - 1 + buttons.length) % buttons.length;
+  if (event.key === "ArrowRight") next = (current + 1) % buttons.length;
+  if (event.key === "Home") next = 0;
+  if (event.key === "End") next = buttons.length - 1;
+  buttons[next].focus();
+  void selectRecordPeriod(buttons[next].dataset.recordPeriod);
+}
+
+function hasOpenRecordEdits() {
+  if (state.editingFormRecordIds.size) return true;
+  return Boolean(document.querySelector([
+    "#todaySaveEdits:not([hidden])",
+    "#todayProcessRecordSaveEdits:not([hidden])",
+    "#todaySiteSampleSaveEdits:not([hidden])",
+    "#todayStockRecordSaveEdits:not([hidden])",
+    "#ledgerSaveEdits:not([hidden])"
+  ].join(",")));
 }
 
 function setDateDefaults() {
@@ -369,10 +463,16 @@ function readUrlState() {
   if (["summary", "intake", "process", "site_sample", "stock"].includes(params.get("category"))) {
     state.category = params.get("category");
   }
-  if (["all", "monthly", "community"].includes(params.get("view"))) {
+  const dailyCategory = LEDGER_CATEGORY_BY_DAILY[params.get("records")];
+  if (dailyCategory) state.category = dailyCategory;
+  if (["today", "all", "monthly", "community"].includes(params.get("view"))) {
     state.mode = params.get("view");
   }
-  if (state.category !== "site_sample" && state.mode === "community") state.mode = "all";
+  if (window.matchMedia(MOBILE_RECORDS_QUERY).matches) state.mode = "today";
+  if (!["summary", "intake", "site_sample"].includes(state.category)
+      && state.mode === "community") {
+    state.category = "summary";
+  }
   if (/^\d{4}-\d{2}-\d{2}$/.test(params.get("from") || "")) {
     els.formLedgerFrom.value = params.get("from");
     els.formLedgerCommunityFrom.value = params.get("from");
@@ -395,9 +495,28 @@ function readUrlState() {
 }
 
 function updateControls() {
+  document.body.dataset.recordPeriod = state.mode;
+  els.recordPeriodTabs?.querySelectorAll("[data-record-period]").forEach((button) => {
+    const selected = button.dataset.recordPeriod === state.mode;
+    button.setAttribute("aria-selected", String(selected));
+    button.tabIndex = selected ? 0 : -1;
+  });
+  const todaySelected = state.mode === "today";
+  els.recordTodayWorkspace.hidden = !todaySelected;
+  els.todayRecordTabs.hidden = !todaySelected;
+  els.reloadTodayIntake.hidden = !todaySelected;
+  els.formLedgerCategories.hidden = todaySelected;
+
   els.formLedgerCategories.querySelectorAll("[data-ledger-category]").forEach((button) => {
     button.setAttribute("aria-selected", String(button.dataset.ledgerCategory === state.category));
   });
+  if (todaySelected) {
+    els.operationalSummaryWorkspace.hidden = true;
+    els.collectionLedgerWorkspace.hidden = true;
+    els.formLedgerWorkspace.hidden = true;
+    return;
+  }
+
   const summarySelected = state.category === "summary";
   const intakeSelected = state.category === "intake";
   els.operationalSummaryWorkspace.hidden = !summarySelected;
@@ -419,6 +538,7 @@ function updateControls() {
 }
 
 async function loadCurrentView() {
+  if (state.mode === "today") return;
   if (state.category === "summary") {
     await loadOperationalSummary();
     return;
@@ -1017,6 +1137,9 @@ function updateFormRecordSelectionUi() {
   els.formLedgerCategories.querySelectorAll("[data-ledger-category]").forEach((button) => {
     button.disabled = editing;
   });
+  els.recordPeriodTabs?.querySelectorAll("[data-record-period]").forEach((button) => {
+    button.disabled = editing;
+  });
   els.formLedgerViews.querySelectorAll("[data-ledger-mode]").forEach((button) => {
     button.disabled = editing;
   });
@@ -1567,8 +1690,20 @@ function renderPageStatus(page, total, status, previous, next) {
 function syncUrl() {
   const url = new URL(window.location.href);
   url.searchParams.set("category", state.category);
+  url.searchParams.set("view", state.mode);
+  if (state.mode === "today") {
+    const dailyCategory = DAILY_CATEGORY_BY_LEDGER[state.category] || "summary";
+    if (dailyCategory === "intake") url.searchParams.delete("records");
+    else url.searchParams.set("records", dailyCategory);
+    [
+      "year", "from", "to", "search", "grouping", "summary_from",
+      "summary_to", "community"
+    ].forEach((key) => url.searchParams.delete(key));
+    window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+    return;
+  }
+  url.searchParams.delete("records");
   if (state.category === "summary") {
-    url.searchParams.delete("view");
     url.searchParams.delete("year");
     url.searchParams.delete("from");
     url.searchParams.delete("to");
@@ -1588,7 +1723,6 @@ function syncUrl() {
     window.history.replaceState({}, "", `${url.pathname}${url.search}`);
     return;
   }
-  url.searchParams.set("view", state.mode);
   if (state.mode === "monthly") url.searchParams.set("year", els.formLedgerYear.value);
   else url.searchParams.delete("year");
   const from = state.mode === "community" ? els.formLedgerCommunityFrom.value : els.formLedgerFrom.value;
@@ -1624,6 +1758,12 @@ function setLoading(loading) {
     els.loadFormLedger, els.exportFormLedger, els.loadFormLedgerMonthly,
     els.loadFormLedgerCommunity, els.loadOperationalSummary
   ].forEach((button) => { button.disabled = loading; });
+  els.recordPeriodTabs?.querySelectorAll("[data-record-period]").forEach((button) => {
+    button.disabled = loading;
+  });
+  els.formLedgerCategories?.querySelectorAll("[data-ledger-category]").forEach((button) => {
+    button.disabled = loading;
+  });
   els.previousFormLedgerPage.disabled = loading || state.page === 0;
   els.nextFormLedgerPage.disabled = loading || (state.page + 1) * PAGE_SIZE >= state.total;
 }

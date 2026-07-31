@@ -12,6 +12,7 @@ def read(relative_path):
 class FormRecordReportingStaticTest(unittest.TestCase):
     def setUp(self):
         self.records = read("records.html")
+        self.today = read("today.html")
         self.legacy_collection = read("admin_ledger.html")
         self.script = read("assets/js/records_page.js")
         self.reporting = read(
@@ -30,6 +31,29 @@ class FormRecordReportingStaticTest(unittest.TestCase):
         self.assertEqual(positions, sorted(positions))
         self.assertIn('data-ledger-category="intake"', self.records)
         self.assertNotIn('href="./admin_ledger.html">2. Intake Collection</a>', self.records)
+
+    def test_record_ledgers_defaults_to_embedded_daily_workspace(self):
+        periods = (
+            "Today's Record",
+            "Monthly Records",
+            "Community Records",
+            "All Records",
+        )
+        positions = [self.records.index(label) for label in periods]
+        self.assertEqual(positions, sorted(positions))
+        self.assertIn('id="recordTodayWorkspace"', self.records)
+        self.assertIn('id="todayIntakeDate"', self.records)
+        self.assertIn('id="todayIntakeRows"', self.records)
+        self.assertIn('data-today-default-category="summary"', self.records)
+        self.assertIn('mode: "today"', self.script)
+        self.assertIn('category: "summary"', self.script)
+        self.assertIn('MOBILE_RECORDS_QUERY', self.script)
+
+    def test_standalone_daily_route_remains_available_for_collectors(self):
+        self.assertIn('id="todayRecordTabs"', self.today)
+        self.assertIn('id="todayIntakeDate"', self.today)
+        self.assertIn('id="publicTodayRows"', self.today)
+        self.assertIn('src="./assets/js/today_page.js', self.today)
 
     def test_legacy_collection_route_preserves_filters_and_redirects(self):
         self.assertIn('new URL("./records.html"', self.legacy_collection)

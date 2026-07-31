@@ -6319,6 +6319,22 @@ body[data-registration-pending] .registration-flow {
   margin: 4px 0 0;
 }
 
+.record-period-tabs {
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 0 14px;
+}
+
+.record-period-tabs button {
+  min-width: 132px;
+  text-align: center;
+}
+
+.record-internal-view-tabs[hidden],
+#recordTodayWorkspace[hidden] {
+  display: none;
+}
+
 .form-ledger-view-heading {
   min-width: 0;
   display: flex;
@@ -7560,6 +7576,20 @@ label input[type="checkbox"] {
     justify-content: center;
     font-size: 0.72rem;
     white-space: normal;
+    text-align: center;
+  }
+
+  .record-period-tabs {
+    width: 100%;
+    margin-bottom: 12px;
+  }
+
+  .record-period-tabs [data-record-period]:not([data-record-period="today"]) {
+    display: none;
+  }
+
+  .record-period-tabs button {
+    min-width: 0;
     text-align: center;
   }
 

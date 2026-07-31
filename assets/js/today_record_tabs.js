@@ -95,10 +95,17 @@ function init() {
     });
   }
 
-  const requested = new URLSearchParams(window.location.search).get("records");
+  const params = new URLSearchParams(window.location.search);
+  const categoryFromLedger = {
+    site_sample: "site-sample",
+    stock: "stock-record",
+    process: "process-record"
+  }[params.get("category")] || params.get("category");
+  const requested = params.get("records") || categoryFromLedger;
+  const defaultCategory = document.body.dataset.todayDefaultCategory || "intake";
   const category = requested && (requested === "intake" || requested === "summary" || CATEGORY_CONFIG[requested])
     ? requested
-    : "intake";
+    : defaultCategory;
   void activateTab(category, { updateUrl: false });
 }
 
@@ -133,13 +140,17 @@ async function activateTab(category, options = {}) {
     else url.searchParams.set("records", category);
     window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
   }
+  document.dispatchEvent(new CustomEvent("today-record-category-change", {
+    detail: { category }
+  }));
   if (category === "summary") await loadSummary();
   else if (category !== "intake") await loadSupplementalRecords();
 }
 
 function handleTabKeydown(event) {
   if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-  const buttons = [...els.todayRecordTabs.querySelectorAll("[data-today-record-tab]")];
+  const buttons = [...els.todayRecordTabs.querySelectorAll("[data-today-record-tab]")]
+    .filter((button) => !button.hidden);
   const current = buttons.indexOf(document.activeElement);
   if (current < 0) return;
   event.preventDefault();
