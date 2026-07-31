@@ -43,6 +43,19 @@ class ContainerLookupStaticTest(unittest.TestCase):
             self.assertIn(heading, self.page)
         self.assertIn("container-lookup-group-row", self.script)
         self.assertIn("Container ${escapeHtml(displayContainer(group.key))}", self.script)
+        self.assertIn('aria-expanded="${expanded}"', self.script)
+        self.assertIn("state.expandedContainers.has(group.key)", self.script)
+
+    def test_group_summary_uses_common_values_and_qc_ranges(self):
+        self.assertIn("commonGroupValue(rows, (row) => titleCase(row.species))", self.script)
+        self.assertIn("commonGroupValue(rows, stockChemicalSummary)", self.script)
+        self.assertIn('measurementRange(rows, "salinity_value", "salinity_unit")', self.script)
+        self.assertIn('measurementRange(rows, "ph_value")', self.script)
+        self.assertIn(
+            'measurementRange(rows, "electrical_conductivity_ms_cm")',
+            self.script,
+        )
+        self.assertIn("container-lookup-group-empty", self.script)
 
     def test_container_input_accepts_padded_and_unpadded_serials(self):
         self.assertIn('placeholder="e.g. 1,2,3 or 0001,0002,0003"', self.page)

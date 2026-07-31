@@ -15,6 +15,7 @@ const state = {
   sortField: "container",
   direction: "asc",
   groupDirection: "asc",
+  expandedContainers: new Set(),
   loading: false
 };
 const els = {};
@@ -81,6 +82,17 @@ function bindEvents() {
     if (field === "container") state.groupDirection = state.direction;
     render();
   });
+  els.containerLookupRows.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-container-group-toggle]");
+    if (!button) return;
+    const key = button.dataset.containerGroupToggle;
+    if (state.expandedContainers.has(key)) state.expandedContainers.delete(key);
+    else state.expandedContainers.add(key);
+    render();
+    els.containerLookupRows.querySelector(
+      `[data-container-group-toggle="${cssEscape(key)}"]`
+    )?.focus();
+  });
 }
 
 async function loadRecords() {
@@ -135,15 +147,11 @@ function render() {
   }
 
   const groups = groupedRows();
-  els.containerLookupRows.innerHTML = groups.map((group) => `
-    <tr class="container-lookup-group-row">
-      <th colspan="11">
-        <span>Container ${escapeHtml(displayContainer(group.key))}</span>
-        <small>${escapeHtml(countLabel(group.rows.length, "entry"))}</small>
-      </th>
-    </tr>
-    ${group.rows.map(recordRowHtml).join("")}
-  `).join("");
+  const availableKeys = new Set(groups.map((group) => group.key));
+  state.expandedContainers.forEach((key) => {
+    if (!availableKeys.has(key)) state.expandedContainers.delete(key);
+  });
+  els.containerLookupRows.innerHTML = groups.map(groupRowsHtml).join("");
 }
 
 function groupedRows() {
@@ -204,9 +212,72 @@ function compareContainerKeys(first, second) {
   return first.localeCompare(second, undefined, { numeric: true, sensitivity: "base" });
 }
 
-function recordRowHtml(row) {
+function groupRowsHtml(group) {
+  const expanded = state.expandedContainers.has(group.key);
+  const summary = groupSummary(group.rows);
+  const key = escapeAttribute(group.key);
   return `
-    <tr>
+    <tr class="container-lookup-group-row">
+      <th scope="row">
+        <button
+          class="container-lookup-group-toggle"
+          type="button"
+          data-container-group-toggle="${key}"
+          aria-expanded="${expanded}"
+          aria-label="${expanded ? "Collapse" : "Expand"} Container ${escapeAttribute(displayContainer(group.key))}"
+        >
+          <span>Container ${escapeHtml(displayContainer(group.key))}</span>
+          <small>${escapeHtml(countLabel(group.rows.length, "entry"))}</small>
+        </button>
+      </th>
+      <td class="container-lookup-group-empty"></td>
+      <td class="container-lookup-group-empty"></td>
+      <td>${escapeHtml(summary.species)}</td>
+      <td>${escapeHtml(summary.volume)}</td>
+      <td>${escapeHtml(summary.dose)}</td>
+      <td>${escapeHtml(summary.salinity)}</td>
+      <td>${escapeHtml(summary.ph)}</td>
+      <td>${escapeHtml(summary.ec)}</td>
+      <td class="container-lookup-group-empty"></td>
+      <td class="container-lookup-group-empty"></td>
+    </tr>
+    ${group.rows.map((row) => recordRowHtml(row, group.key, expanded)).join("")}`;
+}
+
+function groupSummary(rows) {
+  return {
+    species: commonGroupValue(rows, (row) => titleCase(row.species)),
+    volume: commonGroupValue(rows, (row) => measurement(row.weight_value, row.weight_unit)),
+    dose: commonGroupValue(rows, stockChemicalSummary),
+    salinity: measurementRange(rows, "salinity_value", "salinity_unit"),
+    ph: measurementRange(rows, "ph_value"),
+    ec: measurementRange(rows, "electrical_conductivity_ms_cm")
+  };
+}
+
+function commonGroupValue(rows, formatter) {
+  const values = [...new Set(rows.map(formatter))];
+  return values.length === 1 ? values[0] : "-";
+}
+
+function measurementRange(rows, field, unitField = "") {
+  const values = rows
+    .map((row) => Number(row[field]))
+    .filter((value) => Number.isFinite(value));
+  if (!values.length) return "-";
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const range = minimum === maximum
+    ? formatNumber(minimum)
+    : `${formatNumber(minimum)} - ${formatNumber(maximum)}`;
+  if (!unitField) return range;
+  const units = [...new Set(rows.map((row) => String(row[unitField] || "").trim()).filter(Boolean))];
+  return units.length === 1 ? `${range} ${units[0]}` : range;
+}
+
+function recordRowHtml(row, groupKey, expanded) {
+  return `
+    <tr class="container-lookup-detail-row" data-container-detail="${escapeAttribute(groupKey)}"${expanded ? "" : " hidden"}>
       <td>${escapeHtml(displayContainer(normalizeContainer(row.container_key || row.carton_serial)))}</td>
       <td>${escapeHtml(formatDate(row.record_date))}</td>
       <td>${escapeHtml(entryLabel(row))}</td>
@@ -349,11 +420,21 @@ function titleCase(value) {
 
 function countLabel(value, noun) {
   const count = Number(value || 0);
-  return `${formatInteger(count)} ${noun}${count === 1 ? "" : "s"}`;
+  const plural = noun === "entry" ? "entries" : `${noun}s`;
+  return `${formatInteger(count)} ${count === 1 ? noun : plural}`;
 }
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>'"]/g, (character) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
   })[character]);
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value);
+}
+
+function cssEscape(value) {
+  if (window.CSS?.escape) return window.CSS.escape(value);
+  return String(value).replace(/["\\]/g, "\\$&");
 }

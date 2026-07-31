@@ -104,7 +104,35 @@ def main():
         assert len(groups) == 2, [group.text for group in groups]
         assert groups[0].text.startswith("Container 0001"), groups[0].text
         assert groups[1].text.startswith("Container 0002"), groups[1].text
-        assert driver.find_element(By.ID, "containerLookupRows").text.count("Retest") >= 2
+        for expected in (
+            "Spinosum",
+            "22 L",
+            "22g Sodium benzoate; 8g Citric acid",
+            "33.3 - 33.4 ppt",
+            "4.08 - 4.12",
+            "53.9 - 54.1",
+        ):
+            assert expected in groups[0].text, (expected, groups[0].text)
+        detail_rows = driver.find_elements(By.CSS_SELECTOR, ".container-lookup-detail-row")
+        assert detail_rows and not any(row.is_displayed() for row in detail_rows)
+        first_toggle = groups[0].find_element(
+            By.CSS_SELECTOR, "[data-container-group-toggle]"
+        )
+        assert first_toggle.get_attribute("aria-expanded") == "false"
+        first_toggle.click()
+        wait.until(
+            lambda current: current.find_element(
+                By.CSS_SELECTOR, '[data-container-group-toggle="1"]'
+            ).get_attribute("aria-expanded") == "true"
+        )
+        visible_details = [
+            row for row in driver.find_elements(
+                By.CSS_SELECTOR, '[data-container-detail="1"]'
+            )
+            if row.is_displayed()
+        ]
+        assert len(visible_details) == 2, [row.text for row in visible_details]
+        assert any("Retest" in row.text for row in visible_details)
         assert driver.find_element(By.LINK_TEXT, "Container Lookup").is_displayed()
 
         date_sort = driver.find_element(
@@ -135,13 +163,16 @@ def main():
               pageWidth: document.documentElement.scrollWidth,
               wrapWidth: Math.round(wrap.getBoundingClientRect().width),
               tableWidth: Math.round(table.getBoundingClientRect().width),
-              rows: document.querySelectorAll('#containerLookupRows tr:not(.container-lookup-group-row)').length
+              groups: document.querySelectorAll('.container-lookup-group-row').length,
+              visibleDetails: [...document.querySelectorAll('.container-lookup-detail-row')]
+                .filter((row) => !row.hidden).length
             };
             """
         )
         assert mobile["pageWidth"] <= mobile["viewport"] + 1, mobile
         assert mobile["tableWidth"] > mobile["wrapWidth"], mobile
-        assert mobile["rows"] == len(result["rows"]), mobile
+        assert mobile["groups"] == 2, mobile
+        assert mobile["visibleDetails"] == 0, mobile
 
         mobile_shot = pathlib.Path(tempfile.gettempdir()) / "container-lookup-mobile.png"
         driver.save_screenshot(str(mobile_shot))

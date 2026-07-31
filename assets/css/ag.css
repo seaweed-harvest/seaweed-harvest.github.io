@@ -6285,26 +6285,60 @@ body[data-registration-pending] .registration-flow {
   content: " \25BC";
 }
 
-.container-lookup-group-row th {
+.container-lookup-table .container-lookup-group-row > * {
   padding: 8px 10px;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   background: var(--panel-soft);
   color: var(--text);
   font-size: 0.76rem;
+  font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
 }
 
-.container-lookup-group-row th span {
+.container-lookup-group-toggle {
+  width: 100%;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+
+.container-lookup-group-toggle::before {
+  content: "\25B6";
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  transform-origin: center;
+  transition: transform 120ms ease;
+}
+
+.container-lookup-group-toggle[aria-expanded="true"]::before {
+  transform: rotate(90deg);
+}
+
+.container-lookup-group-toggle span {
   font-weight: 700;
 }
 
-.container-lookup-group-row th small {
-  margin-left: 10px;
+.container-lookup-group-toggle small {
   color: var(--text-muted);
   font-size: 0.68rem;
   font-weight: 600;
+}
+
+.container-lookup-group-empty {
+  color: transparent;
+}
+
+.container-lookup-detail-row[hidden] {
+  display: none;
 }
 
 .form-ledger-view-tabs {
