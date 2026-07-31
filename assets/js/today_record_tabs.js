@@ -278,7 +278,7 @@ function renderSummary(summary) {
         plainTextMetric("EC", summary.stock_ec_range || "-", true)
       ] : [])
     ]),
-    summaryGroup("Process record", [
+    summaryGroup("Facility Process Record", [
       metric("Received seaweed", summary.process_received_kg, "kg"),
       metric("Pressed liquid", summary.process_pressed_liquid_l, "L"),
       metric("Lost seaweed", summary.process_lost_kg, "kg"),

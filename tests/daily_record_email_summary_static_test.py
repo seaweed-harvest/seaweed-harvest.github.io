@@ -1,0 +1,160 @@
+import pathlib
+import unittest
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+
+def read(path):
+    return (ROOT / path).read_text(encoding="utf-8")
+
+
+class DailyRecordEmailSummaryStaticTest(unittest.TestCase):
+    def test_database_stores_tenant_recipient_preferences_and_delivery_history(self):
+        migration = read(
+            "supabase/migrations/20260731100000_daily_record_email_summary.sql"
+        )
+        self.assertIn("receive_daily_summary_email boolean not null default false", migration)
+        self.assertIn("ag_daily_record_email_deliveries", migration)
+        self.assertIn(
+            "unique (aggregator_id, summary_date, recipient_email)",
+            migration,
+        )
+        self.assertIn("ag_admin_daily_summary_recipient_state", migration)
+        self.assertIn("aggregator.aggregator_code = 'MAWIMBI'", migration)
+        self.assertIn(
+            "lower(profile.email) = 'bmichael@cascadiaseaweed.com'",
+            migration,
+        )
+
+    def test_schedule_runs_at_0800_east_africa_time(self):
+        migration = read(
+            "supabase/migrations/20260731100000_daily_record_email_summary.sql"
+        )
+        self.assertIn("'daily-record-email-summary-0800-eat'", migration)
+        self.assertIn("'0 5 * * *'", migration)
+        self.assertIn("/functions/v1/daily-record-email-summary", migration)
+        self.assertIn("'aggregator_code', 'MAWIMBI'", migration)
+        self.assertIn("daily_aggregation_summary_secret", migration)
+
+    def test_edge_function_uses_previous_nairobi_day_and_resend(self):
+        function = read(
+            "supabase/functions/daily-record-email-summary/index.ts"
+        )
+        self.assertIn('shiftDate(nairobiDate(), -1)', function)
+        self.assertIn('timeZone: "Africa/Nairobi"', function)
+        self.assertIn('Deno.env.get("RESEND_API_KEY")', function)
+        self.assertIn('fetch("https://api.resend.com/emails"', function)
+        self.assertIn('"Idempotency-Key"', function)
+        self.assertIn("ag_daily_record_email_deliveries", function)
+        self.assertIn("receive_daily_summary_email", function)
+        self.assertIn('body.action === "delivery_status"', function)
+        self.assertIn("last_event: result.last_event", function)
+        self.assertIn(
+            "100 - ((processTotals.dry / processTotals.wet) * 100)",
+            function,
+        )
+
+    def test_email_contains_all_four_operational_sections(self):
+        function = read(
+            "supabase/functions/daily-record-email-summary/index.ts"
+        )
+        for label in (
+            'emailSection("Facility Process Record"',
+            'emailSection("Intake Collection"',
+            'emailSection("Stock Record"',
+            'emailSection("Site Water Samples"',
+            'metric("Total paid"',
+            'metric("Wet/dry extraction"',
+            'metric("Stock L / intake kg"',
+        ):
+            self.assertIn(label, function)
+        self.assertLess(
+            function.index('emailSection("Facility Process Record"'),
+            function.index('emailSection("Intake Collection"'),
+        )
+        self.assertLess(
+            function.index('emailSection("Stock Record"'),
+            function.index('emailSection("Site Water Samples"'),
+        )
+        self.assertIn(
+            "/today.html?records=summary&date=${summary.summary_date}",
+            function,
+        )
+
+    def test_email_rebuilds_four_previous_days_and_omits_empty_history(self):
+        function = read(
+            "supabase/functions/daily-record-email-summary/index.ts"
+        )
+        self.assertIn("[1, 2, 3, 4].map", function)
+        self.assertIn(".filter(hasOperationalRecords)", function)
+        self.assertIn("recent_summaries: recentSummaries", function)
+        self.assertIn("Recent daily records", function)
+        self.assertIn("recentSummaries.map", function)
+
+    def test_email_branding_uses_current_logo_and_concise_footer(self):
+        expected_logo = (
+            "https://seaweed-harvest.com/assets/images/"
+            "seaweed-harvest-logo.png"
+        )
+        expected_footer = "by Cascadia Nature-based Solutions."
+        for path in (
+            "supabase/templates/invite.html",
+            "supabase/templates/confirmation.html",
+            "supabase/templates/recovery.html",
+        ):
+            template = read(path)
+            self.assertIn(expected_logo, template)
+            self.assertIn(expected_footer, template)
+            self.assertNotIn("&#127807;", template)
+
+        function = read(
+            "supabase/functions/daily-record-email-summary/index.ts"
+        )
+        self.assertIn(
+            "${APP_SITE_URL}/assets/images/seaweed-harvest-logo.png",
+            function,
+        )
+        self.assertIn(expected_footer, function)
+        self.assertIn('colspan="4"', function)
+
+    def test_user_management_exposes_per_organisation_recipient_selection(self):
+        page = read("admin_users.html")
+        script = read("assets/js/users_page.js")
+
+        self.assertIn('id="inviteDailySummaries"', page)
+        self.assertIn('id="editDailySummaries"', page)
+        self.assertIn("08:00 Kenya time", page)
+        self.assertIn("Daily email", page)
+        self.assertIn("ag_admin_daily_summary_recipient_state", script)
+        self.assertIn("renderDailySummaryInputs", script)
+        self.assertIn("daily_summary_aggregator_ids", script)
+
+    def test_today_summary_uses_facility_process_record_name(self):
+        script = read("assets/js/today_record_tabs.js")
+        self.assertIn('summaryGroup("Facility Process Record"', script)
+        self.assertIn('data-today-record-tab="process-record"', read("today.html"))
+        self.assertIn(">4. Process Record</button>", read("today.html"))
+
+    def test_function_is_publicly_routable_but_secret_authenticated(self):
+        config = read("supabase/config.toml")
+        function = read(
+            "supabase/functions/daily-record-email-summary/index.ts"
+        )
+        self.assertIn("[functions.daily-record-email-summary]", config)
+        self.assertIn("verify_jwt = false", config)
+        self.assertIn("x-daily-email-summary-secret", function)
+        self.assertIn("DAILY_RECORD_EMAIL_MANUAL_SECRET", function)
+        self.assertIn("x-daily-email-manual-secret", function)
+        self.assertIn("Unauthorized daily summary invocation", function)
+
+    def test_cache_version_is_advanced_for_summary_label_update(self):
+        worker = read("service-worker.js")
+        self.assertIn(
+            'CACHE_VERSION = "seaweed-harvest-collection-v130"',
+            worker,
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()
