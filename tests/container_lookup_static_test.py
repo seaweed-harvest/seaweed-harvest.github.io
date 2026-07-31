@@ -29,7 +29,7 @@ class ContainerLookupStaticTest(unittest.TestCase):
             "containerLookupTo",
             "containerLookupRows",
         ):
-            self.assertIn(f'id="{element_id}"', self.page)
+            self.assertIn(f'id="{element_id}"', self.records)
         for heading in (
             "Container",
             "Date",
@@ -43,7 +43,7 @@ class ContainerLookupStaticTest(unittest.TestCase):
             "Recorded by",
             "Notes",
         ):
-            self.assertIn(heading, self.page)
+            self.assertIn(heading, self.records)
         self.assertIn("container-lookup-group-row", self.script)
         self.assertIn("Container ${escapeHtml(displayContainer(group.key))}", self.script)
         self.assertIn('aria-expanded="${expanded}"', self.script)
@@ -61,7 +61,7 @@ class ContainerLookupStaticTest(unittest.TestCase):
         self.assertIn("container-lookup-group-empty", self.script)
 
     def test_container_input_accepts_padded_and_unpadded_serials(self):
-        self.assertIn('placeholder="e.g. 1,2,3 or 0001,0002,0003"', self.page)
+        self.assertIn('placeholder="e.g. 1,2,3 or 0001,0002,0003"', self.records)
         self.assertIn("ltrim(trim(token), '0')", self.migration)
         self.assertIn("ltrim(trim(record.carton_serial), '0')", self.migration)
         self.assertIn("regexp_split_to_table", self.migration)
@@ -80,14 +80,19 @@ class ContainerLookupStaticTest(unittest.TestCase):
     def test_lookup_is_a_stock_record_view_not_a_sidebar_item(self):
         self.assertNotIn('label: "Container Lookup"', self.navigation)
         self.assertIn('id="recordContainerLookupTab"', self.records)
-        self.assertIn('href="./container_lookup.html"', self.records)
+        self.assertIn('data-record-period="container"', self.records)
+        self.assertIn('id="containerLookupWorkspace"', self.records)
         self.assertIn('els.recordContainerLookupTab.hidden = state.category !== "stock"', self.records_script)
-        self.assertIn('aria-current="page">Container Lookup</a>', self.page)
-        period_tabs = self.page.split(
-            '<nav class="ledger-view-tabs record-period-tabs"', 1
+        self.assertIn('els.recordCommunityTab.hidden = !communityAvailable', self.records_script)
+        self.assertIn('state.mode === "container"', self.records_script)
+        period_tabs = self.records.split(
+            '<nav id="recordPeriodTabs"', 1
         )[1].split("</nav>", 1)[0]
         self.assertLess(period_tabs.index("Community Records"), period_tabs.index("Container Lookup"))
         self.assertLess(period_tabs.index("Container Lookup"), period_tabs.index("All Records"))
+        self.assertIn('new URL("./records.html"', self.page)
+        self.assertIn('target.searchParams.set("category", "stock")', self.page)
+        self.assertIn('target.searchParams.set("view", "container")', self.page)
         self.assertIn('"./container_lookup.html"', self.worker)
         self.assertIn('"./assets/js/container_lookup_page.js"', self.worker)
 
@@ -105,7 +110,7 @@ class ContainerLookupStaticTest(unittest.TestCase):
         self.assertIn("end: to || from || null", self.script)
 
     def test_all_columns_are_sortable(self):
-        self.assertEqual(self.page.count("data-container-sort="), 11)
+        self.assertEqual(self.records.count("data-container-sort="), 11)
         self.assertIn("state.sortField === field", self.script)
         self.assertIn("rows: rows.sort(compareRows)", self.script)
 

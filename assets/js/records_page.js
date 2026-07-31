@@ -3,6 +3,10 @@ import {
   hasOrganisationCapability,
   requireAdminAccess
 } from "./auth_client.js";
+import {
+  initializeContainerLookup,
+  loadContainerLookupRecords
+} from "./container_lookup_page.js?v=2";
 import { moonEvents } from "./moon_calendar.js";
 import { selectRows } from "./supabase_client.js";
 
@@ -200,7 +204,8 @@ async function init() {
     "operationalSummaryCommunity", "loadOperationalSummary",
     "operationalSummaryScopeNote", "operationalSummaryTotals",
     "operationalSummaryRows", "operationalSummaryStatus",
-    "recordPeriodTabs", "recordContainerLookupTab", "recordTodayWorkspace",
+    "recordPeriodTabs", "recordCommunityTab", "recordContainerLookupTab",
+    "recordTodayWorkspace", "containerLookupWorkspace",
     "todayRecordTabs", "reloadTodayIntake",
     "collectionLedgerWorkspace", "formLedgerWorkspace",
     "formLedgerCount", "formLedgerCategories", "formLedgerViews", "formLedgerCommunityTab",
@@ -237,6 +242,7 @@ async function init() {
     window.location.replace("./access_pending.html");
     return;
   }
+  await initializeContainerLookup();
   bindEvents();
   try {
     const [communities, species] = await Promise.all([
@@ -281,6 +287,7 @@ function configureAvailableCategories(profile) {
     button.hidden = !available.includes(category);
   });
   if (!available.includes(state.category)) state.category = available[0] || "";
+  if (state.mode === "container" && state.category !== "stock") state.mode = "today";
   return Boolean(state.category);
 }
 
@@ -304,6 +311,7 @@ function bindEvents() {
     state.category = button.dataset.ledgerCategory;
     resetFormRecordEditState();
     if (!["site_sample", "summary", "intake"].includes(state.category) && state.mode === "community") state.mode = "all";
+    if (state.mode === "container" && state.category !== "stock") state.mode = "all";
     resetPages();
     updateControls();
     if (state.category === "intake") {
@@ -387,9 +395,10 @@ function bindEvents() {
 }
 
 async function selectRecordPeriod(requestedMode) {
-  const allowed = ["today", "monthly", "community", "all"];
+  const allowed = ["today", "monthly", "community", "container", "all"];
   let nextMode = allowed.includes(requestedMode) ? requestedMode : "today";
   if (window.matchMedia(MOBILE_RECORDS_QUERY).matches) nextMode = "today";
+  if (nextMode === "container") state.category = "stock";
   if (nextMode === "community"
       && !["summary", "intake", "site_sample"].includes(state.category)) {
     state.category = "summary";
@@ -466,7 +475,7 @@ function readUrlState() {
   }
   const dailyCategory = LEDGER_CATEGORY_BY_DAILY[params.get("records")];
   if (dailyCategory) state.category = dailyCategory;
-  if (["today", "all", "monthly", "community"].includes(params.get("view"))) {
+  if (["today", "all", "monthly", "community", "container"].includes(params.get("view"))) {
     state.mode = params.get("view");
   }
   if (window.matchMedia(MOBILE_RECORDS_QUERY).matches) state.mode = "today";
@@ -474,6 +483,7 @@ function readUrlState() {
       && state.mode === "community") {
     state.category = "summary";
   }
+  if (state.mode === "container") state.category = "stock";
   if (/^\d{4}-\d{2}-\d{2}$/.test(params.get("from") || "")) {
     els.formLedgerFrom.value = params.get("from");
     els.formLedgerCommunityFrom.value = params.get("from");
@@ -497,9 +507,9 @@ function readUrlState() {
 
 function updateControls() {
   document.body.dataset.recordPeriod = state.mode;
-  if (els.recordContainerLookupTab) {
-    els.recordContainerLookupTab.hidden = state.category !== "stock";
-  }
+  const communityAvailable = ["summary", "intake", "site_sample"].includes(state.category);
+  els.recordCommunityTab.hidden = !communityAvailable;
+  els.recordContainerLookupTab.hidden = state.category !== "stock";
   els.recordPeriodTabs?.querySelectorAll("[data-record-period]").forEach((button) => {
     const selected = button.dataset.recordPeriod === state.mode;
     button.setAttribute("aria-selected", String(selected));
@@ -518,31 +528,39 @@ function updateControls() {
     els.operationalSummaryWorkspace.hidden = true;
     els.collectionLedgerWorkspace.hidden = true;
     els.formLedgerWorkspace.hidden = true;
+    els.containerLookupWorkspace.hidden = true;
     return;
   }
 
+  const containerSelected = state.mode === "container";
   const summarySelected = state.category === "summary";
   const intakeSelected = state.category === "intake";
-  els.operationalSummaryWorkspace.hidden = !summarySelected;
-  els.collectionLedgerWorkspace.hidden = !intakeSelected;
-  els.formLedgerWorkspace.hidden = summarySelected || intakeSelected;
+  els.operationalSummaryWorkspace.hidden = containerSelected || !summarySelected;
+  els.collectionLedgerWorkspace.hidden = containerSelected || !intakeSelected;
+  els.formLedgerWorkspace.hidden = containerSelected || summarySelected || intakeSelected;
+  els.containerLookupWorkspace.hidden = !containerSelected;
+  if (containerSelected) return;
   if (summarySelected || intakeSelected) return;
 
   els.formLedgerViews.querySelectorAll("[data-ledger-mode]").forEach((button) => {
     button.setAttribute("aria-selected", String(button.dataset.ledgerMode === state.mode));
   });
-  const communityAvailable = state.category === "site_sample";
-  els.formLedgerCommunityTab.hidden = !communityAvailable;
+  const formCommunityAvailable = state.category === "site_sample";
+  els.formLedgerCommunityTab.hidden = !formCommunityAvailable;
   els.formLedgerAllPanel.hidden = state.mode !== "all";
   els.formLedgerMonthlyPanel.hidden = state.mode !== "monthly";
   els.formLedgerCommunityPanel.hidden = state.mode !== "community";
-  els.formLedgerMonthlyCommunityField.hidden = !communityAvailable;
+  els.formLedgerMonthlyCommunityField.hidden = !formCommunityAvailable;
   els.formLedgerMonthlyTitle.textContent = `${REPORTS[state.category].title} by month`;
   els.formLedgerCount.textContent = "Loading";
 }
 
 async function loadCurrentView() {
   if (state.mode === "today") return;
+  if (state.mode === "container") {
+    await loadContainerLookupRecords();
+    return;
+  }
   if (state.category === "summary") {
     await loadOperationalSummary();
     return;
@@ -1707,6 +1725,13 @@ function syncUrl() {
     return;
   }
   url.searchParams.delete("records");
+  if (state.mode === "container") {
+    [
+      "year", "search", "grouping", "summary_from", "summary_to", "community"
+    ].forEach((key) => url.searchParams.delete(key));
+    window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+    return;
+  }
   if (state.category === "summary") {
     url.searchParams.delete("year");
     url.searchParams.delete("from");

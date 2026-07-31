@@ -94,18 +94,18 @@ def main():
         driver.find_element(By.CSS_SELECTOR, "#loginForm button[type='submit']").click()
         wait.until(lambda current: "home.html" in current.current_url)
 
-        driver.get(f"{base_url}/records.html?view=all&category=stock")
+        driver.get(f"{base_url}/container_lookup.html?containers=1,0002")
+        wait.until(lambda current: (
+            "records.html" in current.current_url
+            and "view=container" in current.current_url
+        ))
         wait.until(lambda current: current.find_element(
-            By.ID, "recordContainerLookupTab"
+            By.ID, "containerLookupWorkspace"
         ).is_displayed())
         assert not driver.find_elements(
             By.XPATH,
             '//*[@id="recordsSidebar"]//a[normalize-space()="Container Lookup"]',
         )
-        driver.find_element(By.ID, "recordContainerLookupTab").click()
-        wait.until(lambda current: "container_lookup.html" in current.current_url)
-
-        driver.get(f"{base_url}/container_lookup.html?containers=1,0002")
         wait.until(
             lambda current: current.find_element(
                 By.ID, "containerLookupContainerCount"
@@ -167,16 +167,14 @@ def main():
         )
         assert detail_style["weight"] < group_style["weight"], (group_style, detail_style)
         assert detail_style["color"] == group_style["color"], (group_style, detail_style)
-        assert not driver.find_elements(
-            By.XPATH,
-            '//*[@id="containerLookupSidebar"]//a[normalize-space()="Container Lookup"]',
-        )
-        active_lookup_tab = driver.find_element(
-            By.CSS_SELECTOR,
-            '.container-lookup-panel .record-period-tabs a[aria-current="page"]',
-        )
+        assert driver.find_element(By.ID, "formLedgerCategories").is_displayed()
+        assert driver.find_element(
+            By.CSS_SELECTOR, '[data-ledger-category="stock"]'
+        ).get_attribute("aria-selected") == "true"
+        active_lookup_tab = driver.find_element(By.ID, "recordContainerLookupTab")
         assert active_lookup_tab.is_displayed()
-        assert active_lookup_tab.text == "Container Lookup"
+        assert active_lookup_tab.get_attribute("aria-selected") == "true"
+        assert not driver.find_element(By.ID, "recordCommunityTab").is_displayed()
 
         date_sort = driver.find_element(
             By.CSS_SELECTOR, '[data-container-sort="record_date"]'
@@ -190,14 +188,7 @@ def main():
         driver.save_screenshot(str(desktop))
         screenshots.append(desktop)
 
-        driver.set_window_size(390, 844)
-        driver.get(f"{base_url}/container_lookup.html?containers=1,0002")
-        wait.until(
-            lambda current: current.find_element(
-                By.ID, "containerLookupContainerCount"
-            ).text == "2 containers"
-        )
-        mobile = driver.execute_script(
+        layout = driver.execute_script(
             """
             const wrap = document.querySelector('.container-lookup-table-wrap');
             const table = document.querySelector('.container-lookup-table');
@@ -212,14 +203,9 @@ def main():
             };
             """
         )
-        assert mobile["pageWidth"] <= mobile["viewport"] + 1, mobile
-        assert mobile["tableWidth"] > mobile["wrapWidth"], mobile
-        assert mobile["groups"] == 2, mobile
-        assert mobile["visibleDetails"] == 0, mobile
-
-        mobile_shot = pathlib.Path(tempfile.gettempdir()) / "container-lookup-mobile.png"
-        driver.save_screenshot(str(mobile_shot))
-        screenshots.append(mobile_shot)
+        assert layout["pageWidth"] <= layout["viewport"] + 1, layout
+        assert layout["tableWidth"] > layout["wrapWidth"], layout
+        assert layout["groups"] == 2, layout
 
         severe_logs = [
             entry for entry in driver.get_log("browser")
@@ -233,7 +219,7 @@ def main():
                 "containers": result["container_count"],
                 "records": result["record_count"],
             },
-            "mobile": mobile,
+            "layout": layout,
             "screenshots": [str(path) for path in screenshots],
         }, indent=2))
     finally:

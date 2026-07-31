@@ -63,8 +63,8 @@
         <nav id="recordPeriodTabs" class="ledger-view-tabs record-period-tabs" aria-label="Record period" role="tablist">
           <button type="button" role="tab" data-record-period="today" aria-selected="true">Today's Record</button>
           <button type="button" role="tab" data-record-period="monthly" aria-selected="false">Monthly Records</button>
-          <button type="button" role="tab" data-record-period="community" aria-selected="false">Community Records</button>
-          <a id="recordContainerLookupTab" href="./container_lookup.html" role="tab" aria-selected="false" hidden>Container Lookup</a>
+          <button id="recordCommunityTab" type="button" role="tab" data-record-period="community" aria-selected="false">Community Records</button>
+          <button id="recordContainerLookupTab" type="button" role="tab" data-record-period="container" aria-selected="false" hidden>Container Lookup</button>
           <button type="button" role="tab" data-record-period="all" aria-selected="false">All Records</button>
         </nav>
 
@@ -599,6 +599,57 @@
               </details>
             </section>
           </div>
+        </div>
+
+        <div id="containerLookupWorkspace" class="container-lookup-workspace" hidden>
+          <div class="form-ledger-view-heading container-lookup-heading">
+            <h3>Container Lookup</h3>
+            <div class="button-row compact-actions">
+              <span id="containerLookupContainerCount" class="status-pill">0 containers</span>
+              <span id="containerLookupRecordCount" class="status-pill">0 records</span>
+            </div>
+          </div>
+
+          <div class="admin-toolbar admin-filter-grid container-lookup-filter-grid">
+            <label>
+              Containers
+              <input id="containerLookupSearch" type="search" autocomplete="off" placeholder="e.g. 1,2,3 or 0001,0002,0003">
+            </label>
+            <label>
+              From
+              <input id="containerLookupFrom" type="date">
+            </label>
+            <label>
+              To
+              <input id="containerLookupTo" type="date">
+            </label>
+            <button id="applyContainerLookup" type="button">Apply filters</button>
+            <button id="clearContainerLookup" type="button">Clear</button>
+          </div>
+
+          <div class="responsive-table-wrap container-lookup-table-wrap">
+            <table class="management-table admin-data-table container-lookup-table">
+              <thead>
+                <tr>
+                  <th aria-sort="ascending"><button type="button" data-container-sort="container">Container</button></th>
+                  <th aria-sort="none"><button type="button" data-container-sort="record_date">Date</button></th>
+                  <th aria-sort="none"><button type="button" data-container-sort="record_type">Entry</button></th>
+                  <th aria-sort="none"><button type="button" data-container-sort="species">Species</button></th>
+                  <th aria-sort="none"><button type="button" data-container-sort="weight_value">Volume</button></th>
+                  <th aria-sort="none"><button type="button" data-container-sort="dose">Dose g/container</button></th>
+                  <th aria-sort="none"><button type="button" data-container-sort="salinity_value">Salinity</button></th>
+                  <th aria-sort="none"><button type="button" data-container-sort="ph_value">pH</button></th>
+                  <th aria-sort="none"><button type="button" data-container-sort="electrical_conductivity_ms_cm">EC mS/cm</button></th>
+                  <th aria-sort="none"><button type="button" data-container-sort="recorded_by_name">Recorded by</button></th>
+                  <th aria-sort="none"><button type="button" data-container-sort="notes">Notes</button></th>
+                </tr>
+              </thead>
+              <tbody id="containerLookupRows">
+                <tr><td colspan="11" class="empty-state">Open Container Lookup to load records.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p id="containerLookupStatus" class="admin-status" aria-live="polite"></p>
         </div>
 
         <div id="formLedgerWorkspace" hidden>

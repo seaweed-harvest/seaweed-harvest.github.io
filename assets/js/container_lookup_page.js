@@ -1,13 +1,7 @@
-import {
-  authClient,
-  requireOrganisationCapability,
-  setupAccountControls
-} from "./auth_client.js?v=25";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=14";
+import { authClient } from "./auth_client.js?v=25";
 
 const RESULT_LIMIT = 2000;
 const state = {
-  profile: null,
   rows: [],
   recordCount: 0,
   containerCount: 0,
@@ -19,39 +13,29 @@ const state = {
   loading: false
 };
 const els = {};
+let initialized = false;
 
-document.addEventListener("DOMContentLoaded", init);
-
-async function init() {
+export async function initializeContainerLookup({ load = false } = {}) {
   cacheElements();
-  try {
-    const access = await requireOrganisationCapability(
-      "form_stock_record",
-      "can_view_data",
-      "container_lookup.html"
-    );
-    if (!access) return;
-    state.profile = access.profile;
-  } catch (error) {
-    window.location.replace(`./login.html?error=${encodeURIComponent(error.message)}`);
-    return;
+  if (!els.containerLookupRows) return false;
+  if (!initialized) {
+    readUrlFilters();
+    bindEvents();
+    initialized = true;
   }
+  if (load) await loadContainerLookupRecords();
+  return true;
+}
 
-  const sidebar = populateAppSidebar(els.containerLookupSidebar, {
-    profile: state.profile,
-    dashboardHref: "./home.html"
-  });
-  setupAccountControls(state.profile);
-  setupAppNavigation({ profile: state.profile, sidebar, dashboardHref: "./home.html" });
-  readUrlFilters();
-  bindEvents();
-  document.body.removeAttribute("data-auth-pending");
+export async function loadContainerLookupRecords() {
+  if (!initialized) await initializeContainerLookup();
+  if (!els.containerLookupRows) return;
   await loadRecords();
 }
 
 function cacheElements() {
   [
-    "containerLookupSidebar", "containerLookupContainerCount", "containerLookupRecordCount",
+    "containerLookupContainerCount", "containerLookupRecordCount",
     "containerLookupSearch", "containerLookupFrom", "containerLookupTo",
     "applyContainerLookup", "clearContainerLookup", "containerLookupRows",
     "containerLookupStatus"
@@ -325,14 +309,21 @@ function readUrlFilters() {
 }
 
 function syncUrl() {
-  const params = new URLSearchParams();
+  const url = new URL(window.location.href);
+  url.searchParams.set("category", "stock");
+  url.searchParams.set("view", "container");
   if (els.containerLookupSearch.value.trim()) {
-    params.set("containers", els.containerLookupSearch.value.trim());
+    url.searchParams.set("containers", els.containerLookupSearch.value.trim());
+  } else {
+    url.searchParams.delete("containers");
   }
-  if (els.containerLookupFrom.value) params.set("from", els.containerLookupFrom.value);
-  if (els.containerLookupTo.value) params.set("to", els.containerLookupTo.value);
-  const query = params.toString();
-  window.history.replaceState({}, "", `./container_lookup.html${query ? `?${query}` : ""}`);
+  if (els.containerLookupFrom.value) url.searchParams.set("from", els.containerLookupFrom.value);
+  else url.searchParams.delete("from");
+  if (els.containerLookupTo.value) url.searchParams.set("to", els.containerLookupTo.value);
+  else url.searchParams.delete("to");
+  ["records", "year", "search", "grouping", "summary_from", "summary_to", "community"]
+    .forEach((key) => url.searchParams.delete(key));
+  window.history.replaceState({}, "", `${url.pathname}${url.search}`);
 }
 
 function setLoading(loading) {

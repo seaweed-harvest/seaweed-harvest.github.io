@@ -44,10 +44,11 @@ def main():
         ).is_displayed())
         assert driver.find_element(By.ID, "todayIntakeDate").is_displayed()
         period_buttons = driver.find_elements(By.CSS_SELECTOR, "#recordPeriodTabs [data-record-period]")
-        assert [button.text for button in period_buttons] == [
+        assert [button.get_attribute("textContent").strip() for button in period_buttons] == [
             "Today's Record",
             "Monthly Records",
             "Community Records",
+            "Container Lookup",
             "All Records",
         ]
         period_state = driver.find_element(
@@ -128,6 +129,35 @@ def main():
             By.ID, "loadFormLedgerMonthly"
         ).is_enabled())
         assert driver.find_element(By.ID, "formLedgerStatus").text == ""
+        assert driver.find_element(By.ID, "recordContainerLookupTab").is_displayed()
+        assert not driver.find_element(By.ID, "recordCommunityTab").is_displayed()
+        driver.find_element(By.ID, "recordContainerLookupTab").click()
+        wait.until(lambda current: current.find_element(
+            By.ID, "containerLookupWorkspace"
+        ).is_displayed())
+        assert "records.html" in driver.current_url
+        assert "view=container" in driver.current_url
+        assert driver.find_element(By.ID, "formLedgerCategories").is_displayed()
+        assert driver.find_element(
+            By.CSS_SELECTOR, '[data-ledger-category="stock"]'
+        ).get_attribute("aria-selected") == "true"
+        visible_stock_periods = [
+            button.text for button in driver.find_elements(
+                By.CSS_SELECTOR, "#recordPeriodTabs [data-record-period]"
+            ) if button.is_displayed()
+        ]
+        assert visible_stock_periods == [
+            "Today's Record", "Monthly Records", "Container Lookup", "All Records"
+        ], visible_stock_periods
+        driver.find_element(
+            By.CSS_SELECTOR, '#recordPeriodTabs [data-record-period="monthly"]'
+        ).click()
+        wait.until(lambda current: current.find_element(
+            By.ID, "formLedgerMonthlyPanel"
+        ).is_displayed())
+        wait.until(lambda current: current.find_element(
+            By.ID, "loadFormLedgerMonthly"
+        ).is_enabled())
 
         driver.find_element(By.CSS_SELECTOR, '[data-ledger-category="site_sample"]').click()
         wait.until(lambda current: current.find_element(

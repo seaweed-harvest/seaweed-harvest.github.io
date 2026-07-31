@@ -40,6 +40,7 @@ class FormRecordReportingStaticTest(unittest.TestCase):
             "Today's Record",
             "Monthly Records",
             "Community Records",
+            "Container Lookup",
             "All Records",
         )
         positions = [self.records.index(label) for label in periods]
@@ -76,7 +77,7 @@ class FormRecordReportingStaticTest(unittest.TestCase):
         self.assertIn('"controllerchange"', self.pwa_bootstrap)
         self.assertIn("window.location.reload()", self.pwa_bootstrap)
         self.assertIn('cache: "no-store"', self.service_worker)
-        self.assertIn("seaweed-harvest-collection-v131", self.service_worker)
+        self.assertIn("seaweed-harvest-collection-v132", self.service_worker)
 
     def test_legacy_collection_route_preserves_filters_and_redirects(self):
         self.assertIn('new URL("./records.html"', self.legacy_collection)
@@ -102,7 +103,7 @@ class FormRecordReportingStaticTest(unittest.TestCase):
         self.assertIn('id="formLedgerCommunityTab"', self.records)
         self.assertIn('id="formLedgerCommunityPanel"', self.records)
         self.assertIn('state.category === "site_sample"', self.script)
-        self.assertIn("els.formLedgerCommunityTab.hidden = !communityAvailable", self.script)
+        self.assertIn("els.formLedgerCommunityTab.hidden = !formCommunityAvailable", self.script)
         self.assertIn("'community_rows'", self.reporting)
 
     def test_reporting_rpc_is_tenant_scoped_and_permission_protected(self):

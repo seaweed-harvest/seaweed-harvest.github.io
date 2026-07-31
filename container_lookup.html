@@ -6,6 +6,16 @@
   <meta name="theme-color" content="#0f766e">
   <meta name="robots" content="noindex,nofollow">
   <title>Container Lookup - Seaweed Harvest</title>
+  <script>
+    (() => {
+      const current = new URL(window.location.href);
+      const target = new URL("./records.html", current);
+      current.searchParams.forEach((value, key) => target.searchParams.set(key, value));
+      target.searchParams.set("category", "stock");
+      target.searchParams.set("view", "container");
+      window.location.replace(target.href);
+    })();
+  </script>
   <link rel="stylesheet" href="./assets/css/ag.css">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -95,6 +105,5 @@
   </main>
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
-  <script type="module" src="./assets/js/container_lookup_page.js?v=1"></script>
 </body>
 </html>
