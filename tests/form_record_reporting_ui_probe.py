@@ -58,6 +58,26 @@ def main():
         assert driver.find_element(
             By.CSS_SELECTOR, '[data-today-record-tab="summary"]'
         ).get_attribute("aria-selected") == "true"
+
+        driver.find_element(
+            By.CSS_SELECTOR, '[data-today-record-tab="stock-record"]'
+        ).click()
+        wait.until(lambda current: current.find_element(
+            By.ID, "recordContainerLookupTab"
+        ).is_displayed())
+        assert not driver.find_element(By.ID, "recordCommunityTab").is_displayed()
+        assert driver.find_element(
+            By.CSS_SELECTOR, '[data-today-record-tab="stock-record"]'
+        ).get_attribute("aria-selected") == "true"
+
+        driver.find_element(
+            By.CSS_SELECTOR, '[data-today-record-tab="summary"]'
+        ).click()
+        wait.until(lambda current: not current.find_element(
+            By.ID, "recordContainerLookupTab"
+        ).is_displayed())
+        assert driver.find_element(By.ID, "recordCommunityTab").is_displayed()
+
         today_navigation = driver.find_element(
             By.XPATH,
             '//*[@id="recordsSidebar"]//a[normalize-space()="Today\'s Intake"]',

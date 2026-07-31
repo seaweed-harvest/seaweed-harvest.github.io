@@ -303,6 +303,7 @@ function bindEvents() {
     const category = LEDGER_CATEGORY_BY_DAILY[event.detail?.category];
     if (!category || category === state.category) return;
     state.category = category;
+    updateControls();
     syncUrl();
   });
   els.formLedgerCategories.addEventListener("click", (event) => {

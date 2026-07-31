@@ -84,6 +84,10 @@ class ContainerLookupStaticTest(unittest.TestCase):
         self.assertIn('id="containerLookupWorkspace"', self.records)
         self.assertIn('els.recordContainerLookupTab.hidden = state.category !== "stock"', self.records_script)
         self.assertIn('els.recordCommunityTab.hidden = !communityAvailable', self.records_script)
+        self.assertIn(
+            "state.category = category;\n    updateControls();\n    syncUrl();",
+            self.records_script,
+        )
         self.assertIn('state.mode === "container"', self.records_script)
         period_tabs = self.records.split(
             '<nav id="recordPeriodTabs"', 1
