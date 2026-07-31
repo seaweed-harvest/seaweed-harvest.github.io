@@ -200,7 +200,8 @@ async function init() {
     "operationalSummaryCommunity", "loadOperationalSummary",
     "operationalSummaryScopeNote", "operationalSummaryTotals",
     "operationalSummaryRows", "operationalSummaryStatus",
-    "recordPeriodTabs", "recordTodayWorkspace", "todayRecordTabs", "reloadTodayIntake",
+    "recordPeriodTabs", "recordContainerLookupTab", "recordTodayWorkspace",
+    "todayRecordTabs", "reloadTodayIntake",
     "collectionLedgerWorkspace", "formLedgerWorkspace",
     "formLedgerCount", "formLedgerCategories", "formLedgerViews", "formLedgerCommunityTab",
     "formLedgerAllPanel", "formLedgerMonthlyPanel", "formLedgerCommunityPanel",
@@ -496,6 +497,9 @@ function readUrlState() {
 
 function updateControls() {
   document.body.dataset.recordPeriod = state.mode;
+  if (els.recordContainerLookupTab) {
+    els.recordContainerLookupTab.hidden = state.category !== "stock";
+  }
   els.recordPeriodTabs?.querySelectorAll("[data-record-period]").forEach((button) => {
     const selected = button.dataset.recordPeriod === state.mode;
     button.setAttribute("aria-selected", String(selected));

@@ -397,7 +397,6 @@ function recordLinks(profile) {
   return links.concat(permittedLinks(profile, [
     { label: "Ledger Transcriptions", href: "./historical_records.html", permission: "can_view_data", requiredAggregator: "SANDBOX" },
     { label: "Record Ledgers", href: "./records.html", permission: "can_view_data", capabilityAny: ["form_site_water_samples", "form_intake_collection", "form_stock_record", "form_process_record"], className: "app-nav-desktop-only" },
-    { label: "Container Lookup", href: "./container_lookup.html", permission: "can_view_data", capability: "form_stock_record", className: "app-nav-desktop-only" },
     { label: "Photos", href: "./photos.html", permission: "can_view_data", capabilityAny: ["form_intake_collection", "form_process_record", "form_reef_nursery"], className: "app-nav-desktop-only" },
     { label: "Deleted Records", href: "./deleted_records.html", permission: "can_view_data", capabilityAny: ["form_site_water_samples", "form_intake_collection", "form_stock_record", "form_process_record"], className: "app-nav-desktop-only" },
     { label: "Reef Nursery Records", href: "./reef_nursery_records.html", permission: "can_access_reef_nursery", requiredAggregator: "COSME", capability: "form_reef_nursery", className: "app-nav-desktop-only" }

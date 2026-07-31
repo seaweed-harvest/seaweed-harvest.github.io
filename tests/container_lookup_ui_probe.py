@@ -94,6 +94,17 @@ def main():
         driver.find_element(By.CSS_SELECTOR, "#loginForm button[type='submit']").click()
         wait.until(lambda current: "home.html" in current.current_url)
 
+        driver.get(f"{base_url}/records.html?view=all&category=stock")
+        wait.until(lambda current: current.find_element(
+            By.ID, "recordContainerLookupTab"
+        ).is_displayed())
+        assert not driver.find_elements(
+            By.XPATH,
+            '//*[@id="recordsSidebar"]//a[normalize-space()="Container Lookup"]',
+        )
+        driver.find_element(By.ID, "recordContainerLookupTab").click()
+        wait.until(lambda current: "container_lookup.html" in current.current_url)
+
         driver.get(f"{base_url}/container_lookup.html?containers=1,0002")
         wait.until(
             lambda current: current.find_element(
@@ -119,6 +130,20 @@ def main():
             By.CSS_SELECTOR, "[data-container-group-toggle]"
         )
         assert first_toggle.get_attribute("aria-expanded") == "false"
+        collapsed_marker = driver.execute_script(
+            "return getComputedStyle(arguments[0], '::before').content;",
+            first_toggle,
+        )
+        assert ">" in collapsed_marker, collapsed_marker
+        group_value = groups[0].find_elements(By.TAG_NAME, "td")[2]
+        group_style = driver.execute_script(
+            """
+            const style = getComputedStyle(arguments[0]);
+            return { color: style.color, weight: Number(style.fontWeight) };
+            """,
+            group_value,
+        )
+        assert group_style["weight"] >= 600, group_style
         first_toggle.click()
         wait.until(
             lambda current: current.find_element(
@@ -133,7 +158,25 @@ def main():
         ]
         assert len(visible_details) == 2, [row.text for row in visible_details]
         assert any("Retest" in row.text for row in visible_details)
-        assert driver.find_element(By.LINK_TEXT, "Container Lookup").is_displayed()
+        detail_style = driver.execute_script(
+            """
+            const style = getComputedStyle(arguments[0]);
+            return { color: style.color, weight: Number(style.fontWeight) };
+            """,
+            visible_details[0].find_elements(By.TAG_NAME, "td")[3],
+        )
+        assert detail_style["weight"] < group_style["weight"], (group_style, detail_style)
+        assert detail_style["color"] == group_style["color"], (group_style, detail_style)
+        assert not driver.find_elements(
+            By.XPATH,
+            '//*[@id="containerLookupSidebar"]//a[normalize-space()="Container Lookup"]',
+        )
+        active_lookup_tab = driver.find_element(
+            By.CSS_SELECTOR,
+            '.container-lookup-panel .record-period-tabs a[aria-current="page"]',
+        )
+        assert active_lookup_tab.is_displayed()
+        assert active_lookup_tab.text == "Container Lookup"
 
         date_sort = driver.find_element(
             By.CSS_SELECTOR, '[data-container-sort="record_date"]'

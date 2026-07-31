@@ -3442,25 +3442,33 @@ button:disabled {
   background: var(--panel-soft);
 }
 
-.ledger-view-tabs button {
+.ledger-view-tabs button,
+.ledger-view-tabs a {
   min-height: 32px;
   padding: 0 12px;
   border: 0;
   border-radius: 6px;
   background: transparent;
   color: var(--text-sec);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 0.78rem;
   font-weight: 700;
+  text-decoration: none;
   white-space: nowrap;
 }
 
 .ledger-view-tabs button:hover,
-.ledger-view-tabs button:focus-visible {
+.ledger-view-tabs button:focus-visible,
+.ledger-view-tabs a:hover,
+.ledger-view-tabs a:focus-visible {
   background: rgba(15, 118, 110, 0.08);
   color: var(--accent);
 }
 
-.ledger-view-tabs button[aria-selected="true"] {
+.ledger-view-tabs button[aria-selected="true"],
+.ledger-view-tabs a[aria-selected="true"] {
   background: var(--panel);
   color: var(--accent);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
@@ -6290,9 +6298,9 @@ body[data-registration-pending] .registration-flow {
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   background: var(--panel-soft);
-  color: var(--text);
+  color: var(--text-sec);
   font-size: 0.76rem;
-  font-weight: 400;
+  font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
 }
@@ -6306,15 +6314,19 @@ body[data-registration-pending] .registration-flow {
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--text);
+  color: var(--text-sec);
   font: inherit;
   text-align: left;
 }
 
 .container-lookup-group-toggle::before {
-  content: "\25B6";
-  color: var(--text-muted);
-  font-size: 0.62rem;
+  content: ">";
+  width: 10px;
+  flex: 0 0 10px;
+  color: var(--text-sec);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1;
   transform-origin: center;
   transition: transform 120ms ease;
 }
@@ -6359,7 +6371,8 @@ body[data-registration-pending] .registration-flow {
   margin: 0 0 14px;
 }
 
-.record-period-tabs button {
+.record-period-tabs button,
+.record-period-tabs a {
   min-width: 132px;
   text-align: center;
 }
@@ -7587,7 +7600,8 @@ label input[type="checkbox"] {
     grid-template-columns: 1fr;
   }
 
-  .ledger-view-tabs button {
+  .ledger-view-tabs button,
+  .ledger-view-tabs a {
     width: 100%;
     text-align: left;
   }
@@ -7622,7 +7636,13 @@ label input[type="checkbox"] {
     display: none;
   }
 
-  .record-period-tabs button {
+  #recordContainerLookupTab,
+  .container-lookup-page .record-period-tabs {
+    display: none;
+  }
+
+  .record-period-tabs button,
+  .record-period-tabs a {
     min-width: 0;
     text-align: center;
   }

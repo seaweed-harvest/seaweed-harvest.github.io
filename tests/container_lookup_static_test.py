@@ -14,6 +14,9 @@ class ContainerLookupStaticTest(unittest.TestCase):
         self.page = read("container_lookup.html")
         self.script = read("assets/js/container_lookup_page.js")
         self.navigation = read("assets/js/app_navigation.js")
+        self.records = read("records.html")
+        self.records_script = read("assets/js/records_page.js")
+        self.styles = read("assets/css/ag.css")
         self.migration = read(
             "supabase/migrations/20260731110000_stock_container_lookup.sql"
         )
@@ -74,12 +77,28 @@ class ContainerLookupStaticTest(unittest.TestCase):
         self.assertIn("to authenticated", self.migration)
         self.assertNotIn("grant execute on function public.ag_stock_container_lookup(text, date, date, integer)\n  to anon", self.migration)
 
-    def test_navigation_and_offline_shell_include_lookup(self):
-        self.assertIn('label: "Container Lookup"', self.navigation)
-        self.assertIn('href: "./container_lookup.html"', self.navigation)
-        self.assertIn('capability: "form_stock_record"', self.navigation)
+    def test_lookup_is_a_stock_record_view_not_a_sidebar_item(self):
+        self.assertNotIn('label: "Container Lookup"', self.navigation)
+        self.assertIn('id="recordContainerLookupTab"', self.records)
+        self.assertIn('href="./container_lookup.html"', self.records)
+        self.assertIn('els.recordContainerLookupTab.hidden = state.category !== "stock"', self.records_script)
+        self.assertIn('aria-current="page">Container Lookup</a>', self.page)
+        period_tabs = self.page.split(
+            '<nav class="ledger-view-tabs record-period-tabs"', 1
+        )[1].split("</nav>", 1)[0]
+        self.assertLess(period_tabs.index("Community Records"), period_tabs.index("Container Lookup"))
+        self.assertLess(period_tabs.index("Container Lookup"), period_tabs.index("All Records"))
         self.assertIn('"./container_lookup.html"', self.worker)
         self.assertIn('"./assets/js/container_lookup_page.js"', self.worker)
+
+    def test_collapsed_marker_and_summary_typography_are_distinct(self):
+        self.assertIn('content: ">";', self.styles)
+        self.assertIn(".container-lookup-group-toggle[aria-expanded=\"true\"]::before", self.styles)
+        group_rule = self.styles.split(
+            ".container-lookup-table .container-lookup-group-row > * {", 1
+        )[1].split("}", 1)[0]
+        self.assertIn("color: var(--text-sec);", group_rule)
+        self.assertIn("font-weight: 600;", group_rule)
 
     def test_single_date_is_sent_as_an_exact_day(self):
         self.assertIn("start: from || to || null", self.script)
