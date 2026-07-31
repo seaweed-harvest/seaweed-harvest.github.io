@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="referrer" content="no-referrer">
+  <title>Confirm Account | Seaweed Harvest</title>
+  <link rel="preload" as="image" href="./assets/images/seaweed-harvest-logo.png" type="image/png">
+  <link rel="stylesheet" href="./assets/css/ag.css">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Seaweed Harvest">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./favicon.ico" sizes="any">
+  <link rel="icon" href="./assets/images/seaweed-harvest-icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
+  <script type="module" src="./assets/js/pwa_bootstrap.js"></script>
+</head>
+<body class="auth-page auth-gateway-page">
+  <main class="auth-shell auth-gateway-shell">
+    <div class="auth-brand-animation" aria-label="Seaweed Harvest">
+      <img class="auth-brand-logo auth-brand-logo-animated" src="./assets/images/seaweed-harvest-logo.png" alt="Seaweed Harvest" fetchpriority="high">
+    </div>
+
+    <section class="panel auth-panel">
+      <h1 id="confirmationTitle">Confirm secure link</h1>
+      <p id="confirmationCopy" class="auth-help-copy">Continue to verify this secure Seaweed Harvest link.</p>
+      <form id="confirmationForm" class="stack-form">
+        <button id="confirmationButton" type="submit">Continue</button>
+      </form>
+      <a class="auth-account-link" href="./login.html">Back to sign in</a>
+    </section>
+
+    <p id="confirmationStatus" class="form-status" aria-live="polite"></p>
+  </main>
+
+  <script type="module" src="./assets/js/auth_confirm_page.js?v=1"></script>
+</body>
+</html>
