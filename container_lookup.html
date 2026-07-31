@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Container Lookup - Seaweed Harvest</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Seaweed Harvest">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./favicon.ico" sizes="any">
+  <link rel="icon" href="./assets/images/seaweed-harvest-icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
+  <script type="module" src="./assets/js/pwa_bootstrap.js"></script>
+</head>
+<body class="admin-console-page container-lookup-page" data-auth-pending>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div><p class="eyebrow">Seaweed aggregation</p><h1>Records</h1></div>
+      <div class="header-actions admin-header-controls">
+        <nav class="app-nav" aria-label="Main navigation">
+          <a href="./collection.html">Collection</a>
+          <a href="./home.html">Home</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell admin-shell admin-layout">
+    <aside id="containerLookupSidebar" class="admin-sidebar" aria-label="Application menu"></aside>
+    <section class="admin-content">
+      <section class="panel admin-page-section container-lookup-panel">
+        <div class="section-head compact container-lookup-heading">
+          <h2>Container Lookup</h2>
+          <div class="button-row compact-actions">
+            <span id="containerLookupContainerCount" class="status-pill">0 containers</span>
+            <span id="containerLookupRecordCount" class="status-pill">0 records</span>
+          </div>
+        </div>
+
+        <div class="admin-toolbar admin-filter-grid container-lookup-filter-grid">
+          <label>
+            Containers
+            <input id="containerLookupSearch" type="search" autocomplete="off" placeholder="e.g. 1,2,3 or 0001,0002,0003">
+          </label>
+          <label>
+            From
+            <input id="containerLookupFrom" type="date">
+          </label>
+          <label>
+            To
+            <input id="containerLookupTo" type="date">
+          </label>
+          <button id="applyContainerLookup" type="button">Apply filters</button>
+          <button id="clearContainerLookup" type="button">Clear</button>
+        </div>
+
+        <div class="responsive-table-wrap container-lookup-table-wrap">
+          <table class="management-table admin-data-table container-lookup-table">
+            <thead>
+              <tr>
+                <th aria-sort="ascending"><button type="button" data-container-sort="container">Container</button></th>
+                <th aria-sort="none"><button type="button" data-container-sort="record_date">Date</button></th>
+                <th aria-sort="none"><button type="button" data-container-sort="record_type">Entry</button></th>
+                <th aria-sort="none"><button type="button" data-container-sort="species">Species</button></th>
+                <th aria-sort="none"><button type="button" data-container-sort="weight_value">Volume</button></th>
+                <th aria-sort="none"><button type="button" data-container-sort="dose">Dose g/container</button></th>
+                <th aria-sort="none"><button type="button" data-container-sort="salinity_value">Salinity</button></th>
+                <th aria-sort="none"><button type="button" data-container-sort="ph_value">pH</button></th>
+                <th aria-sort="none"><button type="button" data-container-sort="electrical_conductivity_ms_cm">EC mS/cm</button></th>
+                <th aria-sort="none"><button type="button" data-container-sort="recorded_by_name">Recorded by</button></th>
+                <th aria-sort="none"><button type="button" data-container-sort="notes">Notes</button></th>
+              </tr>
+            </thead>
+            <tbody id="containerLookupRows">
+              <tr><td colspan="11" class="empty-state">Loading records...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p id="containerLookupStatus" class="admin-status" aria-live="polite"></p>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
+  <script type="module" src="./assets/js/container_lookup_page.js?v=1"></script>
+</body>
+</html>

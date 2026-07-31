@@ -6244,6 +6244,69 @@ body[data-registration-pending] .registration-flow {
   min-width: 0;
 }
 
+.container-lookup-page .admin-content,
+.container-lookup-panel {
+  min-width: 0;
+}
+
+.container-lookup-heading {
+  margin-bottom: 2px;
+}
+
+.container-lookup-filter-grid {
+  grid-template-columns: minmax(300px, 1fr) minmax(150px, 200px) minmax(150px, 200px) auto auto;
+  align-items: end;
+  margin-bottom: 14px;
+}
+
+.container-lookup-table {
+  min-width: 1420px;
+  font-size: 0.76rem;
+}
+
+.container-lookup-table th,
+.container-lookup-table td {
+  white-space: nowrap;
+}
+
+.container-lookup-table th button {
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.container-lookup-table th[aria-sort="ascending"] button::after {
+  content: " \25B2";
+}
+
+.container-lookup-table th[aria-sort="descending"] button::after {
+  content: " \25BC";
+}
+
+.container-lookup-group-row th {
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-soft);
+  color: var(--text);
+  font-size: 0.76rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.container-lookup-group-row th span {
+  font-weight: 700;
+}
+
+.container-lookup-group-row th small {
+  margin-left: 10px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
 .form-ledger-view-tabs {
   margin: 10px 0 12px;
 }
