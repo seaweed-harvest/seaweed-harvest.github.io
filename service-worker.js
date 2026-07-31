@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v129";
+const CACHE_VERSION = "seaweed-harvest-collection-v130";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -132,7 +132,10 @@ async function networkFirst(request, fallbackUrl = null) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), NETWORK_TIMEOUT_MS);
   try {
-    const response = await fetch(request, { signal: controller.signal });
+    const response = await fetch(request, {
+      cache: "no-store",
+      signal: controller.signal
+    });
     if (response && (response.ok || response.type === "opaque")) {
       await cache.put(request, response.clone());
     }

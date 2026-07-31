@@ -57,6 +57,17 @@ def main():
         assert driver.find_element(
             By.CSS_SELECTOR, '[data-today-record-tab="summary"]'
         ).get_attribute("aria-selected") == "true"
+        today_navigation = driver.find_element(
+            By.XPATH,
+            '//*[@id="recordsSidebar"]//a[normalize-space()="Today\'s Intake"]',
+        )
+        ledger_navigation = driver.find_element(
+            By.XPATH,
+            '//*[@id="recordsSidebar"]//a[normalize-space()="Record Ledgers"]',
+        )
+        assert "records.html?view=today&category=intake" in today_navigation.get_attribute("href")
+        assert today_navigation.get_attribute("aria-current") is None
+        assert ledger_navigation.get_attribute("aria-current") == "page"
 
         daily_desktop = pathlib.Path(tempfile.gettempdir()) / "record-ledgers-today-desktop.png"
         driver.save_screenshot(str(daily_desktop))
@@ -148,6 +159,15 @@ def main():
         assert driver.find_element(
             By.CSS_SELECTOR, '[data-today-record-tab="site-sample"]'
         ).get_attribute("aria-selected") == "true"
+
+        driver.get(f"{base_url}/records.html?view=today&category=intake")
+        wait.until(lambda current: current.find_element(
+            By.ID, "recordTodayWorkspace"
+        ).is_displayed())
+        wait.until(lambda current: current.find_element(
+            By.CSS_SELECTOR,
+            '#recordsSidebar a[aria-current="page"]',
+        ).text == "Today's Intake")
 
         driver.set_window_size(390, 844)
         driver.get(f"{base_url}/records.html?category=site_sample&view=monthly")

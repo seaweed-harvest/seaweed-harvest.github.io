@@ -255,7 +255,9 @@ function quickMenu(icon, label, links, currentFile, key) {
   const details = document.createElement("details");
   details.className = `mobile-primary-menu mobile-primary-menu-${key}`;
   const summary = primaryButton("summary", icon, label);
-  if (links.some((link) => fileFromHref(link.href) === currentFile)) summary.setAttribute("aria-current", "page");
+  if (links.some((link) => linkMatchesCurrentRoute(link, currentFile))) {
+    summary.setAttribute("aria-current", "page");
+  }
   const popover = document.createElement("div");
   popover.className = "mobile-primary-popover";
   links.forEach((link) => popover.append(navigationLink(link, currentFile)));
@@ -331,7 +333,7 @@ function drawerGroup(label, links, currentFile, defaultOpen = false) {
   links.forEach((link) => content.append(navigationLink(link, currentFile)));
   details.append(summary, content);
   const saved = readStoredValue(`${SIDEBAR_GROUP_KEY_PREFIX}${key}`);
-  const hasCurrentPage = links.some((link) => fileFromHref(link.href) === currentFile);
+  const hasCurrentPage = links.some((link) => linkMatchesCurrentRoute(link, currentFile));
   details.open = saved === null ? (defaultOpen || hasCurrentPage) : saved === "true";
   details.addEventListener("toggle", () => {
     writeStoredValue(`${SIDEBAR_GROUP_KEY_PREFIX}${key}`, String(details.open));
@@ -360,7 +362,7 @@ function navigationLink(link, currentFile) {
   anchor.href = link.href;
   anchor.textContent = link.label;
   if (link.className) anchor.classList.add(...String(link.className).split(/\s+/).filter(Boolean));
-  if (fileFromHref(link.href) === currentFile) anchor.setAttribute("aria-current", "page");
+  if (linkMatchesCurrentRoute(link, currentFile)) anchor.setAttribute("aria-current", "page");
   return anchor;
 }
 
@@ -387,7 +389,9 @@ function formLinks(profile) {
 function recordLinks(profile) {
   const links = (!profile || hasOrganisationCapability(profile, "form_intake_collection")) ? [{
     label: "Today's Intake",
-    href: "./today.html",
+    href: hasPermission(profile, "can_view_data")
+      ? "./records.html?view=today&category=intake"
+      : "./today.html",
     capability: "form_intake_collection"
   }] : [];
   return links.concat(permittedLinks(profile, [
@@ -447,4 +451,21 @@ function fileFromHref(href) {
   } catch {
     return "";
   }
+}
+
+function linkMatchesCurrentRoute(link, currentFile) {
+  if (fileFromHref(link.href) !== currentFile) return false;
+  if (currentFile !== "records.html") return true;
+
+  const currentParams = new URLSearchParams(window.location.search);
+  const linkParams = new URL(link.href, window.location.href).searchParams;
+  const currentView = currentParams.get("view") || "today";
+  const currentCategory = currentParams.get("category") || "summary";
+  const isDailyIntakeLink = linkParams.get("view") === "today"
+    && linkParams.get("category") === "intake";
+
+  if (isDailyIntakeLink) {
+    return currentView === "today" && currentCategory === "intake";
+  }
+  return !(currentView === "today" && currentCategory === "intake");
 }
