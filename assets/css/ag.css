@@ -3615,6 +3615,23 @@ button:disabled {
   border-bottom: 1px solid var(--border-soft);
 }
 
+.operational-summary-metric-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.operational-summary-metric-link:hover,
+.operational-summary-metric-link:focus-visible {
+  background: var(--accent-soft);
+}
+
+.operational-summary-metric-link strong {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
 .operational-summary-metric:nth-child(4n),
 .operational-summary-metric:last-child {
   border-right: 0;
@@ -6488,12 +6505,6 @@ body[data-registration-pending] .registration-flow {
   padding: 6px 9px;
   line-height: 1.15;
   white-space: nowrap;
-}
-
-.operational-summary-table td:nth-child(11) {
-  max-width: 260px;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .form-ledger-note {

@@ -78,6 +78,16 @@ def main():
         ).is_displayed())
         assert driver.find_element(By.ID, "recordCommunityTab").is_displayed()
 
+        wait.until(lambda current: len(current.find_elements(
+            By.CSS_SELECTOR, ".operational-summary-metric-link"
+        )) == 1)
+        selected_day = driver.find_element(By.ID, "todayIntakeDate").get_attribute("value")
+        qc_link = driver.find_element(
+            By.CSS_SELECTOR, ".operational-summary-metric-link"
+        ).get_attribute("href")
+        assert "container_lookup.html" in qc_link, qc_link
+        assert f"from={selected_day}" in qc_link, qc_link
+        assert f"to={selected_day}" in qc_link, qc_link
         today_navigation = driver.find_element(
             By.XPATH,
             '//*[@id="recordsSidebar"]//a[normalize-space()="Today\'s Intake"]',
@@ -105,6 +115,60 @@ def main():
         wait.until(lambda current: current.find_element(
             By.ID, "loadOperationalSummary"
         ).is_enabled())
+        wait.until(lambda current: current.find_element(
+            By.ID, "operationalSummaryCount"
+        ).text != "Loading")
+        assert driver.find_element(By.ID, "operationalSummaryStatus").text == ""
+        wait.until(lambda current: current.find_element(
+            By.ID, "operationalSummaryTitle"
+        ).text == "Monthly summary")
+        monthly_head = [
+            cell.text for cell in driver.find_elements(
+                By.CSS_SELECTOR, "#operationalSummaryHead th"
+            )
+        ]
+        assert monthly_head == [
+            "Period", "Collected kg", "Total paid KSH", "A kg", "B kg", "C kg",
+            "Collections", "Farmers", "Communities", "Site samples", "Stock L",
+            "Containers", "Received kg", "Lost kg", "Process time", "Presses",
+            "Avg wet pulp/press kg", "Avg stock L / intake kg",
+        ], monthly_head
+
+        driver.find_element(
+            By.CSS_SELECTOR, '#recordPeriodTabs [data-record-period="community"]'
+        ).click()
+        wait.until(lambda current: current.find_element(
+            By.ID, "operationalSummaryTitle"
+        ).text == "Community summary")
+        community_head = [
+            cell.text for cell in driver.find_elements(
+                By.CSS_SELECTOR, "#operationalSummaryHead th"
+            )
+        ]
+        assert community_head == [
+            "Community", "Collected kg", "Total paid KSH", "A kg", "B kg", "C kg",
+            "Collections", "Farmers", "Site samples", "Temp C", "Salinity",
+            "TDS mg/L", "EC mS/cm",
+        ], community_head
+        wait.until(lambda current: current.find_element(
+            By.ID, "loadOperationalSummary"
+        ).is_enabled())
+        wait.until(lambda current: current.find_element(
+            By.ID, "operationalSummaryCount"
+        ).text != "Loading")
+        assert driver.find_element(By.ID, "operationalSummaryStatus").text == ""
+        assert "communit" in driver.find_element(
+            By.ID, "operationalSummaryCount"
+        ).text.lower()
+        assert "Stock L" not in community_head
+        assert "Process time" not in community_head
+
+        driver.find_element(
+            By.CSS_SELECTOR, '#recordPeriodTabs [data-record-period="monthly"]'
+        ).click()
+        wait.until(lambda current: current.find_element(
+            By.ID, "operationalSummaryTitle"
+        ).text == "Monthly summary")
 
         driver.find_element(By.CSS_SELECTOR, '[data-ledger-category="process"]').click()
         wait.until(lambda current: len(current.find_elements(

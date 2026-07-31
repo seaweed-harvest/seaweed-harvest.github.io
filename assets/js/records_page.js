@@ -200,10 +200,12 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   [
     "operationalSummaryWorkspace", "operationalSummaryCount",
+    "operationalSummaryTitle", "operationalSummaryHint",
+    "operationalSummaryGroupingField", "operationalSummaryCommunityField",
     "operationalSummaryGrouping", "operationalSummaryFrom", "operationalSummaryTo",
     "operationalSummaryCommunity", "loadOperationalSummary",
     "operationalSummaryScopeNote", "operationalSummaryTotals",
-    "operationalSummaryRows", "operationalSummaryStatus",
+    "operationalSummaryHead", "operationalSummaryRows", "operationalSummaryStatus",
     "recordPeriodTabs", "recordCommunityTab", "recordContainerLookupTab",
     "recordTodayWorkspace", "containerLookupWorkspace",
     "todayRecordTabs", "reloadTodayIntake",
@@ -541,6 +543,7 @@ function updateControls() {
   els.formLedgerWorkspace.hidden = containerSelected || summarySelected || intakeSelected;
   els.containerLookupWorkspace.hidden = !containerSelected;
   if (containerSelected) return;
+  if (summarySelected) configureOperationalSummaryView();
   if (summarySelected || intakeSelected) return;
 
   els.formLedgerViews.querySelectorAll("[data-ledger-mode]").forEach((button) => {
@@ -554,6 +557,25 @@ function updateControls() {
   els.formLedgerMonthlyCommunityField.hidden = !formCommunityAvailable;
   els.formLedgerMonthlyTitle.textContent = `${REPORTS[state.category].title} by month`;
   els.formLedgerCount.textContent = "Loading";
+}
+
+function configureOperationalSummaryView() {
+  const monthly = state.mode === "monthly";
+  const community = state.mode === "community";
+  if (monthly) {
+    els.operationalSummaryTitle.textContent = "Monthly summary";
+    els.operationalSummaryHint.textContent = "Organisation totals for each month.";
+    els.operationalSummaryGrouping.value = "month";
+  } else if (community) {
+    els.operationalSummaryTitle.textContent = "Community summary";
+    els.operationalSummaryHint.textContent = "Collection totals and site-water ranges for each active community.";
+  } else {
+    els.operationalSummaryTitle.textContent = "Operations summary";
+    els.operationalSummaryHint.textContent = "Results across intake, site samples, stock and processing.";
+  }
+  els.operationalSummaryGroupingField.hidden = monthly || community;
+  els.operationalSummaryCommunityField.hidden = monthly || community;
+  els.operationalSummaryScopeNote.hidden = true;
 }
 
 async function loadCurrentView() {
@@ -729,13 +751,8 @@ async function loadOperationalSummary() {
   setOperationalSummaryStatus("Loading summary...");
   els.operationalSummaryCount.textContent = "Loading";
   try {
-    const communityId = els.operationalSummaryCommunity.value || null;
-    const { data, error } = await authClient.rpc("ag_sec_operational_summary", {
-      p_start_date: range.start,
-      p_end_date: range.end,
-      p_grouping: els.operationalSummaryGrouping.value,
-      p_community_id: communityId
-    });
+    const request = operationalSummaryRequest(range);
+    const { data, error } = await authClient.rpc(request.name, request.args);
     if (error) throw error;
     const result = Array.isArray(data) ? data[0] : data;
     state.operationalSummaryRows = Array.isArray(result?.rows) ? result.rows : [];
@@ -753,19 +770,77 @@ async function loadOperationalSummary() {
   }
 }
 
+function operationalSummaryRequest(range) {
+  if (state.mode === "monthly") {
+    return {
+      name: "ag_sec_monthly_operational_summary",
+      args: {
+        p_start_date: range.start,
+        p_end_date: range.end
+      }
+    };
+  }
+  if (state.mode === "community") {
+    return {
+      name: "ag_sec_community_operational_summary",
+      args: {
+        p_start_date: range.start,
+        p_end_date: range.end
+      }
+    };
+  }
+  return {
+    name: "ag_sec_operational_summary",
+    args: {
+      p_start_date: range.start,
+      p_end_date: range.end,
+      p_grouping: els.operationalSummaryGrouping.value,
+      p_community_id: els.operationalSummaryCommunity.value || null
+    }
+  };
+}
+
 function renderOperationalSummary(errorMessage = "") {
   const rows = state.operationalSummaryRows;
-  els.operationalSummaryCount.textContent = `${rows.length} period${rows.length === 1 ? "" : "s"}`;
-  els.operationalSummaryScopeNote.hidden = !els.operationalSummaryCommunity.value;
+  const communityMode = state.mode === "community";
+  const rowLabel = rows.length === 1
+    ? (communityMode ? "community" : "period")
+    : (communityMode ? "communities" : "periods");
+  els.operationalSummaryCount.textContent = `${rows.length} ${rowLabel}`;
   renderOperationalSummaryTotals();
+  renderOperationalSummaryHead();
   if (errorMessage || !rows.length) {
     els.operationalSummaryRows.innerHTML = emptyRow(
-      25,
+      communityMode ? 13 : 18,
       errorMessage || "No records were found in this period."
     );
     return;
   }
-  els.operationalSummaryRows.innerHTML = rows.map((row) => `
+  els.operationalSummaryRows.innerHTML = communityMode
+    ? rows.map(communityOperationalSummaryRow).join("")
+    : rows.map(monthlyOperationalSummaryRow).join("");
+}
+
+function renderOperationalSummaryHead() {
+  const labels = state.mode === "community"
+    ? [
+        "Community", "Collected kg", "Total paid KSH", "A kg", "B kg", "C kg",
+        "Collections", "Farmers", "Site samples", "Temp C", "Salinity",
+        "TDS mg/L", "EC mS/cm"
+      ]
+    : [
+        "Period", "Collected kg", "Total paid KSH", "A kg", "B kg", "C kg",
+        "Collections", "Farmers", "Communities", "Site samples", "Stock L",
+        "Containers", "Received kg", "Lost kg", "Process time", "Presses",
+        "Avg wet pulp/press kg", "Avg stock L / intake kg"
+      ];
+  els.operationalSummaryHead.innerHTML = `<tr>${labels
+    .map((label) => `<th>${escapeHtml(label)}</th>`)
+    .join("")}</tr>`;
+}
+
+function monthlyOperationalSummaryRow(row) {
+  return `
     <tr>
       <td><strong>${escapeHtml(summaryPeriodLabel(row))}</strong></td>
       <td>${escapeHtml(formatNumber(row.intake_weight_kg))}</td>
@@ -777,34 +852,62 @@ function renderOperationalSummary(errorMessage = "") {
       <td>${escapeHtml(formatInteger(row.farmer_count))}</td>
       <td title="${escapeAttribute(row.intake_community_names || "")}">${escapeHtml(formatInteger(row.community_count))}</td>
       <td>${escapeHtml(formatInteger(row.site_sample_count))}</td>
-      <td title="${escapeAttribute(row.site_locations || "")}">${escapeHtml(row.site_locations || "-")}</td>
       <td>${escapeHtml(formatNumber(row.stock_volume_l))}</td>
       <td>${escapeHtml(formatInteger(row.stock_container_count))}</td>
-      <td>${escapeHtml(row.stock_sodium_benzoate_range || "-")}</td>
-      <td>${escapeHtml(row.stock_citric_acid_range || "-")}</td>
-      <td>${escapeHtml(row.stock_salinity_range || "-")}</td>
-      <td>${escapeHtml(row.stock_ph_range || "-")}</td>
-      <td>${escapeHtml(row.stock_ec_range || "-")}</td>
       <td>${escapeHtml(formatNumber(row.process_received_kg))}</td>
-      <td>${escapeHtml(formatNumber(row.process_pressed_liquid_l))}</td>
       <td>${escapeHtml(formatNumber(row.process_lost_kg))}</td>
       <td>${escapeHtml(formatDuration(row.process_minutes))}</td>
       <td>${escapeHtml(formatInteger(row.process_press_count))}</td>
       <td>${escapeHtml(formatNumber(row.process_avg_wet_pulp_per_press))}</td>
       <td>${escapeHtml(formatRatio(row.stock_l_per_intake_kg))}</td>
-    </tr>`).join("");
+    </tr>`;
+}
+
+function communityOperationalSummaryRow(row) {
+  const community = [row.community_id, row.community_name].filter(Boolean).join(" - ");
+  return `
+    <tr>
+      <td><strong>${escapeHtml(community || "Unknown community")}</strong></td>
+      <td>${escapeHtml(formatNumber(row.intake_weight_kg))}</td>
+      <td>${escapeHtml(formatNumber(row.intake_value_ksh))}</td>
+      <td>${escapeHtml(formatNumber(row.grade_a_kg))}</td>
+      <td>${escapeHtml(formatNumber(row.grade_b_kg))}</td>
+      <td>${escapeHtml(formatNumber(row.grade_c_kg))}</td>
+      <td>${escapeHtml(formatInteger(row.collection_count))}</td>
+      <td>${escapeHtml(formatInteger(row.farmer_count))}</td>
+      <td>${escapeHtml(formatInteger(row.site_sample_count))}</td>
+      <td>${escapeHtml(formatRange(row.temperature_min, row.temperature_max))}</td>
+      <td>${escapeHtml(formatRange(row.salinity_min, row.salinity_max))}</td>
+      <td>${escapeHtml(formatRange(row.tds_min_mg_l, row.tds_max_mg_l))}</td>
+      <td>${escapeHtml(formatRange(row.ec_min_ms_cm, row.ec_max_ms_cm))}</td>
+    </tr>`;
 }
 
 function renderOperationalSummaryTotals() {
   const total = state.operationalSummaryTotals;
-  const metrics = [
-    ["Intake", total.intake_weight_kg, "kg"],
-    ["Paid", total.intake_value_ksh, "KSH"],
-    ["Site samples", total.site_sample_count, ""],
-    ["Stock", total.stock_volume_l, "L"],
-    ["Processed", total.process_received_kg, "kg"],
-    ["Processing time", formatDuration(total.process_minutes), ""]
-  ];
+  const metrics = state.mode === "community"
+    ? [
+        ["Collected", total.intake_weight_kg, "kg"],
+        ["Paid", total.intake_value_ksh, "KSH"],
+        ["Communities", total.community_count, ""],
+        ["Farmers", total.farmer_count, ""],
+        ["Collections", total.collection_count, ""],
+        ["Site samples", total.site_sample_count, ""]
+      ]
+    : [
+        ["Collected", total.intake_weight_kg, "kg"],
+        ["Paid", total.intake_value_ksh, "KSH"],
+        ["Stock", total.stock_volume_l, "L"],
+        ["Containers", total.stock_container_count, ""],
+        ["Communities", total.community_count, ""],
+        ["Farmers", total.farmer_count, ""],
+        ["Collections", total.collection_count, ""],
+        ["Lost", total.process_lost_kg, "kg"],
+        ["Processing time", formatDuration(total.process_minutes), ""],
+        ["Presses", total.process_press_count, ""],
+        ["Avg wet pulp/press", total.process_avg_wet_pulp_per_press, "kg"],
+        ["Avg stock L / intake kg", formatRatio(total.stock_l_per_intake_kg), ""]
+      ];
   els.operationalSummaryTotals.innerHTML = metrics.map(([label, value, unit]) => `
     <div class="form-ledger-metric">
       <span>${escapeHtml(label)}</span>
@@ -813,6 +916,15 @@ function renderOperationalSummaryTotals() {
         ${unit ? `<small>${escapeHtml(unit)}</small>` : ""}
       </div>
     </div>`).join("");
+}
+
+function formatRange(minimum, maximum) {
+  const min = Number(minimum);
+  const max = Number(maximum);
+  if (!Number.isFinite(min) && !Number.isFinite(max)) return "-";
+  if (!Number.isFinite(max) || min === max) return formatNumber(minimum);
+  if (!Number.isFinite(min)) return formatNumber(maximum);
+  return `${formatNumber(minimum)} - ${formatNumber(maximum)}`;
 }
 
 function summaryPeriodLabel(row) {

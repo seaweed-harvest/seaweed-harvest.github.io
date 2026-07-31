@@ -270,6 +270,11 @@ function renderSummary(summary) {
     summaryGroup("Stock record", [
       metric("Total volume", summary.stock_volume_l, "L"),
       metric("Containers filled", summary.stock_container_count),
+      linkedMetric(
+        "QC Retested Stock",
+        summary.stock_retested_container_count,
+        `./container_lookup.html?from=${encodeURIComponent(recordDate())}&to=${encodeURIComponent(recordDate())}`
+      ),
       ...(numberValue(summary.stock_volume_l) > 0 ? [
         plainTextMetric("Sodium benzoate", summary.stock_sodium_benzoate_range || "-"),
         plainTextMetric("Citric acid", summary.stock_citric_acid_range || "-"),
@@ -299,6 +304,10 @@ function summaryGroup(title, metrics, extraClass = "") {
 function metric(label, value, unit = "", maximumFractionDigits = 2) {
   const formatted = formatSummaryNumber(value, maximumFractionDigits);
   return `<div class="operational-summary-metric"><span>${escapeHtml(label)}</span><div class="operational-summary-value"><strong>${escapeHtml(formatted)}</strong>${unit ? `<small>${escapeHtml(unit)}</small>` : ""}</div></div>`;
+}
+
+function linkedMetric(label, value, href) {
+  return `<a class="operational-summary-metric operational-summary-metric-link" href="${escapeAttribute(href)}"><span>${escapeHtml(label)}</span><div class="operational-summary-value"><strong>${escapeHtml(formatSummaryNumber(value, 0))}</strong></div></a>`;
 }
 
 function textMetric(label, value, width = false) {

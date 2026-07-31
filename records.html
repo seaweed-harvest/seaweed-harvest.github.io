@@ -259,14 +259,14 @@
         <div id="operationalSummaryWorkspace" hidden>
           <div class="form-ledger-view-heading">
             <div>
-              <h3>Operations summary</h3>
-              <p class="field-hint">Results across intake, site samples, stock and processing.</p>
+              <h3 id="operationalSummaryTitle">Monthly summary</h3>
+              <p id="operationalSummaryHint" class="field-hint">Organisation totals for each month.</p>
             </div>
             <span id="operationalSummaryCount" class="status-pill">0 periods</span>
           </div>
           <div class="admin-card-body standalone">
             <div class="admin-toolbar admin-filter-grid operational-summary-filters">
-              <label>
+              <label id="operationalSummaryGroupingField">
                 Group by
                 <select id="operationalSummaryGrouping">
                   <option value="week">Week</option>
@@ -282,7 +282,7 @@
                 To
                 <input id="operationalSummaryTo" type="date">
               </label>
-              <label>
+              <label id="operationalSummaryCommunityField">
                 Community
                 <select id="operationalSummaryCommunity">
                   <option value="">All communities</option>
@@ -290,11 +290,11 @@
               </label>
               <button id="loadOperationalSummary" type="button">Apply filters</button>
             </div>
-            <p id="operationalSummaryScopeNote" class="form-ledger-note" hidden>Community filtering applies to intake collection and site samples. Stock and process results remain organisation-wide.</p>
+            <p id="operationalSummaryScopeNote" class="form-ledger-note" hidden></p>
             <div id="operationalSummaryTotals" class="form-ledger-metric-strip operational-summary-totals" aria-label="Selected period totals"></div>
             <div class="responsive-table-wrap operational-summary-table-wrap">
               <table class="management-table admin-data-table operational-summary-table">
-                <thead>
+                <thead id="operationalSummaryHead">
                   <tr>
                     <th>Period</th>
                     <th>Collected kg</th>
@@ -306,25 +306,18 @@
                     <th>Farmers</th>
                     <th>Communities</th>
                     <th>Site samples</th>
-                    <th>Sample locations</th>
                     <th>Stock L</th>
                     <th>Containers</th>
-                    <th>Sodium benzoate</th>
-                    <th>Citric acid</th>
-                    <th>Salinity</th>
-                    <th>pH</th>
-                    <th>EC</th>
                     <th>Received kg</th>
-                    <th>Pressed L</th>
                     <th>Lost kg</th>
                     <th>Process time</th>
                     <th>Presses</th>
                     <th>Avg wet pulp/press kg</th>
-                    <th>Stock L / intake kg</th>
+                    <th>Avg stock L / intake kg</th>
                   </tr>
                 </thead>
                 <tbody id="operationalSummaryRows">
-                  <tr><td colspan="25" class="empty-state">Open Summary to load results.</td></tr>
+                  <tr><td colspan="18" class="empty-state">Open Summary to load results.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -827,8 +820,8 @@
   </main>
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
-  <script type="module" src="./assets/js/today_record_tabs.js?v=11"></script>
+  <script type="module" src="./assets/js/today_record_tabs.js?v=12"></script>
   <script type="module" src="./assets/js/admin_page.js?v=38"></script>
-  <script type="module" src="./assets/js/records_page.js?v=13"></script>
+  <script type="module" src="./assets/js/records_page.js?v=14"></script>
 </body>
 </html>
