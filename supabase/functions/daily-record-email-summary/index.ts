@@ -587,18 +587,17 @@ function emailHtml(
     : [];
   const recentRecords = recentSummaries.length
     ? `<tr><td style="padding:18px 24px 0">
-        <div style="margin:0 0 8px;font-size:13px;font-weight:700;color:#365f59">Recent daily records</div>
+        <div style="margin:0 0 8px;padding-top:14px;border-top:2px solid #0f766e;font-size:13px;font-weight:700;color:#365f59">Recent daily records</div>
         ${recentSummaries.map((recent) => emailMetricTable(
           displayDate(recent.summary_date),
           [
-            metric("Total weight", `${formatNumber(recent.intake_weight_kg)} kg`),
+            metric("Total intake weight", `${formatNumber(recent.intake_weight_kg)} kg`),
             metric("Total paid", `${formatNumber(recent.intake_value_ksh)} KSH`),
             metric("Stock volume", `${formatNumber(recent.stock_volume_l)} L`),
-            metric("Received seaweed", `${formatNumber(recent.process_received_kg)} kg`),
-            metric("Pressed liquid", `${formatNumber(recent.process_pressed_liquid_l)} L`),
             metric("Processing time", formatDuration(recent.process_minutes)),
-            metric("Farmers", formatInteger(recent.farmer_count)),
-            metric("Site samples", formatInteger(recent.site_sample_count))
+            metric("Collections", formatInteger(recent.collection_count)),
+            metric("Site samples", formatInteger(recent.site_sample_count)),
+            metric("Communities", formatInteger(recent.community_count))
           ],
           `${APP_SITE_URL}/today.html?records=summary&date=${recent.summary_date}`
         )).join("")}
@@ -620,7 +619,12 @@ function emailHtml(
         </td></tr>
         <tr><td style="padding:12px 24px 6px;border-top:1px solid #dcece9">
           <div style="font-size:13px;color:#5f7e79">DAILY RECORD</div>
-          <h1 style="margin:4px 0 0;font-size:22px">${displayDate(summary.summary_date)}</h1>
+          <div style="margin:4px 0 0;line-height:1.35">
+            <span style="font-size:22px;font-weight:700;color:#123d39">${displayDate(summary.summary_date)}</span>
+            <span style="font-size:13px;font-weight:400;color:#466b66">
+              (<a href="${recordUrl}" style="color:#2b7dbc!important;background:transparent;text-decoration:underline;font-weight:400">open daily record</a>)
+            </span>
+          </div>
           <p style="margin:6px 0 0;color:#466b66;font-size:14px">Hello ${escapeHtml(recipient.name)}, here is the completed daily record.</p>
         </td></tr>
         ${emailSection("Facility Process Record", [
@@ -636,11 +640,11 @@ function emailHtml(
         ${emailSection("Intake Collection", [
           metric("Total weight", `${formatNumber(summary.intake_weight_kg)} kg`),
           metric("Total paid", `${formatNumber(summary.intake_value_ksh)} KSH`),
+          metric("Farmers", formatInteger(summary.farmer_count)),
+          metric("Collections", formatInteger(summary.collection_count)),
           metric("Grade A", `${formatNumber(summary.grade_a_kg)} kg`),
           metric("Grade B", `${formatNumber(summary.grade_b_kg)} kg`),
           metric("Grade C", `${formatNumber(summary.grade_c_kg)} kg`),
-          metric("Farmers", formatInteger(summary.farmer_count)),
-          metric("Collections", formatInteger(summary.collection_count)),
           metric("Communities", communities, true)
         ])}
         ${emailSection("Stock Record", [
@@ -652,9 +656,8 @@ function emailHtml(
           metric("Status", siteStatus, true)
         ])}
         ${recentRecords}
-        <tr><td style="padding:18px 24px 22px">
-          <a href="${recordUrl}" style="display:inline-block;padding:11px 17px;background:#0f766e;color:#fff;text-decoration:none;border-radius:6px;font-weight:700">Open daily record</a>
-          <p style="margin:14px 0 0;color:#6b8581;font-size:12px">Sent automatically at 08:00 East Africa Time.</p>
+        <tr><td style="padding:10px 24px 18px">
+          <p style="margin:0;color:#6b8581;font-size:12px">Sent automatically at 08:00 East Africa Time.</p>
         </td></tr>
         <tr><td style="padding:14px 24px;background:#f7fbfa;border-top:1px solid #d9ebe7;text-align:center;color:#6b8581;font-size:12px;line-height:1.5">by Cascadia Nature-based Solutions.</td></tr>
       </table>
@@ -689,11 +692,14 @@ function emailMetricTable(title: string, metrics: EmailMetric[], recordUrl = "")
   }
   flush();
   const heading = recordUrl
-    ? `<a href="${recordUrl}" style="color:#123d39;text-decoration:none">${escapeHtml(title)}</a>`
+    ? `<span style="font-size:16px;color:#123d39">${escapeHtml(title)}</span>
+       <span style="font-size:12px;font-weight:400;color:#466b66">
+         (<a href="${recordUrl}" style="color:#2b7dbc!important;background:transparent;text-decoration:underline;font-weight:400">open daily record</a>)
+       </span>`
     : escapeHtml(title);
   return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
-      style="width:100%;margin:0 0 8px;border:1px solid #c7e2dd;border-radius:6px;overflow:hidden;table-layout:fixed">
-      <tr><td colspan="4" style="padding:8px 10px;border-bottom:1px solid #dcece9;font-weight:700">${heading}</td></tr>
+      style="width:100%;margin:0 0 7px;border:1px solid #c7e2dd;border-radius:6px;overflow:hidden;table-layout:fixed">
+      <tr><td colspan="4" style="padding:7px 9px;border-bottom:1px solid #dcece9;font-weight:700;color:#274f49">${heading}</td></tr>
       ${rows.join("")}
     </table>`;
 }
@@ -704,9 +710,9 @@ function metric(label: string, value: string, full = false): EmailMetric {
 
 function renderMetric(item: EmailMetric, span: number) {
   const width = span * 25;
-  return `<td${span > 1 ? ` colspan="${span}"` : ""} style="width:${width}%;padding:8px 10px;border-bottom:1px solid #e2efed;vertical-align:top">
-    <div style="font-size:10px;color:#668680;text-transform:uppercase">${escapeHtml(item.label)}</div>
-    <div style="margin-top:3px;font-size:14px;font-weight:700;line-height:1.3">${item.value}</div>
+  return `<td${span > 1 ? ` colspan="${span}"` : ""} style="width:${width}%;padding:6px 9px;border-bottom:1px solid #e2efed;vertical-align:top">
+    <div style="font-size:10px;color:#4f7771;font-weight:700;text-transform:uppercase;line-height:1.2">${escapeHtml(item.label)}</div>
+    <div style="margin-top:2px;color:#123d39;font-size:14px;font-weight:400;line-height:1.2">${item.value}</div>
   </td>`;
 }
 
@@ -765,8 +771,9 @@ function emailText(
       ...recentSummaries.map((recent) =>
         `${displayDate(recent.summary_date)}: intake ${formatNumber(recent.intake_weight_kg)} kg; `
         + `paid ${formatNumber(recent.intake_value_ksh)} KSH; stock ${formatNumber(recent.stock_volume_l)} L; `
-        + `received ${formatNumber(recent.process_received_kg)} kg; pressed ${formatNumber(recent.process_pressed_liquid_l)} L; `
-        + `farmers ${formatInteger(recent.farmer_count)}; site samples ${formatInteger(recent.site_sample_count)}`
+        + `processing ${formatDuration(recent.process_minutes)}; collections ${formatInteger(recent.collection_count)}; `
+        + `site samples ${formatInteger(recent.site_sample_count)}; communities ${formatInteger(recent.community_count)}; `
+        + `open ${APP_SITE_URL}/today.html?records=summary&date=${recent.summary_date}`
       )
     ] : []),
     "",

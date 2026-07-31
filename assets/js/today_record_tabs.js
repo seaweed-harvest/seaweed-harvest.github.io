@@ -252,11 +252,11 @@ function renderSummary(summary) {
     summaryGroup("Intake collection", [
       metric("Total weight", summary.intake_weight_kg, "kg"),
       metric("Total paid", summary.intake_value_ksh, "KSH"),
+      metric("Farmers", summary.farmer_count),
+      metric("Collections", summary.collection_count),
       metric("Grade A", summary.grade_a_kg, "kg"),
       metric("Grade B", summary.grade_b_kg, "kg"),
       metric("Grade C", summary.grade_c_kg, "kg"),
-      metric("Farmers", summary.farmer_count),
-      metric("Collections", summary.collection_count),
       communityWeightMetric(intakeCommunities)
     ]),
     summaryGroup("Site water samples", siteCount

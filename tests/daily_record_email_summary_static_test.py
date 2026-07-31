@@ -91,6 +91,47 @@ class DailyRecordEmailSummaryStaticTest(unittest.TestCase):
         self.assertIn("recent_summaries: recentSummaries", function)
         self.assertIn("Recent daily records", function)
         self.assertIn("recentSummaries.map", function)
+        for label in (
+            'metric("Total intake weight"',
+            'metric("Total paid"',
+            'metric("Stock volume"',
+            'metric("Processing time"',
+            'metric("Collections"',
+            'metric("Site samples"',
+            'metric("Communities"',
+        ):
+            self.assertIn(label, function)
+
+    def test_email_uses_compact_regular_weight_values_and_date_links(self):
+        function = read(
+            "supabase/functions/daily-record-email-summary/index.ts"
+        )
+        self.assertIn("padding:6px 9px", function)
+        self.assertIn("font-weight:700;text-transform:uppercase", function)
+        self.assertIn("font-weight:400;line-height:1.2", function)
+        self.assertIn(">open daily record</a>)", function)
+        self.assertIn("border-top:2px solid #0f766e", function)
+        self.assertNotIn("display:inline-block;padding:11px 17px", function)
+
+    def test_intake_summaries_put_activity_before_grade_row(self):
+        function = read(
+            "supabase/functions/daily-record-email-summary/index.ts"
+        )
+        email_intake = function.split(
+            'emailSection("Intake Collection"', 1
+        )[1].split('emailSection("Stock Record"', 1)[0]
+        self.assertLess(
+            email_intake.index('metric("Farmers"'),
+            email_intake.index('metric("Grade A"'),
+        )
+        script = read("assets/js/today_record_tabs.js")
+        site_intake = script.split(
+            'summaryGroup("Intake collection"', 1
+        )[1].split('summaryGroup("Site water samples"', 1)[0]
+        self.assertLess(
+            site_intake.index('metric("Farmers"'),
+            site_intake.index('metric("Grade A"'),
+        )
 
     def test_email_branding_uses_current_logo_and_concise_footer(self):
         expected_logo = (
@@ -151,7 +192,7 @@ class DailyRecordEmailSummaryStaticTest(unittest.TestCase):
     def test_cache_version_is_advanced_for_summary_label_update(self):
         worker = read("service-worker.js")
         self.assertIn(
-            'CACHE_VERSION = "seaweed-harvest-collection-v132"',
+            'CACHE_VERSION = "seaweed-harvest-collection-v133"',
             worker,
         )
 
