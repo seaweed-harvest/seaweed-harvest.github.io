@@ -78,9 +78,10 @@ class DailyRecordEmailSummaryStaticTest(unittest.TestCase):
             function.index('emailSection("Site Water Samples"'),
         )
         self.assertIn(
-            "/today.html?records=summary&date=${summary.summary_date}",
+            "/records.html?records=summary&date=${summaryDate}",
             function,
         )
+        self.assertNotIn("/today.html?records=summary", function)
 
     def test_email_rebuilds_four_previous_days_and_omits_empty_history(self):
         function = read(
@@ -192,7 +193,7 @@ class DailyRecordEmailSummaryStaticTest(unittest.TestCase):
     def test_cache_version_is_advanced_for_summary_label_update(self):
         worker = read("service-worker.js")
         self.assertIn(
-            'CACHE_VERSION = "seaweed-harvest-collection-v134"',
+            'CACHE_VERSION = "seaweed-harvest-collection-v135"',
             worker,
         )
 

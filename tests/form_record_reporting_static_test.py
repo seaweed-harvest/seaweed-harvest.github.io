@@ -59,6 +59,25 @@ class FormRecordReportingStaticTest(unittest.TestCase):
         self.assertIn('id="publicTodayRows"', self.today)
         self.assertIn('src="./assets/js/today_page.js', self.today)
 
+    def test_legacy_summary_route_redirects_to_merged_record_workspace(self):
+        self.assertIn('params.get("records") !== "summary"', self.today)
+        self.assertIn('new URL("./records.html"', self.today)
+        self.assertIn("target.search = params.toString()", self.today)
+        self.assertIn("window.location.replace(target.href)", self.today)
+
+    def test_first_party_summary_links_use_merged_record_workspace(self):
+        source_paths = [
+            *ROOT.glob("*.html"),
+            *(ROOT / "assets" / "js").rglob("*.js"),
+            *(ROOT / "supabase" / "functions").rglob("*.ts"),
+        ]
+        offenders = [
+            str(path.relative_to(ROOT))
+            for path in source_paths
+            if "today.html?records=summary" in path.read_text(encoding="utf-8")
+        ]
+        self.assertEqual([], offenders)
+
     def test_daily_navigation_uses_merged_ledger_for_authorised_users(self):
         self.assertIn('hasPermission(profile, "can_view_data")', self.navigation)
         self.assertIn(
@@ -77,7 +96,7 @@ class FormRecordReportingStaticTest(unittest.TestCase):
         self.assertIn('"controllerchange"', self.pwa_bootstrap)
         self.assertIn("window.location.reload()", self.pwa_bootstrap)
         self.assertIn('cache: "no-store"', self.service_worker)
-        self.assertIn("seaweed-harvest-collection-v134", self.service_worker)
+        self.assertIn("seaweed-harvest-collection-v135", self.service_worker)
 
     def test_legacy_collection_route_preserves_filters_and_redirects(self):
         self.assertIn('new URL("./records.html"', self.legacy_collection)
