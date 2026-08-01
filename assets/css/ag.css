@@ -3941,7 +3941,7 @@ body:not([data-today-record-category="intake"]) [data-today-intake-only] {
 }
 
 .ledger-summary-filter-grid {
-  grid-template-columns: repeat(3, minmax(150px, 240px)) auto;
+  grid-template-columns: repeat(5, minmax(140px, 220px)) auto;
   justify-content: start;
 }
 
@@ -6421,7 +6421,25 @@ body[data-registration-pending] .registration-flow {
   align-items: end;
 }
 
-.form-ledger-summary-filter-grid,
+.form-ledger-summary-filter-grid {
+  grid-template-columns: repeat(4, minmax(150px, 220px)) auto;
+  align-items: end;
+}
+
+.collection-calendar-day.read-only {
+  cursor: default;
+}
+
+.collection-calendar-day.read-only:hover {
+  border-color: transparent;
+  background: transparent;
+}
+
+.collection-calendar-day.read-only.has-collections:hover {
+  border-color: #b2dfbf;
+  background: #d8f3df;
+}
+
 .form-ledger-community-filter-grid {
   grid-template-columns: repeat(2, minmax(170px, 260px)) auto;
   align-items: end;
@@ -7677,6 +7695,7 @@ label input[type="checkbox"] {
     align-self: flex-start;
   }
 
+  .ledger-summary-filter-grid,
   .form-ledger-summary-filter-grid,
   .form-ledger-community-filter-grid,
   .operational-summary-filters {

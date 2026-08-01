@@ -4,14 +4,15 @@ import tempfile
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.support.ui import Select, WebDriverWait
 
 from seaweedke_ui_probe import api_keys, cleanup, create_admin, start_server
 
 
 def main():
     keys = api_keys()
-    user_id, email, password = create_admin(keys)
+    user_id, email, password = create_admin(keys, aggregator_code="MAWIMBI")
     server, base_url = start_server()
     driver = None
     screenshots = []
@@ -46,7 +47,7 @@ def main():
         period_buttons = driver.find_elements(By.CSS_SELECTOR, "#recordPeriodTabs [data-record-period]")
         assert [button.get_attribute("textContent").strip() for button in period_buttons] == [
             "Today's Record",
-            "Monthly Records",
+            "Period Totals",
             "Community Records",
             "Container Lookup",
             "All Records",
@@ -121,18 +122,28 @@ def main():
         assert driver.find_element(By.ID, "operationalSummaryStatus").text == ""
         wait.until(lambda current: current.find_element(
             By.ID, "operationalSummaryTitle"
-        ).text == "Monthly summary")
+        ).text == "Period totals")
+        assert Select(driver.find_element(By.ID, "operationalSummaryGrouping")).first_selected_option.text == "Day"
+        assert len(driver.find_elements(
+            By.CSS_SELECTOR, "#operationalSummaryCalendar .collection-calendar-month"
+        )) == 4
         monthly_head = [
-            cell.text for cell in driver.find_elements(
+            cell.get_attribute("textContent").strip()
+            for cell in driver.find_elements(
                 By.CSS_SELECTOR, "#operationalSummaryHead th"
             )
         ]
         assert monthly_head == [
-            "Period", "Collected kg", "Total paid KSH", "A kg", "B kg", "C kg",
+            "Day", "Collected kg", "Total paid KSH", "A kg", "B kg", "C kg",
             "Collections", "Farmers", "Communities", "Site samples", "Stock L",
             "Containers", "Received kg", "Lost kg", "Process time", "Presses",
             "Avg wet pulp/press kg", "Avg stock L / intake kg",
         ], monthly_head
+        Select(driver.find_element(By.ID, "operationalSummaryGrouping")).select_by_value("week")
+        wait.until(lambda current: current.find_element(
+            By.CSS_SELECTOR, "#operationalSummaryHead th"
+        ).get_attribute("textContent").strip() == "Week starting")
+        wait.until(lambda current: "grouping=week" in current.current_url)
 
         driver.find_element(
             By.CSS_SELECTOR, '#recordPeriodTabs [data-record-period="community"]'
@@ -140,8 +151,12 @@ def main():
         wait.until(lambda current: current.find_element(
             By.ID, "operationalSummaryTitle"
         ).text == "Community summary")
+        wait.until(lambda current: current.find_element(
+            By.CSS_SELECTOR, "#operationalSummaryHead th"
+        ).get_attribute("textContent").strip() == "Community")
         community_head = [
-            cell.text for cell in driver.find_elements(
+            cell.get_attribute("textContent").strip()
+            for cell in driver.find_elements(
                 By.CSS_SELECTOR, "#operationalSummaryHead th"
             )
         ]
@@ -168,12 +183,32 @@ def main():
         ).click()
         wait.until(lambda current: current.find_element(
             By.ID, "operationalSummaryTitle"
-        ).text == "Monthly summary")
+        ).text == "Period totals")
+        wait.until(lambda current: current.find_element(
+            By.ID, "operationalSummaryCount"
+        ).text != "Loading")
+        wait.until(lambda current: current.find_element(
+            By.ID, "loadOperationalSummary"
+        ).is_enabled())
 
         driver.find_element(By.CSS_SELECTOR, '[data-ledger-category="process"]').click()
-        wait.until(lambda current: len(current.find_elements(
-            By.CSS_SELECTOR, "#formLedgerCalendar .collection-calendar-month"
-        )) == 4)
+        try:
+            wait.until(lambda current: len(current.find_elements(
+                By.CSS_SELECTOR, "#formLedgerCalendar .collection-calendar-month"
+            )) == 4)
+        except TimeoutException as error:
+            raise AssertionError({
+                "route": driver.current_url,
+                "status": driver.find_element(By.ID, "formLedgerStatus").text,
+                "calendar_status": driver.find_element(By.ID, "formLedgerCalendarStatus").text,
+                "console": driver.get_log("browser"),
+            }) from error
+        assert Select(driver.find_element(By.ID, "formLedgerGrouping")).first_selected_option.text == "Day"
+        Select(driver.find_element(By.ID, "formLedgerGrouping")).select_by_value("month")
+        wait.until(lambda current: current.find_element(
+            By.CSS_SELECTOR, "#formLedgerMonthlyHead th"
+        ).get_attribute("textContent").strip() == "Month")
+        wait.until(lambda current: "grouping=month" in current.current_url)
         heading_layout = driver.execute_script(
             """
             const heading = document.querySelector(".form-ledger-heading").getBoundingClientRect();
@@ -195,6 +230,12 @@ def main():
         assert "records.html" in driver.current_url
         assert "category=intake" in driver.current_url
         assert not driver.find_element(By.ID, "formLedgerWorkspace").is_displayed()
+        assert Select(driver.find_element(By.ID, "monthlyGrouping")).first_selected_option.text == "Day"
+        wait.until(lambda current: current.find_element(
+            By.ID, "monthlyCount"
+        ).text != "Loading")
+        assert driver.find_element(By.ID, "monthlyCount").text != "0 rows"
+        assert len(driver.find_elements(By.CSS_SELECTOR, "#monthlyRows tr")) > 0
         intake_desktop = pathlib.Path(tempfile.gettempdir()) / "record-ledgers-intake-desktop.png"
         driver.save_screenshot(str(intake_desktop))
         screenshots.append(intake_desktop)
@@ -231,7 +272,7 @@ def main():
             ) if button.is_displayed()
         ]
         assert visible_stock_periods == [
-            "Today's Record", "Monthly Records", "Container Lookup", "All Records"
+            "Today's Record", "Period Totals", "Container Lookup", "All Records"
         ], visible_stock_periods
         driver.find_element(
             By.CSS_SELECTOR, '#recordPeriodTabs [data-record-period="monthly"]'
@@ -283,6 +324,60 @@ def main():
             '#recordsSidebar a[aria-current="page"]',
         ).text == "Today's Intake")
 
+        route_audit = []
+        monthly_workspaces = {
+            "summary": "operationalSummaryWorkspace",
+            "intake": "collectionLedgerWorkspace",
+            "site_sample": "formLedgerWorkspace",
+            "stock": "formLedgerWorkspace",
+            "process": "formLedgerWorkspace",
+        }
+        for category, workspace_id in monthly_workspaces.items():
+            driver.get(f"{base_url}/records.html?category={category}&view=monthly")
+            wait.until(lambda current, expected=workspace_id: current.find_element(
+                By.ID, expected
+            ).is_displayed())
+            wait.until(lambda current: current.find_element(
+                By.CSS_SELECTOR, '#recordPeriodTabs [data-record-period="monthly"]'
+            ).get_attribute("aria-selected") == "true")
+            route_audit.append(f"monthly:{category}")
+
+        for category in ("summary", "intake", "site_sample", "stock", "process"):
+            driver.get(f"{base_url}/records.html?category={category}&view=all")
+            expected = (
+                "operationalSummaryWorkspace" if category == "summary"
+                else "collectionLedgerWorkspace" if category == "intake"
+                else "formLedgerWorkspace"
+            )
+            wait.until(lambda current, expected_id=expected: current.find_element(
+                By.ID, expected_id
+            ).is_displayed())
+            route_audit.append(f"all:{category}")
+
+        for category, expected_panel in (
+            ("summary", "operationalSummaryWorkspace"),
+            ("intake", "collectionLedgerWorkspace"),
+            ("site_sample", "formLedgerCommunityPanel"),
+        ):
+            driver.get(f"{base_url}/records.html?category={category}&view=community")
+            wait.until(lambda current, expected_id=expected_panel: current.find_element(
+                By.ID, expected_id
+            ).is_displayed())
+            route_audit.append(f"community:{category}")
+
+        driver.get(f"{base_url}/records.html?category=stock&view=container")
+        wait.until(lambda current: current.find_element(
+            By.ID, "containerLookupWorkspace"
+        ).is_displayed())
+        route_audit.append("container:stock")
+
+        driver.get(f"{base_url}/admin_monthly.html?grouping=week")
+        wait.until(lambda current: "records.html" in current.current_url)
+        assert "category=intake" in driver.current_url
+        assert "view=monthly" in driver.current_url
+        assert "grouping=week" in driver.current_url
+        route_audit.append("legacy:admin_monthly")
+
         driver.set_window_size(390, 844)
         driver.get(f"{base_url}/records.html?category=site_sample&view=monthly")
         wait.until(lambda current: current.find_element(
@@ -328,6 +423,7 @@ def main():
             "status": "ok",
             "heading": heading_layout,
             "mobile": mobile,
+            "routes": route_audit,
             "screenshots": [str(path) for path in screenshots],
         }, indent=2))
     finally:

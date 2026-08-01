@@ -70,7 +70,7 @@ def start_server():
     return server, f"http://127.0.0.1:{server.server_port}"
 
 
-def create_admin(keys):
+def create_admin(keys, aggregator_code="BATI"):
     suffix = str(int(time.time() * 1000))
     email = f"codex.seaweedke.ui.{suffix}@example.com"
     password = f"SeaweedUi!{suffix}Aa9"
@@ -86,9 +86,10 @@ def create_admin(keys):
             "user_metadata": {"full_name": "SEAWEEDKE UI Probe"},
         },
     )
-    bati = request_json(
+    aggregator = request_json(
         "GET",
-        f"{PROJECT_URL}/rest/v1/ag_aggregators?select=id&aggregator_code=eq.BATI&limit=1",
+        f"{PROJECT_URL}/rest/v1/ag_aggregators"
+        f"?select=id&aggregator_code=eq.{aggregator_code}&limit=1",
         keys["service_role"],
         keys["service_role"],
     )[0]
@@ -102,7 +103,7 @@ def create_admin(keys):
             "display_name": "SEAWEEDKE UI Probe",
             "app_role": "system_admin",
             "account_status": "active",
-            "active_aggregator_id": bati["id"],
+            "active_aggregator_id": aggregator["id"],
             "can_access_admin": True,
             "can_view_dashboard": True,
             "can_view_data": True,

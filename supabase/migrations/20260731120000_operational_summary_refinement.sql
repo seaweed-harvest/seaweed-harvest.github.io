@@ -95,7 +95,7 @@ begin
       coalesce(collection.total_price, 0) as value_ksh,
       upper(coalesce(
         nullif(trim(collection.grade_code), ''),
-        nullif(trim(collection.seaweed_grade), '')
+        nullif(trim(collection.seaweed_grade::text), '')
       )) as grade_code,
       coalesce(
         collection.farmer_record_id::text,
@@ -348,19 +348,19 @@ begin
       round(coalesce(sum(collection.sack_weight_kg) filter (
         where upper(coalesce(
           nullif(trim(collection.grade_code), ''),
-          nullif(trim(collection.seaweed_grade), '')
+          nullif(trim(collection.seaweed_grade::text), '')
         )) = 'A'
       ), 0), 2) as grade_a_kg,
       round(coalesce(sum(collection.sack_weight_kg) filter (
         where upper(coalesce(
           nullif(trim(collection.grade_code), ''),
-          nullif(trim(collection.seaweed_grade), '')
+          nullif(trim(collection.seaweed_grade::text), '')
         )) = 'B'
       ), 0), 2) as grade_b_kg,
       round(coalesce(sum(collection.sack_weight_kg) filter (
         where upper(coalesce(
           nullif(trim(collection.grade_code), ''),
-          nullif(trim(collection.seaweed_grade), '')
+          nullif(trim(collection.seaweed_grade::text), '')
         )) = 'C'
       ), 0), 2) as grade_c_kg,
       count(collection.id) as collection_count,

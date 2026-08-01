@@ -64,8 +64,8 @@ const COLUMNS = {
 const REPORTS = {
   process: {
     title: "Process records",
-    monthlyColumns: [
-      ["month_label", "Month", "month"],
+    periodColumns: [
+      ["period_start", "Day", "period"],
       ["record_count", "Records", "integer"],
       ["species_count", "Species", "integer"],
       ["received_kg", "Received kg", "number"],
@@ -89,8 +89,8 @@ const REPORTS = {
   },
   site_sample: {
     title: "Site water samples",
-    monthlyColumns: [
-      ["month_label", "Month", "month"],
+    periodColumns: [
+      ["period_start", "Day", "period"],
       ["record_count", "Samples", "integer"],
       ["community_count", "Communities", "integer"],
       ["avg_temperature_c", "Avg temp C", "number"],
@@ -112,8 +112,8 @@ const REPORTS = {
   },
   stock: {
     title: "Stock records",
-    monthlyColumns: [
-      ["month_label", "Month", "month"],
+    periodColumns: [
+      ["period_start", "Day", "period"],
       ["record_count", "Records", "integer"],
       ["container_count", "Containers", "integer"],
       ["new_count", "New", "integer"],
@@ -190,7 +190,8 @@ const state = {
   formRecordDrafts: new Map(),
   formRecordOriginals: new Map(),
   operationalSummaryRows: [],
-  operationalSummaryTotals: {}
+  operationalSummaryTotals: {},
+  operationalSummaryDailyRows: []
 };
 
 const els = {};
@@ -206,6 +207,8 @@ async function init() {
     "operationalSummaryCommunity", "loadOperationalSummary",
     "operationalSummaryScopeNote", "operationalSummaryTotals",
     "operationalSummaryHead", "operationalSummaryRows", "operationalSummaryStatus",
+    "operationalSummaryCalendarSection", "operationalSummaryCalendarStatus",
+    "operationalSummaryCalendar",
     "recordPeriodTabs", "recordCommunityTab", "recordContainerLookupTab",
     "recordTodayWorkspace", "containerLookupWorkspace",
     "todayRecordTabs", "reloadTodayIntake",
@@ -218,8 +221,10 @@ async function init() {
     "formLedgerEditActions", "formLedgerSelectedCount", "formLedgerStartEdit",
     "formLedgerSaveEdits", "formLedgerDiscardEdits", "formLedgerDeleteSelected",
     "formLedgerActionStatus",
-    "formLedgerYear", "formLedgerMonthlyCommunityField", "formLedgerMonthlyCommunity",
-    "loadFormLedgerMonthly", "formLedgerMonthlyTitle", "formLedgerMonthlyMetrics",
+    "formLedgerGrouping", "formLedgerPeriodFrom", "formLedgerPeriodTo",
+    "formLedgerMonthlyCommunityField", "formLedgerMonthlyCommunity",
+    "loadFormLedgerMonthly", "formLedgerMonthlyTitle", "formLedgerPeriodHint",
+    "formLedgerMonthlyMetrics",
     "formLedgerMonthlyHead", "formLedgerMonthlyRows", "formLedgerCalendarStatus",
     "formLedgerCalendar", "formLedgerDayRecords", "formLedgerDayTitle",
     "formLedgerDayStatus", "formLedgerDayCount", "previousFormLedgerDayPage",
@@ -346,6 +351,12 @@ function bindEvents() {
     syncUrl();
     void loadMonthlyReport();
   });
+  els.formLedgerGrouping.addEventListener("change", () => {
+    state.selectedDay = "";
+    state.dayPage = 0;
+    syncUrl();
+    void loadMonthlyReport();
+  });
   els.loadFormLedgerCommunity.addEventListener("click", () => {
     state.selectedCommunity = "";
     state.communityRecordPage = 0;
@@ -387,6 +398,11 @@ function bindEvents() {
   els.formLedgerDeleteSelected.addEventListener("click", deleteSelectedFormRecords);
   els.exportFormLedger.addEventListener("click", exportCsv);
   els.loadOperationalSummary.addEventListener("click", () => {
+    syncUrl();
+    void loadOperationalSummary();
+  });
+  els.operationalSummaryGrouping.addEventListener("change", () => {
+    configureOperationalSummaryView();
     syncUrl();
     void loadOperationalSummary();
   });
@@ -466,7 +482,8 @@ function setDateDefaults() {
   els.formLedgerTo.value = end;
   els.formLedgerCommunityFrom.value = start;
   els.formLedgerCommunityTo.value = end;
-  els.formLedgerYear.value = end.slice(0, 4);
+  els.formLedgerPeriodFrom.value = `${end.slice(0, 4)}-01-01`;
+  els.formLedgerPeriodTo.value = end;
   els.operationalSummaryFrom.value = `${end.slice(0, 4)}-01-01`;
   els.operationalSummaryTo.value = end;
 }
@@ -495,9 +512,23 @@ function readUrlState() {
     els.formLedgerTo.value = params.get("to");
     els.formLedgerCommunityTo.value = params.get("to");
   }
-  if (/^\d{4}$/.test(params.get("year") || "")) els.formLedgerYear.value = params.get("year");
+  if (["day", "week", "month", "year"].includes(params.get("grouping"))) {
+    els.formLedgerGrouping.value = params.get("grouping");
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(params.get("period_from") || "")) {
+    els.formLedgerPeriodFrom.value = params.get("period_from");
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(params.get("period_to") || "")) {
+    els.formLedgerPeriodTo.value = params.get("period_to");
+  }
+  if (/^\d{4}$/.test(params.get("year") || "") && !params.get("period_from")) {
+    const legacyYear = params.get("year");
+    els.formLedgerPeriodFrom.value = `${legacyYear}-01-01`;
+    els.formLedgerPeriodTo.value = `${legacyYear}-12-31`;
+    if (!params.get("grouping")) els.formLedgerGrouping.value = "month";
+  }
   els.formLedgerSearch.value = params.get("search") || "";
-  if (["week", "month", "year"].includes(params.get("grouping"))) {
+  if (["day", "week", "month", "year"].includes(params.get("grouping"))) {
     els.operationalSummaryGrouping.value = params.get("grouping");
   }
   if (/^\d{4}-\d{2}-\d{2}$/.test(params.get("summary_from") || "")) {
@@ -555,7 +586,9 @@ function updateControls() {
   els.formLedgerMonthlyPanel.hidden = state.mode !== "monthly";
   els.formLedgerCommunityPanel.hidden = state.mode !== "community";
   els.formLedgerMonthlyCommunityField.hidden = !formCommunityAvailable;
-  els.formLedgerMonthlyTitle.textContent = `${REPORTS[state.category].title} by month`;
+  const grouping = reportingGrouping(els.formLedgerGrouping.value);
+  els.formLedgerMonthlyTitle.textContent = `${REPORTS[state.category].title} by ${reportingGroupingNoun(grouping)}`;
+  els.formLedgerPeriodHint.textContent = `Totals grouped by ${reportingGroupingNoun(grouping)}.`;
   els.formLedgerCount.textContent = "Loading";
 }
 
@@ -563,9 +596,9 @@ function configureOperationalSummaryView() {
   const monthly = state.mode === "monthly";
   const community = state.mode === "community";
   if (monthly) {
-    els.operationalSummaryTitle.textContent = "Monthly summary";
-    els.operationalSummaryHint.textContent = "Organisation totals for each month.";
-    els.operationalSummaryGrouping.value = "month";
+    const grouping = reportingGrouping(els.operationalSummaryGrouping.value);
+    els.operationalSummaryTitle.textContent = "Period totals";
+    els.operationalSummaryHint.textContent = `Organisation totals grouped by ${reportingGroupingNoun(grouping)}.`;
   } else if (community) {
     els.operationalSummaryTitle.textContent = "Community summary";
     els.operationalSummaryHint.textContent = "Collection totals and site-water ranges for each active community.";
@@ -573,8 +606,9 @@ function configureOperationalSummaryView() {
     els.operationalSummaryTitle.textContent = "Operations summary";
     els.operationalSummaryHint.textContent = "Results across intake, site samples, stock and processing.";
   }
-  els.operationalSummaryGroupingField.hidden = monthly || community;
+  els.operationalSummaryGroupingField.hidden = community;
   els.operationalSummaryCommunityField.hidden = monthly || community;
+  els.operationalSummaryCalendarSection.hidden = !monthly;
   els.operationalSummaryScopeNote.hidden = true;
 }
 
@@ -627,27 +661,27 @@ async function loadAllRecords() {
 }
 
 async function loadMonthlyReport() {
-  const year = Number(els.formLedgerYear.value);
-  if (!Number.isInteger(year) || year < 2020 || year > 2100) {
-    setStatus("Enter a valid reporting year.", "error");
-    return;
-  }
+  const range = selectedDateRange(els.formLedgerPeriodFrom, els.formLedgerPeriodTo);
+  if (!range) return;
+  const grouping = reportingGrouping(els.formLedgerGrouping.value);
   state.loading = true;
   setLoading(true);
-  setStatus("Loading monthly report...");
+  setStatus("Loading period totals...");
   els.formLedgerCount.textContent = "Loading";
   try {
     const activityRange = calendarRange(new Date());
     const communityId = state.category === "site_sample"
       ? (els.formLedgerMonthlyCommunity.value || null)
       : null;
-    const [yearReport, activityReport] = await Promise.all([
-      summaryRpc(`${year}-01-01`, `${year}-12-31`, communityId),
-      summaryRpc(activityRange.start, activityRange.end, communityId)
+    const [periodReport, activityReport] = await Promise.all([
+      periodTotalsRpc(state.category, range.start, range.end, grouping, communityId),
+      periodTotalsRpc(state.category, activityRange.start, activityRange.end, "day", communityId)
     ]);
-    state.monthlyRows = yearReport.monthlyRows;
-    state.monthlyTotals = yearReport.totals;
-    state.dailyRows = activityReport.dailyRows;
+    state.monthlyRows = periodReport.rows;
+    state.monthlyTotals = periodReport.totals;
+    state.dailyRows = activityReport.rows;
+    els.formLedgerMonthlyTitle.textContent = `${REPORTS[state.category].title} by ${reportingGroupingNoun(grouping)}`;
+    els.formLedgerPeriodHint.textContent = `Totals grouped by ${reportingGroupingNoun(grouping)}.`;
     renderMonthlyMetrics();
     renderMonthlyTable();
     renderCalendar();
@@ -665,6 +699,23 @@ async function loadMonthlyReport() {
     state.loading = false;
     setLoading(false);
   }
+}
+
+async function periodTotalsRpc(recordType, start, end, grouping, communityId = null, grade = null) {
+  const { data, error } = await authClient.rpc("ag_sec_record_period_totals", {
+    p_record_type: recordType,
+    p_start_date: start,
+    p_end_date: end,
+    p_grouping: reportingGrouping(grouping),
+    p_community_id: communityId,
+    p_grade: grade
+  });
+  if (error) throw error;
+  const result = Array.isArray(data) ? data[0] : data;
+  return {
+    rows: Array.isArray(result?.rows) ? result.rows : [],
+    totals: result?.totals || {}
+  };
 }
 
 async function loadCommunityReport() {
@@ -752,17 +803,35 @@ async function loadOperationalSummary() {
   els.operationalSummaryCount.textContent = "Loading";
   try {
     const request = operationalSummaryRequest(range);
-    const { data, error } = await authClient.rpc(request.name, request.args);
+    const activityRange = calendarRange(new Date());
+    const summaryPromise = authClient.rpc(request.name, request.args);
+    const activityPromise = state.mode === "monthly"
+      ? periodTotalsRpc(
+          "summary",
+          activityRange.start,
+          activityRange.end,
+          "day",
+          null
+        )
+      : Promise.resolve({ rows: [] });
+    const [{ data, error }, activityReport] = await Promise.all([
+      summaryPromise,
+      activityPromise
+    ]);
     if (error) throw error;
     const result = Array.isArray(data) ? data[0] : data;
     state.operationalSummaryRows = Array.isArray(result?.rows) ? result.rows : [];
     state.operationalSummaryTotals = result?.totals || {};
+    state.operationalSummaryDailyRows = activityReport.rows;
     renderOperationalSummary();
+    renderOperationalSummaryCalendar();
     setOperationalSummaryStatus("");
   } catch (error) {
     state.operationalSummaryRows = [];
     state.operationalSummaryTotals = {};
+    state.operationalSummaryDailyRows = [];
     renderOperationalSummary(error.message || "Summary could not be loaded.");
+    renderOperationalSummaryCalendar(error.message || "Calendar could not be loaded.");
     setOperationalSummaryStatus(error.message || "Summary could not be loaded.", "error");
   } finally {
     state.loading = false;
@@ -773,10 +842,14 @@ async function loadOperationalSummary() {
 function operationalSummaryRequest(range) {
   if (state.mode === "monthly") {
     return {
-      name: "ag_sec_monthly_operational_summary",
+      name: "ag_sec_record_period_totals",
       args: {
+        p_record_type: "summary",
         p_start_date: range.start,
-        p_end_date: range.end
+        p_end_date: range.end,
+        p_grouping: reportingGrouping(els.operationalSummaryGrouping.value),
+        p_community_id: null,
+        p_grade: null
       }
     };
   }
@@ -822,6 +895,9 @@ function renderOperationalSummary(errorMessage = "") {
 }
 
 function renderOperationalSummaryHead() {
+  const firstLabel = state.mode === "monthly"
+    ? reportingGroupingHeading(reportingGrouping(els.operationalSummaryGrouping.value))
+    : "Period";
   const labels = state.mode === "community"
     ? [
         "Community", "Collected kg", "Total paid KSH", "A kg", "B kg", "C kg",
@@ -829,7 +905,7 @@ function renderOperationalSummaryHead() {
         "TDS mg/L", "EC mS/cm"
       ]
     : [
-        "Period", "Collected kg", "Total paid KSH", "A kg", "B kg", "C kg",
+        firstLabel, "Collected kg", "Total paid KSH", "A kg", "B kg", "C kg",
         "Collections", "Farmers", "Communities", "Site samples", "Stock L",
         "Containers", "Received kg", "Lost kg", "Process time", "Presses",
         "Avg wet pulp/press kg", "Avg stock L / intake kg"
@@ -928,17 +1004,7 @@ function formatRange(minimum, maximum) {
 }
 
 function summaryPeriodLabel(row) {
-  const grouping = els.operationalSummaryGrouping.value;
-  if (grouping === "year") return String(row.period_start || "").slice(0, 4);
-  if (grouping === "month") {
-    const [year, month] = String(row.period_start || "").split("-").map(Number);
-    if (year && month) {
-      return new Intl.DateTimeFormat("en-GB", {
-        month: "short", year: "numeric"
-      }).format(new Date(Date.UTC(year, month - 1, 1)));
-    }
-  }
-  return `${formatDate(row.period_start)} - ${formatDate(row.period_end)}`;
+  return reportPeriodLabel(row, reportingGrouping(els.operationalSummaryGrouping.value));
 }
 
 function renderAllRows(errorMessage = "") {
@@ -971,16 +1037,20 @@ function renderMonthlyMetrics() {
 }
 
 function renderMonthlyTable(errorMessage = "") {
-  const columns = REPORTS[state.category].monthlyColumns;
+  const grouping = reportingGrouping(els.formLedgerGrouping.value);
+  const columns = REPORTS[state.category].periodColumns;
   const total = Number(state.monthlyTotals.record_count || 0);
   els.formLedgerCount.textContent = rowCount(total);
-  els.formLedgerMonthlyHead.innerHTML = `<tr>${columns.map(([, label]) => `<th>${escapeHtml(label)}</th>`).join("")}</tr>`;
+  els.formLedgerMonthlyHead.innerHTML = `<tr>${columns.map(([, label, type], index) => `
+    <th>${escapeHtml(index === 0 && type === "period" ? reportingGroupingHeading(grouping) : label)}</th>`).join("")}</tr>`;
   if (errorMessage || !state.monthlyRows.length) {
-    els.formLedgerMonthlyRows.innerHTML = emptyRow(columns.length, errorMessage || "No monthly records for this year.");
+    els.formLedgerMonthlyRows.innerHTML = emptyRow(columns.length, errorMessage || "No records were found in this period.");
     return;
   }
   els.formLedgerMonthlyRows.innerHTML = state.monthlyRows.map((row) => `
-    <tr>${columns.map(([field, , type]) => `<td>${escapeHtml(reportValue(row[field], type))}</td>`).join("")}</tr>
+    <tr>${columns.map(([field, , type]) => `<td>${escapeHtml(
+      type === "period" ? reportPeriodLabel(row, grouping) : reportValue(row[field], type)
+    )}</td>`).join("")}</tr>
   `).join("");
 }
 
@@ -990,7 +1060,7 @@ function renderCalendar() {
   const months = calendarMonthKeys(now);
   const range = calendarRange(now);
   const counts = new Map(state.dailyRows.map((row) => [
-    String(row.record_date),
+    String(row.record_date || row.period_start),
     Number(row.record_count || 0)
   ]));
   const moons = new Map(moonEvents(
@@ -1046,6 +1116,80 @@ function renderCalendar() {
   els.formLedgerCalendarStatus.textContent = total
     ? `${formatInteger(total)} records across ${formatInteger(state.dailyRows.length)} record days.`
     : "No records in the latest four months for these filters.";
+}
+
+function renderOperationalSummaryCalendar(errorMessage = "") {
+  if (!els.operationalSummaryCalendar || state.mode !== "monthly") return;
+  if (errorMessage) {
+    els.operationalSummaryCalendar.innerHTML = "";
+    els.operationalSummaryCalendarStatus.textContent = errorMessage;
+    return;
+  }
+
+  const now = new Date();
+  const today = kenyaDate();
+  const months = calendarMonthKeys(now);
+  const range = calendarRange(now);
+  const counts = new Map(state.operationalSummaryDailyRows.map((row) => [
+    String(row.period_start),
+    Number(row.record_count || 0)
+  ]));
+  const moons = new Map(moonEvents(
+    new Date(`${range.start}T00:00:00Z`),
+    new Date(`${range.end}T00:00:00Z`)
+  ).map((event) => [isoDate(event.date), event]));
+
+  els.operationalSummaryCalendar.innerHTML = months.map((monthKey) => {
+    const [year, month] = monthKey.split("-").map(Number);
+    const days = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const mondayOffset = (new Date(Date.UTC(year, month - 1, 1)).getUTCDay() + 6) % 7;
+    const cells = Array.from(
+      { length: mondayOffset },
+      () => '<span class="collection-calendar-day empty" aria-hidden="true"></span>'
+    );
+    for (let day = 1; day <= days; day += 1) {
+      const dateKey = `${monthKey}-${String(day).padStart(2, "0")}`;
+      const count = counts.get(dateKey) || 0;
+      const moon = moons.get(dateKey);
+      const detail = [
+        formatDate(dateKey),
+        count ? `${count} ${count === 1 ? "record" : "records"}` : "No records",
+        moon?.label || ""
+      ].filter(Boolean).join(". ");
+      const classes = [
+        "collection-calendar-day",
+        "read-only",
+        count ? "has-collections" : "",
+        dateKey === today ? "today" : ""
+      ].filter(Boolean).join(" ");
+      cells.push(`
+        <span class="${classes}" title="${escapeAttribute(detail)}" aria-label="${escapeAttribute(detail)}">
+          <span class="collection-calendar-date">${day}</span>
+          ${count ? `<strong class="collection-calendar-count">${formatInteger(count)}</strong>` : ""}
+          ${moon ? `<i class="collection-calendar-moon ${escapeAttribute(moon.type)}" aria-hidden="true">${moon.type === "full" ? "&#127765;" : "&#127761;"}</i>` : ""}
+        </span>
+      `);
+    }
+    const label = new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-GB", {
+      month: "long", year: "numeric", timeZone: "UTC"
+    });
+    return `
+      <section class="collection-calendar-month" aria-label="${escapeAttribute(label)}">
+        <h4>${escapeHtml(label)}</h4>
+        <div class="collection-calendar-weekdays" aria-hidden="true">
+          <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+        </div>
+        <div class="collection-calendar-days">${cells.join("")}</div>
+      </section>
+    `;
+  }).join("");
+  const total = state.operationalSummaryDailyRows.reduce(
+    (sum, row) => sum + Number(row.record_count || 0),
+    0
+  );
+  els.operationalSummaryCalendarStatus.textContent = total
+    ? `${formatInteger(total)} records across ${formatInteger(state.operationalSummaryDailyRows.length)} record days.`
+    : "No records in the latest four months.";
 }
 
 function selectCalendarDay(event) {
@@ -1642,6 +1786,62 @@ function reportValue(value, type) {
   return value === null || value === undefined || value === "" ? "-" : String(value);
 }
 
+function reportingGrouping(value) {
+  return ["day", "week", "month", "year"].includes(value) ? value : "day";
+}
+
+function reportingGroupingNoun(grouping) {
+  return {
+    day: "day",
+    week: "week",
+    month: "month",
+    year: "year"
+  }[reportingGrouping(grouping)];
+}
+
+function reportingGroupingHeading(grouping) {
+  return {
+    day: "Day",
+    week: "Week starting",
+    month: "Month",
+    year: "Year"
+  }[reportingGrouping(grouping)];
+}
+
+function reportPeriodLabel(row, groupingValue) {
+  const grouping = reportingGrouping(groupingValue);
+  const [year, month, day] = String(row?.period_start || "").slice(0, 10).split("-").map(Number);
+  if (!year || !month || !day) return "-";
+  if (grouping === "year") return String(year);
+
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (grouping === "month") {
+    return new Intl.DateTimeFormat("en-GB", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC"
+    }).format(date);
+  }
+
+  const dateLabel = `${ordinalDay(day)} ${new Intl.DateTimeFormat("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC"
+  }).format(date)}`;
+  if (grouping === "week") return `Week starting ${dateLabel}`;
+  const weekday = new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    timeZone: "UTC"
+  }).format(date);
+  return `${weekday} ${dateLabel}`;
+}
+
+function ordinalDay(day) {
+  const remainder100 = day % 100;
+  if (remainder100 >= 11 && remainder100 <= 13) return `${day}th`;
+  return `${day}${{ 1: "st", 2: "nd", 3: "rd" }[day % 10] || "th"}`;
+}
+
 function cellValue(row, field) {
   const value = row[field];
   if (field === "record_number" && state.category === "process") {
@@ -1831,8 +2031,8 @@ function syncUrl() {
     if (dailyCategory === "intake") url.searchParams.delete("records");
     else url.searchParams.set("records", dailyCategory);
     [
-      "year", "from", "to", "search", "grouping", "summary_from",
-      "summary_to", "community"
+      "year", "from", "to", "search", "grouping", "period_from",
+      "period_to", "summary_from", "summary_to", "community"
     ].forEach((key) => url.searchParams.delete(key));
     window.history.replaceState({}, "", `${url.pathname}${url.search}`);
     return;
@@ -1840,13 +2040,16 @@ function syncUrl() {
   url.searchParams.delete("records");
   if (state.mode === "container") {
     [
-      "year", "search", "grouping", "summary_from", "summary_to", "community"
+      "year", "search", "grouping", "period_from", "period_to",
+      "summary_from", "summary_to", "community"
     ].forEach((key) => url.searchParams.delete(key));
     window.history.replaceState({}, "", `${url.pathname}${url.search}`);
     return;
   }
   if (state.category === "summary") {
     url.searchParams.delete("year");
+    url.searchParams.delete("period_from");
+    url.searchParams.delete("period_to");
     url.searchParams.delete("from");
     url.searchParams.delete("to");
     url.searchParams.delete("search");
@@ -1865,12 +2068,22 @@ function syncUrl() {
     window.history.replaceState({}, "", `${url.pathname}${url.search}`);
     return;
   }
-  if (state.mode === "monthly") url.searchParams.set("year", els.formLedgerYear.value);
-  else url.searchParams.delete("year");
-  const from = state.mode === "community" ? els.formLedgerCommunityFrom.value : els.formLedgerFrom.value;
-  const to = state.mode === "community" ? els.formLedgerCommunityTo.value : els.formLedgerTo.value;
-  url.searchParams.set("from", from);
-  url.searchParams.set("to", to);
+  url.searchParams.delete("year");
+  if (state.mode === "monthly") {
+    url.searchParams.set("grouping", reportingGrouping(els.formLedgerGrouping.value));
+    url.searchParams.set("period_from", els.formLedgerPeriodFrom.value);
+    url.searchParams.set("period_to", els.formLedgerPeriodTo.value);
+    url.searchParams.delete("from");
+    url.searchParams.delete("to");
+  } else {
+    url.searchParams.delete("grouping");
+    url.searchParams.delete("period_from");
+    url.searchParams.delete("period_to");
+    const from = state.mode === "community" ? els.formLedgerCommunityFrom.value : els.formLedgerFrom.value;
+    const to = state.mode === "community" ? els.formLedgerCommunityTo.value : els.formLedgerTo.value;
+    url.searchParams.set("from", from);
+    url.searchParams.set("to", to);
+  }
   if (state.mode === "monthly" && state.category === "site_sample" && els.formLedgerMonthlyCommunity.value) {
     url.searchParams.set("community", els.formLedgerMonthlyCommunity.value);
   } else {

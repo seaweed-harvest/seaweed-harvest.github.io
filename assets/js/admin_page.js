@@ -23,6 +23,7 @@ const TABLES = {
 
 const RPC = {
   monthly: "ag_sec_admin_monthly_summary",
+  periodTotals: "ag_sec_record_period_totals",
   dailyCollectionActivity: "ag_sec_admin_daily_collection_activity",
   communityPeriod: "ag_sec_admin_community_period_summary",
   communityGrades: "ag_sec_admin_community_grade_summary",
@@ -187,7 +188,10 @@ function cacheElements() {
     "missingGpsCount",
     "missingGpsList",
     "monthlyCount",
-    "monthlyYear",
+    "monthlyGrouping",
+    "monthlyStartDate",
+    "monthlyEndDate",
+    "monthlyPeriodHeading",
     "monthlyCommunity",
     "monthlyGrade",
     "reloadMonthly",
@@ -284,7 +288,27 @@ function setDefaultControls() {
   const currentYear = now.getFullYear();
   const params = new URLSearchParams(window.location.search);
 
-  if (els.monthlyYear) els.monthlyYear.value = String(currentYear);
+  if (els.monthlyGrouping) {
+    els.monthlyGrouping.value = ["day", "week", "month", "year"].includes(params.get("grouping"))
+      ? params.get("grouping")
+      : "day";
+  }
+  if (els.monthlyStartDate) {
+    els.monthlyStartDate.value = /^\d{4}-\d{2}-\d{2}$/.test(params.get("period_from") || "")
+      ? params.get("period_from")
+      : `${currentYear}-01-01`;
+  }
+  if (els.monthlyEndDate) {
+    els.monthlyEndDate.value = /^\d{4}-\d{2}-\d{2}$/.test(params.get("period_to") || "")
+      ? params.get("period_to")
+      : kenyaDateInputValue(now);
+  }
+  if (/^\d{4}$/.test(params.get("year") || "") && !params.get("period_from")) {
+    const legacyYear = params.get("year");
+    if (els.monthlyStartDate) els.monthlyStartDate.value = `${legacyYear}-01-01`;
+    if (els.monthlyEndDate) els.monthlyEndDate.value = `${legacyYear}-12-31`;
+    if (els.monthlyGrouping && !params.get("grouping")) els.monthlyGrouping.value = "month";
+  }
   if (els.communityMonth) els.communityMonth.value = "";
   if (els.ledgerMonth) els.ledgerMonth.value = "";
   if (els.communityStartDate) els.communityStartDate.value = "";
@@ -332,7 +356,11 @@ function bindEvents() {
   els.mappedCommunityList?.addEventListener("click", focusMapMarkerFromEvent);
   els.mappedCommunityList?.addEventListener("keydown", focusMapMarkerFromEvent);
   els.reloadMonthly?.addEventListener("click", () => loadMonthly());
-  els.monthlyRows?.addEventListener("click", openLedgerMonthFromEvent);
+  els.monthlyGrouping?.addEventListener("change", () => {
+    syncLedgerUrl();
+    loadMonthly();
+  });
+  els.monthlyRows?.addEventListener("click", openLedgerPeriodFromEvent);
   els.monthlyCalendar?.addEventListener("click", selectCollectionCalendarDay);
   els.calendarDayPrevPage?.addEventListener("click", () => {
     if (state.calendarDayPage <= 0) return;
@@ -1419,14 +1447,25 @@ function communityRecordsUrl(communityId) {
 
 async function loadMonthly(options = {}) {
   if (!els.monthlyRows) return;
+  const grouping = reportGrouping(els.monthlyGrouping?.value);
+  const startDate = els.monthlyStartDate?.value;
+  const endDate = els.monthlyEndDate?.value;
+  if (!startDate || !endDate || endDate < startDate) {
+    els.monthlyCount.textContent = "Error";
+    els.monthlyRows.innerHTML = emptyRow(13, "Select a valid From and To date range.");
+    return;
+  }
   if (!options.quiet) els.monthlyCount.textContent = "Loading";
   if (els.monthlyCalendarStatus && !options.quiet) els.monthlyCalendarStatus.textContent = "Loading calendar...";
 
   try {
     const calendarRange = collectionCalendarRange(new Date());
-    [state.monthlyRows, state.dailyCollectionRows] = await Promise.all([
-      supabaseRpc(RPC.monthly, {
-        p_year: numberOrNull(els.monthlyYear.value),
+    const [periodReport, dailyCollectionRows] = await Promise.all([
+      supabaseRpc(RPC.periodTotals, {
+        p_record_type: "intake",
+        p_start_date: startDate,
+        p_end_date: endDate,
+        p_grouping: grouping,
         p_community_id: nullableText(els.monthlyCommunity.value),
         p_grade: nullableText(els.monthlyGrade.value)
       }),
@@ -1437,6 +1476,8 @@ async function loadMonthly(options = {}) {
         p_grade: nullableText(els.monthlyGrade.value)
       })
     ]);
+    state.monthlyRows = Array.isArray(periodReport?.rows) ? periodReport.rows : [];
+    state.dailyCollectionRows = dailyCollectionRows;
     renderMonthly();
     renderCollectionCalendar();
     if (state.calendarSelectedDate) await loadCalendarDayRecords({ quiet: true });
@@ -1453,12 +1494,14 @@ async function loadMonthly(options = {}) {
 function renderMonthly() {
   if (!els.monthlyRows) return;
 
+  const grouping = reportGrouping(els.monthlyGrouping?.value);
+  if (els.monthlyPeriodHeading) els.monthlyPeriodHeading.textContent = reportGroupingHeading(grouping);
   els.monthlyCount.textContent = `${state.monthlyRows.length} rows`;
   els.monthlyRows.innerHTML = state.monthlyRows.map((row) => `
     <tr>
       <td>${els.ledgerMonthlyView
-        ? `<button class="ledger-summary-link" type="button" data-ledger-month="${escapeAttribute(ledgerMonthValue(row.month_start))}">${escapeHtml(row.month_label || formatMonth(row.month_start))}</button>`
-        : `<strong>${escapeHtml(row.month_label || formatMonth(row.month_start))}</strong>`}</td>
+        ? `<button class="ledger-summary-link" type="button" data-ledger-period-start="${escapeAttribute(row.period_start || "")}" data-ledger-period-end="${escapeAttribute(row.period_end || row.period_start || "")}">${escapeHtml(reportPeriodLabel(row, grouping))}</button>`
+        : `<strong>${escapeHtml(reportPeriodLabel(row, grouping))}</strong>`}</td>
       <td>${escapeHtml(formatInteger(row.collection_count))}</td>
       <td>${escapeHtml(formatInteger(row.active_collecting_members))}</td>
       <td>${escapeHtml(formatInteger(row.communities_collected))}</td>
@@ -1472,7 +1515,7 @@ function renderMonthly() {
       <td>${escapeHtml(formatDate(row.first_collection_at))}</td>
       <td>${escapeHtml(formatDate(row.last_collection_at))}</td>
     </tr>
-  `).join("") || emptyRow(13, "No monthly rows for the selected filters.");
+  `).join("") || emptyRow(13, "No records were found in this period.");
 }
 
 function renderCollectionCalendar() {
@@ -1667,6 +1710,53 @@ function formatCalendarDate(dateKey) {
   });
 }
 
+function reportGrouping(value) {
+  return ["day", "week", "month", "year"].includes(value) ? value : "day";
+}
+
+function reportGroupingHeading(groupingValue) {
+  return {
+    day: "Day",
+    week: "Week starting",
+    month: "Month",
+    year: "Year"
+  }[reportGrouping(groupingValue)];
+}
+
+function reportPeriodLabel(row, groupingValue) {
+  const grouping = reportGrouping(groupingValue);
+  const [year, month, day] = String(row?.period_start || "").slice(0, 10).split("-").map(Number);
+  if (!year || !month || !day) return "-";
+  if (grouping === "year") return String(year);
+
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (grouping === "month") {
+    return date.toLocaleDateString("en-GB", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC"
+    });
+  }
+  const monthAndYear = date.toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC"
+  });
+  const dateLabel = `${ordinalDay(day)} ${monthAndYear}`;
+  if (grouping === "week") return `Week starting ${dateLabel}`;
+  const weekday = date.toLocaleDateString("en-GB", {
+    weekday: "long",
+    timeZone: "UTC"
+  });
+  return `${weekday} ${dateLabel}`;
+}
+
+function ordinalDay(day) {
+  const remainder100 = day % 100;
+  if (remainder100 >= 11 && remainder100 <= 13) return `${day}th`;
+  return `${day}${{ 1: "st", 2: "nd", 3: "rd" }[day % 10] || "th"}`;
+}
+
 function setLedgerView(requestedView, options = {}) {
   if (!els.ledgerViewTabs) return;
   const view = ["all", "monthly", "community"].includes(requestedView) ? requestedView : "all";
@@ -1717,6 +1807,15 @@ function syncLedgerUrl() {
   setUrlFilter(url, "community", els.ledgerCommunity?.value);
   setUrlFilter(url, "grade", els.ledgerGrade?.value);
   setUrlFilter(url, "search", sanitizeSearchTerm(els.ledgerSearch?.value));
+  if (state.ledgerView === "monthly") {
+    setUrlFilter(url, "grouping", reportGrouping(els.monthlyGrouping?.value));
+    setUrlFilter(url, "period_from", els.monthlyStartDate?.value);
+    setUrlFilter(url, "period_to", els.monthlyEndDate?.value);
+  } else {
+    setUrlFilter(url, "grouping", "");
+    setUrlFilter(url, "period_from", "");
+    setUrlFilter(url, "period_to", "");
+  }
   window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
@@ -1823,16 +1922,17 @@ function applyLedgerFilters() {
   loadLedger();
 }
 
-function openLedgerMonthFromEvent(event) {
-  const button = event.target.closest("[data-ledger-month]");
+function openLedgerPeriodFromEvent(event) {
+  const button = event.target.closest("[data-ledger-period-start]");
   if (!button || !els.ledgerMonthlyView || state.editingLedgerIds.size) return;
-  const month = button.dataset.ledgerMonth;
-  if (!/^\d{4}-\d{2}$/.test(month)) return;
+  const startDate = button.dataset.ledgerPeriodStart;
+  const endDate = button.dataset.ledgerPeriodEnd;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) return;
 
-  els.ledgerPeriodPreset.value = "month";
-  els.ledgerMonth.value = month;
-  els.ledgerStartDate.value = "";
-  els.ledgerEndDate.value = "";
+  els.ledgerPeriodPreset.value = "custom";
+  els.ledgerMonth.value = "";
+  els.ledgerStartDate.value = startDate;
+  els.ledgerEndDate.value = endDate;
   setLedgerCommunities(els.monthlyCommunity?.value || "");
   els.ledgerGrade.value = els.monthlyGrade?.value || "";
   els.ledgerSearch.value = "";
@@ -1840,15 +1940,8 @@ function openLedgerMonthFromEvent(event) {
   setLedgerView("all", { syncUrl: false });
   syncLedgerUrl();
   els.ledgerViewTabs.querySelector('[data-ledger-view="all"]')?.focus();
-  setLedgerActionStatus(`Showing collection records for ${formatMonth(`${month}-01`)}.`);
+  setLedgerActionStatus(`Showing collection records for ${reportPeriodLabel({ period_start: startDate }, reportGrouping(els.monthlyGrouping?.value))}.`);
   loadLedger({ quiet: true });
-}
-
-function ledgerMonthValue(value) {
-  const match = String(value || "").match(/^(\d{4})-(\d{2})/);
-  if (match) return `${match[1]}-${match[2]}`;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "" : monthInputValue(date);
 }
 
 function renderLedgerCommunityIndex() {

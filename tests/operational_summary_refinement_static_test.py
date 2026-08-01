@@ -17,6 +17,9 @@ class OperationalSummaryRefinementStaticTest(unittest.TestCase):
         self.records = read("records.html")
         self.records_script = read("assets/js/records_page.js")
         self.today_script = read("assets/js/today_record_tabs.js")
+        self.period_migration = read(
+            "supabase/migrations/20260801090000_record_period_totals.sql"
+        )
 
     def test_daily_summary_counts_distinct_retested_containers_and_links_date(self):
         self.assertIn(
@@ -118,9 +121,9 @@ class OperationalSummaryRefinementStaticTest(unittest.TestCase):
             self.assertIn(field, self.migration)
         self.assertIn("sample.tds_value * 1000", self.migration)
 
-    def test_ui_routes_summary_modes_to_dedicated_rpcs_and_columns(self):
+    def test_ui_routes_period_summary_to_shared_rpc_and_community_to_dedicated_rpc(self):
         self.assertIn(
-            'name: "ag_sec_monthly_operational_summary"',
+            'name: "ag_sec_record_period_totals"',
             self.records_script,
         )
         self.assertIn(
@@ -130,6 +133,8 @@ class OperationalSummaryRefinementStaticTest(unittest.TestCase):
         self.assertIn('"Community", "Collected kg"', self.records_script)
         self.assertIn('"TDS mg/L", "EC mS/cm"', self.records_script)
         self.assertIn("communityMode ? 13 : 18", self.records_script)
+        self.assertIn('p_record_type: "summary"', self.records_script)
+        self.assertIn('p_grouping: reportingGrouping', self.records_script)
 
     def test_new_summary_rpcs_are_permission_protected(self):
         self.assertGreaterEqual(
@@ -149,6 +154,11 @@ class OperationalSummaryRefinementStaticTest(unittest.TestCase):
             self.migration,
         )
         self.assertNotIn("to anon;", self.migration)
+        self.assertIn(
+            "grant execute on function public.ag_sec_record_period_totals",
+            self.period_migration,
+        )
+        self.assertIn("v_grouping not in ('day', 'week', 'month', 'year')", self.period_migration)
 
 
 if __name__ == "__main__":

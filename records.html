@@ -62,7 +62,7 @@
 
         <nav id="recordPeriodTabs" class="ledger-view-tabs record-period-tabs" aria-label="Record period" role="tablist">
           <button type="button" role="tab" data-record-period="today" aria-selected="true">Today's Record</button>
-          <button type="button" role="tab" data-record-period="monthly" aria-selected="false">Monthly Records</button>
+          <button type="button" role="tab" data-record-period="monthly" aria-selected="false">Period Totals</button>
           <button id="recordCommunityTab" type="button" role="tab" data-record-period="community" aria-selected="false">Community Records</button>
           <button id="recordContainerLookupTab" type="button" role="tab" data-record-period="container" aria-selected="false" hidden>Container Lookup</button>
           <button type="button" role="tab" data-record-period="all" aria-selected="false">All Records</button>
@@ -259,8 +259,8 @@
         <div id="operationalSummaryWorkspace" hidden>
           <div class="form-ledger-view-heading">
             <div>
-              <h3 id="operationalSummaryTitle">Monthly summary</h3>
-              <p id="operationalSummaryHint" class="field-hint">Organisation totals for each month.</p>
+              <h3 id="operationalSummaryTitle">Period totals</h3>
+              <p id="operationalSummaryHint" class="field-hint">Organisation totals grouped by day.</p>
             </div>
             <span id="operationalSummaryCount" class="status-pill">0 periods</span>
           </div>
@@ -269,8 +269,9 @@
               <label id="operationalSummaryGroupingField">
                 Group by
                 <select id="operationalSummaryGrouping">
+                  <option value="day" selected>Day</option>
                   <option value="week">Week</option>
-                  <option value="month" selected>Month</option>
+                  <option value="month">Month</option>
                   <option value="year">Year</option>
                 </select>
               </label>
@@ -321,6 +322,21 @@
                 </tbody>
               </table>
             </div>
+            <section id="operationalSummaryCalendarSection" class="collection-calendar-section" aria-labelledby="operationalSummaryCalendarTitle" hidden>
+              <div class="collection-calendar-heading">
+                <div>
+                  <h3 id="operationalSummaryCalendarTitle">Record activity</h3>
+                  <p>Latest four months. Green days show the number of records.</p>
+                </div>
+                <div class="collection-calendar-legend" aria-label="Calendar legend">
+                  <span><i class="collection-calendar-swatch" aria-hidden="true"></i> Record day</span>
+                  <span><i class="collection-calendar-moon new" aria-hidden="true">&#127761;</i> New moon</span>
+                  <span><i class="collection-calendar-moon full" aria-hidden="true">&#127765;</i> Full moon</span>
+                </div>
+              </div>
+              <p id="operationalSummaryCalendarStatus" class="admin-status" aria-live="polite"></p>
+              <div id="operationalSummaryCalendar" class="collection-calendar-grid"></div>
+            </section>
             <p id="operationalSummaryStatus" class="admin-status" aria-live="polite"></p>
           </div>
         </div>
@@ -329,7 +345,7 @@
           <div class="form-ledger-view-heading">
             <nav id="ledgerViewTabs" class="ledger-view-tabs record-internal-view-tabs" aria-label="Intake collection ledger views" role="tablist" hidden>
               <button id="ledgerAllTab" type="button" role="tab" aria-controls="ledgerAllView" data-ledger-view="all">All records</button>
-              <button id="ledgerMonthlyTab" type="button" role="tab" aria-controls="ledgerMonthlyView" data-ledger-view="monthly">Monthly records</button>
+              <button id="ledgerMonthlyTab" type="button" role="tab" aria-controls="ledgerMonthlyView" data-ledger-view="monthly">Period totals</button>
               <button id="ledgerCommunityTab" type="button" role="tab" aria-controls="ledgerCommunityView" data-ledger-view="community">Community records</button>
             </nav>
             <span id="ledgerCount" class="status-pill">0 rows</span>
@@ -443,15 +459,28 @@
             <section id="ledgerMonthlyView" class="ledger-view-panel" role="tabpanel" aria-labelledby="ledgerMonthlyTab" hidden>
               <div class="ledger-view-intro">
                 <div>
-                  <h3>Monthly records</h3>
-                  <p>Select a month to open its individual intake collection records.</p>
+                  <h3>Period totals</h3>
+                  <p>Intake totals grouped by the selected period.</p>
                 </div>
                 <span id="monthlyCount" class="status-pill">0 rows</span>
               </div>
               <div class="admin-toolbar admin-filter-grid ledger-summary-filter-grid">
                 <label>
-                  Year
-                  <input id="monthlyYear" type="number" min="2020" max="2100" step="1">
+                  Group totals by
+                  <select id="monthlyGrouping">
+                    <option value="day" selected>Day</option>
+                    <option value="week">Week</option>
+                    <option value="month">Month</option>
+                    <option value="year">Year</option>
+                  </select>
+                </label>
+                <label>
+                  From
+                  <input id="monthlyStartDate" type="date">
+                </label>
+                <label>
+                  To
+                  <input id="monthlyEndDate" type="date">
                 </label>
                 <label>
                   Community
@@ -466,13 +495,13 @@
                     <option value="C">C</option>
                   </select>
                 </label>
-                <button id="reloadMonthly" type="button">Load</button>
+                <button id="reloadMonthly" type="button">Apply filters</button>
               </div>
               <div class="responsive-table-wrap">
                 <table class="management-table admin-data-table ledger-summary-table">
                   <thead>
                     <tr>
-                      <th>Month</th>
+                      <th id="monthlyPeriodHeading">Day</th>
                       <th>Collections</th>
                       <th>Farmers</th>
                       <th>Communities</th>
@@ -649,7 +678,7 @@
           <div class="form-ledger-view-heading">
           <div id="formLedgerViews" class="ledger-view-tabs form-ledger-view-tabs record-internal-view-tabs" role="tablist" aria-label="Record period view" hidden>
             <button type="button" role="tab" data-ledger-mode="all" aria-selected="true">All records</button>
-            <button type="button" role="tab" data-ledger-mode="monthly" aria-selected="false">Monthly records</button>
+            <button type="button" role="tab" data-ledger-mode="monthly" aria-selected="false">Period totals</button>
             <button id="formLedgerCommunityTab" type="button" role="tab" data-ledger-mode="community" aria-selected="false">Community records</button>
           </div>
           <span id="formLedgerCount" class="status-pill">0 rows</span>
@@ -698,20 +727,31 @@
         <section id="formLedgerMonthlyPanel" class="form-ledger-view-panel" hidden>
           <div class="ledger-view-intro">
             <div>
-              <h3 id="formLedgerMonthlyTitle">Monthly records</h3>
-              <p>Monthly totals and the latest four months of record activity.</p>
+              <h3 id="formLedgerMonthlyTitle">Period totals</h3>
+              <p id="formLedgerPeriodHint">Totals grouped by day.</p>
             </div>
           </div>
           <div class="admin-toolbar admin-filter-grid form-ledger-summary-filter-grid">
-            <label>Year
-              <input id="formLedgerYear" type="number" min="2020" max="2100" step="1">
+            <label>Group totals by
+              <select id="formLedgerGrouping">
+                <option value="day" selected>Day</option>
+                <option value="week">Week</option>
+                <option value="month">Month</option>
+                <option value="year">Year</option>
+              </select>
+            </label>
+            <label>From
+              <input id="formLedgerPeriodFrom" type="date">
+            </label>
+            <label>To
+              <input id="formLedgerPeriodTo" type="date">
             </label>
             <label id="formLedgerMonthlyCommunityField" hidden>Community
               <select id="formLedgerMonthlyCommunity"><option value="">All communities</option></select>
             </label>
             <button id="loadFormLedgerMonthly" type="button">Apply filters</button>
           </div>
-          <div id="formLedgerMonthlyMetrics" class="form-ledger-metric-strip" aria-label="Monthly record summary"></div>
+          <div id="formLedgerMonthlyMetrics" class="form-ledger-metric-strip" aria-label="Period totals summary"></div>
           <div class="responsive-table-wrap">
             <table class="management-table admin-data-table ledger-summary-table form-ledger-summary-table">
               <thead id="formLedgerMonthlyHead"></thead>
@@ -821,7 +861,7 @@
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
   <script type="module" src="./assets/js/today_record_tabs.js?v=12"></script>
-  <script type="module" src="./assets/js/admin_page.js?v=38"></script>
-  <script type="module" src="./assets/js/records_page.js?v=14"></script>
+  <script type="module" src="./assets/js/admin_page.js?v=39"></script>
+  <script type="module" src="./assets/js/records_page.js?v=15"></script>
 </body>
 </html>
