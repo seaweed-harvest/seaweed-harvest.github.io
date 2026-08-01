@@ -15,6 +15,15 @@
   <link rel="icon" href="./favicon.ico" sizes="any">
   <link rel="icon" href="./assets/images/seaweed-harvest-icon-192.png" type="image/png" sizes="192x192">
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
+  <script>
+    (() => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("records") !== "summary") return;
+      const target = new URL("./records.html", window.location.href);
+      target.search = params.toString();
+      window.location.replace(target.href);
+    })();
+  </script>
   <script type="module" src="./assets/js/pwa_bootstrap.js"></script>
 </head>
 <body class="public-intake-page">

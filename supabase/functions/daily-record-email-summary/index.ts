@@ -564,7 +564,7 @@ function emailHtml(
   summary: DailySummary,
   recentSummaries: DailySummary[]
 ) {
-  const recordUrl = `${APP_SITE_URL}/today.html?records=summary&date=${summary.summary_date}`;
+  const recordUrl = dailyRecordUrl(summary.summary_date);
   const communities = summary.intake_community_breakdown.length
     ? summary.intake_community_breakdown
       .map((item) => `${formatNumber(item.weight_kg)}kg - ${escapeHtml(item.community_name)}`)
@@ -599,7 +599,7 @@ function emailHtml(
             metric("Site samples", formatInteger(recent.site_sample_count)),
             metric("Communities", formatInteger(recent.community_count))
           ],
-          `${APP_SITE_URL}/today.html?records=summary&date=${recent.summary_date}`
+          dailyRecordUrl(recent.summary_date)
         )).join("")}
       </td></tr>`
     : "";
@@ -773,14 +773,18 @@ function emailText(
         + `paid ${formatNumber(recent.intake_value_ksh)} KSH; stock ${formatNumber(recent.stock_volume_l)} L; `
         + `processing ${formatDuration(recent.process_minutes)}; collections ${formatInteger(recent.collection_count)}; `
         + `site samples ${formatInteger(recent.site_sample_count)}; communities ${formatInteger(recent.community_count)}; `
-        + `open ${APP_SITE_URL}/today.html?records=summary&date=${recent.summary_date}`
+        + `open ${dailyRecordUrl(recent.summary_date)}`
       )
     ] : []),
     "",
-    `Open daily record: ${APP_SITE_URL}/today.html?records=summary&date=${summary.summary_date}`,
+    `Open daily record: ${dailyRecordUrl(summary.summary_date)}`,
     "",
     "by Cascadia Nature-based Solutions."
   ].join("\n");
+}
+
+function dailyRecordUrl(summaryDate: string) {
+  return `${APP_SITE_URL}/records.html?records=summary&date=${summaryDate}`;
 }
 
 function groupedRange(

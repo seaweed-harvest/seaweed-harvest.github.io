@@ -32,7 +32,7 @@ def main():
         driver.find_element(By.CSS_SELECTOR, "#loginForm button[type='submit']").click()
         wait.until(lambda current: "home.html" in current.current_url)
 
-        driver.get(f"{base_url}/today.html?records=summary")
+        driver.get(f"{base_url}/records.html?records=summary")
         wait.until(lambda current: current.find_elements(
             By.CSS_SELECTOR, ".operational-summary-metric strong"
         ))
