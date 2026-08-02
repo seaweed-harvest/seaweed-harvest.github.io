@@ -1060,16 +1060,10 @@ function periodEmailHtml(
           metric("Containers filled", formatInteger(summary.stock_container_count)),
           metric("Retested containers", formatInteger(summary.stock_retested_container_count))
         ])}
-        ${emailSection("Facility Process Record", [
-          metric("Received seaweed", `${formatNumber(summary.process_received_kg)} kg`),
-          metric("Pressed liquid", `${formatNumber(summary.process_pressed_liquid_l)} L`),
-          metric("Processing records", formatInteger(summary.process_record_count)),
-          metric("Processing time", formatDuration(summary.process_minutes)),
-          metric("Avg Wet Pulp Per Press", `${formatNumber(summary.process_avg_wet_pulp_per_press)} kg`),
-          metric("Number of presses", formatInteger(summary.process_press_count)),
-          metric("Wet/dry extraction", `${formatNumber(summary.process_wet_dry_percent)} %`),
-          metric("Stock L / intake kg", `${formatNumber(summary.stock_l_per_intake_kg, 3)} L/kg`)
-        ])}
+        ${emailSection(
+          "Facility Process Record",
+          periodProcessMetrics(reportType, summary)
+        )}
         ${emailSection("Site Water Samples", [
           metric("Status", siteStatus, true)
         ])}
@@ -1118,6 +1112,27 @@ function periodActivityTable(rows: PeriodRow[]) {
 
 function emailSection(title: string, metrics: EmailMetric[]) {
   return `<tr><td style="padding:10px 24px 0">${emailMetricTable(title, metrics)}</td></tr>`;
+}
+
+function periodProcessMetrics(
+  reportType: Exclude<ReportType, "daily">,
+  summary: DailySummary
+) {
+  return [
+    metric("Received seaweed", `${formatNumber(summary.process_received_kg)} kg`),
+    metric("Pressed liquid", `${formatNumber(summary.process_pressed_liquid_l)} L`),
+    metric("Processing records", formatInteger(summary.process_record_count)),
+    metric(
+      reportType === "weekly" ? "Total pressing time" : "Processing time",
+      formatDuration(summary.process_minutes)
+    ),
+    ...(reportType === "monthly" ? [
+      metric("Avg Wet Pulp Per Press", `${formatNumber(summary.process_avg_wet_pulp_per_press)} kg`),
+      metric("Number of presses", formatInteger(summary.process_press_count)),
+      metric("Wet/dry extraction", `${formatNumber(summary.process_wet_dry_percent)} %`)
+    ] : []),
+    metric("Stock L / intake kg", `${formatNumber(summary.stock_l_per_intake_kg, 3)} L/kg`)
+  ];
 }
 
 function emailMetricTable(title: string, metrics: EmailMetric[], recordUrl = "") {
@@ -1266,6 +1281,13 @@ function periodEmailText(
     "FACILITY PROCESS RECORD",
     `Processing records: ${formatInteger(summary.process_record_count)}`,
     `Pressed liquid: ${formatNumber(summary.process_pressed_liquid_l)} L`,
+    `${reportType === "weekly" ? "Total pressing time" : "Processing time"}: ${formatDuration(summary.process_minutes)}`,
+    ...(reportType === "monthly" ? [
+      `Avg Wet Pulp Per Press: ${formatNumber(summary.process_avg_wet_pulp_per_press)} kg`,
+      `Number of presses: ${formatInteger(summary.process_press_count)}`,
+      `Wet/dry extraction: ${formatNumber(summary.process_wet_dry_percent)} %`
+    ] : []),
+    `Stock L / intake kg: ${formatNumber(summary.stock_l_per_intake_kg, 3)} L/kg`,
     "",
     "SITE WATER SAMPLES",
     `Samples: ${formatInteger(summary.site_sample_count)}`,

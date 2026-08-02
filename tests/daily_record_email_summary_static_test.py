@@ -122,6 +122,18 @@ class DailyRecordEmailSummaryStaticTest(unittest.TestCase):
         self.assertIn('.eq("record_type", "retest")', function)
         self.assertIn("summary.stock_retested_container_count = await", function)
 
+    def test_weekly_process_summary_uses_concise_pressing_metrics(self):
+        function = read(
+            "supabase/functions/daily-record-email-summary/index.ts"
+        )
+        self.assertIn("periodProcessMetrics(reportType, summary)", function)
+        self.assertIn('reportType === "weekly" ? "Total pressing time" : "Processing time"', function)
+        self.assertIn('...(reportType === "monthly" ? [', function)
+        weekly_metric_guard = function.split("function periodProcessMetrics", 1)[1]
+        self.assertIn('metric("Avg Wet Pulp Per Press"', weekly_metric_guard)
+        self.assertIn('metric("Number of presses"', weekly_metric_guard)
+        self.assertIn('metric("Wet/dry extraction"', weekly_metric_guard)
+
     def test_email_uses_compact_regular_weight_values_and_date_links(self):
         function = read(
             "supabase/functions/daily-record-email-summary/index.ts"
