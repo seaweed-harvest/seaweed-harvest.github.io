@@ -132,7 +132,8 @@ class OperationalSummaryRefinementStaticTest(unittest.TestCase):
         )
         self.assertIn('"Community", "Collected kg"', self.records_script)
         self.assertIn('"TDS mg/L", "EC mS/cm"', self.records_script)
-        self.assertIn("communityMode ? 13 : 18", self.records_script)
+        self.assertIn("const labels = operationalSummaryLabels()", self.records_script)
+        self.assertIn('grouping === "day" ? [] : ["Active days"]', self.records_script)
         self.assertIn('p_record_type: "summary"', self.records_script)
         self.assertIn('p_grouping: reportingGrouping', self.records_script)
 

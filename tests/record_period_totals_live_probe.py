@@ -68,6 +68,7 @@ def main():
         results = {}
         for record_type, count_field in RECORD_COUNT_FIELDS.items():
             baseline_total = None
+            baseline_active_days = None
             results[record_type] = {}
             for grouping in ("day", "week", "month", "year"):
                 result = request_json(
@@ -89,6 +90,10 @@ def main():
                 assert starts == sorted(starts, reverse=True), (record_type, grouping)
                 for row, start in zip(rows, starts):
                     assert int(row[count_field]) > 0, (record_type, grouping, row)
+                    active_days = int(row["active_day_count"])
+                    assert active_days > 0, (record_type, grouping, row)
+                    if grouping == "day":
+                        assert active_days == 1, (record_type, grouping, row)
                     if grouping == "week":
                         assert start.weekday() == 0, row
                     assert parse_date(row["period_end"]) == expected_period_end(
@@ -106,9 +111,21 @@ def main():
                 if baseline_total is None:
                     baseline_total = rpc_total
                 assert rpc_total == baseline_total, (record_type, grouping)
+                rpc_active_days = int(result["totals"]["active_day_count"])
+                grouped_active_days = sum(int(row["active_day_count"]) for row in rows)
+                assert grouped_active_days == rpc_active_days, (
+                    record_type,
+                    grouping,
+                    grouped_active_days,
+                    rpc_active_days,
+                )
+                if baseline_active_days is None:
+                    baseline_active_days = rpc_active_days
+                assert rpc_active_days == baseline_active_days, (record_type, grouping)
                 results[record_type][grouping] = {
                     "rows": len(rows),
                     "records": rpc_total,
+                    "active_days": grouped_active_days,
                 }
 
         assert results["summary"]["day"]["records"] > 0, results

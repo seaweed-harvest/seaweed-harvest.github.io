@@ -192,6 +192,7 @@ function cacheElements() {
     "monthlyStartDate",
     "monthlyEndDate",
     "monthlyPeriodHeading",
+    "monthlyActiveDaysHeading",
     "monthlyCommunity",
     "monthlyGrade",
     "reloadMonthly",
@@ -1452,7 +1453,7 @@ async function loadMonthly(options = {}) {
   const endDate = els.monthlyEndDate?.value;
   if (!startDate || !endDate || endDate < startDate) {
     els.monthlyCount.textContent = "Error";
-    els.monthlyRows.innerHTML = emptyRow(13, "Select a valid From and To date range.");
+    els.monthlyRows.innerHTML = emptyRow(monthlyVisibleColumnCount(grouping), "Select a valid From and To date range.");
     return;
   }
   if (!options.quiet) els.monthlyCount.textContent = "Loading";
@@ -1485,7 +1486,7 @@ async function loadMonthly(options = {}) {
     state.monthlyRows = [];
     state.dailyCollectionRows = [];
     els.monthlyCount.textContent = "Error";
-    els.monthlyRows.innerHTML = emptyRow(13, error.message);
+    els.monthlyRows.innerHTML = emptyRow(monthlyVisibleColumnCount(grouping), error.message);
     if (els.monthlyCalendarStatus) els.monthlyCalendarStatus.textContent = `Calendar unavailable. ${error.message}`;
     if (els.monthlyCalendar) els.monthlyCalendar.innerHTML = "";
   }
@@ -1496,12 +1497,14 @@ function renderMonthly() {
 
   const grouping = reportGrouping(els.monthlyGrouping?.value);
   if (els.monthlyPeriodHeading) els.monthlyPeriodHeading.textContent = reportGroupingHeading(grouping);
+  if (els.monthlyActiveDaysHeading) els.monthlyActiveDaysHeading.hidden = grouping === "day";
   els.monthlyCount.textContent = `${state.monthlyRows.length} rows`;
   els.monthlyRows.innerHTML = state.monthlyRows.map((row) => `
     <tr>
       <td>${els.ledgerMonthlyView
         ? `<button class="ledger-summary-link" type="button" data-ledger-period-start="${escapeAttribute(row.period_start || "")}" data-ledger-period-end="${escapeAttribute(row.period_end || row.period_start || "")}">${escapeHtml(reportPeriodLabel(row, grouping))}</button>`
         : `<strong>${escapeHtml(reportPeriodLabel(row, grouping))}</strong>`}</td>
+      ${grouping === "day" ? "" : `<td>${escapeHtml(formatInteger(row.active_day_count))}</td>`}
       <td>${escapeHtml(formatInteger(row.collection_count))}</td>
       <td>${escapeHtml(formatInteger(row.active_collecting_members))}</td>
       <td>${escapeHtml(formatInteger(row.communities_collected))}</td>
@@ -1511,11 +1514,12 @@ function renderMonthly() {
       <td>${escapeHtml(formatKg(row.grade_c_weight_kg))}</td>
       <td>${escapeHtml(formatKg(row.ungraded_weight_kg))}</td>
       <td>${escapeHtml(formatMoney(row.estimated_value_ksh))}</td>
-      <td>${escapeHtml(formatKg(row.average_collection_kg))}</td>
-      <td>${escapeHtml(formatDate(row.first_collection_at))}</td>
-      <td>${escapeHtml(formatDate(row.last_collection_at))}</td>
     </tr>
-  `).join("") || emptyRow(13, "No records were found in this period.");
+  `).join("") || emptyRow(monthlyVisibleColumnCount(grouping), "No records were found in this period.");
+}
+
+function monthlyVisibleColumnCount(groupingValue) {
+  return reportGrouping(groupingValue) === "day" ? 10 : 11;
 }
 
 function renderCollectionCalendar() {
@@ -1743,7 +1747,7 @@ function reportPeriodLabel(row, groupingValue) {
     timeZone: "UTC"
   });
   const dateLabel = `${ordinalDay(day)} ${monthAndYear}`;
-  if (grouping === "week") return `Week starting ${dateLabel}`;
+  if (grouping === "week") return dateLabel;
   const weekday = date.toLocaleDateString("en-GB", {
     weekday: "long",
     timeZone: "UTC"

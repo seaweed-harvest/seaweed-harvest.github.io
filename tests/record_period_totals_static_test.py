@@ -18,6 +18,9 @@ class RecordPeriodTotalsStaticTest(unittest.TestCase):
         self.migration = read(
             "supabase/migrations/20260801090000_record_period_totals.sql"
         )
+        self.active_days_migration = read(
+            "supabase/migrations/20260802090000_period_totals_active_days.sql"
+        )
 
     def test_period_controls_are_shared_across_all_record_categories(self):
         for category in ("summary", "intake", "site_sample", "stock", "process"):
@@ -56,6 +59,23 @@ class RecordPeriodTotalsStaticTest(unittest.TestCase):
         self.assertNotIn("generate_series", self.migration)
         self.assertIn("order by period_start desc", self.migration)
         self.assertIn("when 'week' then p_period_start + 6", self.migration)
+
+    def test_aggregated_periods_include_active_days_without_date_range_columns(self):
+        self.assertIn("'active_day_count'", self.active_days_migration)
+        self.assertIn("p_grouping,", self.active_days_migration)
+        self.assertIn("'day',", self.active_days_migration)
+        self.assertIn('"active_day_count", "Active days"', self.records_script)
+        self.assertNotIn('["first_record_date", "First date"', self.records_script)
+        self.assertNotIn('["last_record_date", "Last date"', self.records_script)
+        self.assertNotIn("<th>Avg kg</th>", self.records)
+        self.assertNotIn("<th>First date</th>", self.records)
+        self.assertNotIn("<th>Last date</th>", self.records)
+        self.assertIn('id="monthlyActiveDaysHeading" hidden', self.records)
+
+    def test_week_rows_use_the_date_without_repeating_week_starting(self):
+        self.assertIn('if (grouping === "week") return dateLabel;', self.records_script)
+        self.assertIn('if (grouping === "week") return dateLabel;', self.admin_script)
+        self.assertNotIn('return `Week starting ${dateLabel}`', self.records_script)
 
     def test_stock_container_lookup_stays_in_record_period_tabs(self):
         self.assertIn('id="recordContainerLookupTab"', self.records)

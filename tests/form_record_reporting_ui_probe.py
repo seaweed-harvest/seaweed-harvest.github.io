@@ -144,6 +144,15 @@ def main():
             By.CSS_SELECTOR, "#operationalSummaryHead th"
         ).get_attribute("textContent").strip() == "Week starting")
         wait.until(lambda current: "grouping=week" in current.current_url)
+        weekly_summary_head = [
+            cell.get_attribute("textContent").strip()
+            for cell in driver.find_elements(By.CSS_SELECTOR, "#operationalSummaryHead th")
+        ]
+        assert weekly_summary_head[1] == "Active days", weekly_summary_head
+        weekly_summary_label = driver.find_element(
+            By.CSS_SELECTOR, "#operationalSummaryRows tr td"
+        ).text
+        assert not weekly_summary_label.startswith("Week starting"), weekly_summary_label
 
         driver.find_element(
             By.CSS_SELECTOR, '#recordPeriodTabs [data-record-period="community"]'
@@ -209,6 +218,13 @@ def main():
             By.CSS_SELECTOR, "#formLedgerMonthlyHead th"
         ).get_attribute("textContent").strip() == "Month")
         wait.until(lambda current: "grouping=month" in current.current_url)
+        process_month_head = [
+            cell.get_attribute("textContent").strip()
+            for cell in driver.find_elements(By.CSS_SELECTOR, "#formLedgerMonthlyHead th")
+        ]
+        assert process_month_head[1] == "Active days", process_month_head
+        assert "First date" not in process_month_head, process_month_head
+        assert "Last date" not in process_month_head, process_month_head
         heading_layout = driver.execute_script(
             """
             const heading = document.querySelector(".form-ledger-heading").getBoundingClientRect();
@@ -236,9 +252,27 @@ def main():
         ).text != "Loading")
         assert driver.find_element(By.ID, "monthlyCount").text != "0 rows"
         assert len(driver.find_elements(By.CSS_SELECTOR, "#monthlyRows tr")) > 0
+        intake_day_head = [
+            cell.get_attribute("textContent").strip()
+            for cell in driver.find_elements(By.CSS_SELECTOR, "#ledgerMonthlyView thead th")
+            if cell.is_displayed()
+        ]
+        for removed_heading in ("Active days", "Avg kg", "First date", "Last date"):
+            assert removed_heading not in intake_day_head, intake_day_head
         intake_desktop = pathlib.Path(tempfile.gettempdir()) / "record-ledgers-intake-desktop.png"
         driver.save_screenshot(str(intake_desktop))
         screenshots.append(intake_desktop)
+
+        Select(driver.find_element(By.ID, "monthlyGrouping")).select_by_value("week")
+        wait.until(lambda current: current.find_element(
+            By.ID, "monthlyActiveDaysHeading"
+        ).is_displayed())
+        wait.until(lambda current: "grouping=week" in current.current_url)
+        intake_week_label = driver.find_element(By.CSS_SELECTOR, "#monthlyRows tr td").text
+        assert not intake_week_label.startswith("Week starting"), intake_week_label
+        intake_week = pathlib.Path(tempfile.gettempdir()) / "record-ledgers-intake-week-desktop.png"
+        driver.save_screenshot(str(intake_week))
+        screenshots.append(intake_week)
 
         driver.find_element(By.CSS_SELECTOR, '[data-ledger-category="stock"]').click()
         wait.until(lambda current: current.find_element(

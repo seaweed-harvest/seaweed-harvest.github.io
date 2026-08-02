@@ -75,9 +75,7 @@ const REPORTS = {
       ["lost_kg", "Lost kg", "number"],
       ["press_count", "Presses", "integer"],
       ["avg_wet_dry_percent", "Avg wet/dry %", "number"],
-      ["avg_stock_product_percent", "Avg dry pulp/received %", "number"],
-      ["first_record_date", "First date", "date"],
-      ["last_record_date", "Last date", "date"]
+      ["avg_stock_product_percent", "Avg dry pulp/received %", "number"]
     ],
     metrics: [
       ["record_count", "Records", "integer"],
@@ -97,9 +95,7 @@ const REPORTS = {
       ["avg_salinity", "Avg salinity", "number"],
       ["avg_tds_mg_l", "Avg TDS mg/L", "number"],
       ["avg_ec_ms_cm", "Avg EC mS/cm", "number"],
-      ["e_coli_sample_count", "E. coli samples", "integer"],
-      ["first_record_date", "First sample", "date"],
-      ["last_record_date", "Last sample", "date"]
+      ["e_coli_sample_count", "E. coli samples", "integer"]
     ],
     metrics: [
       ["record_count", "Samples", "integer"],
@@ -122,9 +118,7 @@ const REPORTS = {
       ["stabilised_count", "Stabilised", "integer"],
       ["avg_salinity", "Avg salinity", "number"],
       ["avg_ph", "Avg pH", "number"],
-      ["avg_ec_ms_cm", "Avg EC mS/cm", "number"],
-      ["first_record_date", "First date", "date"],
-      ["last_record_date", "Last date", "date"]
+      ["avg_ec_ms_cm", "Avg EC mS/cm", "number"]
     ],
     metrics: [
       ["record_count", "Records", "integer"],
@@ -876,6 +870,7 @@ function operationalSummaryRequest(range) {
 function renderOperationalSummary(errorMessage = "") {
   const rows = state.operationalSummaryRows;
   const communityMode = state.mode === "community";
+  const labels = operationalSummaryLabels();
   const rowLabel = rows.length === 1
     ? (communityMode ? "community" : "period")
     : (communityMode ? "communities" : "periods");
@@ -884,7 +879,7 @@ function renderOperationalSummary(errorMessage = "") {
   renderOperationalSummaryHead();
   if (errorMessage || !rows.length) {
     els.operationalSummaryRows.innerHTML = emptyRow(
-      communityMode ? 13 : 18,
+      labels.length,
       errorMessage || "No records were found in this period."
     );
     return;
@@ -895,30 +890,40 @@ function renderOperationalSummary(errorMessage = "") {
 }
 
 function renderOperationalSummaryHead() {
-  const firstLabel = state.mode === "monthly"
-    ? reportingGroupingHeading(reportingGrouping(els.operationalSummaryGrouping.value))
-    : "Period";
-  const labels = state.mode === "community"
-    ? [
-        "Community", "Collected kg", "Total paid KSH", "A kg", "B kg", "C kg",
-        "Collections", "Farmers", "Site samples", "Temp C", "Salinity",
-        "TDS mg/L", "EC mS/cm"
-      ]
-    : [
-        firstLabel, "Collected kg", "Total paid KSH", "A kg", "B kg", "C kg",
-        "Collections", "Farmers", "Communities", "Site samples", "Stock L",
-        "Containers", "Received kg", "Lost kg", "Process time", "Presses",
-        "Avg wet pulp/press kg", "Avg stock L / intake kg"
-      ];
+  const labels = operationalSummaryLabels();
   els.operationalSummaryHead.innerHTML = `<tr>${labels
     .map((label) => `<th>${escapeHtml(label)}</th>`)
     .join("")}</tr>`;
 }
 
+function operationalSummaryLabels() {
+  const firstLabel = state.mode === "monthly"
+    ? reportingGroupingHeading(reportingGrouping(els.operationalSummaryGrouping.value))
+    : "Period";
+  if (state.mode === "community") {
+    return [
+      "Community", "Collected kg", "Total paid KSH", "A kg", "B kg", "C kg",
+      "Collections", "Farmers", "Site samples", "Temp C", "Salinity",
+      "TDS mg/L", "EC mS/cm"
+    ];
+  }
+  const grouping = reportingGrouping(els.operationalSummaryGrouping.value);
+  return [
+    firstLabel,
+    ...(grouping === "day" ? [] : ["Active days"]),
+    "Collected kg", "Total paid KSH", "A kg", "B kg", "C kg",
+    "Collections", "Farmers", "Communities", "Site samples", "Stock L",
+    "Containers", "Received kg", "Lost kg", "Process time", "Presses",
+    "Avg wet pulp/press kg", "Avg stock L / intake kg"
+  ];
+}
+
 function monthlyOperationalSummaryRow(row) {
+  const grouping = reportingGrouping(els.operationalSummaryGrouping.value);
   return `
     <tr>
       <td><strong>${escapeHtml(summaryPeriodLabel(row))}</strong></td>
+      ${grouping === "day" ? "" : `<td>${escapeHtml(formatInteger(row.active_day_count))}</td>`}
       <td>${escapeHtml(formatNumber(row.intake_weight_kg))}</td>
       <td>${escapeHtml(formatNumber(row.intake_value_ksh))}</td>
       <td>${escapeHtml(formatNumber(row.grade_a_kg))}</td>
@@ -1038,7 +1043,7 @@ function renderMonthlyMetrics() {
 
 function renderMonthlyTable(errorMessage = "") {
   const grouping = reportingGrouping(els.formLedgerGrouping.value);
-  const columns = REPORTS[state.category].periodColumns;
+  const columns = periodColumnsForGrouping(REPORTS[state.category], grouping);
   const total = Number(state.monthlyTotals.record_count || 0);
   els.formLedgerCount.textContent = rowCount(total);
   els.formLedgerMonthlyHead.innerHTML = `<tr>${columns.map(([, label, type], index) => `
@@ -1052,6 +1057,13 @@ function renderMonthlyTable(errorMessage = "") {
       type === "period" ? reportPeriodLabel(row, grouping) : reportValue(row[field], type)
     )}</td>`).join("")}</tr>
   `).join("");
+}
+
+function periodColumnsForGrouping(report, groupingValue) {
+  const grouping = reportingGrouping(groupingValue);
+  if (grouping === "day") return report.periodColumns;
+  const [periodColumn, ...columns] = report.periodColumns;
+  return [periodColumn, ["active_day_count", "Active days", "integer"], ...columns];
 }
 
 function renderCalendar() {
@@ -1828,7 +1840,7 @@ function reportPeriodLabel(row, groupingValue) {
     year: "numeric",
     timeZone: "UTC"
   }).format(date)}`;
-  if (grouping === "week") return `Week starting ${dateLabel}`;
+  if (grouping === "week") return dateLabel;
   const weekday = new Intl.DateTimeFormat("en-GB", {
     weekday: "long",
     timeZone: "UTC"

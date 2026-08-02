@@ -100,7 +100,7 @@ class FormRecordReportingStaticTest(unittest.TestCase):
         self.assertIn('"controllerchange"', self.pwa_bootstrap)
         self.assertIn("window.location.reload()", self.pwa_bootstrap)
         self.assertIn('cache: "no-store"', self.service_worker)
-        self.assertIn("seaweed-harvest-collection-v136", self.service_worker)
+        self.assertIn("seaweed-harvest-collection-v137", self.service_worker)
 
     def test_legacy_collection_route_preserves_filters_and_redirects(self):
         self.assertIn('new URL("./records.html"', self.legacy_collection)
