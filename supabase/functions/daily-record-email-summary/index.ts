@@ -25,6 +25,13 @@ type Recipient = {
   name: string;
 };
 
+type ReportType = "daily" | "weekly" | "monthly";
+
+type ReportPeriod = {
+  start: string;
+  end: string;
+};
+
 type DailySummary = {
   summary_date: string;
   collection_count: number;
@@ -67,6 +74,14 @@ type EmailMetric = {
   full?: boolean;
 };
 
+type PeriodRow = {
+  label: string;
+  start: string;
+  end: string;
+  active_days: number;
+  summary: DailySummary;
+};
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: responseHeaders });
   if (request.method !== "POST") return jsonResponse({ error: "POST required" }, 405);
@@ -86,9 +101,9 @@ Deno.serve(async (request) => {
       return jsonResponse(await loadDeliveryStatus(body.provider_message_id));
     }
 
-    const summaryDate = validDate(body.summary_date)
-      ? body.summary_date
-      : shiftDate(nairobiDate(), -1);
+    const reportType = validReportType(body.report_type);
+    const period = reportPeriod(reportType, body.summary_date);
+    const summaryDate = period.end;
     const aggregatorCode = validAggregatorCode(body.aggregator_code ?? "MAWIMBI");
     const dryRun = body.dry_run === true;
     const force = body.force === true;
@@ -105,16 +120,27 @@ Deno.serve(async (request) => {
       auth: { autoRefreshToken: false, persistSession: false }
     });
     const aggregator = await loadAggregator(admin, aggregatorCode);
-    const summary = await buildSummary(admin, aggregator.id, summaryDate);
-    const recentSummaries = (await Promise.all(
-      [1, 2, 3, 4].map((daysAgo) =>
-        buildSummary(admin, aggregator.id, shiftDate(summaryDate, -daysAgo))
-      )
-    )).filter(hasOperationalRecords);
+    const periodSummaries = reportType === "daily"
+      ? [await buildSummary(admin, aggregator.id, summaryDate)]
+      : await buildSummariesForPeriod(admin, aggregator.id, period);
+    const activeSummaries = periodSummaries.filter(hasOperationalRecords);
+    const summary = reportType === "daily"
+      ? periodSummaries[0]
+      : aggregateSummaries(periodSummaries, period.end);
+    const recentSummaries = reportType === "daily"
+      ? (await Promise.all(
+        [1, 2, 3, 4].map((daysAgo) =>
+          buildSummary(admin, aggregator.id, shiftDate(summaryDate, -daysAgo))
+        )
+      )).filter(hasOperationalRecords)
+      : [];
+    const periodRows = reportType === "monthly"
+      ? weeklyRows(activeSummaries, period)
+      : activeSummaries.map((daily) => dailyPeriodRow(daily));
     const recipients = testRecipient
       ? [{ userId: null, email: testRecipient, name: "Test recipient" }]
-      : await loadRecipients(admin, aggregator.id);
-    const subject = `${aggregator.short_name || aggregator.organisation_name} daily record - ${displayDate(summaryDate)}`;
+      : await loadRecipients(admin, aggregator.id, reportType);
+    const subject = reportSubject(aggregator, reportType, period);
 
     if (dryRun) {
       return jsonResponse({
@@ -125,12 +151,16 @@ Deno.serve(async (request) => {
           code: aggregator.aggregator_code,
           name: aggregator.organisation_name
         },
+        report_type: reportType,
+        period_start: period.start,
+        period_end: period.end,
         summary_date: summaryDate,
         subject,
         recipient_count: recipients.length,
         recipients: recipients.map((recipient) => maskEmail(recipient.email)),
         summary,
-        recent_summaries: recentSummaries
+        recent_summaries: recentSummaries,
+        period_rows: periodRows
       });
     }
 
@@ -140,8 +170,11 @@ Deno.serve(async (request) => {
         admin,
         aggregator,
         recipient,
+        reportType,
+        period,
         summary,
         recentSummaries,
+        periodRows,
         subject,
         force
       }));
@@ -156,6 +189,9 @@ Deno.serve(async (request) => {
         code: aggregator.aggregator_code,
         name: aggregator.organisation_name
       },
+      report_type: reportType,
+      period_start: period.start,
+      period_end: period.end,
       summary_date: summaryDate,
       subject,
       recipient_count: recipients.length,
@@ -170,7 +206,7 @@ Deno.serve(async (request) => {
     const status = error instanceof HttpError ? error.status : 500;
     return jsonResponse({
       ok: false,
-      error: error instanceof Error ? error.message : "Daily summary failed"
+      error: error instanceof Error ? error.message : "Record email report failed"
     }, status);
   }
 });
@@ -213,13 +249,22 @@ async function loadAggregator(admin: any, code: string) {
   return data;
 }
 
-async function loadRecipients(admin: any, aggregatorId: string): Promise<Recipient[]> {
+async function loadRecipients(
+  admin: any,
+  aggregatorId: string,
+  reportType: ReportType
+): Promise<Recipient[]> {
+  const subscriptionColumn = {
+    daily: "receive_daily_summary_email",
+    weekly: "receive_weekly_summary_email",
+    monthly: "receive_monthly_summary_email"
+  }[reportType];
   const { data: memberships, error: membershipError } = await admin
     .from("ag_aggregator_memberships")
     .select("user_id")
     .eq("aggregator_id", aggregatorId)
     .eq("is_active", true)
-    .eq("receive_daily_summary_email", true);
+    .eq(subscriptionColumn, true);
   if (membershipError) throw new HttpError(400, membershipError.message);
 
   const userIds = [...new Set((memberships || []).map((row: any) => String(row.user_id)))];
@@ -240,6 +285,151 @@ async function loadRecipients(admin: any, aggregatorId: string): Promise<Recipie
     }))
     .filter((recipient: Recipient) => Boolean(optionalEmail(recipient.email)))
     .sort((left: Recipient, right: Recipient) => left.email.localeCompare(right.email));
+}
+
+async function buildSummariesForPeriod(
+  admin: any,
+  aggregatorId: string,
+  period: ReportPeriod
+) {
+  const dates = datesInRange(period.start, period.end);
+  const summaries: DailySummary[] = [];
+  for (let index = 0; index < dates.length; index += 7) {
+    const batch = dates.slice(index, index + 7);
+    summaries.push(...await Promise.all(
+      batch.map((date) => buildSummary(admin, aggregatorId, date))
+    ));
+  }
+  return summaries;
+}
+
+function aggregateSummaries(summaries: DailySummary[], summaryDate: string): DailySummary {
+  const communities = new Map<string, number>();
+  const locations = new Set<string>();
+  const total = summaries.reduce((result, summary) => {
+    result.collection_count += summary.collection_count;
+    result.farmer_count += summary.farmer_count;
+    result.community_count += summary.community_count;
+    result.intake_weight_kg += summary.intake_weight_kg;
+    result.intake_value_ksh += summary.intake_value_ksh;
+    result.grade_a_kg += summary.grade_a_kg;
+    result.grade_b_kg += summary.grade_b_kg;
+    result.grade_c_kg += summary.grade_c_kg;
+    result.ungraded_kg += summary.ungraded_kg;
+    result.site_sample_count += summary.site_sample_count;
+    result.site_location_count += summary.site_location_count;
+    result.stock_record_count += summary.stock_record_count;
+    result.stock_container_count += summary.stock_container_count;
+    result.stock_volume_l += summary.stock_volume_l;
+    result.process_record_count += summary.process_record_count;
+    result.process_received_kg += summary.process_received_kg;
+    result.process_wet_pulp_kg += summary.process_wet_pulp_kg;
+    result.process_pressed_liquid_l += summary.process_pressed_liquid_l;
+    result.process_dry_pulp_kg += summary.process_dry_pulp_kg;
+    result.process_lost_kg += summary.process_lost_kg;
+    result.process_press_count += summary.process_press_count;
+    result.process_minutes += summary.process_minutes;
+    summary.site_locations.forEach((location) => locations.add(location));
+    summary.intake_community_breakdown.forEach((community) => {
+      communities.set(
+        community.community_name,
+        (communities.get(community.community_name) || 0) + community.weight_kg
+      );
+    });
+    return result;
+  }, emptySummary(summaryDate));
+
+  total.intake_community_breakdown = [...communities.entries()]
+    .map(([community_name, weight_kg]) => ({
+      community_name,
+      weight_kg: rounded(weight_kg)
+    }))
+    .sort((left, right) => left.community_name.localeCompare(right.community_name));
+  total.site_locations = [...locations].sort((left, right) => left.localeCompare(right));
+  total.site_location_count = locations.size;
+  total.process_avg_wet_pulp_per_press = total.process_press_count > 0
+    ? rounded(total.process_wet_pulp_kg / total.process_press_count)
+    : 0;
+  total.process_wet_dry_percent = total.process_wet_pulp_kg > 0
+    ? rounded(100 - ((total.process_dry_pulp_kg / total.process_wet_pulp_kg) * 100))
+    : 0;
+  total.stock_l_per_intake_kg = total.intake_weight_kg > 0
+    ? rounded(total.stock_volume_l / total.intake_weight_kg, 3)
+    : 0;
+
+  Object.keys(total).forEach((key) => {
+    if (typeof (total as any)[key] === "number") {
+      (total as any)[key] = rounded((total as any)[key]);
+    }
+  });
+  return total;
+}
+
+function emptySummary(summaryDate: string): DailySummary {
+  return {
+    summary_date: summaryDate,
+    collection_count: 0,
+    farmer_count: 0,
+    community_count: 0,
+    intake_weight_kg: 0,
+    intake_value_ksh: 0,
+    grade_a_kg: 0,
+    grade_b_kg: 0,
+    grade_c_kg: 0,
+    ungraded_kg: 0,
+    intake_community_breakdown: [],
+    site_sample_count: 0,
+    site_location_count: 0,
+    site_locations: [],
+    stock_record_count: 0,
+    stock_container_count: 0,
+    stock_volume_l: 0,
+    stock_sodium_benzoate_range: null,
+    stock_citric_acid_range: null,
+    stock_salinity_range: null,
+    stock_ph_range: null,
+    stock_ec_range: null,
+    process_record_count: 0,
+    process_received_kg: 0,
+    process_wet_pulp_kg: 0,
+    process_pressed_liquid_l: 0,
+    process_dry_pulp_kg: 0,
+    process_lost_kg: 0,
+    process_press_count: 0,
+    process_minutes: 0,
+    process_avg_wet_pulp_per_press: 0,
+    process_wet_dry_percent: 0,
+    stock_l_per_intake_kg: 0
+  };
+}
+
+function dailyPeriodRow(summary: DailySummary): PeriodRow {
+  return {
+    label: displayDate(summary.summary_date),
+    start: summary.summary_date,
+    end: summary.summary_date,
+    active_days: 1,
+    summary
+  };
+}
+
+function weeklyRows(summaries: DailySummary[], period: ReportPeriod): PeriodRow[] {
+  const groups = new Map<string, DailySummary[]>();
+  summaries.forEach((summary) => {
+    const start = mondayOfWeek(summary.summary_date);
+    const rows = groups.get(start) || [];
+    rows.push(summary);
+    groups.set(start, rows);
+  });
+  return [...groups.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([start, rows]) => ({
+      label: `Week of ${displayDate(start)}`,
+      start,
+      end: minimumDate(shiftDate(start, 6), period.end),
+      active_days: rows.length,
+      summary: aggregateSummaries(rows, minimumDate(shiftDate(start, 6), period.end))
+    }));
 }
 
 async function buildSummary(
@@ -459,17 +649,32 @@ async function deliverSummary(options: {
   admin: any;
   aggregator: any;
   recipient: Recipient;
+  reportType: ReportType;
+  period: ReportPeriod;
   summary: DailySummary;
   recentSummaries: DailySummary[];
+  periodRows: PeriodRow[];
   subject: string;
   force: boolean;
 }) {
-  const { admin, aggregator, recipient, summary, recentSummaries, subject, force } = options;
+  const {
+    admin,
+    aggregator,
+    recipient,
+    reportType,
+    period,
+    summary,
+    recentSummaries,
+    periodRows,
+    subject,
+    force
+  } = options;
   const email = recipient.email.toLowerCase();
   const { data: existing, error: existingError } = await admin
     .from("ag_daily_record_email_deliveries")
     .select("id,status,attempt_count")
     .eq("aggregator_id", aggregator.id)
+    .eq("report_type", reportType)
     .eq("summary_date", summary.summary_date)
     .eq("recipient_email", email)
     .maybeSingle();
@@ -481,13 +686,21 @@ async function deliverSummary(options: {
   const attemptAt = new Date().toISOString();
   const delivery = {
     aggregator_id: aggregator.id,
+    report_type: reportType,
+    period_start: period.start,
     summary_date: summary.summary_date,
     recipient_user_id: recipient.userId,
     recipient_email: email,
     status: "pending",
     attempt_count: numberValue(existing?.attempt_count) + 1,
     subject,
-    summary_payload: summary,
+    summary_payload: {
+      report_type: reportType,
+      period_start: period.start,
+      period_end: period.end,
+      summary,
+      period_rows: periodRows
+    },
     provider_message_id: null,
     error_text: null,
     first_attempt_at: existing?.id ? undefined : attemptAt,
@@ -501,21 +714,25 @@ async function deliverSummary(options: {
   const { error: pendingError } = await admin
     .from("ag_daily_record_email_deliveries")
     .upsert(cleanDelivery, {
-      onConflict: "aggregator_id,summary_date,recipient_email"
+      onConflict: "aggregator_id,report_type,summary_date,recipient_email"
     });
   if (pendingError) throw new HttpError(400, pendingError.message);
 
   try {
-    const html = emailHtml(aggregator, recipient, summary, recentSummaries);
-    const text = emailText(aggregator, summary, recentSummaries);
+    const html = reportType === "daily"
+      ? emailHtml(aggregator, recipient, summary, recentSummaries)
+      : periodEmailHtml(aggregator, recipient, reportType, period, summary, periodRows);
+    const text = reportType === "daily"
+      ? emailText(aggregator, summary, recentSummaries)
+      : periodEmailText(aggregator, reportType, period, summary, periodRows);
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${RESEND_API_KEY}`,
         "Content-Type": "application/json",
         "Idempotency-Key": force
-          ? `daily-record:${aggregator.id}:${summary.summary_date}:${email}:${crypto.randomUUID()}`
-          : `daily-record:${aggregator.id}:${summary.summary_date}:${email}`
+          ? `${reportType}-record:${aggregator.id}:${summary.summary_date}:${email}:${crypto.randomUUID()}`
+          : `${reportType}-record:${aggregator.id}:${summary.summary_date}:${email}`
       },
       body: JSON.stringify({
         from: FROM_EMAIL,
@@ -537,6 +754,7 @@ async function deliverSummary(options: {
       updated_at: new Date().toISOString()
     })
       .eq("aggregator_id", aggregator.id)
+      .eq("report_type", reportType)
       .eq("summary_date", summary.summary_date)
       .eq("recipient_email", email);
     return {
@@ -552,6 +770,7 @@ async function deliverSummary(options: {
       updated_at: new Date().toISOString()
     })
       .eq("aggregator_id", aggregator.id)
+      .eq("report_type", reportType)
       .eq("summary_date", summary.summary_date)
       .eq("recipient_email", email);
     return { recipient: maskEmail(email), status: "failed", error: message };
@@ -657,7 +876,7 @@ function emailHtml(
         ])}
         ${recentRecords}
         <tr><td style="padding:10px 24px 18px">
-          <p style="margin:0;color:#6b8581;font-size:12px">Sent automatically at 08:00 East Africa Time.</p>
+          <p style="margin:0;color:#6b8581;font-size:12px">Sent automatically at 08:00 East Africa Time. <a href="${reportSubscriptionsUrl()}" style="color:#2b7dbc">Manage report emails</a>.</p>
         </td></tr>
         <tr><td style="padding:14px 24px;background:#f7fbfa;border-top:1px solid #d9ebe7;text-align:center;color:#6b8581;font-size:12px;line-height:1.5">by Cascadia Nature-based Solutions.</td></tr>
       </table>
@@ -665,6 +884,114 @@ function emailHtml(
   </table>
 </body>
 </html>`;
+}
+
+function periodEmailHtml(
+  aggregator: any,
+  recipient: Recipient,
+  reportType: Exclude<ReportType, "daily">,
+  period: ReportPeriod,
+  summary: DailySummary,
+  periodRows: PeriodRow[]
+) {
+  const title = reportPeriodLabel(reportType, period);
+  const activeDays = periodRows.reduce((count, row) => count + row.active_days, 0);
+  const communities = summary.intake_community_breakdown.length
+    ? summary.intake_community_breakdown
+      .map((item) => `${formatNumber(item.weight_kg)}kg - ${escapeHtml(item.community_name)}`)
+      .join("<br>")
+    : "No intake communities recorded";
+  const siteStatus = summary.site_sample_count
+    ? `${formatInteger(summary.site_sample_count)} sample${summary.site_sample_count === 1 ? "" : "s"}`
+    : "No site water samples taken";
+
+  return `<!doctype html>
+<html>
+<body style="margin:0;background:#eef8f7;color:#123d39;font-family:Arial,sans-serif">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+    <tr><td align="center" style="padding:20px 10px">
+      <table role="presentation" width="760" cellspacing="0" cellpadding="0" border="0"
+        style="width:100%;max-width:760px;background:#fff;border:1px solid #c7e2dd;border-radius:8px;overflow:hidden">
+        <tr><td style="height:6px;background:#0f766e;font-size:0;line-height:0">&nbsp;</td></tr>
+        <tr><td style="padding:18px 24px 12px">
+          <img src="${APP_SITE_URL}/assets/images/seaweed-harvest-logo.png" width="230" alt="Seaweed Harvest"
+            style="display:block;width:230px;max-width:72%;height:auto;border:0">
+          <div style="margin-top:8px;font-size:13px;color:#466b66">${escapeHtml(aggregator.organisation_name)}</div>
+        </td></tr>
+        <tr><td style="padding:12px 24px 6px;border-top:1px solid #dcece9">
+          <div style="font-size:13px;color:#5f7e79">${reportType.toUpperCase()} REPORT</div>
+          <div style="margin:4px 0 0;font-size:22px;font-weight:700;color:#123d39">${escapeHtml(title)}</div>
+          <p style="margin:6px 0 0;color:#466b66;font-size:14px">Hello ${escapeHtml(recipient.name)}, here is the completed ${reportType} record summary.</p>
+        </td></tr>
+        ${emailSection("Facility Process Record", [
+          metric("Received seaweed", `${formatNumber(summary.process_received_kg)} kg`),
+          metric("Pressed liquid", `${formatNumber(summary.process_pressed_liquid_l)} L`),
+          metric("Processing records", formatInteger(summary.process_record_count)),
+          metric("Processing time", formatDuration(summary.process_minutes)),
+          metric("Avg Wet Pulp Per Press", `${formatNumber(summary.process_avg_wet_pulp_per_press)} kg`),
+          metric("Number of presses", formatInteger(summary.process_press_count)),
+          metric("Wet/dry extraction", `${formatNumber(summary.process_wet_dry_percent)} %`),
+          metric("Stock L / intake kg", `${formatNumber(summary.stock_l_per_intake_kg, 3)} L/kg`)
+        ])}
+        ${emailSection("Intake Collection", [
+          metric("Total weight", `${formatNumber(summary.intake_weight_kg)} kg`),
+          metric("Total paid", `${formatNumber(summary.intake_value_ksh)} KSH`),
+          metric("Collections", formatInteger(summary.collection_count)),
+          metric("Active days", formatInteger(activeDays)),
+          metric("Grade A", `${formatNumber(summary.grade_a_kg)} kg`),
+          metric("Grade B", `${formatNumber(summary.grade_b_kg)} kg`),
+          metric("Grade C", `${formatNumber(summary.grade_c_kg)} kg`),
+          metric("Communities", communities, true)
+        ])}
+        ${emailSection("Stock Record", [
+          metric("Total volume", `${formatNumber(summary.stock_volume_l)} L`),
+          metric("Containers filled", formatInteger(summary.stock_container_count)),
+          metric("Stock records", formatInteger(summary.stock_record_count))
+        ])}
+        ${emailSection("Site Water Samples", [
+          metric("Status", siteStatus, true)
+        ])}
+        <tr><td style="padding:12px 24px 0">
+          <div style="margin:0 0 7px;font-size:13px;font-weight:700;color:#365f59">${reportType === "weekly" ? "Active days" : "Active weeks"}</div>
+          ${periodActivityTable(periodRows)}
+        </td></tr>
+        <tr><td style="padding:10px 24px 18px">
+          <p style="margin:0;color:#6b8581;font-size:12px">Sent automatically at 08:00 East Africa Time. <a href="${reportSubscriptionsUrl()}" style="color:#2b7dbc">Manage report emails</a>.</p>
+        </td></tr>
+        <tr><td style="padding:14px 24px;background:#f7fbfa;border-top:1px solid #d9ebe7;text-align:center;color:#6b8581;font-size:12px;line-height:1.5">by Cascadia Nature-based Solutions.</td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+function periodActivityTable(rows: PeriodRow[]) {
+  if (!rows.length) {
+    return '<div style="padding:9px;border:1px solid #dcece9;color:#6b8581;font-size:13px">No operational records were entered in this period.</div>';
+  }
+  const body = rows.map((row) => `<tr>
+      <td style="padding:6px 7px;border-top:1px solid #e2efed;white-space:nowrap">${escapeHtml(row.label)}</td>
+      <td style="padding:6px 7px;border-top:1px solid #e2efed;white-space:nowrap">${formatNumber(row.summary.intake_weight_kg)} kg</td>
+      <td style="padding:6px 7px;border-top:1px solid #e2efed;white-space:nowrap">${formatNumber(row.summary.intake_value_ksh)} KSH</td>
+      <td style="padding:6px 7px;border-top:1px solid #e2efed;white-space:nowrap">${formatInteger(row.summary.collection_count)}</td>
+      <td style="padding:6px 7px;border-top:1px solid #e2efed;white-space:nowrap">${formatNumber(row.summary.stock_volume_l)} L</td>
+      <td style="padding:6px 7px;border-top:1px solid #e2efed;white-space:nowrap">${formatNumber(row.summary.process_pressed_liquid_l)} L</td>
+      <td style="padding:6px 7px;border-top:1px solid #e2efed;white-space:nowrap">${formatInteger(row.summary.site_sample_count)}</td>
+    </tr>`).join("");
+  return `<div style="overflow-x:auto"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+      style="width:100%;border:1px solid #c7e2dd;border-radius:6px;border-collapse:separate;border-spacing:0;font-size:12px;color:#274f49">
+      <thead><tr>
+        <th align="left" style="padding:6px 7px;background:#f2f8f7;white-space:nowrap">Period</th>
+        <th align="left" style="padding:6px 7px;background:#f2f8f7;white-space:nowrap">Intake</th>
+        <th align="left" style="padding:6px 7px;background:#f2f8f7;white-space:nowrap">Paid</th>
+        <th align="left" style="padding:6px 7px;background:#f2f8f7;white-space:nowrap">Collections</th>
+        <th align="left" style="padding:6px 7px;background:#f2f8f7;white-space:nowrap">Stock</th>
+        <th align="left" style="padding:6px 7px;background:#f2f8f7;white-space:nowrap">Pressed</th>
+        <th align="left" style="padding:6px 7px;background:#f2f8f7;white-space:nowrap">Samples</th>
+      </tr></thead>
+      <tbody>${body}</tbody>
+    </table></div>`;
 }
 
 function emailSection(title: string, metrics: EmailMetric[]) {
@@ -778,6 +1105,49 @@ function emailText(
     ] : []),
     "",
     `Open daily record: ${dailyRecordUrl(summary.summary_date)}`,
+    `Manage report emails: ${reportSubscriptionsUrl()}`,
+    "",
+    "by Cascadia Nature-based Solutions."
+  ].join("\n");
+}
+
+function periodEmailText(
+  aggregator: any,
+  reportType: Exclude<ReportType, "daily">,
+  period: ReportPeriod,
+  summary: DailySummary,
+  periodRows: PeriodRow[]
+) {
+  const rowHeading = reportType === "weekly" ? "ACTIVE DAYS" : "ACTIVE WEEKS";
+  return [
+    `Seaweed Harvest - ${aggregator.organisation_name}`,
+    `${reportType === "weekly" ? "Weekly" : "Monthly"} report: ${reportPeriodLabel(reportType, period)}`,
+    "",
+    "SUMMARY",
+    `Intake: ${formatNumber(summary.intake_weight_kg)} kg`,
+    `Paid: ${formatNumber(summary.intake_value_ksh)} KSH`,
+    `Collections: ${formatInteger(summary.collection_count)}`,
+    `Grade A: ${formatNumber(summary.grade_a_kg)} kg`,
+    `Grade B: ${formatNumber(summary.grade_b_kg)} kg`,
+    `Grade C: ${formatNumber(summary.grade_c_kg)} kg`,
+    `Stock volume: ${formatNumber(summary.stock_volume_l)} L`,
+    `Process records: ${formatInteger(summary.process_record_count)}`,
+    `Pressed liquid: ${formatNumber(summary.process_pressed_liquid_l)} L`,
+    `Site samples: ${formatInteger(summary.site_sample_count)}`,
+    "",
+    rowHeading,
+    ...(periodRows.length
+      ? periodRows.map((row) =>
+        `${row.label}: intake ${formatNumber(row.summary.intake_weight_kg)} kg; `
+        + `paid ${formatNumber(row.summary.intake_value_ksh)} KSH; `
+        + `collections ${formatInteger(row.summary.collection_count)}; `
+        + `stock ${formatNumber(row.summary.stock_volume_l)} L; `
+        + `pressed ${formatNumber(row.summary.process_pressed_liquid_l)} L; `
+        + `samples ${formatInteger(row.summary.site_sample_count)}`
+      )
+      : ["No operational records were entered in this period."]),
+    "",
+    `Manage report emails: ${reportSubscriptionsUrl()}`,
     "",
     "by Cascadia Nature-based Solutions."
   ].join("\n");
@@ -785,6 +1155,10 @@ function emailText(
 
 function dailyRecordUrl(summaryDate: string) {
   return `${APP_SITE_URL}/records.html?records=summary&date=${summaryDate}`;
+}
+
+function reportSubscriptionsUrl() {
+  return `${APP_SITE_URL}/report_subscriptions.html`;
 }
 
 function groupedRange(
@@ -826,6 +1200,64 @@ function rangeFromValues(values: number[], unit = "") {
   return unit ? `${value} ${unit}` : value;
 }
 
+function reportPeriod(reportType: ReportType, suppliedEnd: unknown): ReportPeriod {
+  const today = nairobiDate();
+  let end: string;
+  if (validDate(suppliedEnd)) {
+    end = suppliedEnd;
+  } else if (reportType === "daily") {
+    end = shiftDate(nairobiDate(), -1);
+  } else if (reportType === "weekly") {
+    end = shiftDate(mondayOfWeek(today), -1);
+  } else {
+    end = shiftDate(firstOfMonth(today), -1);
+  }
+
+  if (reportType === "daily") return { start: end, end };
+  if (reportType === "weekly") return { start: shiftDate(end, -6), end };
+  return { start: firstOfMonth(end), end };
+}
+
+function reportSubject(aggregator: any, reportType: ReportType, period: ReportPeriod) {
+  const organisation = aggregator.short_name || aggregator.organisation_name;
+  if (reportType === "daily") {
+    return `${organisation} daily record - ${displayDate(period.end)}`;
+  }
+  const label = reportType === "weekly" ? "weekly" : "monthly";
+  return `${organisation} ${label} report - ${reportPeriodLabel(reportType, period)}`;
+}
+
+function reportPeriodLabel(
+  reportType: Exclude<ReportType, "daily">,
+  period: ReportPeriod
+) {
+  return reportType === "monthly"
+    ? displayMonth(period.end)
+    : `${displayDate(period.start)} - ${displayDate(period.end)}`;
+}
+
+function datesInRange(start: string, end: string) {
+  const dates: string[] = [];
+  for (let current = start; current <= end; current = shiftDate(current, 1)) {
+    dates.push(current);
+    if (dates.length > 370) throw new HttpError(400, "Report period is too large");
+  }
+  return dates;
+}
+
+function firstOfMonth(date: string) {
+  return `${date.slice(0, 7)}-01`;
+}
+
+function mondayOfWeek(date: string) {
+  const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
+  return shiftDate(date, -((weekday + 6) % 7));
+}
+
+function minimumDate(left: string, right: string) {
+  return left < right ? left : right;
+}
+
 function nairobiDate(value = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Africa/Nairobi",
@@ -856,6 +1288,14 @@ function displayDate(date: string) {
     timeZone: "Africa/Nairobi",
     day: "2-digit",
     month: "short",
+    year: "numeric"
+  }).format(new Date(`${date}T12:00:00+03:00`));
+}
+
+function displayMonth(date: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Nairobi",
+    month: "long",
     year: "numeric"
   }).format(new Date(`${date}T12:00:00+03:00`));
 }
@@ -922,6 +1362,14 @@ function formatInteger(value: unknown) {
 
 function validDate(value: unknown): value is string {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function validReportType(value: unknown): ReportType {
+  const reportType = String(value || "daily").trim().toLowerCase();
+  if (reportType !== "daily" && reportType !== "weekly" && reportType !== "monthly") {
+    throw new HttpError(400, "Select daily, weekly or monthly report type");
+  }
+  return reportType;
 }
 
 function validAggregatorCode(value: unknown) {

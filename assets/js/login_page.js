@@ -208,6 +208,7 @@ async function routeSignedInUser(options = {}) {
   const requestedPage = safePage(requested);
   const requestedFile = requestedPage.split("?")[0];
   const canUseRequestedPage = requestedFile === "my_details.html"
+    || requestedFile === "report_subscriptions.html"
     || (requestedFile === "green-space/ledger.html"
       && (profile?.app_role === "system_admin" || profile?.can_manage_green_space))
     || profile?.app_role === "system_admin"

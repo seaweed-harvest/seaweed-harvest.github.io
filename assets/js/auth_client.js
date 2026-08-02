@@ -232,6 +232,9 @@ export function setupAccountControls(profile, options = {}) {
   const detailsLink = document.createElement("a");
   detailsLink.className = "account-menu-item";
   detailsLink.href = "./my_details.html";
+  const reportsLink = document.createElement("a");
+  reportsLink.className = "account-menu-item";
+  reportsLink.href = "./report_subscriptions.html";
   const signOutButton = document.createElement("button");
   signOutButton.type = "button";
   signOutButton.className = "account-menu-item account-menu-signout";
@@ -245,6 +248,7 @@ export function setupAccountControls(profile, options = {}) {
     const labels = typeof options.labels === "function" ? options.labels() : options.labels || {};
     menuLabel.textContent = labels.me || "User";
     detailsLink.textContent = labels.myDetails || "Profile settings";
+    reportsLink.textContent = labels.reportSubscriptions || "Report emails";
     signOutButton.textContent = labels.signOut || "Sign out";
   };
   applyLabels();
@@ -252,6 +256,7 @@ export function setupAccountControls(profile, options = {}) {
 
   popover.append(identity);
   if (options.showMyDetails !== false) popover.append(detailsLink);
+  if (options.showReportSubscriptions !== false) popover.append(reportsLink);
   popover.append(signOutButton);
   menu.append(trigger, popover);
   account.append(menu);

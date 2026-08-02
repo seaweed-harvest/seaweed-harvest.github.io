@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Report Subscriptions - Seaweed Harvest</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Seaweed Harvest">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./favicon.ico" sizes="any">
+  <link rel="icon" href="./assets/images/seaweed-harvest-icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
+  <script type="module" src="./assets/js/pwa_bootstrap.js"></script>
+</head>
+<body class="report-subscriptions-page" data-auth-pending>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div><p class="eyebrow">Seaweed aggregation</p><h1>Report subscriptions</h1></div>
+      <div class="header-actions report-subscriptions-header-controls">
+        <nav class="app-nav" aria-label="Account navigation"><a href="./my_details.html">My profile</a></nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell admin-shell admin-layout report-subscriptions-shell">
+    <aside id="reportSubscriptionsSidebar" class="admin-sidebar" aria-label="Application menu"></aside>
+    <section class="admin-content">
+      <section class="panel report-subscriptions-panel" aria-labelledby="reportSubscriptionsHeading">
+        <div class="section-head compact report-subscriptions-heading">
+          <div>
+            <h2 id="reportSubscriptionsHeading">Email reports</h2>
+            <p id="reportSubscriptionsEmail" class="compact-note">Loading...</p>
+          </div>
+          <span id="reportSubscriptionsCount" class="status-pill">0 enabled</span>
+        </div>
+
+        <form id="reportSubscriptionsForm">
+          <div id="reportSubscriptionOrganisations" class="report-subscription-organisations"></div>
+          <div class="button-row report-subscription-actions">
+            <button id="saveReportSubscriptions" type="submit">Save subscriptions</button>
+            <button id="stopAllReportSubscriptions" type="button" class="secondary-button">Stop all reports</button>
+            <span id="reportSubscriptionsStatus" class="form-status" aria-live="polite"></span>
+          </div>
+        </form>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="./assets/js/report_subscriptions_page.js?v=1"></script>
+</body>
+</html>
