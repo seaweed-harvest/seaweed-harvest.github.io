@@ -71,6 +71,18 @@ class EmailReportSubscriptionsStaticTest(unittest.TestCase):
         self.assertIn("/report_subscriptions.html", function)
         self.assertGreaterEqual(function.count("Manage report emails"), 3)
 
+    def test_email_header_shows_all_recipient_subscription_preferences(self):
+        function = read("supabase/functions/daily-record-email-summary/index.ts")
+        self.assertIn("subscriptions: Record<ReportType, boolean>", function)
+        self.assertIn("membershipSubscriptions(membership)", function)
+        self.assertIn("withSubscriptionPreferences(", function)
+        self.assertIn("subscriptionPreferenceHtml(recipient)", function)
+        self.assertIn("REPORT EMAILS", function)
+        self.assertIn('option("Daily", recipient.subscriptions.daily)', function)
+        self.assertIn('option("Weekly", recipient.subscriptions.weekly)', function)
+        self.assertIn('option("Monthly", recipient.subscriptions.monthly)', function)
+        self.assertIn("subscriptionPreferenceText(recipient)", function)
+
     def test_self_service_page_shows_three_clear_choices_and_stop_all(self):
         page = read("report_subscriptions.html")
         script = read("assets/js/report_subscriptions_page.js")

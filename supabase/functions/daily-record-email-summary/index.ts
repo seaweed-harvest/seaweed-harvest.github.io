@@ -23,6 +23,7 @@ type Recipient = {
   userId: string | null;
   email: string;
   name: string;
+  subscriptions: Record<ReportType, boolean>;
 };
 
 type ReportType = "daily" | "weekly" | "monthly";
@@ -166,7 +167,7 @@ Deno.serve(async (request) => {
       ? weeklyRows(activeSummaries, period)
       : activeSummaries.map((daily) => dailyPeriodRow(daily));
     const recipients = testRecipient
-      ? [{ userId: null, email: testRecipient, name: "Test recipient" }]
+      ? [await loadTestRecipient(admin, aggregator.id, testRecipient)]
       : await loadRecipients(admin, aggregator.id, reportType);
 
     if (dryRun) {
@@ -288,7 +289,7 @@ async function loadRecipients(
   }[reportType];
   const { data: memberships, error: membershipError } = await admin
     .from("ag_aggregator_memberships")
-    .select("user_id")
+    .select("user_id,receive_daily_summary_email,receive_weekly_summary_email,receive_monthly_summary_email")
     .eq("aggregator_id", aggregatorId)
     .eq("is_active", true)
     .eq(subscriptionColumn, true);
@@ -304,14 +305,69 @@ async function loadRecipients(
     .eq("account_status", "active");
   if (profileError) throw new HttpError(400, profileError.message);
 
+  const membershipByUserId = new Map(
+    (memberships || []).map((membership: any) => [String(membership.user_id), membership])
+  );
   return (profiles || [])
-    .map((profile: any) => ({
-      userId: String(profile.id),
-      email: String(profile.email || "").trim().toLowerCase(),
-      name: String(profile.display_name || "").trim() || "Seaweed Harvest user"
-    }))
+    .map((profile: any) => {
+      const membership: any = membershipByUserId.get(String(profile.id));
+      return {
+        userId: String(profile.id),
+        email: String(profile.email || "").trim().toLowerCase(),
+        name: String(profile.display_name || "").trim() || "Seaweed Harvest user",
+        subscriptions: membershipSubscriptions(membership)
+      };
+    })
     .filter((recipient: Recipient) => Boolean(optionalEmail(recipient.email)))
     .sort((left: Recipient, right: Recipient) => left.email.localeCompare(right.email));
+}
+
+async function loadTestRecipient(
+  admin: any,
+  aggregatorId: string,
+  email: string
+): Promise<Recipient> {
+  const { data: profile, error: profileError } = await admin
+    .from("ag_user_profiles")
+    .select("id,email,display_name,account_status")
+    .ilike("email", email)
+    .eq("account_status", "active")
+    .limit(1)
+    .maybeSingle();
+  if (profileError) throw new HttpError(400, profileError.message);
+
+  if (!profile) {
+    return {
+      userId: null,
+      email,
+      name: "Seaweed Harvest user",
+      subscriptions: membershipSubscriptions(null)
+    };
+  }
+
+  const { data: membership, error: membershipError } = await admin
+    .from("ag_aggregator_memberships")
+    .select("receive_daily_summary_email,receive_weekly_summary_email,receive_monthly_summary_email")
+    .eq("aggregator_id", aggregatorId)
+    .eq("user_id", profile.id)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (membershipError) throw new HttpError(400, membershipError.message);
+
+  return {
+    userId: String(profile.id),
+    email: String(profile.email || email).trim().toLowerCase(),
+    name: String(profile.display_name || "").trim() || "Seaweed Harvest user",
+    subscriptions: membershipSubscriptions(membership)
+  };
+}
+
+function membershipSubscriptions(membership: any): Record<ReportType, boolean> {
+  return {
+    daily: membership?.receive_daily_summary_email === true,
+    weekly: membership?.receive_weekly_summary_email === true,
+    monthly: membership?.receive_monthly_summary_email === true
+  };
 }
 
 async function buildSummariesForPeriod(
@@ -746,12 +802,15 @@ async function deliverSummary(options: {
   if (pendingError) throw new HttpError(400, pendingError.message);
 
   try {
-    const html = reportType === "daily"
-      ? emailHtml(aggregator, recipient, summary, recentSummaries)
-      : periodEmailHtml(aggregator, recipient, reportType, period, summary, periodRows);
+    const html = withSubscriptionPreferences(
+      reportType === "daily"
+        ? emailHtml(aggregator, recipient, summary, recentSummaries)
+        : periodEmailHtml(aggregator, recipient, reportType, period, summary, periodRows),
+      recipient
+    );
     const text = reportType === "daily"
-      ? emailText(aggregator, summary, recentSummaries)
-      : periodEmailText(aggregator, reportType, period, summary, periodRows);
+      ? emailText(aggregator, recipient, summary, recentSummaries)
+      : periodEmailText(aggregator, recipient, reportType, period, summary, periodRows);
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -1072,6 +1131,7 @@ function renderMetric(item: EmailMetric, span: number) {
 
 function emailText(
   aggregator: any,
+  recipient: Recipient,
   summary: DailySummary,
   recentSummaries: DailySummary[]
 ) {
@@ -1085,6 +1145,7 @@ function emailText(
   return [
     `Seaweed Harvest - ${aggregator.organisation_name}`,
     `Daily record: ${displayDate(summary.summary_date)}`,
+    `Report emails: ${subscriptionPreferenceText(recipient)}`,
     "",
     "FACILITY PROCESS RECORD",
     `Received seaweed: ${formatNumber(summary.process_received_kg)} kg`,
@@ -1140,6 +1201,7 @@ function emailText(
 
 function periodEmailText(
   aggregator: any,
+  recipient: Recipient,
   reportType: Exclude<ReportType, "daily">,
   period: ReportPeriod,
   summary: DailySummary,
@@ -1149,6 +1211,7 @@ function periodEmailText(
   return [
     `Seaweed Harvest - ${aggregator.organisation_name}`,
     `${reportType === "weekly" ? "Weekly" : "Monthly"} report: ${reportPeriodLabel(reportType, period)}`,
+    `Report emails: ${subscriptionPreferenceText(recipient)}`,
     "",
     "SUMMARY",
     `Intake: ${formatNumber(summary.intake_weight_kg)} kg`,
@@ -1186,6 +1249,34 @@ function dailyRecordUrl(summaryDate: string) {
 
 function reportSubscriptionsUrl() {
   return `${APP_SITE_URL}/report_subscriptions.html`;
+}
+
+function withSubscriptionPreferences(html: string, recipient: Recipient) {
+  const logoMarker = `<img src="${APP_SITE_URL}/assets/images/seaweed-harvest-logo.png"`;
+  return html.replace(
+    logoMarker,
+    `${subscriptionPreferenceHtml(recipient)}\n          ${logoMarker}`
+  );
+}
+
+function subscriptionPreferenceHtml(recipient: Recipient) {
+  const option = (label: string, enabled: boolean) => `<tr>
+    <td style="padding:1px 7px 1px 0;color:#466b66;font-size:11px;text-align:left">${label}</td>
+    <td style="padding:1px 0;color:${enabled ? "#0f766e" : "#80928f"};font-size:11px;font-weight:700;text-align:right">${enabled ? "ON" : "OFF"}</td>
+  </tr>`;
+  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="right"
+      style="margin:0 0 8px 12px;border:1px solid #dcece9;border-radius:6px;background:#f7fbfa">
+    <tr><td colspan="2" style="padding:6px 7px 3px;color:#365f59;font-size:10px;font-weight:700;text-align:left">REPORT EMAILS</td></tr>
+    ${option("Daily", recipient.subscriptions.daily)}
+    ${option("Weekly", recipient.subscriptions.weekly)}
+    ${option("Monthly", recipient.subscriptions.monthly)}
+    <tr><td colspan="2" style="padding:4px 7px 6px;font-size:10px;text-align:left"><a href="${reportSubscriptionsUrl()}" style="color:#2b7dbc">Change</a></td></tr>
+  </table>`;
+}
+
+function subscriptionPreferenceText(recipient: Recipient) {
+  const state = (enabled: boolean) => enabled ? "on" : "off";
+  return `Daily ${state(recipient.subscriptions.daily)}, Weekly ${state(recipient.subscriptions.weekly)}, Monthly ${state(recipient.subscriptions.monthly)}`;
 }
 
 function groupedRange(
