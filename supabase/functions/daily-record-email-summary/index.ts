@@ -127,6 +127,34 @@ Deno.serve(async (request) => {
     const summary = reportType === "daily"
       ? periodSummaries[0]
       : aggregateSummaries(periodSummaries, period.end);
+    const subject = reportSubject(aggregator, reportType, period);
+
+    if (!activeSummaries.length) {
+      return jsonResponse({
+        ok: true,
+        dry_run: dryRun,
+        report_skipped: true,
+        skip_reason: "no_operational_records",
+        aggregator: {
+          id: aggregator.id,
+          code: aggregator.aggregator_code,
+          name: aggregator.organisation_name
+        },
+        report_type: reportType,
+        period_start: period.start,
+        period_end: period.end,
+        summary_date: summaryDate,
+        subject,
+        recipient_count: 0,
+        sent_count: 0,
+        failed_count: 0,
+        summary,
+        recent_summaries: [],
+        period_rows: [],
+        deliveries: []
+      });
+    }
+
     const recentSummaries = reportType === "daily"
       ? (await Promise.all(
         [1, 2, 3, 4].map((daysAgo) =>
@@ -140,7 +168,6 @@ Deno.serve(async (request) => {
     const recipients = testRecipient
       ? [{ userId: null, email: testRecipient, name: "Test recipient" }]
       : await loadRecipients(admin, aggregator.id, reportType);
-    const subject = reportSubject(aggregator, reportType, period);
 
     if (dryRun) {
       return jsonResponse({

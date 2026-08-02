@@ -57,6 +57,15 @@ class EmailReportSubscriptionsStaticTest(unittest.TestCase):
         self.assertIn("receive_monthly_summary_email", function)
         self.assertIn("aggregator_id,report_type,summary_date,recipient_email", function)
 
+    def test_empty_reporting_periods_are_skipped_before_recipient_delivery(self):
+        function = read("supabase/functions/daily-record-email-summary/index.ts")
+        guard = 'if (!activeSummaries.length) {'
+        self.assertIn(guard, function)
+        self.assertIn('report_skipped: true', function)
+        self.assertIn('skip_reason: "no_operational_records"', function)
+        self.assertLess(function.index(guard), function.index("await loadRecipients"))
+        self.assertLess(function.index(guard), function.index("for (const recipient of recipients)"))
+
     def test_all_reports_link_directly_to_subscription_settings(self):
         function = read("supabase/functions/daily-record-email-summary/index.ts")
         self.assertIn("/report_subscriptions.html", function)
