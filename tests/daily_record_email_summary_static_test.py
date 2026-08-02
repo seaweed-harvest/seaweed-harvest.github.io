@@ -70,13 +70,22 @@ class DailyRecordEmailSummaryStaticTest(unittest.TestCase):
         ):
             self.assertIn(label, function)
         self.assertLess(
-            function.index('emailSection("Facility Process Record"'),
             function.index('emailSection("Intake Collection"'),
+            function.index('emailSection("Stock Record"'),
         )
         self.assertLess(
             function.index('emailSection("Stock Record"'),
+            function.index('emailSection("Facility Process Record"'),
+        )
+        self.assertLess(
+            function.index('emailSection("Facility Process Record"'),
             function.index('emailSection("Site Water Samples"'),
         )
+        self.assertIn(
+            'metric("Retested containers", formatInteger(summary.stock_retested_container_count))',
+            function,
+        )
+        self.assertNotIn('metric("Stock records"', function)
         self.assertIn(
             "/records.html?records=summary&date=${summaryDate}",
             function,
@@ -102,6 +111,16 @@ class DailyRecordEmailSummaryStaticTest(unittest.TestCase):
             'metric("Communities"',
         ):
             self.assertIn(label, function)
+
+    def test_stock_summary_counts_distinct_retested_containers(self):
+        function = read(
+            "supabase/functions/daily-record-email-summary/index.ts"
+        )
+        self.assertIn("stock_retested_container_count: number", function)
+        self.assertIn('String(row.record_type || "initial").toLowerCase() === "retest"', function)
+        self.assertIn("countRetestedContainers(", function)
+        self.assertIn('.eq("record_type", "retest")', function)
+        self.assertIn("summary.stock_retested_container_count = await", function)
 
     def test_email_uses_compact_regular_weight_values_and_date_links(self):
         function = read(

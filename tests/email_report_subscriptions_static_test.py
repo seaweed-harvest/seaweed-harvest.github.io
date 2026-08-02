@@ -81,6 +81,9 @@ class EmailReportSubscriptionsStaticTest(unittest.TestCase):
         self.assertIn('option("Daily", recipient.subscriptions.daily)', function)
         self.assertIn('option("Weekly", recipient.subscriptions.weekly)', function)
         self.assertIn('option("Monthly", recipient.subscriptions.monthly)', function)
+        self.assertIn('enabled ? "&#9745;" : "&#9744;"', function)
+        self.assertIn('const color = enabled ? "#466b66" : "#9aa9a6"', function)
+        self.assertNotIn('${enabled ? "ON" : "OFF"}', function)
         self.assertIn("subscriptionPreferenceText(recipient)", function)
 
     def test_self_service_page_shows_three_clear_choices_and_stop_all(self):

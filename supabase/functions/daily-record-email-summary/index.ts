@@ -50,6 +50,7 @@ type DailySummary = {
   site_locations: string[];
   stock_record_count: number;
   stock_container_count: number;
+  stock_retested_container_count: number;
   stock_volume_l: number;
   stock_sodium_benzoate_range: string | null;
   stock_citric_acid_range: string | null;
@@ -128,6 +129,13 @@ Deno.serve(async (request) => {
     const summary = reportType === "daily"
       ? periodSummaries[0]
       : aggregateSummaries(periodSummaries, period.end);
+    if (reportType !== "daily") {
+      summary.stock_retested_container_count = await countRetestedContainers(
+        admin,
+        aggregator.id,
+        period
+      );
+    }
     const subject = reportSubject(aggregator, reportType, period);
 
     if (!activeSummaries.length) {
@@ -403,6 +411,7 @@ function aggregateSummaries(summaries: DailySummary[], summaryDate: string): Dai
     result.site_location_count += summary.site_location_count;
     result.stock_record_count += summary.stock_record_count;
     result.stock_container_count += summary.stock_container_count;
+    result.stock_retested_container_count += summary.stock_retested_container_count;
     result.stock_volume_l += summary.stock_volume_l;
     result.process_record_count += summary.process_record_count;
     result.process_received_kg += summary.process_received_kg;
@@ -466,6 +475,7 @@ function emptySummary(summaryDate: string): DailySummary {
     site_locations: [],
     stock_record_count: 0,
     stock_container_count: 0,
+    stock_retested_container_count: 0,
     stock_volume_l: 0,
     stock_sodium_benzoate_range: null,
     stock_citric_acid_range: null,
@@ -513,6 +523,24 @@ function weeklyRows(summaries: DailySummary[], period: ReportPeriod): PeriodRow[
       active_days: rows.length,
       summary: aggregateSummaries(rows, minimumDate(shiftDate(start, 6), period.end))
     }));
+}
+
+async function countRetestedContainers(
+  admin: any,
+  aggregatorId: string,
+  period: ReportPeriod
+) {
+  const rows = await allPages((from, to) => admin
+    .from("ag_stabilization_packing_records")
+    .select("carton_serial")
+    .eq("aggregator_id", aggregatorId)
+    .eq("record_type", "retest")
+    .gte("packed_on", period.start)
+    .lte("packed_on", period.end)
+    .range(from, to));
+  return new Set(
+    rows.map((row: any) => String(row.carton_serial || "").trim()).filter(Boolean)
+  ).size;
 }
 
 async function buildSummary(
@@ -626,6 +654,12 @@ async function buildSummary(
   const stockContainers = new Set(
     initialStock.map((row: any) => String(row.carton_serial || "").trim()).filter(Boolean)
   );
+  const retestedContainers = new Set(
+    stockRecords
+      .filter((row: any) => String(row.record_type || "initial").toLowerCase() === "retest")
+      .map((row: any) => String(row.carton_serial || "").trim())
+      .filter(Boolean)
+  );
 
   const processTotals = processRecords.reduce((totals: any, row: any) => {
     totals.received += numberValue(row.received_seaweed_kg);
@@ -661,6 +695,7 @@ async function buildSummary(
     site_locations: [...siteLocations].sort((left, right) => left.localeCompare(right)),
     stock_record_count: stockRecords.length,
     stock_container_count: stockContainers.size,
+    stock_retested_container_count: retestedContainers.size,
     stock_volume_l: rounded(stockVolume),
     stock_sodium_benzoate_range: showStockRanges
       ? groupedRange(stockRecords, "chemical_dose_value", "chemical_dose_unit", "g/container",
@@ -932,16 +967,6 @@ function emailHtml(
           </div>
           <p style="margin:6px 0 0;color:#466b66;font-size:14px">Hello ${escapeHtml(recipient.name)}, here is the completed daily record.</p>
         </td></tr>
-        ${emailSection("Facility Process Record", [
-          metric("Received seaweed", `${formatNumber(summary.process_received_kg)} kg`),
-          metric("Pressed liquid", `${formatNumber(summary.process_pressed_liquid_l)} L`),
-          metric("Lost seaweed", `${formatNumber(summary.process_lost_kg)} kg`),
-          metric("Total processing time", formatDuration(summary.process_minutes)),
-          metric("Avg Wet Pulp Per Press", `${formatNumber(summary.process_avg_wet_pulp_per_press)} kg`),
-          metric("Number of presses", formatInteger(summary.process_press_count)),
-          metric("Wet/dry extraction", `${formatNumber(summary.process_wet_dry_percent)} %`),
-          metric("Stock L / intake kg", `${formatNumber(summary.stock_l_per_intake_kg, 3)} L/kg`)
-        ])}
         ${emailSection("Intake Collection", [
           metric("Total weight", `${formatNumber(summary.intake_weight_kg)} kg`),
           metric("Total paid", `${formatNumber(summary.intake_value_ksh)} KSH`),
@@ -955,7 +980,18 @@ function emailHtml(
         ${emailSection("Stock Record", [
           metric("Total volume", `${formatNumber(summary.stock_volume_l)} L`),
           metric("Containers filled", formatInteger(summary.stock_container_count)),
+          metric("Retested containers", formatInteger(summary.stock_retested_container_count)),
           ...stockRanges
+        ])}
+        ${emailSection("Facility Process Record", [
+          metric("Received seaweed", `${formatNumber(summary.process_received_kg)} kg`),
+          metric("Pressed liquid", `${formatNumber(summary.process_pressed_liquid_l)} L`),
+          metric("Lost seaweed", `${formatNumber(summary.process_lost_kg)} kg`),
+          metric("Total processing time", formatDuration(summary.process_minutes)),
+          metric("Avg Wet Pulp Per Press", `${formatNumber(summary.process_avg_wet_pulp_per_press)} kg`),
+          metric("Number of presses", formatInteger(summary.process_press_count)),
+          metric("Wet/dry extraction", `${formatNumber(summary.process_wet_dry_percent)} %`),
+          metric("Stock L / intake kg", `${formatNumber(summary.stock_l_per_intake_kg, 3)} L/kg`)
         ])}
         ${emailSection("Site Water Samples", [
           metric("Status", siteStatus, true)
@@ -1009,16 +1045,6 @@ function periodEmailHtml(
           <div style="margin:4px 0 0;font-size:22px;font-weight:700;color:#123d39">${escapeHtml(title)}</div>
           <p style="margin:6px 0 0;color:#466b66;font-size:14px">Hello ${escapeHtml(recipient.name)}, here is the completed ${reportType} record summary.</p>
         </td></tr>
-        ${emailSection("Facility Process Record", [
-          metric("Received seaweed", `${formatNumber(summary.process_received_kg)} kg`),
-          metric("Pressed liquid", `${formatNumber(summary.process_pressed_liquid_l)} L`),
-          metric("Processing records", formatInteger(summary.process_record_count)),
-          metric("Processing time", formatDuration(summary.process_minutes)),
-          metric("Avg Wet Pulp Per Press", `${formatNumber(summary.process_avg_wet_pulp_per_press)} kg`),
-          metric("Number of presses", formatInteger(summary.process_press_count)),
-          metric("Wet/dry extraction", `${formatNumber(summary.process_wet_dry_percent)} %`),
-          metric("Stock L / intake kg", `${formatNumber(summary.stock_l_per_intake_kg, 3)} L/kg`)
-        ])}
         ${emailSection("Intake Collection", [
           metric("Total weight", `${formatNumber(summary.intake_weight_kg)} kg`),
           metric("Total paid", `${formatNumber(summary.intake_value_ksh)} KSH`),
@@ -1032,7 +1058,17 @@ function periodEmailHtml(
         ${emailSection("Stock Record", [
           metric("Total volume", `${formatNumber(summary.stock_volume_l)} L`),
           metric("Containers filled", formatInteger(summary.stock_container_count)),
-          metric("Stock records", formatInteger(summary.stock_record_count))
+          metric("Retested containers", formatInteger(summary.stock_retested_container_count))
+        ])}
+        ${emailSection("Facility Process Record", [
+          metric("Received seaweed", `${formatNumber(summary.process_received_kg)} kg`),
+          metric("Pressed liquid", `${formatNumber(summary.process_pressed_liquid_l)} L`),
+          metric("Processing records", formatInteger(summary.process_record_count)),
+          metric("Processing time", formatDuration(summary.process_minutes)),
+          metric("Avg Wet Pulp Per Press", `${formatNumber(summary.process_avg_wet_pulp_per_press)} kg`),
+          metric("Number of presses", formatInteger(summary.process_press_count)),
+          metric("Wet/dry extraction", `${formatNumber(summary.process_wet_dry_percent)} %`),
+          metric("Stock L / intake kg", `${formatNumber(summary.stock_l_per_intake_kg, 3)} L/kg`)
         ])}
         ${emailSection("Site Water Samples", [
           metric("Status", siteStatus, true)
@@ -1147,16 +1183,6 @@ function emailText(
     `Daily record: ${displayDate(summary.summary_date)}`,
     `Report emails: ${subscriptionPreferenceText(recipient)}`,
     "",
-    "FACILITY PROCESS RECORD",
-    `Received seaweed: ${formatNumber(summary.process_received_kg)} kg`,
-    `Pressed liquid: ${formatNumber(summary.process_pressed_liquid_l)} L`,
-    `Lost seaweed: ${formatNumber(summary.process_lost_kg)} kg`,
-    `Total processing time: ${formatDuration(summary.process_minutes)}`,
-    `Avg Wet Pulp Per Press: ${formatNumber(summary.process_avg_wet_pulp_per_press)} kg`,
-    `Number of presses: ${formatInteger(summary.process_press_count)}`,
-    `Wet/dry extraction: ${formatNumber(summary.process_wet_dry_percent)} %`,
-    `Stock L / intake kg: ${formatNumber(summary.stock_l_per_intake_kg, 3)} L/kg`,
-    "",
     "INTAKE COLLECTION",
     `Total weight: ${formatNumber(summary.intake_weight_kg)} kg`,
     `Total paid: ${formatNumber(summary.intake_value_ksh)} KSH`,
@@ -1170,6 +1196,7 @@ function emailText(
     "STOCK RECORD",
     `Total volume: ${formatNumber(summary.stock_volume_l)} L`,
     `Containers filled: ${formatInteger(summary.stock_container_count)}`,
+    `Retested containers: ${formatInteger(summary.stock_retested_container_count)}`,
     ...(summary.stock_volume_l > 0 ? [
       `Sodium benzoate: ${summary.stock_sodium_benzoate_range || "-"}`,
       `Citric acid: ${summary.stock_citric_acid_range || "-"}`,
@@ -1177,6 +1204,16 @@ function emailText(
       `pH: ${summary.stock_ph_range || "-"}`,
       `EC: ${summary.stock_ec_range || "-"}`
     ] : []),
+    "",
+    "FACILITY PROCESS RECORD",
+    `Received seaweed: ${formatNumber(summary.process_received_kg)} kg`,
+    `Pressed liquid: ${formatNumber(summary.process_pressed_liquid_l)} L`,
+    `Lost seaweed: ${formatNumber(summary.process_lost_kg)} kg`,
+    `Total processing time: ${formatDuration(summary.process_minutes)}`,
+    `Avg Wet Pulp Per Press: ${formatNumber(summary.process_avg_wet_pulp_per_press)} kg`,
+    `Number of presses: ${formatInteger(summary.process_press_count)}`,
+    `Wet/dry extraction: ${formatNumber(summary.process_wet_dry_percent)} %`,
+    `Stock L / intake kg: ${formatNumber(summary.stock_l_per_intake_kg, 3)} L/kg`,
     "",
     "SITE WATER SAMPLES",
     site,
@@ -1213,17 +1250,25 @@ function periodEmailText(
     `${reportType === "weekly" ? "Weekly" : "Monthly"} report: ${reportPeriodLabel(reportType, period)}`,
     `Report emails: ${subscriptionPreferenceText(recipient)}`,
     "",
-    "SUMMARY",
-    `Intake: ${formatNumber(summary.intake_weight_kg)} kg`,
-    `Paid: ${formatNumber(summary.intake_value_ksh)} KSH`,
+    "INTAKE COLLECTION",
+    `Total weight: ${formatNumber(summary.intake_weight_kg)} kg`,
+    `Total paid: ${formatNumber(summary.intake_value_ksh)} KSH`,
     `Collections: ${formatInteger(summary.collection_count)}`,
     `Grade A: ${formatNumber(summary.grade_a_kg)} kg`,
     `Grade B: ${formatNumber(summary.grade_b_kg)} kg`,
     `Grade C: ${formatNumber(summary.grade_c_kg)} kg`,
-    `Stock volume: ${formatNumber(summary.stock_volume_l)} L`,
-    `Process records: ${formatInteger(summary.process_record_count)}`,
+    "",
+    "STOCK RECORD",
+    `Total volume: ${formatNumber(summary.stock_volume_l)} L`,
+    `Containers filled: ${formatInteger(summary.stock_container_count)}`,
+    `Retested containers: ${formatInteger(summary.stock_retested_container_count)}`,
+    "",
+    "FACILITY PROCESS RECORD",
+    `Processing records: ${formatInteger(summary.process_record_count)}`,
     `Pressed liquid: ${formatNumber(summary.process_pressed_liquid_l)} L`,
-    `Site samples: ${formatInteger(summary.site_sample_count)}`,
+    "",
+    "SITE WATER SAMPLES",
+    `Samples: ${formatInteger(summary.site_sample_count)}`,
     "",
     rowHeading,
     ...(periodRows.length
@@ -1260,10 +1305,14 @@ function withSubscriptionPreferences(html: string, recipient: Recipient) {
 }
 
 function subscriptionPreferenceHtml(recipient: Recipient) {
-  const option = (label: string, enabled: boolean) => `<tr>
-    <td style="padding:1px 7px 1px 0;color:#466b66;font-size:11px;text-align:left">${label}</td>
-    <td style="padding:1px 0;color:${enabled ? "#0f766e" : "#80928f"};font-size:11px;font-weight:700;text-align:right">${enabled ? "ON" : "OFF"}</td>
-  </tr>`;
+  const option = (label: string, enabled: boolean) => {
+    const color = enabled ? "#466b66" : "#9aa9a6";
+    const boxColor = enabled ? "#0f766e" : "#a7b5b3";
+    return `<tr>
+      <td style="padding:1px 7px 1px 0;color:${color};font-size:11px;text-align:left">${label}</td>
+      <td style="padding:0;color:${boxColor};font-size:14px;line-height:1;text-align:right">${enabled ? "&#9745;" : "&#9744;"}</td>
+    </tr>`;
+  };
   return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="right"
       style="margin:0 0 8px 12px;border:1px solid #dcece9;border-radius:6px;background:#f7fbfa">
     <tr><td colspan="2" style="padding:6px 7px 3px;color:#365f59;font-size:10px;font-weight:700;text-align:left">REPORT EMAILS</td></tr>
