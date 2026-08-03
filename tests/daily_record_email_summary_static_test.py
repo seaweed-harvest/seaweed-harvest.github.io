@@ -66,7 +66,6 @@ class DailyRecordEmailSummaryStaticTest(unittest.TestCase):
             'emailSection("Site Water Samples"',
             'metric("Total paid"',
             'metric("Wet/dry extraction"',
-            'metric("Stock L / intake kg"',
         ):
             self.assertIn(label, function)
         self.assertLess(
@@ -122,17 +121,37 @@ class DailyRecordEmailSummaryStaticTest(unittest.TestCase):
         self.assertIn('.eq("record_type", "retest")', function)
         self.assertIn("summary.stock_retested_container_count = await", function)
 
-    def test_weekly_process_summary_uses_concise_pressing_metrics(self):
+    def test_period_process_summary_uses_total_processing_time(self):
         function = read(
             "supabase/functions/daily-record-email-summary/index.ts"
         )
         self.assertIn("periodProcessMetrics(reportType, summary)", function)
-        self.assertIn('reportType === "weekly" ? "Total pressing time" : "Processing time"', function)
+        self.assertGreaterEqual(function.count('"Total processing time"'), 1)
+        self.assertNotIn('"Total pressing time"', function)
         self.assertIn('...(reportType === "monthly" ? [', function)
         weekly_metric_guard = function.split("function periodProcessMetrics", 1)[1]
         self.assertIn('metric("Avg Wet Pulp Per Press"', weekly_metric_guard)
         self.assertIn('metric("Number of presses"', weekly_metric_guard)
         self.assertIn('metric("Wet/dry extraction"', weekly_metric_guard)
+
+    def test_period_activity_rows_only_show_stock_volume_after_collection_metrics(self):
+        function = read(
+            "supabase/functions/daily-record-email-summary/index.ts"
+        )
+        activity = function.split("function periodActivityTable", 1)[1].split(
+            "function periodProcessMetrics", 1
+        )[0]
+        text_activity = function.split("function periodEmailText", 1)[1].split(
+            "function dailyRecordUrl", 1
+        )[0]
+
+        self.assertIn('row.summary.stock_volume_l', activity)
+        self.assertNotIn('row.summary.process_pressed_liquid_l', activity)
+        self.assertNotIn('row.summary.site_sample_count', activity)
+        self.assertIn('row.summary.stock_volume_l', text_activity)
+        self.assertNotIn('row.summary.process_pressed_liquid_l', text_activity)
+        self.assertNotIn('row.summary.site_sample_count', text_activity)
+        self.assertNotIn('Stock L / intake kg', function)
 
     def test_email_uses_compact_regular_weight_values_and_date_links(self):
         function = read(

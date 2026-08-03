@@ -990,8 +990,7 @@ function emailHtml(
           metric("Total processing time", formatDuration(summary.process_minutes)),
           metric("Avg Wet Pulp Per Press", `${formatNumber(summary.process_avg_wet_pulp_per_press)} kg`),
           metric("Number of presses", formatInteger(summary.process_press_count)),
-          metric("Wet/dry extraction", `${formatNumber(summary.process_wet_dry_percent)} %`),
-          metric("Stock L / intake kg", `${formatNumber(summary.stock_l_per_intake_kg, 3)} L/kg`)
+          metric("Wet/dry extraction", `${formatNumber(summary.process_wet_dry_percent)} %`)
         ])}
         ${emailSection("Site Water Samples", [
           metric("Status", siteStatus, true)
@@ -1092,8 +1091,6 @@ function periodActivityTable(rows: PeriodRow[]) {
       <td style="padding:6px 7px;border-top:1px solid #e2efed;white-space:nowrap">${formatNumber(row.summary.intake_value_ksh)} KSH</td>
       <td style="padding:6px 7px;border-top:1px solid #e2efed;white-space:nowrap">${formatInteger(row.summary.collection_count)}</td>
       <td style="padding:6px 7px;border-top:1px solid #e2efed;white-space:nowrap">${formatNumber(row.summary.stock_volume_l)} L</td>
-      <td style="padding:6px 7px;border-top:1px solid #e2efed;white-space:nowrap">${formatNumber(row.summary.process_pressed_liquid_l)} L</td>
-      <td style="padding:6px 7px;border-top:1px solid #e2efed;white-space:nowrap">${formatInteger(row.summary.site_sample_count)}</td>
     </tr>`).join("");
   return `<div style="overflow-x:auto"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
       style="width:100%;border:1px solid #c7e2dd;border-radius:6px;border-collapse:separate;border-spacing:0;font-size:12px;color:#274f49">
@@ -1103,8 +1100,6 @@ function periodActivityTable(rows: PeriodRow[]) {
         <th align="left" style="padding:6px 7px;background:#f2f8f7;white-space:nowrap">Paid</th>
         <th align="left" style="padding:6px 7px;background:#f2f8f7;white-space:nowrap">Collections</th>
         <th align="left" style="padding:6px 7px;background:#f2f8f7;white-space:nowrap">Stock</th>
-        <th align="left" style="padding:6px 7px;background:#f2f8f7;white-space:nowrap">Pressed</th>
-        <th align="left" style="padding:6px 7px;background:#f2f8f7;white-space:nowrap">Samples</th>
       </tr></thead>
       <tbody>${body}</tbody>
     </table></div>`;
@@ -1123,15 +1118,14 @@ function periodProcessMetrics(
     metric("Pressed liquid", `${formatNumber(summary.process_pressed_liquid_l)} L`),
     metric("Processing records", formatInteger(summary.process_record_count)),
     metric(
-      reportType === "weekly" ? "Total pressing time" : "Processing time",
+      "Total processing time",
       formatDuration(summary.process_minutes)
     ),
     ...(reportType === "monthly" ? [
       metric("Avg Wet Pulp Per Press", `${formatNumber(summary.process_avg_wet_pulp_per_press)} kg`),
       metric("Number of presses", formatInteger(summary.process_press_count)),
       metric("Wet/dry extraction", `${formatNumber(summary.process_wet_dry_percent)} %`)
-    ] : []),
-    metric("Stock L / intake kg", `${formatNumber(summary.stock_l_per_intake_kg, 3)} L/kg`)
+    ] : [])
   ];
 }
 
@@ -1228,7 +1222,6 @@ function emailText(
     `Avg Wet Pulp Per Press: ${formatNumber(summary.process_avg_wet_pulp_per_press)} kg`,
     `Number of presses: ${formatInteger(summary.process_press_count)}`,
     `Wet/dry extraction: ${formatNumber(summary.process_wet_dry_percent)} %`,
-    `Stock L / intake kg: ${formatNumber(summary.stock_l_per_intake_kg, 3)} L/kg`,
     "",
     "SITE WATER SAMPLES",
     site,
@@ -1281,13 +1274,12 @@ function periodEmailText(
     "FACILITY PROCESS RECORD",
     `Processing records: ${formatInteger(summary.process_record_count)}`,
     `Pressed liquid: ${formatNumber(summary.process_pressed_liquid_l)} L`,
-    `${reportType === "weekly" ? "Total pressing time" : "Processing time"}: ${formatDuration(summary.process_minutes)}`,
+    `Total processing time: ${formatDuration(summary.process_minutes)}`,
     ...(reportType === "monthly" ? [
       `Avg Wet Pulp Per Press: ${formatNumber(summary.process_avg_wet_pulp_per_press)} kg`,
       `Number of presses: ${formatInteger(summary.process_press_count)}`,
       `Wet/dry extraction: ${formatNumber(summary.process_wet_dry_percent)} %`
     ] : []),
-    `Stock L / intake kg: ${formatNumber(summary.stock_l_per_intake_kg, 3)} L/kg`,
     "",
     "SITE WATER SAMPLES",
     `Samples: ${formatInteger(summary.site_sample_count)}`,
@@ -1298,9 +1290,7 @@ function periodEmailText(
         `${row.label}: intake ${formatNumber(row.summary.intake_weight_kg)} kg; `
         + `paid ${formatNumber(row.summary.intake_value_ksh)} KSH; `
         + `collections ${formatInteger(row.summary.collection_count)}; `
-        + `stock ${formatNumber(row.summary.stock_volume_l)} L; `
-        + `pressed ${formatNumber(row.summary.process_pressed_liquid_l)} L; `
-        + `samples ${formatInteger(row.summary.site_sample_count)}`
+        + `stock ${formatNumber(row.summary.stock_volume_l)} L`
       )
       : ["No operational records were entered in this period."]),
     "",
