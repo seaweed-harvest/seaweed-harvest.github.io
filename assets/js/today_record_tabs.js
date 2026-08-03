@@ -444,8 +444,8 @@ function renderProcessRow(row) {
     <tr data-form-record-row="${escapeAttribute(id)}" class="${rowClass(editing, dirty)}">
       ${selectionCell(key, row, editing)}
       <td>${editing
-        ? `${inputControl(key, id, "start_time", draft.start_time, "time", { required: true })}<span class="inline-time-separator">to</span>${inputControl(key, id, "end_time", draft.end_time, "time", { required: true })}`
-        : `${escapeHtml(shortTime(row.start_time))} - ${escapeHtml(shortTime(row.end_time))}`}</td>
+        ? `${escapeHtml(processDateLabel(row.started_at, row.process_date))} ${inputControl(key, id, "start_time", draft.start_time, "time", { required: true })}<span class="inline-time-separator">to</span>${escapeHtml(processDateLabel(row.finished_at, inferredFinishDate(row)))} ${inputControl(key, id, "end_time", draft.end_time, "time", { required: true })}`
+        : escapeHtml(processRunLabel(row))}</td>
       <td><strong>PR-${escapeHtml(String(row.record_number || "").padStart(5, "0"))}</strong></td>
       <td>${editing ? speciesControl(key, id, draft.species) : escapeHtml(speciesLabel(row.species))}</td>
       <td>${editing ? numberControl(key, id, "received_seaweed_kg", draft.received_seaweed_kg) : escapeHtml(formatNumber(row.received_seaweed_kg))}</td>
@@ -708,6 +708,67 @@ function processDraft(row) {
     recorded_by_name: row.recorded_by_name || "",
     notes: row.notes || ""
   };
+}
+
+function processRunLabel(row) {
+  const start = processTimestampLabel(row.started_at, row.process_date, row.start_time);
+  const finish = processTimestampLabel(row.finished_at, inferredFinishDate(row), row.end_time);
+  const duration = timestampDuration(row.started_at, row.finished_at);
+  return `${start} to ${finish}${duration ? ` (${duration})` : ""}`;
+}
+
+function processTimestampLabel(timestamp, fallbackDate, fallbackTime) {
+  if (timestamp) {
+    const value = new Date(timestamp);
+    if (!Number.isNaN(value.getTime())) {
+      return new Intl.DateTimeFormat("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: "Africa/Nairobi"
+      }).format(value);
+    }
+  }
+  return `${formatDate(fallbackDate)} ${shortTime(fallbackTime)}`;
+}
+
+function processDateLabel(timestamp, fallbackDate) {
+  if (timestamp) {
+    const value = new Date(timestamp);
+    if (!Number.isNaN(value.getTime())) {
+      return new Intl.DateTimeFormat("en-GB", {
+        day: "numeric", month: "short", year: "numeric", timeZone: "Africa/Nairobi"
+      }).format(value);
+    }
+  }
+  return formatDate(fallbackDate);
+}
+
+function inferredFinishDate(row) {
+  if (row.finished_at) {
+    const value = new Date(row.finished_at);
+    if (!Number.isNaN(value.getTime())) {
+      return new Intl.DateTimeFormat("en-CA", {
+        year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Africa/Nairobi"
+      }).format(value);
+    }
+  }
+  if (!row.process_date || !row.start_time || !row.end_time || row.end_time >= row.start_time) {
+    return row.process_date || "";
+  }
+  const value = new Date(`${row.process_date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + 1);
+  return value.toISOString().slice(0, 10);
+}
+
+function timestampDuration(startedAt, finishedAt) {
+  const start = Date.parse(startedAt || "");
+  const finish = Date.parse(finishedAt || "");
+  if (!Number.isFinite(start) || !Number.isFinite(finish) || finish <= start) return "";
+  return formatDuration(Math.round((finish - start) / 60000));
 }
 
 function siteSampleDraft(row) {
