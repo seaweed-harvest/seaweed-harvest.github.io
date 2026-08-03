@@ -18,6 +18,11 @@ export async function syncPendingCollections(options = {}) {
 
   const items = (await listOutboxItems())
     .filter((item) => item.status !== "synced")
+    .filter((item) => !options.automatic || item.failureType !== "server_rejected")
+    .filter((item) => !options.automatic
+      || item.mode === "public"
+      || !item.ownerUserId
+      || item.ownerUserId === options.currentUserId)
     .filter((item) => !options.submissionId || item.submissionId === options.submissionId)
     .sort((left, right) => String(left.createdAt).localeCompare(String(right.createdAt)));
 

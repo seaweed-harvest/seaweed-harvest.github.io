@@ -1,14 +1,20 @@
+import { startOfflineCollectionAutoSync } from "./offline_autosync.js?v=1";
+
 const MOBILE_NAV_QUERY = "(max-width: 980px)";
 const SIDEBAR_PINNED_KEY = "seaweed_ag:admin_sidebar_pinned";
 const SIDEBAR_GROUP_KEY_PREFIX = "seaweed_ag:admin_menu:";
 
 export function setupAppNavigation(options = {}) {
+  const profile = options.profile || null;
+  const currentFile = window.location.pathname.split("/").pop() || "collection.html";
+  if (!["collection.html", "today.html"].includes(currentFile)) {
+    startOfflineCollectionAutoSync({ currentUserId: profile?.id || null });
+  }
+
   const header = options.header || document.querySelector(".app-header");
   const actions = header?.querySelector(".header-actions");
   if (!header || !actions || header.dataset.appNavigationReady === "true") return null;
 
-  const profile = options.profile || null;
-  const currentFile = window.location.pathname.split("/").pop() || "collection.html";
   const dashboardHref = options.dashboardHref || dashboardRoute(profile);
   const forms = formLinks(profile);
   const records = recordLinks(profile);

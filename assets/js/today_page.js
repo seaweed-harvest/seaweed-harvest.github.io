@@ -155,9 +155,12 @@ async function initialiseNativeNetwork() {
 }
 
 async function autoSyncLocalRecords() {
-  if (!globalThis.SeaweedNative?.isNative || !state.online || !state.localReady || state.syncing) return;
+  if (!state.online || !state.localReady || state.syncing) return;
   await refreshLocalRows();
-  if (state.pendingCount > 0) await syncAllLocalRecords();
+  const retryable = (await listOutboxItems()).filter((item) => (
+    item.status !== "synced" && item.failureType !== "server_rejected"
+  ));
+  if (retryable.length > 0) await syncAllLocalRecords({ automatic: true });
 }
 
 async function setupOptionalAccount() {
@@ -192,7 +195,7 @@ async function setupOptionalAccount() {
   }
 }
 
-async function syncAllLocalRecords() {
+async function syncAllLocalRecords(options = {}) {
   if (!state.localReady || state.syncing) return;
   if (!state.online) {
     setStatus("Device offline. Local records will remain on this device until reception returns.");
@@ -216,6 +219,7 @@ async function syncAllLocalRecords() {
   });
   try {
     const result = await syncPendingCollections({
+      automatic: options.automatic === true,
       online: state.online,
       currentUserId: state.profile?.id || null,
       onProgress: async (_submissionId, progress) => {

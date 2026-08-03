@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v138";
+const CACHE_VERSION = "seaweed-harvest-collection-v139";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -81,6 +81,7 @@ const APP_SHELL = [
   "./assets/js/collection_language.js",
   "./assets/js/offline_store.js",
   "./assets/js/offline_sync.js",
+  "./assets/js/offline_autosync.js",
   "./assets/js/operation_feedback.js",
   "./assets/js/today_page.js",
   "./assets/js/today_record_tabs.js",

@@ -2490,6 +2490,7 @@ async function syncOutbox(options = {}) {
     }
     const result = await syncPendingCollections({
       submissionId: options.submissionId,
+      automatic: options.automatic === true,
       online: isOnline(),
       currentUserId: state.session?.user?.id || null,
       onProgress: async (_submissionId, progress) => {
@@ -2549,9 +2550,11 @@ async function syncOutbox(options = {}) {
 }
 
 async function autoSyncOutbox() {
-  if (!state.offline.native || !state.offline.ready || !isOnline() || state.offline.syncing) return;
-  const pending = (await listOutboxItems()).filter((item) => item.status !== "synced");
-  if (pending.length > 0) await syncOutbox({ announce: true });
+  if (!state.offline.ready || !isOnline() || state.offline.syncing) return;
+  const pending = (await listOutboxItems()).filter((item) => (
+    item.status !== "synced" && item.failureType !== "server_rejected"
+  ));
+  if (pending.length > 0) await syncOutbox({ announce: true, automatic: true });
 }
 
 async function refreshOfflineQueue() {

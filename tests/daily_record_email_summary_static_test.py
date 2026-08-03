@@ -224,7 +224,7 @@ class DailyRecordEmailSummaryStaticTest(unittest.TestCase):
     def test_cache_version_is_advanced_for_summary_label_update(self):
         worker = read("service-worker.js")
         self.assertIn(
-            'CACHE_VERSION = "seaweed-harvest-collection-v138"',
+            'CACHE_VERSION = "seaweed-harvest-collection-v139"',
             worker,
         )
 
