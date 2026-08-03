@@ -1,0 +1,8 @@
+# Local and generated files
+__pycache__/
+*.pyc
+supabase/.temp/
+
+# Generated native app workspace and release output. The maintained web source
+# and published APKs live in the repository root and downloads/ respectively.
+mobile/
