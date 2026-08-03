@@ -57,6 +57,27 @@ class EmailReportSubscriptionsStaticTest(unittest.TestCase):
         self.assertIn("receive_monthly_summary_email", function)
         self.assertIn("aggregator_id,report_type,summary_date,recipient_email", function)
 
+    def test_period_report_schedules_are_staggered_and_retried(self):
+        migration = read(
+            "supabase/migrations/20260803090000_email_report_schedule_reliability.sql"
+        )
+
+        self.assertIn("'5 5 * * 1'", migration)
+        self.assertIn("'20 5 * * 1'", migration)
+        self.assertIn("'10 5 1 * *'", migration)
+        self.assertIn("'25 5 1 * *'", migration)
+        self.assertIn("weekly-record-email-summary-retry-0820-eat", migration)
+        self.assertIn("monthly-record-email-summary-retry-0825-eat", migration)
+
+    def test_missed_weekly_report_has_idempotent_recovery(self):
+        migration = read(
+            "supabase/migrations/20260803091000_recover_weekly_report_20260802.sql"
+        )
+
+        self.assertIn("'report_type', 'weekly'", migration)
+        self.assertIn("'summary_date', '2026-08-02'", migration)
+        self.assertNotIn("'force', true", migration)
+
     def test_empty_reporting_periods_are_skipped_before_recipient_delivery(self):
         function = read("supabase/functions/daily-record-email-summary/index.ts")
         guard = 'if (!activeSummaries.length) {'
