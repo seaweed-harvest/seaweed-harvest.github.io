@@ -15,10 +15,12 @@ const EXPORT_LIMIT = 5000;
 
 const COLUMNS = {
   process: [
-    ["record_date", "Date"],
+    ["record_date", "Start date"],
     ["record_number", "Record"],
-    ["start_time", "Start"],
-    ["end_time", "End"],
+    ["start_time", "Start time"],
+    ["finish_date", "Finish date"],
+    ["end_time", "Finish time"],
+    ["duration_minutes", "Duration"],
     ["species", "Species"],
     ["received_seaweed_kg", "Received kg"],
     ["wet_pulp_kg", "Wet pulp kg"],
@@ -1862,7 +1864,8 @@ function cellValue(row, field) {
     return Number.isFinite(number) ? `PR-${String(number).padStart(5, "0")}` : "-";
   }
   if (field === "recorded_at") return formatDateTime(value);
-  if (field === "record_date") return formatDate(value);
+  if (field === "record_date" || field === "finish_date") return formatDate(value);
+  if (field === "duration_minutes") return formatDuration(value);
   if (field === "start_time" || field === "end_time") return String(value || "-").slice(0, 5);
   if (field === "species") return titleCase(value);
   if (field === "tide_stage") return value ? titleCase(value) : "-";
