@@ -1,0 +1,50 @@
+export const TIDE_SOURCE_FILES = [
+  {
+    key: "kenya_mombasa_lamu_2024",
+    fileName: "2024 Tide Predictions for Mombasa and Lamu (alfred).pdf",
+    displayName: "2024 Tide Predictions for Mombasa and Lamu",
+    sourceName: "Kenya tide prediction source",
+    organization: "Issuing authority to confirm from source PDF",
+    year: "2024",
+    coverage: "Mombasa and Lamu",
+    locations: ["Mombasa", "Lamu"],
+    timezone: "Africa/Nairobi",
+    datumLabel: "Confirm from source PDF",
+    localPath: "02_Tide_Data_Sources/2024 Tide Predictions for Mombasa and Lamu (alfred).pdf",
+    processingStatus: "raw_reference_only",
+    verificationStatus: "not_imported",
+    notes: "Raw reference input. Extract, normalize, import, and verify before operational use."
+  },
+  {
+    key: "kenya_mombasa_lamu_2025",
+    fileName: "2025 Tide Predictions for Mombasa and Lamu.pdf",
+    displayName: "2025 Tide Predictions for Mombasa and Lamu",
+    sourceName: "Kenya tide prediction source",
+    organization: "Issuing authority to confirm from source PDF",
+    year: "2025",
+    coverage: "Mombasa and Lamu",
+    locations: ["Mombasa", "Lamu"],
+    timezone: "Africa/Nairobi",
+    datumLabel: "Confirm from source PDF",
+    localPath: "02_Tide_Data_Sources/2025 Tide Predictions for Mombasa and Lamu.pdf",
+    processingStatus: "raw_reference_only",
+    verificationStatus: "not_imported",
+    notes: "Raw reference input. Extract, normalize, import, and verify before operational use."
+  },
+  {
+    key: "kenya_mombasa_lamu_2026",
+    fileName: "2026-tide-predictions-kenya-1.pdf",
+    displayName: "2026 Tide Predictions Kenya",
+    sourceName: "Kenya tide prediction source",
+    organization: "Issuing authority to confirm from source PDF",
+    year: "2026",
+    coverage: "Mombasa and Lamu",
+    locations: ["Mombasa", "Lamu"],
+    timezone: "Africa/Nairobi",
+    datumLabel: "Confirm from source PDF",
+    localPath: "02_Tide_Data_Sources/2026-tide-predictions-kenya-1.pdf",
+    processingStatus: "raw_reference_only",
+    verificationStatus: "not_imported",
+    notes: "Raw reference input. Extract, normalize, import, and verify before operational use."
+  }
+];

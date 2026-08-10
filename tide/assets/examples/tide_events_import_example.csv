@@ -1,0 +1,2 @@
+event_time_utc,local_date,local_time,event_type,height_m,source_event_id,source_pdf_page,source_row_text,derived_from_hourly,quality_flag,notes
+2026-01-01T05:51:00Z,2026-01-01,08:51,low,0.54,example-low-2026-01-01-am,18,"Example source row text",false,imported_from_source_pdf,

@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Admin - Seaweed Tide Planner</title>
+  <link rel="stylesheet" href="./assets/css/tides.css?v=20260615-threshold-incomplete">
+</head>
+<body class="admin-console-page">
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <p class="eyebrow">Seaweed farming tide guidance</p>
+        <h1>Admin Home</h1>
+      </div>
+      <div class="admin-header-controls compact">
+        <nav class="app-nav" aria-label="Main navigation">
+          <a href="./index.html?v=20260615-threshold-incomplete">Tides</a>
+          <a href="./map.html?v=20260615-threshold-incomplete">Map</a>
+          <a href="./admin.html" class="desktop-admin-link" aria-current="page">Admin</a>
+        </nav>
+        <div class="admin-header-status">
+          <span id="adminConnectionStatus" class="status-pill status-muted">Connecting</span>
+          <p id="adminAuthStatus" class="admin-auth-status">Sign in with an approved Supabase Auth user.</p>
+          <button id="adminSignOut" type="button">Sign out</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell admin-shell admin-layout">
+    <aside class="admin-sidebar" aria-label="Admin menu">
+      <h2>Admin</h2>
+      <a href="./admin.html" aria-current="page">Dashboard</a>
+
+      <p class="admin-menu-heading">Tide Planner Settings</p>
+      <a href="./admin_settings.html">Settings</a>
+
+      <p class="admin-menu-heading">Locations and Tides</p>
+      <a href="./locations.html">Site Locations</a>
+      <a href="./tide_datasets.html">Tide Datasets</a>
+      <a href="./observation.html">Observation form</a>
+    </aside>
+
+    <section class="admin-content">
+      <section class="panel admin-dashboard-panel">
+        <div class="section-head compact">
+          <div>
+            <h2>Tide Planner Dashboard</h2>
+            <p class="field-hint">Desktop admin overview for the Tide Planner prototype.</p>
+          </div>
+          <button id="reloadAdminDashboard" type="button">Reload</button>
+        </div>
+
+        <div class="admin-metric-grid">
+          <article class="admin-metric-card">
+            <span>Site locations</span>
+            <strong id="metricFarmCount">--</strong>
+          </article>
+          <article class="admin-metric-card">
+            <span>Tide sources</span>
+            <strong id="metricTideSourceCount">--</strong>
+          </article>
+          <article class="admin-metric-card warning">
+            <span>Tide sources not verified</span>
+            <strong id="metricUnverifiedSources">--</strong>
+          </article>
+          <article class="admin-metric-card warning">
+            <span>Site locations hidden</span>
+            <strong id="metricHiddenFarms">--</strong>
+          </article>
+          <article class="admin-metric-card warning">
+            <span>Site locations not verified</span>
+            <strong id="metricNotVerifiedFarms">--</strong>
+          </article>
+          <article class="admin-metric-card warning">
+            <span>Site locations not calibrated</span>
+            <strong id="metricNotCalibrated">--</strong>
+          </article>
+          <article class="admin-metric-card warning">
+            <span>Datasets ending &lt; 3 months</span>
+            <strong id="metricExpiringDatasets">--</strong>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel admin-settings-panel">
+        <h2>Admin Areas</h2>
+        <div class="admin-area-group">
+          <div class="admin-area-heading">
+            <h3>Locations and Tides</h3>
+            <p class="field-hint">Site location records, local calibration status, tide datasets, and observation entry.</p>
+          </div>
+          <div class="admin-shortcut-grid">
+            <a class="admin-shortcut-card" href="./locations.html#locations">
+              <strong>Site Locations</strong>
+              <span>Site locations, GPS coordinates, app visibility, linked tide dataset, and calibration tools.</span>
+            </a>
+            <a class="admin-shortcut-card" href="./tide_datasets.html">
+              <strong>Tide Datasets</strong>
+              <span>Reference source metadata, calculated raw-data summaries, and CSV import tools.</span>
+            </a>
+            <a class="admin-shortcut-card" href="./observation.html">
+              <strong>Observation Form</strong>
+              <span>Enter local tide observations collected in the field.</span>
+            </a>
+          </div>
+        </div>
+
+        <div class="admin-area-group">
+          <div class="admin-area-heading">
+            <h3>Tide Planner Settings</h3>
+            <p class="field-hint">Admin users, roles, language status, and database connection notes.</p>
+          </div>
+          <div class="admin-shortcut-grid">
+            <a class="admin-shortcut-card" href="./admin_settings.html#admin-users">
+              <strong>Admin Users</strong>
+              <span>List approved users and their Tide Planner role.</span>
+            </a>
+            <a class="admin-shortcut-card" href="./admin_settings.html#languages">
+              <strong>Languages</strong>
+              <span>Set whether English and Kiswahili are active or inactive.</span>
+            </a>
+            <a class="admin-shortcut-card" href="./admin_settings.html#database">
+              <strong>Database Connection</strong>
+              <span>Supabase project reference and browser credential notes.</span>
+            </a>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <section id="adminLoginModal" class="admin-login-modal" role="dialog" aria-modal="true" aria-labelledby="adminLoginTitle" hidden>
+    <div class="admin-login-panel" role="document">
+      <p class="eyebrow">Admin sign in</p>
+      <h2 id="adminLoginTitle">Seaweed Tide Planner Admin</h2>
+      <p class="field-hint">Enter approved Supabase admin credentials to open the desktop admin dashboard.</p>
+      <form id="adminAuthForm" class="admin-login-form">
+        <label>
+          Email
+          <input id="adminEmail" type="email" autocomplete="email" required>
+        </label>
+        <label>
+          Password
+          <input id="adminPassword" type="password" autocomplete="current-password" required>
+        </label>
+        <div class="button-row">
+          <button id="adminSignIn" type="submit">Sign in</button>
+          <a class="button-link" href="./index.html">Back to tides</a>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <footer class="marine-disclaimer-footer">
+    <p><strong class="safety-label">Safety:</strong> <span class="marine-disclaimer-text">Not for marine navigation or safety-of-life decisions. Tide guidance may be wrong, stale, unverified, or affected by local weather and sea conditions. Check official/local sources and current conditions before acting.</span> <button type="button" data-disclaimer-open>Full disclaimer</button></p>
+  </footer>
+
+  <script type="module" src="./assets/js/disclaimer.js?v=20260615-threshold-incomplete"></script>
+  <script type="module" src="./assets/js/admin_page.js?v=20260718-supabase-fast"></script>
+</body>
+</html>

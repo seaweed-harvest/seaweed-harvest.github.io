@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Location Tide Calibration - Seaweed Tide Planner</title>
+  <link rel="stylesheet" href="./assets/css/tides.css?v=20260615-threshold-incomplete">
+</head>
+<body class="admin-console-page">
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <p class="eyebrow">Seaweed farming tide guidance</p>
+        <h1>Location Tide Calibration</h1>
+      </div>
+      <div class="admin-header-controls">
+        <nav class="app-nav" aria-label="Main navigation">
+          <a href="./index.html?v=20260615-threshold-incomplete">Tides</a>
+          <a href="./map.html?v=20260615-threshold-incomplete">Map</a>
+          <a href="./admin.html" class="desktop-admin-link">Admin</a>
+        </nav>
+        <div class="admin-header-status">
+          <span id="calibrationConnectionStatus" class="status-pill status-muted">Connecting</span>
+          <p id="calibrationAuthStatus" class="admin-auth-status">Sign in with an approved Supabase admin account.</p>
+        </div>
+        <form id="calibrationAuthForm" class="admin-auth-inline">
+          <label>
+            Email
+            <input id="calibrationEmail" type="email" autocomplete="email" required>
+          </label>
+          <label>
+            Password
+            <input id="calibrationPassword" type="password" autocomplete="current-password" required>
+          </label>
+          <button id="calibrationSignIn" type="submit">Sign in</button>
+          <button id="calibrationSignOut" type="button">Sign out</button>
+        </form>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell admin-shell admin-layout">
+    <aside class="admin-sidebar" aria-label="Admin menu">
+      <h2>Admin</h2>
+      <a href="./admin.html">Dashboard</a>
+
+      <p class="admin-menu-heading">Tide Planner Settings</p>
+      <a href="./admin_settings.html">Settings</a>
+
+      <p class="admin-menu-heading">Locations and Tides</p>
+      <a href="./locations.html">Site Locations</a>
+      <a href="./tide_datasets.html">Tide Datasets</a>
+      <a href="./observation.html">Observation form</a>
+    </aside>
+
+    <section class="admin-content">
+      <section id="calibrationLocked" class="panel importer-locked-card">
+        <h2>Admin sign-in required</h2>
+        <p>Site location tide calibration records can only be edited by approved admin/operator users.</p>
+      </section>
+
+      <section id="calibrationWorkspace" class="admin-workspace" hidden>
+        <section class="panel">
+          <div class="section-head compact">
+            <div>
+              <h2>Calibration Inputs</h2>
+              <p class="field-hint">Edit one location calibration at a time. Raw observations stay in the observation table.</p>
+            </div>
+            <div class="button-row">
+              <button id="reloadCalibration" type="button">Reload</button>
+            </div>
+          </div>
+
+          <form id="calibrationForm" class="observation-form calibration-form">
+            <fieldset class="calibration-status-fields">
+              <legend>Location and status</legend>
+              <label>
+                Location
+                <select id="calibrationLocation" required></select>
+              </label>
+              <label>
+                Reference dataset
+                <select id="calibrationDataset"></select>
+              </label>
+              <label>
+                Status
+                <select id="calibrationStatus">
+                  <option value="none">None</option>
+                  <option value="incomplete">Incomplete</option>
+                  <option value="under_review">Under Review</option>
+                  <option value="complete">Complete</option>
+                </select>
+              </label>
+              <label>
+                Confidence
+                <select id="calibrationConfidence">
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </label>
+            </fieldset>
+
+            <fieldset class="calibration-correction-fields">
+              <legend>Time and height corrections</legend>
+              <label>
+                Low tide offset (minutes)
+                <input id="lowTideOffset" type="number" step="1">
+              </label>
+              <label>
+                High tide offset (minutes)
+                <input id="highTideOffset" type="number" step="1">
+              </label>
+              <label>
+                Whole curve offset (minutes)
+                <input id="curveOffset" type="number" step="1">
+              </label>
+              <label>
+                Height ratio
+                <input id="heightRatio" type="number" step="0.00001" min="0">
+              </label>
+              <label>
+                Height offset (meters)
+                <input id="heightOffset" type="number" step="0.001">
+              </label>
+              <label>
+                Harvest threshold (meters)
+                <input id="harvestThreshold" type="number" step="0.001" min="0">
+              </label>
+            </fieldset>
+
+            <fieldset>
+              <legend>Evidence and notes</legend>
+              <label>
+                Observation record number
+                <input id="observationRecordNumber" type="text">
+              </label>
+              <label>
+                Last edited by
+                <input id="lastEditedBy" type="text" readonly>
+              </label>
+              <label class="wide-field">
+                Notes
+                <textarea id="calibrationNotes" rows="4"></textarea>
+              </label>
+            </fieldset>
+
+            <div class="button-row">
+              <button type="submit">Save calibration</button>
+              <span id="calibrationSaveStatus" class="admin-status" aria-live="polite"></span>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel">
+          <div class="section-head compact">
+            <div>
+              <h2>Location Calibration Table</h2>
+              <p class="field-hint">Compact summary of calibration status by location. Click Edit to load a row above.</p>
+            </div>
+            <span id="calibrationRowCount" class="status-pill">0 rows</span>
+          </div>
+          <div class="responsive-table-wrap">
+            <table class="management-table admin-data-table calibration-table">
+              <thead>
+                <tr>
+                  <th>Location ID</th>
+                  <th>Location name</th>
+                  <th>Status</th>
+                  <th>Reference dataset</th>
+                  <th>Low offset</th>
+                  <th>High offset</th>
+                  <th>Height ratio</th>
+                  <th>Height offset</th>
+                  <th>Evidence</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="calibrationTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <footer class="marine-disclaimer-footer">
+    <p><strong class="safety-label">Safety:</strong> <span class="marine-disclaimer-text">Not for marine navigation or safety-of-life decisions. Tide guidance may be wrong, stale, unverified, or affected by local weather and sea conditions. Check official/local sources and current conditions before acting.</span> <button type="button" data-disclaimer-open>Full disclaimer</button></p>
+  </footer>
+
+  <script type="module" src="./assets/js/disclaimer.js?v=20260615-threshold-incomplete"></script>
+  <script type="module" src="./assets/js/calibration_page.js?v=20260718-supabase-fast"></script>
+</body>
+</html>

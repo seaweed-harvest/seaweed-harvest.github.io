@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <title data-i18n="title.tides">Seaweed Tide Planner</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/icons/tide-planner-icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/css/tides.css?v=20260810-beta-notice">
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <p class="eyebrow" data-i18n="app.eyebrow">Seaweed farming tide guidance</p>
+        <h1 data-i18n="page.tidesTitle">Seaweed Tide Planner</h1>
+      </div>
+      <div class="header-actions">
+        <nav class="app-nav" aria-label="Main navigation" data-i18n-aria-label="nav.mainLabel">
+          <a href="./index.html?v=20260725-location-cleanup" aria-current="page" data-i18n="nav.tides">Tides</a>
+          <a href="./map.html?v=20260725-location-cleanup" data-i18n="nav.map">Map</a>
+          <a href="./admin.html" class="desktop-admin-link" data-i18n="nav.admin">Admin</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell">
+    <section class="language-card" aria-label="Language" data-i18n-aria-label="language.ariaLabel">
+      <span class="language-card-label" data-i18n="language.label">Language:</span>
+      <div class="language-card-actions" role="group" aria-label="Language" data-i18n-aria-label="language.ariaLabel">
+        <button type="button" data-language-option="en" aria-pressed="true">English</button>
+        <button type="button" data-language-option="sw" aria-pressed="false">Kiswahili</button>
+      </div>
+    </section>
+
+    <section id="weatherAlertCard" class="weather-warning-strip" aria-label="Weather warning source" data-i18n-aria-label="weatherWarning.ariaLabel" data-weather-alert-status="loading">
+      <span class="weather-warning-icon" aria-hidden="true">!</span>
+      <strong id="weatherAlertLabel" data-i18n="weatherWarning.loadingLabel">Weather alerts:</strong>
+      <span id="weatherAlertText" class="weather-warning-text" data-i18n="weatherWarning.loadingText">Checking Kenya Meteorological Department alerts...</span>
+      <span id="weatherAlertMeta" class="weather-warning-meta" hidden></span>
+      <a id="weatherAlertSource" href="https://meteo.go.ke/weather-warnings/" target="_blank" rel="noopener" data-i18n="weatherWarning.sourceLink">Check Kenya Meteorological Department warnings</a>
+    </section>
+
+    <section class="location-card location-selector-card" aria-label="Location and tide controls" data-i18n-aria-label="page.locationControlsLabel">
+      <div class="field-group location-field">
+        <label for="locationSelect" data-i18n="page.locationLabel">Location</label>
+        <select id="locationSelect"></select>
+      </div>
+    </section>
+
+    <section class="selected-location-card" aria-label="Selected location" data-i18n-aria-label="page.selectedLocationLabel">
+      <div class="selected-location-main">
+        <h2 class="selected-location-heading">
+          <span id="selectedLocationIcon" aria-hidden="true">&#127807;</span>
+          <span id="selectedLocationName" data-i18n="status.loading">Loading</span>
+          <a id="showOnMapButton" class="button-link selected-map-link" href="./map.html?v=20260725-location-cleanup" data-i18n="map.showSelectedOnMap">Show on map</a>
+        </h2>
+        <div class="clock-panel selected-location-clock" aria-live="polite">
+          <span id="localClock" class="clock-value" data-i18n="clock.loading">Loading</span>
+        </div>
+        <span id="locationMeta" hidden></span>
+        <span id="locationReferenceStation" hidden></span>
+      </div>
+    </section>
+
+    <section class="summary-grid" aria-label="Tide summary" data-i18n-aria-label="summary.tideSummaryLabel">
+      <article class="summary-card today-tides-card">
+        <div class="card-label">&#127754; <span data-i18n="summary.todayTides">Todays Tides</span> <span id="todayTidesDate"></span></div>
+        <div class="summary-line"><strong data-i18n="summary.current">Current:</strong> <span id="currentTideState" data-i18n="status.loading">Loading</span></div>
+        <div class="summary-line"><strong data-i18n="summary.lowTide">Low Tide:</strong> <span id="todayLowTides">--</span></div>
+        <div class="summary-line"><strong data-i18n="summary.highTide">High Tide:</strong> <span id="todayHighTides">--</span></div>
+      </article>
+
+      <article class="summary-card accent">
+        <div class="card-label">&#127807; <span data-i18n="summary.nextHarvest">Next Harvest</span></div>
+        <div class="summary-line"><strong data-i18n="summary.nextHarvestWindow">Next Harvest window:</strong> <span id="harvestWindow" data-i18n="status.loading">Loading</span></div>
+        <div class="summary-line harvest-detail-line"><strong id="harvestStartLabel" data-i18n="summary.lowTide">Low Tide:</strong> <span id="harvestStartLow">--</span></div>
+        <div class="summary-line harvest-detail-line"><strong data-i18n="summary.lowestTide">Lowest Tide:</strong> <span id="harvestLowestLow">--</span></div>
+        <div class="summary-line harvest-detail-line"><strong id="harvestEndLabel" data-i18n="summary.lowTide">Low Tide:</strong> <span id="harvestEndLow">--</span></div>
+      </article>
+
+      <article class="summary-card">
+        <div class="card-label">&#127769; <span data-i18n="summary.moonSun">Moon and Sun</span></div>
+        <div class="summary-line"><strong data-i18n="summary.moon">Moon:</strong> <span id="moonPhaseSymbol" class="summary-moon-symbol" aria-hidden="true">&#127769;</span><span id="moonPhase" data-i18n="status.loading">Loading</span> (<span id="moonIllumination">--</span>)</div>
+        <div class="summary-line"><strong data-i18n="summary.newMoon">New moon:</strong> <span id="nextNewMoon">--</span></div>
+        <div class="summary-line"><strong data-i18n="summary.fullMoon">Full moon:</strong> <span id="nextFullMoon">--</span></div>
+        <div class="summary-line"><strong data-i18n="summary.sunrise">Sunrise:</strong> <span id="sunriseTime">--</span></div>
+        <div class="summary-line"><strong data-i18n="summary.sunset">Sunset:</strong> <span id="sunsetTime">--</span></div>
+      </article>
+    </section>
+
+    <section class="station-tides-section" aria-label="Local tides" data-i18n-aria-label="page.localTidesLabel">
+      <div class="station-tide-panel">
+        <div class="station-threshold-bar">
+          <label class="station-check-row" for="thresholdEnabled">
+            <input id="thresholdEnabled" type="checkbox" checked>
+            <span data-i18n="threshold.showHarvest">Show harvest</span>
+          </label>
+          <span data-i18n="threshold.whenBelow">when tide is below</span>
+          <input id="thresholdInput" type="number" min="0" max="5" step="0.05" inputmode="decimal" value="0.70">
+          <span data-i18n="threshold.unitMetres">m</span>
+          <button id="thresholdDefault" type="button" data-i18n="threshold.reset">Reset</button>
+        </div>
+
+        <div class="station-subhead chart-subhead">
+          <span class="station-subhead-main">
+            <span id="forecastRangeLabel">7-Day Tide Forecast</span>
+            <span class="harvest-chip" data-i18n="harvest.window">Harvest window</span>
+          </span>
+          <span class="forecast-range-selector" aria-label="Forecast range" data-i18n-aria-label="forecast.rangeAria">
+            <button type="button" data-forecast-days="3">3 day</button>
+            <button type="button" data-forecast-days="5">5 day</button>
+            <button type="button" data-forecast-days="7" aria-pressed="true">7 day</button>
+          </span>
+        </div>
+        <div class="station-chart-frame detail">
+          <div class="chart-legend" aria-hidden="true">
+            <span class="legend-line" data-i18n="chart.tideHeight">Tide Height</span>
+            <span class="legend-high" data-i18n="chart.highTide">High Tide</span>
+            <span class="legend-low" data-i18n="chart.lowTide">Low Tide</span>
+            <span class="legend-now" data-i18n="chart.now">Now</span>
+          </div>
+          <canvas id="tideChart7d" aria-label="7-day tide forecast chart" data-i18n-aria-label="chart.forecastAria"></canvas>
+        </div>
+
+        <div class="station-subhead chart-subhead overview-chart-subhead">
+          <span id="overviewRangeLabel">3-Month Tide Overview &amp; Harvest Windows</span>
+          <span class="overview-range-selector" aria-label="Overview range" data-i18n-aria-label="overview.rangeAria">
+            <button type="button" data-overview-months="1">1 month</button>
+            <button type="button" data-overview-months="3" aria-pressed="true">3 months</button>
+          </span>
+        </div>
+        <div id="overviewHarvestWindows" class="harvest-window-summary" aria-live="polite"></div>
+        <div class="station-chart-frame overview overview-chart-frame">
+          <canvas id="tideChartOverview" aria-label="3-month tide overview chart" data-i18n-aria-label="chart.overviewAria"></canvas>
+        </div>
+
+        <div class="station-subhead"><span data-i18n="table.title">Tide Table</span> (<span id="lowTideRangeLabel" data-i18n="table.next14">next 14 days</span>)</div>
+        <div class="station-table-wrap">
+          <table class="low-tide-table">
+            <thead>
+              <tr>
+                <th rowspan="2" data-i18n="table.date">Date</th>
+                <th colspan="2" class="tide-group-heading high-tide-heading" data-i18n="chart.highTide">High Tide</th>
+                <th colspan="2" class="tide-group-heading" data-i18n="chart.lowTide">Low Tide</th>
+                <th rowspan="2" data-i18n="table.harvest">Harvest</th>
+              </tr>
+              <tr>
+                <th data-i18n="table.morning">Morning</th>
+                <th data-i18n="table.afternoon">Afternoon</th>
+                <th data-i18n="table.morning">Morning</th>
+                <th data-i18n="table.afternoon">Afternoon</th>
+              </tr>
+            </thead>
+            <tbody id="lowTideList"></tbody>
+          </table>
+        </div>
+        <button id="loadMoreLows" type="button" class="load-more-button" data-i18n="table.loadMoreInitial">Load next 14 days &darr;</button>
+
+        <div class="station-subhead" data-i18n="calendar.title">Harvest Calendar (3 months)</div>
+        <div id="harvestCalendar" class="harvest-calendar"></div>
+      </div>
+    </section>
+
+    <section class="info-grid">
+      <article class="panel info-panel">
+        <h2 data-i18n="details.locationHeading">Location and tide profile</h2>
+        <div id="locationDetails" class="detail-stack"></div>
+      </article>
+
+      <article class="panel info-panel">
+        <h2 data-i18n="details.sourceHeading">Source and verification</h2>
+        <div id="sourceDetails" class="detail-stack"></div>
+      </article>
+
+      <article class="panel info-panel warning">
+        <h2 data-i18n="details.safetyHeading">Safety note</h2>
+        <div id="safetyDetails" class="detail-stack"></div>
+        <button type="button" class="safety-disclaimer-button" data-disclaimer-open data-i18n="safety.fullDisclaimer">Full marine disclaimer</button>
+      </article>
+    </section>
+  </main>
+
+  <noscript>
+    <div class="noscript" data-i18n="noscript.tides">JavaScript is required to calculate and display tide predictions.</div>
+  </noscript>
+
+  <script type="module" src="./assets/js/disclaimer.js?v=20260810-beta-notice"></script>
+  <script type="module" src="./assets/js/language.js?v=20260810-beta-notice"></script>
+  <script type="module" src="./assets/js/weather_alerts.js?v=20260725-location-cleanup"></script>
+  <script type="module" src="./assets/js/pwa.js?v=20260725-location-cleanup"></script>
+  <script type="module" src="./assets/js/tide_page.js?v=20260810-single-source-v3"></script>
+</body>
+</html>

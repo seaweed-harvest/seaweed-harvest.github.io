@@ -27,19 +27,19 @@
       }
     },
     "seaweed-tide-planner": {
-      "source_repository": "bosunjm-cloud/Seaweed_Tide_App",
+      "source_repository": "bosunjm-cloud/Seaweed_Ag_Hub",
       "source_branch": "main",
-      "deployment_repository": null,
-      "deployment_branch": null,
+      "deployment_repository": "seaweed-harvest/seaweed-harvest.github.io",
+      "deployment_branch": "main",
       "deployment_enabled": false,
-      "mapping_status": "deployment_repository_confirmation_required",
+      "mapping_status": "source_and_deployment_confirmed",
       "source_app_values": [
         "tide"
       ],
       "applications": {
         "tide": {
           "display_name": "Seaweed Tide Planner",
-          "repository_scope": ".",
+          "repository_scope": "tide",
           "suggestion_route": "seaweed-tide-planner"
         }
       }

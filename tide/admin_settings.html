@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Tide Planner Settings - Seaweed Tide Planner</title>
+  <link rel="stylesheet" href="./assets/css/tides.css?v=20260615-threshold-incomplete">
+</head>
+<body class="admin-console-page">
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <p class="eyebrow">Seaweed farming tide guidance</p>
+        <h1>Tide Planner Settings</h1>
+      </div>
+      <div class="admin-header-controls compact">
+        <nav class="app-nav" aria-label="Main navigation">
+          <a href="./index.html?v=20260615-threshold-incomplete">Tides</a>
+          <a href="./map.html?v=20260615-threshold-incomplete">Map</a>
+          <a href="./admin.html" class="desktop-admin-link">Admin</a>
+        </nav>
+        <div class="admin-header-status">
+          <span id="adminConnectionStatus" class="status-pill status-muted">Connecting</span>
+          <p id="adminAuthStatus" class="admin-auth-status">Sign in with an approved Supabase Auth user.</p>
+          <button id="adminSignOut" type="button">Sign out</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell admin-shell admin-layout">
+    <aside class="admin-sidebar" aria-label="Admin menu">
+      <h2>Admin</h2>
+      <a href="./admin.html">Dashboard</a>
+
+      <p class="admin-menu-heading">Tide Planner Settings</p>
+      <a href="./admin_settings.html" aria-current="page">Settings</a>
+
+      <p class="admin-menu-heading">Locations and Tides</p>
+      <a href="./locations.html">Site Locations</a>
+      <a href="./tide_datasets.html">Tide Datasets</a>
+      <a href="./observation.html">Observation form</a>
+    </aside>
+
+    <section class="admin-content">
+      <section id="admin-users" class="panel admin-settings-panel">
+        <div class="section-head compact">
+          <div>
+            <h2>Admin users</h2>
+            <p class="field-hint">Approved Supabase Auth users listed from `tide_admin_users`. User creation still starts in Supabase Auth.</p>
+          </div>
+          <span id="adminUserCount" class="status-pill">0 users</span>
+        </div>
+        <div class="admin-toolbar">
+          <button id="reloadAdminUsers" type="button">Reload users</button>
+          <span id="adminUsersStatus" class="admin-status" aria-live="polite"></span>
+        </div>
+        <div class="responsive-table-wrap">
+          <table class="management-table admin-settings-table">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>User ID</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Notes</th>
+                <th>Updated</th>
+                <th data-admin-only>Action</th>
+              </tr>
+            </thead>
+            <tbody id="adminUsersTableBody">
+              <tr><td colspan="7" class="empty-state">Sign in to load admin users.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="languages" class="panel admin-settings-panel">
+        <h2>Languages</h2>
+        <div class="responsive-table-wrap">
+          <table class="mini-table admin-language-table">
+            <thead>
+              <tr>
+                <th>Language</th>
+                <th>Code</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>English</td>
+                <td>en</td>
+                <td>
+                  <select data-language-status="en" aria-label="English language status">
+                    <option value="active" selected>Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </td>
+              </tr>
+              <tr>
+                <td>Kiswahili</td>
+                <td>sw</td>
+                <td>
+                  <select data-language-status="sw" aria-label="Kiswahili language status">
+                    <option value="active" selected>Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p id="languageSettingsStatus" class="field-hint">Language status is stored in this browser for now. A database-backed settings table can be added when this becomes a release control.</p>
+      </section>
+
+      <section id="database" class="panel admin-settings-panel">
+        <h2>Database connection</h2>
+        <div class="detail-stack">
+          <div><strong>Project:</strong> V0_Tide_Planner</div>
+          <div><strong>Supabase ref:</strong> iztlyyavbdgfqfymqwzz</div>
+          <div><strong>Mode:</strong> Public reads with authenticated admin writes. Service-role keys must not be placed in browser pages.</div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <section id="adminLoginModal" class="admin-login-modal" role="dialog" aria-modal="true" aria-labelledby="adminLoginTitle" hidden>
+    <div class="admin-login-panel" role="document">
+      <p class="eyebrow">Admin sign in</p>
+      <h2 id="adminLoginTitle">Seaweed Tide Planner Admin</h2>
+      <p class="field-hint">Enter approved Supabase admin credentials to open the desktop admin dashboard.</p>
+      <form id="adminAuthForm" class="admin-login-form">
+        <label>
+          Email
+          <input id="adminEmail" type="email" autocomplete="email" required>
+        </label>
+        <label>
+          Password
+          <input id="adminPassword" type="password" autocomplete="current-password" required>
+        </label>
+        <div class="button-row">
+          <button id="adminSignIn" type="submit">Sign in</button>
+          <a class="button-link" href="./index.html">Back to tides</a>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <footer class="marine-disclaimer-footer">
+    <p><strong class="safety-label">Safety:</strong> <span class="marine-disclaimer-text">Not for marine navigation or safety-of-life decisions. Tide guidance may be wrong, stale, unverified, or affected by local weather and sea conditions. Check official/local sources and current conditions before acting.</span> <button type="button" data-disclaimer-open>Full disclaimer</button></p>
+  </footer>
+
+  <script type="module" src="./assets/js/disclaimer.js?v=20260615-threshold-incomplete"></script>
+  <script type="module" src="./assets/js/admin_page.js?v=20260615-threshold-incomplete"></script>
+</body>
+</html>

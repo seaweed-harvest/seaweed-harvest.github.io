@@ -126,6 +126,30 @@
         </div>
       </section>
 
+      <section id="applicationUsersPanel" class="panel" hidden>
+        <div class="section-head compact">
+          <div>
+            <h2>Tide application access</h2>
+            <p class="field-hint">Invite a Tide-only account, or grant Tide to an existing Seaweed Harvest user by email.</p>
+          </div>
+        </div>
+        <form id="applicationInviteForm" class="user-invite-form">
+          <label>Email<input id="applicationInviteEmail" type="email" autocomplete="email" required></label>
+          <label>Name<input id="applicationInviteName" type="text" autocomplete="name" minlength="2" maxlength="100" required></label>
+          <label>Tide role
+            <select id="applicationInviteRole">
+              <option value="user">User</option>
+              <option value="operator">Operator</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+          <div class="button-row wide-field">
+            <button type="submit">Invite or grant access</button>
+            <span id="applicationInviteStatus" class="admin-status" aria-live="polite"></span>
+          </div>
+        </form>
+      </section>
+
       <section class="panel">
         <div class="section-head compact"><h2>Sign-in Help Requests</h2><span id="passwordHelpCount" class="status-pill">0 pending</span></div>
         <div class="responsive-table-wrap compact-data-table-wrap password-help-wrap">
@@ -162,8 +186,16 @@
           </fieldset>
           <fieldset class="permission-fieldset wide-field"><legend>Permissions</legend><div id="editPermissions" class="permission-grid"></div></fieldset>
           <fieldset class="permission-fieldset wide-field"><legend>Dashboard display</legend><div id="editDashboardPreferences" class="dashboard-preference-options"></div></fieldset>
+          <fieldset id="editApplicationAccessFieldset" class="permission-fieldset wide-field" hidden>
+            <legend>Application access</legend>
+            <div id="editApplicationAccess" class="application-access-options"></div>
+            <div class="button-row">
+              <button id="saveApplicationAccess" type="button">Save application access</button>
+              <span id="editApplicationAccessStatus" class="admin-status" aria-live="polite"></span>
+            </div>
+          </fieldset>
           <div class="button-row wide-field">
-            <button type="submit">Save user</button>
+            <button id="saveUser" type="submit">Save user</button>
             <button id="deleteUser" class="danger-button" type="button">Delete user</button>
             <span id="editUserMessage" class="admin-status" aria-live="polite"></span>
           </div>

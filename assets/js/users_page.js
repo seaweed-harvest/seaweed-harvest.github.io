@@ -1,5 +1,12 @@
 import { APP_CONFIG } from "./config.js";
-import { authClient, currentProfile, invokeAdminUsers, isAuthSessionError, requireAdminAccess } from "./auth_client.js?v=4";
+import {
+  authClient,
+  currentProfile,
+  invokeAdminUsers,
+  invokePlatformAppUsers,
+  isAuthSessionError,
+  requireAdminAccess
+} from "./auth_client.js?v=5";
 import { selectRows } from "./supabase_client.js";
 import { DASHBOARD_OPTIONS } from "./dashboard_preferences.js";
 
@@ -45,6 +52,7 @@ const roleLabels = {
   farmer_viewer: "Farmer",
   read_only_auditor: "Read-only auditor",
   green_space_teacher: "Green Space teacher",
+  platform_user: "Platform application user",
   system_admin: "System admin"
 };
 
@@ -77,7 +85,8 @@ const state = {
   organisationPermissionAccess: null,
   organisationPermissions: null,
   actor: null,
-  editingUser: null
+  editingUser: null,
+  editingApplicationAccess: null
 };
 const els = {};
 const pendingPasswordResetUserKey = "seaweed-pending-password-reset-user";
@@ -100,13 +109,19 @@ async function init() {
     "organisationPermissionsForm", "organisationPermissionsSelect",
     "organisationFormPermissions",
     "organisationToolPermissions", "saveOrganisationPermissions",
-    "organisationPermissionsStatus"
+    "organisationPermissionsStatus",
+    "applicationUsersPanel", "applicationInviteForm", "applicationInviteEmail",
+    "applicationInviteName", "applicationInviteRole", "applicationInviteStatus",
+    "editApplicationAccessFieldset", "editApplicationAccess", "saveApplicationAccess",
+    "editApplicationAccessStatus", "saveUser"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
   const access = await requireAdminAccess("can_manage_users");
   if (!access) return;
   state.actor = access.profile || await currentProfile(true);
   els.userActivityPanel.hidden = !canViewUserActivity();
+  els.applicationUsersPanel.hidden = !canManageApplicationAccess();
+  els.editApplicationAccessFieldset.hidden = !canManageApplicationAccess();
 
   buildPermissionInputs(els.invitePermissions, "invite");
   buildPermissionInputs(els.editPermissions, "edit");
@@ -169,6 +184,7 @@ function bindEvents() {
   els.deleteUser.addEventListener("click", deleteSelectedUser);
   els.closeUserEditor.addEventListener("click", () => {
     state.editingUser = null;
+    state.editingApplicationAccess = null;
     els.userEditorPanel.hidden = true;
   });
   els.userDirectoryRows.addEventListener("click", handleUserTableClick);
@@ -180,6 +196,9 @@ function bindEvents() {
   els.copyPasswordResetLink.addEventListener("click", copyPasswordResetLink);
   els.closePasswordResetLink.addEventListener("click", closePasswordResetLinkDialog);
   els.farmerRegistrationRows.addEventListener("click", handleRegistrationClick);
+  els.applicationInviteForm.addEventListener("submit", inviteApplicationUser);
+  els.editApplicationAccess.addEventListener("change", handleApplicationAccessChange);
+  els.saveApplicationAccess.addEventListener("click", saveApplicationAccess);
 }
 
 async function loadPageData() {
@@ -375,6 +394,37 @@ async function saveOrganisationPermissions(event) {
 function canViewUserActivity() {
   return state.actor?.app_role === "system_admin"
     || Boolean(state.actor?.can_manage_users && state.actor?.can_view_user_activity);
+}
+
+function canManageApplicationAccess() {
+  return state.actor?.app_role === "system_admin"
+    || state.actor?.is_protected_owner === true;
+}
+
+async function inviteApplicationUser(event) {
+  event.preventDefault();
+  if (!canManageApplicationAccess()) return;
+
+  setStatus(els.applicationInviteStatus, "Inviting...");
+  try {
+    const result = await invokePlatformAppUsers({
+      action: "invite",
+      app_key: "tide",
+      email: els.applicationInviteEmail.value.trim(),
+      display_name: els.applicationInviteName.value.trim(),
+      role: els.applicationInviteRole.value
+    });
+    els.applicationInviteForm.reset();
+    await loadPageData();
+    setStatus(
+      els.applicationInviteStatus,
+      result.invitation_sent
+        ? "Tide invitation sent."
+        : "Tide access granted to the existing account."
+    );
+  } catch (error) {
+    setStatus(els.applicationInviteStatus, error.message, "error");
+  }
 }
 
 async function inviteUser(event) {
@@ -585,18 +635,27 @@ async function handleUserTableClick(event) {
   const user = state.users.find((row) => row.id === button.dataset.editUser);
   if (!user || user.is_protected_owner) return;
 
-  setStatus(els.editUserMessage, "Loading form access...");
+  setStatus(els.editUserMessage, "Loading user access...");
   try {
-    const { data: formAccess, error } = await authClient.rpc(
-      "ag_admin_user_form_access",
-      { p_user_id: user.id }
-    );
-    if (error) throw error;
+    const [formAccessResponse, applicationAccessResponse] = await Promise.all([
+      authClient.rpc("ag_admin_user_form_access", { p_user_id: user.id }),
+      canManageApplicationAccess() && user.email
+        ? authClient.rpc("ag_admin_user_app_access", { p_user_id: user.id })
+        : Promise.resolve({ data: {}, error: null })
+    ]);
+    if (formAccessResponse.error) throw formAccessResponse.error;
+    if (applicationAccessResponse.error) throw applicationAccessResponse.error;
 
     state.editingUser = user;
+    state.editingApplicationAccess = applicationAccessResponse.data || {};
     els.editUserId.value = user.id;
     els.editUserEmail.value = user.email || user.phone || "";
     els.editUserName.value = user.display_name || "";
+    const platformRoleOption = els.editUserRole.querySelector('option[value="platform_user"]');
+    if (user.app_role !== "platform_user") platformRoleOption?.remove();
+    if (user.app_role === "platform_user" && !platformRoleOption) {
+      els.editUserRole.insertAdjacentHTML("beforeend", '<option value="platform_user">Platform application user</option>');
+    }
     els.editUserRole.value = user.app_role;
     els.editUserStatus.value = user.account_status;
     els.editUserCommunity.value = user.community_id || "";
@@ -606,18 +665,116 @@ async function handleUserTableClick(event) {
       "edit",
       user.aggregator_ids || [],
       user.all_aggregators,
-      formAccess || {}
+      formAccessResponse.data || {}
     );
     renderDailySummaryInputs("edit", user.daily_summary_aggregator_ids || []);
     els.deleteUser.disabled = user.id === state.actor?.id;
     els.deleteUser.title = user.id === state.actor?.id ? "You cannot delete your own account" : "Delete this user account";
     writePermissions("edit", user);
     renderDashboardInputs("edit", user.app_role, user.dashboard_preferences);
+    renderApplicationAccess(user);
+    configurePlatformOnlyEditor(user);
     setStatus(els.editUserMessage, "");
     els.userEditorPanel.hidden = false;
     els.userEditorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
     setStatus(els.inviteStatus, error.message, "error");
+  }
+}
+
+function configurePlatformOnlyEditor(user) {
+  const platformOnly = user?.app_role === "platform_user";
+  els.saveUser.hidden = platformOnly;
+  els.editUserRole.disabled = platformOnly;
+  els.editUserStatus.disabled = platformOnly;
+  if (platformOnly) {
+    els.editUserName.disabled = true;
+    els.editUserCommunity.disabled = true;
+  } else {
+    configureFarmerRoleFields("edit");
+  }
+  els.editAggregators.closest("fieldset").hidden = platformOnly;
+  els.editFormAccessFieldset.hidden = platformOnly;
+  els.editPermissions.closest("fieldset").hidden = platformOnly;
+  els.editDashboardPreferences.closest("fieldset").hidden = platformOnly;
+}
+
+function renderApplicationAccess(user) {
+  if (!canManageApplicationAccess()) {
+    els.editApplicationAccessFieldset.hidden = true;
+    return;
+  }
+
+  els.editApplicationAccessFieldset.hidden = false;
+  setStatus(els.editApplicationAccessStatus, "");
+  if (!user?.email) {
+    els.editApplicationAccess.innerHTML = '<p class="field-help">Application access requires an email sign-in.</p>';
+    els.saveApplicationAccess.disabled = true;
+    return;
+  }
+
+  const applications = Object.entries(state.editingApplicationAccess || {});
+  els.saveApplicationAccess.disabled = !applications.length;
+  els.editApplicationAccess.innerHTML = applications.length
+    ? applications.map(([appKey, access]) => {
+        const enabled = access?.enabled === true;
+        const role = access?.role || "user";
+        return `
+          <div class="application-access-row" data-application-access-row data-app-key="${escapeHtml(appKey)}">
+            <label class="permission-option">
+              <input type="checkbox" data-application-enabled ${enabled ? "checked" : ""}>
+              ${escapeHtml(access?.display_name || appKey)}
+            </label>
+            <label>Role
+              <select data-application-role ${enabled ? "" : "disabled"}>
+                ${[["user", "User"], ["operator", "Operator"], ["admin", "Admin"]]
+                  .map(([value, label]) => `<option value="${value}"${role === value ? " selected" : ""}>${label}</option>`)
+                  .join("")}
+              </select>
+            </label>
+            <small>${escapeHtml(access?.route_path || "")}</small>
+          </div>
+        `;
+      }).join("")
+    : '<p class="field-help">No active platform applications are configured.</p>';
+}
+
+function handleApplicationAccessChange(event) {
+  if (!event.target.matches("[data-application-enabled]")) return;
+  const row = event.target.closest("[data-application-access-row]");
+  const role = row?.querySelector("[data-application-role]");
+  if (role) role.disabled = !event.target.checked;
+}
+
+function readApplicationAccess() {
+  return Object.fromEntries(
+    [...els.editApplicationAccess.querySelectorAll("[data-application-access-row]")]
+      .map((row) => [
+        row.dataset.appKey,
+        {
+          enabled: Boolean(row.querySelector("[data-application-enabled]")?.checked),
+          role: row.querySelector("[data-application-role]")?.value || "user"
+        }
+      ])
+  );
+}
+
+async function saveApplicationAccess() {
+  if (!canManageApplicationAccess() || !state.editingUser?.email) return;
+  els.saveApplicationAccess.disabled = true;
+  setStatus(els.editApplicationAccessStatus, "Saving...");
+  try {
+    const { data, error } = await authClient.rpc("ag_admin_set_user_app_access", {
+      p_user_id: state.editingUser.id,
+      p_application_access: readApplicationAccess()
+    });
+    if (error) throw error;
+    state.editingApplicationAccess = data || {};
+    renderApplicationAccess(state.editingUser);
+    setStatus(els.editApplicationAccessStatus, "Application access saved.");
+  } catch (error) {
+    setStatus(els.editApplicationAccessStatus, error.message, "error");
+    els.saveApplicationAccess.disabled = false;
   }
 }
 
@@ -809,7 +966,10 @@ function buildPermissionInputs(container, prefix) {
 }
 
 function buildEditRoleOptions() {
-  const roles = Object.entries(roleLabels).filter(([role]) => role !== "system_admin" || state.actor?.app_role === "system_admin");
+  const roles = Object.entries(roleLabels).filter(([role]) => {
+    if (role === "platform_user") return false;
+    return role !== "system_admin" || state.actor?.app_role === "system_admin";
+  });
   els.editUserRole.innerHTML = roles.map(([value, label]) => `<option value="${value}">${escapeHtml(label)}</option>`).join("");
 }
 

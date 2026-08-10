@@ -472,6 +472,22 @@ export async function invokeAdminUsers(payload) {
   return response.data;
 }
 
+export async function invokePlatformAppUsers(payload) {
+  let session = await functionSession();
+  let response = await invokePlatformAppUsersRequest(payload, session.access_token);
+  let failure = await functionFailure(response);
+
+  if (failure.isSessionInvalid) {
+    session = await refreshFunctionSession();
+    response = await invokePlatformAppUsersRequest(payload, session.access_token);
+    failure = await functionFailure(response);
+  }
+
+  if (failure.isSessionInvalid) throw authSessionRequiredError();
+  if (failure.message) throw new Error(failure.message);
+  return response.data;
+}
+
 export function isAuthSessionError(error) {
   return error?.code === "AUTH_SESSION_REQUIRED";
 }
@@ -491,6 +507,13 @@ async function refreshFunctionSession() {
 
 function invokeAdminUsersRequest(payload, accessToken) {
   return authClient.functions.invoke("admin-users", {
+    body: payload,
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+}
+
+function invokePlatformAppUsersRequest(payload, accessToken) {
+  return authClient.functions.invoke("platform-app-users", {
     body: payload,
     headers: { Authorization: `Bearer ${accessToken}` }
   });

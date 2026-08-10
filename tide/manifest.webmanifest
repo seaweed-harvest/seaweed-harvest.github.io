@@ -1,0 +1,53 @@
+{
+  "name": "Seaweed Tide Planner",
+  "short_name": "Tide Planner",
+  "description": "Seaweed farming tide guidance for farm locations, harvest windows, and checked tide datasets.",
+  "start_url": "./index.html?v=20260612-android-prep",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "fullscreen"],
+  "orientation": "portrait",
+  "background_color": "#eef8f5",
+  "theme_color": "#0f766e",
+  "categories": ["weather", "productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Tide Planner",
+      "short_name": "Tides",
+      "url": "./index.html?v=20260612-android-prep",
+      "icons": [
+        {
+          "src": "./assets/icons/tide-planner-icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "Farm Map",
+      "short_name": "Map",
+      "url": "./map.html?v=20260612-android-prep",
+      "icons": [
+        {
+          "src": "./assets/icons/tide-planner-icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ],
+  "icons": [
+    {
+      "src": "./assets/icons/tide-planner-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icons/tide-planner-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
