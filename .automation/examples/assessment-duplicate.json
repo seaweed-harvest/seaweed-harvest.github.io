@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "assessment_id": "ASMT-DUPLICATE-001",
+  "request_id": "fixture-request-duplicate-002",
+  "assessed_at": "2026-07-26T09:23:00+03:00",
+  "policy_version": "2026-07-29.1",
+  "mode": "shadow",
+  "request": {
+    "source_app": "green_space",
+    "title": "Add the same site note field",
+    "problem_summary": "The requested site note field matches an earlier accepted request already in review.",
+    "acceptance_summary": [
+      "The existing request is referenced rather than implemented twice."
+    ],
+    "submitter": {
+      "trust_status": "standard",
+      "trust_source": "authenticated_user_id",
+      "actor_id": "fixture-user-002"
+    }
+  },
+  "target": {
+    "target_key": "seaweed-harvest",
+    "source_repository": "seaweed-harvest/seaweed-harvest.github.io",
+    "source_branch": "main",
+    "mapping_status": "confirmed"
+  },
+  "outcome": "duplicate",
+  "risk_lane": "D",
+  "confidence": 0.96,
+  "classification_reasons": [
+    "A matching request with the same target and acceptance outcome already exists.",
+    "A second implementation would create conflicting branches and duplicated effort."
+  ],
+  "duplicate": {
+    "is_duplicate": true,
+    "duplicate_of": "fixture-request-duplicate-001"
+  },
+  "clarification": {
+    "required": false,
+    "questions": []
+  },
+  "scope": {
+    "predicted_paths": [],
+    "predicted_file_count": 0,
+    "predicted_changed_lines": 0,
+    "cross_repository": false
+  },
+  "checks": {
+    "acceptance_checks": [
+      "The duplicate is linked to the earlier request."
+    ],
+    "test_plan": [
+      "Confirm the earlier request remains the only implementation candidate."
+    ],
+    "rollback_plan": [
+      "Remove the duplicate link if a human review determines the requests differ materially."
+    ]
+  },
+  "approvals": {
+    "coding_required": false,
+    "merge_required": false,
+    "deployment_required": false
+  },
+  "automation": {
+    "coding_authorized": false,
+    "pull_request_authorized": false,
+    "merge_authorized": false,
+    "deployment_authorized": false
+  },
+  "evidence": [
+    {
+      "kind": "request_record",
+      "reference": "fixture-request-duplicate-002"
+    },
+    {
+      "kind": "duplicate_candidate",
+      "reference": "fixture-request-duplicate-001"
+    },
+    {
+      "kind": "policy",
+      "reference": ".automation/development-policy.yml#failure_rules"
+    }
+  ]
+}

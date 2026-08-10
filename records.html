@@ -46,23 +46,23 @@
           </div>
           <nav id="todayRecordTabs" class="today-record-tabs form-ledger-category-tabs" role="tablist" aria-label="Today's record category">
             <button id="todaySummaryTab" type="button" role="tab" aria-selected="true" aria-controls="todaySummaryPanel" data-today-record-tab="summary">Today's Summary</button>
-            <button id="todaySiteSampleTab" type="button" role="tab" aria-selected="false" aria-controls="todaySiteSamplePanel" data-today-record-tab="site-sample">1. Site Water Samples</button>
-            <button id="todayIntakeTab" type="button" role="tab" aria-selected="false" aria-controls="todayIntakePanel" data-today-record-tab="intake">2. Intake Collection</button>
-            <button id="todayStockRecordTab" type="button" role="tab" aria-selected="false" aria-controls="todayStockRecordPanel" data-today-record-tab="stock-record">3. Stock Record</button>
-            <button id="todayProcessRecordTab" type="button" role="tab" aria-selected="false" aria-controls="todayProcessRecordPanel" data-today-record-tab="process-record">4. Process Record</button>
+            <button id="todaySiteSampleTab" type="button" role="tab" aria-selected="false" aria-controls="todaySiteSamplePanel" data-today-record-tab="site-sample">Site Water Samples</button>
+            <button id="todayIntakeTab" type="button" role="tab" aria-selected="false" aria-controls="todayIntakePanel" data-today-record-tab="intake">Intake</button>
+            <button id="todayStockRecordTab" type="button" role="tab" aria-selected="false" aria-controls="todayStockRecordPanel" data-today-record-tab="stock-record">Stock</button>
+            <button id="todayProcessRecordTab" type="button" role="tab" aria-selected="false" aria-controls="todayProcessRecordPanel" data-today-record-tab="process-record">Process</button>
           </nav>
           <nav id="formLedgerCategories" class="today-record-tabs form-ledger-category-tabs" aria-label="Record ledger category" hidden>
             <button type="button" data-ledger-category="summary" aria-selected="false">Summary</button>
-            <button type="button" data-ledger-category="site_sample" aria-selected="false">1. Site Water Samples</button>
-            <button type="button" data-ledger-category="intake" aria-selected="false">2. Intake Collection</button>
-            <button type="button" data-ledger-category="stock" aria-selected="false">3. Stock Record</button>
-            <button type="button" data-ledger-category="process" aria-selected="true">4. Process Record</button>
+            <button type="button" data-ledger-category="site_sample" aria-selected="false">Site Water Samples</button>
+            <button type="button" data-ledger-category="intake" aria-selected="false">Intake</button>
+            <button type="button" data-ledger-category="stock" aria-selected="false">Stock</button>
+            <button type="button" data-ledger-category="process" aria-selected="false">Process</button>
           </nav>
         </div>
 
         <nav id="recordPeriodTabs" class="ledger-view-tabs record-period-tabs" aria-label="Record period" role="tablist">
-          <button type="button" role="tab" data-record-period="today" aria-selected="true">Today's Record</button>
-          <button type="button" role="tab" data-record-period="monthly" aria-selected="false">Period Totals</button>
+          <button type="button" role="tab" data-record-period="monthly" aria-selected="true">Interval Totals</button>
+          <button type="button" role="tab" data-record-period="today" aria-selected="false">Today's Record</button>
           <button id="recordCommunityTab" type="button" role="tab" data-record-period="community" aria-selected="false">Community Records</button>
           <button id="recordContainerLookupTab" type="button" role="tab" data-record-period="container" aria-selected="false" hidden>Container Lookup</button>
           <button type="button" role="tab" data-record-period="all" aria-selected="false">All Records</button>
@@ -259,7 +259,7 @@
         <div id="operationalSummaryWorkspace" hidden>
           <div class="form-ledger-view-heading">
             <div>
-              <h3 id="operationalSummaryTitle">Period totals</h3>
+              <h3 id="operationalSummaryTitle">Interval totals</h3>
               <p id="operationalSummaryHint" class="field-hint">Organisation totals grouped by day.</p>
             </div>
             <span id="operationalSummaryCount" class="status-pill">0 periods</span>
@@ -345,7 +345,7 @@
           <div class="form-ledger-view-heading">
             <nav id="ledgerViewTabs" class="ledger-view-tabs record-internal-view-tabs" aria-label="Intake collection ledger views" role="tablist" hidden>
               <button id="ledgerAllTab" type="button" role="tab" aria-controls="ledgerAllView" data-ledger-view="all">All records</button>
-              <button id="ledgerMonthlyTab" type="button" role="tab" aria-controls="ledgerMonthlyView" data-ledger-view="monthly">Period totals</button>
+              <button id="ledgerMonthlyTab" type="button" role="tab" aria-controls="ledgerMonthlyView" data-ledger-view="monthly">Interval totals</button>
               <button id="ledgerCommunityTab" type="button" role="tab" aria-controls="ledgerCommunityView" data-ledger-view="community">Community records</button>
             </nav>
             <span id="ledgerCount" class="status-pill">0 rows</span>
@@ -459,7 +459,7 @@
             <section id="ledgerMonthlyView" class="ledger-view-panel" role="tabpanel" aria-labelledby="ledgerMonthlyTab" hidden>
               <div class="ledger-view-intro">
                 <div>
-                  <h3>Period totals</h3>
+                  <h3>Interval totals</h3>
                   <p>Intake totals grouped by the selected period.</p>
                 </div>
                 <span id="monthlyCount" class="status-pill">0 rows</span>
@@ -676,7 +676,7 @@
           <div class="form-ledger-view-heading">
           <div id="formLedgerViews" class="ledger-view-tabs form-ledger-view-tabs record-internal-view-tabs" role="tablist" aria-label="Record period view" hidden>
             <button type="button" role="tab" data-ledger-mode="all" aria-selected="true">All records</button>
-            <button type="button" role="tab" data-ledger-mode="monthly" aria-selected="false">Period totals</button>
+            <button type="button" role="tab" data-ledger-mode="monthly" aria-selected="false">Interval totals</button>
             <button id="formLedgerCommunityTab" type="button" role="tab" data-ledger-mode="community" aria-selected="false">Community records</button>
           </div>
           <span id="formLedgerCount" class="status-pill">0 rows</span>
@@ -725,7 +725,7 @@
         <section id="formLedgerMonthlyPanel" class="form-ledger-view-panel" hidden>
           <div class="ledger-view-intro">
             <div>
-              <h3 id="formLedgerMonthlyTitle">Period totals</h3>
+              <h3 id="formLedgerMonthlyTitle">Interval totals</h3>
               <p id="formLedgerPeriodHint">Totals grouped by day.</p>
             </div>
           </div>
@@ -749,7 +749,7 @@
             </label>
             <button id="loadFormLedgerMonthly" type="button">Apply filters</button>
           </div>
-          <div id="formLedgerMonthlyMetrics" class="form-ledger-metric-strip" aria-label="Period totals summary"></div>
+          <div id="formLedgerMonthlyMetrics" class="form-ledger-metric-strip" aria-label="Interval totals summary"></div>
           <div class="responsive-table-wrap">
             <table class="management-table admin-data-table ledger-summary-table form-ledger-summary-table">
               <thead id="formLedgerMonthlyHead"></thead>
@@ -859,7 +859,7 @@
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
   <script type="module" src="./assets/js/today_record_tabs.js?v=13"></script>
-  <script type="module" src="./assets/js/admin_page.js?v=40"></script>
-  <script type="module" src="./assets/js/records_page.js?v=17"></script>
+  <script type="module" src="./assets/js/admin_page.js?v=41"></script>
+  <script type="module" src="./assets/js/records_page.js?v=18"></script>
 </body>
 </html>

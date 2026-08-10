@@ -1,0 +1,303 @@
+name: AI suggestion draft implementation
+
+on:
+  repository_dispatch:
+    types: [ai-suggestion-implementation]
+  workflow_dispatch:
+    inputs:
+      suggestion_id:
+        description: Suggestion UUID
+        required: true
+        type: string
+      automation_run_id:
+        description: Automation run UUID
+        required: true
+        type: string
+
+concurrency:
+  group: ai-suggestion-implementation-${{ github.event.client_payload.automation_run_id || inputs.automation_run_id }}
+  cancel-in-progress: false
+
+jobs:
+  implement:
+    if: vars.AI_SUGGESTION_CODING_PILOT_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      SUGGESTION_ID: ${{ github.event.client_payload.suggestion_id || inputs.suggestion_id }}
+      AUTOMATION_RUN_ID: ${{ github.event.client_payload.automation_run_id || inputs.automation_run_id }}
+      FUNCTIONS_URL: ${{ vars.AI_SUGGESTION_FUNCTIONS_URL }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+    steps:
+      - name: Check out exact target branch without credentials
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate identifiers and repository state
+        shell: bash
+        run: |
+          set -euo pipefail
+          uuid='^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
+          [[ "$SUGGESTION_ID" =~ $uuid ]]
+          [[ "$AUTOMATION_RUN_ID" =~ $uuid ]]
+          [[ "$FUNCTIONS_URL" == https://* ]]
+          test -n "$DEFAULT_BRANCH"
+          test -z "$(git status --porcelain)"
+
+      - name: Fetch authorised implementation context
+        shell: bash
+        env:
+          WORKFLOW_SECRET: ${{ secrets.AI_SUGGESTION_WORKFLOW_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$WORKFLOW_SECRET"
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --header "x-ai-suggestion-workflow-secret: $WORKFLOW_SECRET" \
+            --data "$(jq -n --arg run "$AUTOMATION_RUN_ID" '{automation_run_id:$run}')" \
+            "$FUNCTIONS_URL/ai-suggestion-implementation-context" \
+            --output implementation-context.json
+          jq -e '.automation_run.id == env.AUTOMATION_RUN_ID' implementation-context.json >/dev/null
+          jq -e '.suggestion.id == env.SUGGESTION_ID' implementation-context.json >/dev/null
+          jq -e '.automation_run.target_repository == env.GITHUB_REPOSITORY' implementation-context.json >/dev/null
+          jq -e '.automation_run.target_branch == env.DEFAULT_BRANCH' implementation-context.json >/dev/null
+          jq -e '.execution_authority.lane == "A"' implementation-context.json >/dev/null
+          jq -e '.execution_authority.may_merge == false' implementation-context.json >/dev/null
+          jq -e '.execution_authority.may_deploy == false' implementation-context.json >/dev/null
+
+      - name: Establish deterministic branch and planning references
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA="$(git rev-parse HEAD)"
+          BRANCH_NAME="agent/suggestion-${SUGGESTION_ID:0:12}"
+          PLANNING_DOCUMENT="01_Ag_Planning_Documents/automation_runs/${AUTOMATION_RUN_ID}.md"
+          {
+            echo "BASE_SHA=$BASE_SHA"
+            echo "BRANCH_NAME=$BRANCH_NAME"
+            echo "PLANNING_DOCUMENT=$PLANNING_DOCUMENT"
+          } >> "$GITHUB_ENV"
+
+      - name: Stop if a branch or pull request already exists
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh api "repos/${GITHUB_REPOSITORY}/branches/${BRANCH_NAME}" >/dev/null 2>&1; then
+            echo "::error::A branch already exists for suggestion ${SUGGESTION_ID}."
+            exit 1
+          fi
+          EXISTING_PR="$(gh pr list \
+            --state all \
+            --head "$BRANCH_NAME" \
+            --json url \
+            --jq '.[0].url // empty')"
+          if [[ -n "$EXISTING_PR" ]]; then
+            echo "::error::A pull request already exists for suggestion ${SUGGESTION_ID}: ${EXISTING_PR}"
+            exit 1
+          fi
+
+      - name: Create controlled implementation branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout -b "$BRANCH_NAME"
+          jq \
+            --arg base "$BASE_SHA" \
+            --arg branch "$BRANCH_NAME" \
+            --arg plan "$PLANNING_DOCUMENT" \
+            '. + {git:{base_commit:$base,proposed_branch:$branch,planning_document:$plan}}' \
+            implementation-context.json > implementation-context.tmp.json
+          mv implementation-context.tmp.json implementation-context.json
+
+      - name: Validate policy foundation before coding
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tests/automation_policy_static_test.py
+          python tests/automation_assessment_contract_static_test.py
+          python tests/automation_dispatch_foundation_static_test.py
+          mkdir -p automation-output
+
+      - name: Implement suggestion with Codex
+        id: codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: .github/codex/prompts/implement-suggestion.md
+          sandbox: workspace-write
+          codex-args: '["--ephemeral"]'
+          output-file: automation-output/codex-summary.md
+
+      - name: Validate Codex implementation output
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m json.tool automation-output/implementation.json >/dev/null
+          jq -e '.planning_document == env.PLANNING_DOCUMENT' automation-output/implementation.json >/dev/null
+          jq -e '.tests_attempted | type == "array" and length >= 1' automation-output/implementation.json >/dev/null
+          python scripts/validate_ai_suggestion_diff.py \
+            "$BASE_SHA" \
+            implementation-context.json \
+            automation-output/diff-evidence.json
+          python scripts/run_ai_suggestion_checks.py \
+            automation-output/diff-evidence.json \
+            automation-output/test-evidence.json
+
+      - name: Commit validated files only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Seaweed Suggestion Automation"
+          git config user.email "actions@users.noreply.github.com"
+          while IFS= read -r path; do
+            git add -- "$path"
+          done < <(jq -r '.changed_files[]' automation-output/diff-evidence.json)
+          test -n "$(git diff --cached --name-only)"
+          git diff --cached --check
+          git commit -m "Implement suggestion ${SUGGESTION_ID:0:8}"
+          echo "IMPLEMENTATION_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Push controlled branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN"
+          git push \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "HEAD:refs/heads/${BRANCH_NAME}"
+
+      - name: Open draft pull request
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TITLE="$(jq -r '.summary' automation-output/implementation.json | tr '\n' ' ' | cut -c1-90)"
+          test -n "$TITLE"
+          {
+            echo "## Automated suggestion implementation"
+            echo
+            echo "Suggestion: \`$SUGGESTION_ID\`"
+            echo "Automation run: \`$AUTOMATION_RUN_ID\`"
+            echo "Base commit: \`$BASE_SHA\`"
+            echo "Planning document: \`$PLANNING_DOCUMENT\`"
+            echo
+            echo "## Summary"
+            jq -r '.summary' automation-output/implementation.json
+            echo
+            echo "## User impact"
+            jq -r '.user_impact' automation-output/implementation.json
+            echo
+            echo "## Validation"
+            jq -r '.[] | "- `" + .command + "`: " + .status' automation-output/test-evidence.json
+            echo
+            echo "## Safety gates"
+            echo "- Actual diff reclassified as Lane A"
+            echo "- Merge not authorised"
+            echo "- Deployment not authorised"
+            echo "- Human review required"
+          } > automation-output/pull-request-body.md
+          PR_URL="$(gh pr create \
+            --draft \
+            --base "$DEFAULT_BRANCH" \
+            --head "$BRANCH_NAME" \
+            --title "$TITLE" \
+            --body-file automation-output/pull-request-body.md)"
+          PR_JSON="$(gh pr view "$PR_URL" --json number,url)"
+          echo "PULL_REQUEST_NUMBER=$(jq -r '.number' <<< "$PR_JSON")" >> "$GITHUB_ENV"
+          echo "PULL_REQUEST_URL=$(jq -r '.url' <<< "$PR_JSON")" >> "$GITHUB_ENV"
+
+      - name: Store implementation result
+        shell: bash
+        env:
+          WORKFLOW_SECRET: ${{ secrets.AI_SUGGESTION_WORKFLOW_SECRET }}
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg run "$AUTOMATION_RUN_ID" \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg base "$BASE_SHA" \
+            --arg branch "$BRANCH_NAME" \
+            --arg commit "$IMPLEMENTATION_COMMIT" \
+            --argjson pr_number "$PULL_REQUEST_NUMBER" \
+            --arg pr_url "$PULL_REQUEST_URL" \
+            --arg plan "$PLANNING_DOCUMENT" \
+            --slurpfile diff automation-output/diff-evidence.json \
+            --slurpfile tests automation-output/test-evidence.json \
+            '{
+              automation_run_id:$run,
+              repository:$repository,
+              base_commit:$base,
+              branch:$branch,
+              commit_sha:$commit,
+              pull_request_number:$pr_number,
+              pull_request_url:$pr_url,
+              changed_files:$diff[0].changed_files,
+              changed_file_count:$diff[0].changed_file_count,
+              changed_lines:$diff[0].changed_lines,
+              test_evidence:$tests[0],
+              planning_document:$plan,
+              merged:false,
+              deployed:false
+            }' > automation-output/implementation-callback.json
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --header "x-ai-suggestion-workflow-secret: $WORKFLOW_SECRET" \
+            --data @automation-output/implementation-callback.json \
+            "$FUNCTIONS_URL/ai-suggestion-implementation-result" \
+            --output automation-output/implementation-callback-response.json
+          jq -e '.ok == true and .merged == false and .deployed == false' \
+            automation-output/implementation-callback-response.json >/dev/null
+
+      - name: Report failed implementation workflow
+        if: failure()
+        continue-on-error: true
+        shell: bash
+        env:
+          WORKFLOW_SECRET: ${{ secrets.AI_SUGGESTION_WORKFLOW_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$WORKFLOW_SECRET"
+          jq -n \
+            --arg run "$AUTOMATION_RUN_ID" \
+            --arg workflow_run "${{ github.run_id }}" \
+            '{
+              automation_run_id:$run,
+              stage:"implementation",
+              summary:"GitHub implementation workflow failed. Review the workflow artifact and run logs before retrying.",
+              workflow_run_id:$workflow_run
+            }' > automation-output/failure-callback.json
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --header "x-ai-suggestion-workflow-secret: $WORKFLOW_SECRET" \
+            --data @automation-output/failure-callback.json \
+            "$FUNCTIONS_URL/ai-suggestion-failure" >/dev/null
+
+      - name: Upload implementation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-suggestion-implementation-${{ env.AUTOMATION_RUN_ID }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            implementation-context.json
+            automation-output/implementation.json
+            automation-output/codex-summary.md
+            automation-output/diff-evidence.json
+            automation-output/test-evidence.json
+            automation-output/pull-request-body.md
+            automation-output/implementation-callback-response.json

@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "policy_version": "2026-07-29.1",
+  "mode": "owner_low_risk_draft_pr",
+  "activation": {
+    "supabase_environment_variable": "AI_SUGGESTION_CODING_PILOT_MODE=dispatch",
+    "github_repository_variable": "AI_SUGGESTION_CODING_PILOT_ENABLED=true",
+    "both_required": true,
+    "configuration_committed": true,
+    "secrets_remain_external": true
+  },
+  "eligibility": {
+    "automation_run_mode": "dispatch",
+    "required_state": "assessment_complete",
+    "decision": "implement",
+    "risk_level": "low",
+    "lane": "A",
+    "authenticated_actor_required": true,
+    "automatic_authorization_source": "authenticated_trusted_product_owner_uuid",
+    "manual_authorization_source": "explicit_trusted_product_owner_uuid_approval",
+    "active_actor_configuration_required": true,
+    "automatic_can_auto_implement_required": true,
+    "single_repository_required": true
+  },
+  "limits": {
+    "maximum_changed_files": 6,
+    "maximum_changed_lines": 400,
+    "new_dependencies_allowed": false,
+    "database_changes_allowed": false,
+    "workflow_changes_allowed": false,
+    "protected_paths_allowed": false,
+    "binary_files_allowed": false,
+    "deterministic_test_change_required": true,
+    "planning_document_change_required": true
+  },
+  "workflow_permissions": {
+    "contents": "write_for_controlled_branch_push",
+    "pull_requests": "write_for_draft_pr_creation",
+    "issues": "none",
+    "actions": "none",
+    "deployments": "none"
+  },
+  "credential_isolation": {
+    "checkout_persists_credentials": false,
+    "codex_receives_github_token": false,
+    "codex_receives_supabase_secret": false,
+    "push_token_available_only_to_push_and_pr_steps": true
+  },
+  "deduplication": {
+    "primary_key": "suggestion_uuid",
+    "reuse_existing_automation_run": true,
+    "branch_name_is_deterministic_per_suggestion": true,
+    "existing_task_thread_branch_or_pull_request_stops_new_work": true,
+    "stale_failure_callback_cannot_replace_completed_state": true
+  },
+  "allowed_outcome": {
+    "branch_namespace": "agent/suggestion-*",
+    "pull_request_state": "draft",
+    "merge_authorized": false,
+    "deployment_authorized": false,
+    "human_review_required": true
+  },
+  "failure": {
+    "stop_on_policy_violation": true,
+    "stop_on_test_failure": true,
+    "record_failure_in_supabase": true,
+    "never_merge_failed_or_incomplete_work": true
+  }
+}

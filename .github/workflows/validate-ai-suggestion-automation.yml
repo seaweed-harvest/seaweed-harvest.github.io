@@ -1,0 +1,124 @@
+name: Validate AI suggestion automation
+
+on:
+  pull_request:
+    paths:
+      - "AGENTS.md"
+      - ".automation/**"
+      - ".github/codex/**"
+      - ".github/workflows/ai-suggestion-*.yml"
+      - ".github/workflows/validate-ai-suggestion-automation.yml"
+      - "supabase/functions/ai-suggestion-*/**"
+      - "supabase/functions/site-feedback/**"
+      - "supabase/migrations/20260726143000_ai_suggestion_automation_foundation.sql"
+      - "supabase/migrations/20260726153000_ai_suggestion_coding_pilot.sql"
+      - "supabase/migrations/20260727090000_owner_ai_assist_trial.sql"
+      - "supabase/migrations/20260727091000_owner_ai_assist_status.sql"
+      - "supabase/migrations/20260728120000_authenticated_suggestion_automation.sql"
+      - "scripts/validate_ai_suggestion_*.py"
+      - "scripts/run_ai_suggestion_checks.py"
+      - "tests/automation_*"
+      - "tests/site_feedback_*"
+      - "01_Ag_Planning_Documents/2026-07-26_ai_suggestion_workflow/**"
+      - "01_Ag_Planning_Documents/2026-07-27_OWNER_AI_ASSIST_TRIAL.md"
+      - "01_Ag_Planning_Documents/2026-07-28_authenticated_suggestion_automation/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out pull request
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Show tool versions
+        run: |
+          set -euo pipefail
+          python --version
+          node --version
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Type-check suggestion Edge Functions
+        run: |
+          set -euo pipefail
+          deno check \
+            supabase/functions/site-feedback/index.ts \
+            supabase/functions/ai-suggestion-dispatch/index.ts \
+            supabase/functions/ai-suggestion-context/index.ts \
+            supabase/functions/ai-suggestion-result/index.ts \
+            supabase/functions/ai-suggestion-implementation-dispatch/index.ts \
+            supabase/functions/ai-suggestion-implementation-context/index.ts \
+            supabase/functions/ai-suggestion-implementation-result/index.ts \
+            supabase/functions/ai-suggestion-failure/index.ts
+
+      - name: Run automation policy and contract checks
+        run: |
+          set -euo pipefail
+          node --check assets/js/site_feedback.js
+          node --check assets/js/admin_suggestions.js
+          python tests/automation_policy_static_test.py
+          python tests/automation_assessment_contract_static_test.py
+          python tests/automation_dispatch_foundation_static_test.py
+          python tests/automation_coding_pilot_static_test.py
+          python tests/site_feedback_static_test.py
+          python tests/suggestion_workspace_static_test.py
+          python tests/mobile_app_navigation_static_test.py
+
+      - name: Compile automation Python tools
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/validate_ai_suggestion_assessment.py \
+            scripts/validate_ai_suggestion_diff.py \
+            scripts/run_ai_suggestion_checks.py
+
+      - name: Verify JSON policy and contract files
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          files = [
+              Path(".automation/app-map.yml"),
+              Path(".automation/development-policy.yml"),
+              Path(".automation/protected-paths.yml"),
+              Path(".automation/coding-pilot.yml"),
+              Path(".automation/schemas/suggestion-assessment.schema.json"),
+              Path(".automation/schemas/implementation-plan.schema.json"),
+          ]
+          files.extend(sorted(Path(".automation/examples").glob("*.json")))
+          for path in files:
+              json.loads(path.read_text(encoding="utf-8"))
+              print(f"PASS: {path}")
+          PY
+
+      - name: Confirm no secrets were committed
+        run: |
+          set -euo pipefail
+          if git grep -n -E '(sk-[A-Za-z0-9_-]{20,}|postgres(ql)?://[^[:space:]]+:[^[:space:]]+@|service_''role[^[:space:]]*=[^[:space:]]+)' -- \
+            AGENTS.md .automation .github/codex .github/workflows \
+            supabase/functions/ai-suggestion-dispatch \
+            supabase/functions/ai-suggestion-context \
+            supabase/functions/ai-suggestion-result \
+            supabase/functions/ai-suggestion-implementation-dispatch \
+            supabase/functions/ai-suggestion-implementation-context \
+            supabase/functions/ai-suggestion-implementation-result \
+            supabase/functions/ai-suggestion-failure \
+            scripts tests
+          then
+            echo "Credential-like material detected" >&2
+            exit 1
+          fi
+          echo "PASS: no committed credential values detected"

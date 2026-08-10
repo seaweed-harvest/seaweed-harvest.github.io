@@ -1,0 +1,153 @@
+name: AI suggestion assessment
+
+on:
+  repository_dispatch:
+    types: [ai-suggestion-assessment]
+  workflow_dispatch:
+    inputs:
+      suggestion_id:
+        description: Suggestion UUID
+        required: true
+        type: string
+      automation_run_id:
+        description: Automation run UUID
+        required: true
+        type: string
+
+concurrency:
+  group: ai-suggestion-${{ github.event.client_payload.automation_run_id || inputs.automation_run_id }}
+  cancel-in-progress: false
+
+jobs:
+  assess:
+    if: vars.AI_SUGGESTION_ASSESSMENT_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      SUGGESTION_ID: ${{ github.event.client_payload.suggestion_id || inputs.suggestion_id }}
+      AUTOMATION_RUN_ID: ${{ github.event.client_payload.automation_run_id || inputs.automation_run_id }}
+      FUNCTIONS_URL: ${{ vars.AI_SUGGESTION_FUNCTIONS_URL }}
+    steps:
+      - name: Check out repository without push credentials
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate dispatch identifiers
+        shell: bash
+        run: |
+          set -euo pipefail
+          uuid='^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
+          [[ "$SUGGESTION_ID" =~ $uuid ]]
+          [[ "$AUTOMATION_RUN_ID" =~ $uuid ]]
+          [[ "$FUNCTIONS_URL" == https://* ]]
+
+      - name: Fetch sanitised suggestion context
+        shell: bash
+        env:
+          WORKFLOW_SECRET: ${{ secrets.AI_SUGGESTION_WORKFLOW_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$WORKFLOW_SECRET"
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --header "x-ai-suggestion-workflow-secret: $WORKFLOW_SECRET" \
+            --data "$(jq -n --arg run "$AUTOMATION_RUN_ID" '{automation_run_id:$run}')" \
+            "$FUNCTIONS_URL/ai-suggestion-context" \
+            --output suggestion-context.json
+          jq -e '.automation_run.id == env.AUTOMATION_RUN_ID' suggestion-context.json >/dev/null
+          jq -e '.suggestion.id == env.SUGGESTION_ID' suggestion-context.json >/dev/null
+          jq -e '.execution_authority.may_edit_repository == false' suggestion-context.json >/dev/null
+
+      - name: Validate committed automation policies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tests/automation_policy_static_test.py
+          python tests/automation_assessment_contract_static_test.py
+          python tests/automation_dispatch_foundation_static_test.py
+          mkdir -p automation-output
+
+      - name: Assess suggestion with Codex
+        id: codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: .github/codex/prompts/assess-suggestion.md
+          sandbox: workspace-write
+          codex-args: '["--ephemeral"]'
+          output-file: automation-output/codex-summary.md
+
+      - name: Validate structured assessment
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m json.tool automation-output/assessment.json >/dev/null
+          python scripts/validate_ai_suggestion_assessment.py \
+            suggestion-context.json \
+            automation-output/assessment.json
+
+      - name: Store assessment result
+        if: success()
+        shell: bash
+        env:
+          WORKFLOW_SECRET: ${{ secrets.AI_SUGGESTION_WORKFLOW_SECRET }}
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg run "$AUTOMATION_RUN_ID" \
+            --slurpfile assessment automation-output/assessment.json \
+            '{automation_run_id:$run,assessment:$assessment[0]}' \
+            > automation-output/callback.json
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --header "x-ai-suggestion-workflow-secret: $WORKFLOW_SECRET" \
+            --data @automation-output/callback.json \
+            "$FUNCTIONS_URL/ai-suggestion-result" \
+            --output automation-output/callback-response.json
+          jq -e '.ok == true' automation-output/callback-response.json >/dev/null
+
+      - name: Report failed assessment workflow
+        if: failure()
+        continue-on-error: true
+        shell: bash
+        env:
+          WORKFLOW_SECRET: ${{ secrets.AI_SUGGESTION_WORKFLOW_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$WORKFLOW_SECRET"
+          mkdir -p automation-output
+          jq -n \
+            --arg run "$AUTOMATION_RUN_ID" \
+            --arg workflow_run "${{ github.run_id }}" \
+            '{
+              automation_run_id:$run,
+              stage:"assessment",
+              summary:"GitHub assessment workflow failed. Review the workflow artifact and run logs before retrying.",
+              workflow_run_id:$workflow_run
+            }' > automation-output/failure-callback.json
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --header "x-ai-suggestion-workflow-secret: $WORKFLOW_SECRET" \
+            --data @automation-output/failure-callback.json \
+            "$FUNCTIONS_URL/ai-suggestion-failure" >/dev/null
+
+      - name: Upload assessment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-suggestion-${{ env.AUTOMATION_RUN_ID }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            suggestion-context.json
+            automation-output/assessment.json
+            automation-output/codex-summary.md
+            automation-output/callback-response.json
+            automation-output/failure-callback.json

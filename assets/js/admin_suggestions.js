@@ -134,6 +134,11 @@ async function handleSuggestionAction(event) {
     await approveSuggestionImplementation(approveButton);
     return;
   }
+  const retryButton = event.target.closest("[data-retry-suggestion-assessment]");
+  if (retryButton) {
+    await retrySuggestionAssessment(retryButton);
+    return;
+  }
   const deleteButton = event.target.closest("[data-delete-suggestion]");
   if (deleteButton) {
     await deleteSuggestion(deleteButton);
@@ -212,6 +217,31 @@ async function approveSuggestionImplementation(button) {
   );
 }
 
+async function retrySuggestionAssessment(button) {
+  const item = button.closest("[data-suggestion-id]");
+  if (!item) return;
+  button.disabled = true;
+  setStatus("Retrying AI review...");
+  const { data, error } = await authClient.functions.invoke("site-feedback", {
+    body: {
+      action: "retry_assessment",
+      feedback_id: item.dataset.suggestionId
+    }
+  });
+  button.disabled = false;
+  if (error || !data?.ok) {
+    setStatus(data?.error || error?.message || "AI review could not be retried.", "error");
+    return;
+  }
+  await loadSuggestions();
+  setStatus(
+    data.dispatched
+      ? "AI review was sent to the assessment workflow."
+      : "AI review remains paused. Connect the automation API key, then retry.",
+    data.dispatched ? "success" : ""
+  );
+}
+
 async function showPhoto(path) {
   setStatus("Opening screenshot...");
   const { data, error } = await authClient.storage.from(PHOTO_BUCKET).createSignedUrl(path, 300);
@@ -282,6 +312,8 @@ function automationPanel(row) {
     && row.automation_lane === "A"
     && row.automation_can_auto_implement !== true
     && !row.implementation_approved_at;
+  const canRetry = ["shadow_assessing", "held", "failed", "cancelled"].includes(row.automation_status)
+    || ["shadow_assessment_pending", "held", "failed", "cancelled"].includes(row.automation_run_state);
   return `
     <section class="suggestion-workflow-status" aria-label="Implementation workflow status">
       <div>
@@ -295,6 +327,9 @@ function automationPanel(row) {
       ${canApprove
         ? '<button type="button" data-approve-suggestion-implementation>Approve implementation</button>'
         : ""}
+      ${canRetry
+        ? '<button type="button" data-retry-suggestion-assessment>Retry AI review</button>'
+        : ""}
     </section>`;
 }
 
@@ -302,7 +337,7 @@ function automationStatusLabel(value) {
   return {
     new: "Requested",
     queued: "Queued for assessment",
-    shadow_assessing: "Assessing",
+    shadow_assessing: "AI review paused",
     dispatched: "Assessment dispatched",
     assessing: "Assessing",
     assessment_complete: "Assessment complete",

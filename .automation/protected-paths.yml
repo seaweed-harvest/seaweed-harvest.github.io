@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "precedence": [
+    "C",
+    "B",
+    "A"
+  ],
+  "lane_C_approval_before_coding": {
+    "exact_paths": [
+      "AGENTS.md",
+      "assets/js/auth_client.js",
+      "assets/js/config.js",
+      "assets/js/login_page.js",
+      "assets/js/reset_password_page.js",
+      "admin_users.html",
+      "admin_finance.html",
+      "admin_receipts.html"
+    ],
+    "glob_patterns": [
+      ".automation/**",
+      ".github/**",
+      "supabase/**",
+      "03_Ag_Data/**",
+      "**/*secret*",
+      "**/*credential*",
+      "**/*private_key*",
+      "**/*service_role*",
+      "**/*payment*",
+      "**/*payout*",
+      "**/*finance*",
+      "**/*permission*",
+      "**/*role*",
+      "**/*rls*",
+      "mobile/android/**/build.gradle*",
+      "mobile/android/**/AndroidManifest.xml",
+      "mobile/ios/**/*.xcodeproj/**",
+      "mobile/ios/**/*.entitlements",
+      "mobile/ios/**/Info.plist"
+    ],
+    "reasons": [
+      "automation_trust_boundary",
+      "workflow_or_deployment_permission",
+      "database_or_tenant_boundary",
+      "credentials_or_personal_data",
+      "authentication_or_access_control",
+      "financial_integrity",
+      "native_release_configuration"
+    ]
+  },
+  "lane_B_implement_then_approve": {
+    "exact_paths": [
+      "service-worker.js",
+      "manifest.webmanifest",
+      "assets/js/offline_store.js",
+      "assets/js/offline_sync.js",
+      "assets/js/supabase_client.js",
+      "assets/js/app_navigation.js",
+      "assets/css/ag.css"
+    ],
+    "glob_patterns": [
+      "package.json",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      "assets/js/**/*photo*",
+      "assets/js/**/*upload*",
+      "assets/js/**/*sync*",
+      "mobile/**",
+      "scripts/**",
+      "tools/**"
+    ],
+    "reasons": [
+      "offline_or_cache_behaviour",
+      "shared_application_shell",
+      "external_data_access",
+      "dependency_or_build_change",
+      "photo_or_storage_change",
+      "native_mobile_change"
+    ]
+  },
+  "lane_A_candidate_paths": {
+    "glob_patterns": [
+      "*.html",
+      "assets/css/**/*.css",
+      "assets/js/**/*.js",
+      "tests/**",
+      "01_Ag_Planning_Documents/**"
+    ],
+    "requirements": [
+      "not_matched_by_lane_C",
+      "not_matched_by_lane_B",
+      "single_confirmed_application",
+      "within_lane_A_diff_limits",
+      "deterministic_tests_available"
+    ]
+  },
+  "always_hold": {
+    "glob_patterns": [
+      "**/*.pem",
+      "**/*.key",
+      "**/*.p12",
+      "**/*.jks",
+      "**/*.keystore",
+      "**/.env",
+      "**/.env.*",
+      "**/*.sqlite",
+      "**/*.db"
+    ],
+    "action": "stop_and_escalate"
+  },
+  "diff_rules": {
+    "multiple_repositories": "minimum_lane_B",
+    "more_than_6_files": "minimum_lane_B",
+    "more_than_400_changed_lines": "minimum_lane_B",
+    "path_not_classified": "lane_C",
+    "protected_path_discovered_after_implementation": "lane_C_and_stop_before_merge"
+  }
+}

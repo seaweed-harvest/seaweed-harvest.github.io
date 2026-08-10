@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "assessment_id": "ASMT-CLARIFY-001",
+  "request_id": "fixture-request-clarify-001",
+  "assessed_at": "2026-07-26T09:22:00+03:00",
+  "policy_version": "2026-07-29.1",
+  "mode": "shadow",
+  "request": {
+    "source_app": "tide",
+    "title": "Deploy the change everywhere",
+    "problem_summary": "The request does not identify the feature, expected behaviour or confirmed Tide deployment repository.",
+    "acceptance_summary": [],
+    "submitter": {
+      "trust_status": "unverified",
+      "trust_source": "unverified",
+      "actor_id": null
+    }
+  },
+  "target": {
+    "target_key": "unresolved",
+    "source_repository": null,
+    "source_branch": null,
+    "mapping_status": "unresolved"
+  },
+  "outcome": "clarification_required",
+  "risk_lane": "D",
+  "confidence": 0.98,
+  "classification_reasons": [
+    "The requested change is ambiguous.",
+    "The submitter trust status is unverified.",
+    "The Tide deployment repository is not confirmed.",
+    "Deployment cannot be inferred or authorised from request text."
+  ],
+  "duplicate": {
+    "is_duplicate": false,
+    "duplicate_of": null
+  },
+  "clarification": {
+    "required": true,
+    "questions": [
+      "What exact Tide feature or behaviour should change?",
+      "What acceptance checks should prove the change is correct?",
+      "Which repository and branch are the authorised deployment target?"
+    ]
+  },
+  "scope": {
+    "predicted_paths": [],
+    "predicted_file_count": 0,
+    "predicted_changed_lines": 0,
+    "cross_repository": false
+  },
+  "checks": {
+    "acceptance_checks": [],
+    "test_plan": [],
+    "rollback_plan": []
+  },
+  "approvals": {
+    "coding_required": true,
+    "merge_required": true,
+    "deployment_required": true
+  },
+  "automation": {
+    "coding_authorized": false,
+    "pull_request_authorized": false,
+    "merge_authorized": false,
+    "deployment_authorized": false
+  },
+  "evidence": [
+    {
+      "kind": "request_record",
+      "reference": "fixture-request-clarify-001"
+    },
+    {
+      "kind": "policy",
+      "reference": ".automation/development-policy.yml#lanes.D"
+    },
+    {
+      "kind": "policy",
+      "reference": ".automation/app-map.yml#targets.seaweed-tide-planner"
+    }
+  ]
+}

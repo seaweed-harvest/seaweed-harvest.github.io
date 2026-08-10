@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "plan_id": "PLAN-UI-001",
+  "assessment_id": "ASMT-UI-001",
+  "status": "draft",
+  "created_at": "2026-07-26T09:24:00+03:00",
+  "target": {
+    "target_key": "seaweed-harvest",
+    "source_repository": "seaweed-harvest/seaweed-harvest.github.io",
+    "source_branch": "main"
+  },
+  "git": {
+    "exact_base_commit": "05612b2816476ba9823c4a75c6d749809670656e",
+    "proposed_branch": "agent/fixture-dashboard-label",
+    "base_verified_at": "2026-07-26T09:24:00+03:00"
+  },
+  "risk_lane": "A",
+  "problem_statement": "Replace one unclear dashboard label with approved wording without changing data, permissions or calculations.",
+  "scope": {
+    "included": [
+      "Update the identified dashboard label.",
+      "Add a focused static regression test."
+    ],
+    "excluded": [
+      "Database changes.",
+      "Authentication or permission changes.",
+      "Automatic deployment."
+    ],
+    "predicted_paths": [
+      "home.html",
+      "tests/dashboard_label_static_test.py"
+    ]
+  },
+  "acceptance_checks": [
+    {
+      "id": "AC-01",
+      "description": "The approved wording appears in the intended dashboard section.",
+      "verification": "Focused static test and final diff inspection."
+    },
+    {
+      "id": "AC-02",
+      "description": "No database, permission or calculation files change.",
+      "verification": "Compare actual changed paths against the exact base commit."
+    }
+  ],
+  "implementation_steps": [
+    {
+      "order": 1,
+      "description": "Verify the exact base commit and locate the single label.",
+      "protected_work": false
+    },
+    {
+      "order": 2,
+      "description": "Change only the approved label text.",
+      "protected_work": false
+    },
+    {
+      "order": 3,
+      "description": "Add and run the focused static regression test.",
+      "protected_work": false
+    },
+    {
+      "order": 4,
+      "description": "Inspect the actual diff and hold for approval.",
+      "protected_work": false
+    }
+  ],
+  "tests": [
+    {
+      "name": "Dashboard label static test",
+      "command_or_method": "python tests/dashboard_label_static_test.py",
+      "required": true
+    },
+    {
+      "name": "Actual diff review",
+      "command_or_method": "Compare the implementation branch against the exact base commit.",
+      "required": true
+    }
+  ],
+  "rollback": {
+    "strategy": "revert_commit",
+    "steps": [
+      "Revert the implementation commit if the approved wording or layout is incorrect.",
+      "Rerun the focused static test after the revert."
+    ],
+    "data_restore_required": false
+  },
+  "approvals": {
+    "coding": "not_requested",
+    "merge": "required",
+    "deployment": "required"
+  },
+  "automation": {
+    "coding_authorized": false,
+    "pull_request_authorized": false,
+    "merge_authorized": false,
+    "deployment_authorized": false
+  },
+  "progress": {
+    "stage": "planned",
+    "completed_steps": [],
+    "blocked_by": [
+      "Shadow mode disables coding and pull-request creation."
+    ]
+  }
+}

@@ -1,0 +1,459 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://seaweed-harvest.example/schemas/suggestion-assessment.schema.json",
+  "title": "Seaweed Suggestion Assessment",
+  "description": "Machine-readable assessment output for shadow-mode suggestion review. This document is data, not executable instruction.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "assessment_id",
+    "request_id",
+    "assessed_at",
+    "policy_version",
+    "mode",
+    "request",
+    "target",
+    "outcome",
+    "risk_lane",
+    "confidence",
+    "classification_reasons",
+    "duplicate",
+    "clarification",
+    "scope",
+    "checks",
+    "approvals",
+    "automation",
+    "evidence"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "assessment_id": {
+      "type": "string",
+      "pattern": "^ASMT-[A-Z0-9][A-Z0-9._-]{5,79}$"
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "assessed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "policy_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40
+    },
+    "mode": {
+      "const": "shadow"
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_app",
+        "title",
+        "problem_summary",
+        "acceptance_summary",
+        "submitter"
+      ],
+      "properties": {
+        "source_app": {
+          "enum": [
+            "aggregation",
+            "green_space",
+            "tide",
+            "unknown"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "problem_summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "acceptance_summary": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "maxItems": 20
+        },
+        "submitter": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "trust_status",
+            "trust_source",
+            "actor_id"
+          ],
+          "properties": {
+            "trust_status": {
+              "enum": [
+                "unverified",
+                "standard",
+                "trusted_owner"
+              ]
+            },
+            "trust_source": {
+              "enum": [
+                "unverified",
+                "authenticated_user_id",
+                "approved_actor_record"
+              ]
+            },
+            "actor_id": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 160
+            }
+          }
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_key",
+        "source_repository",
+        "source_branch",
+        "mapping_status"
+      ],
+      "properties": {
+        "target_key": {
+          "enum": [
+            "seaweed-harvest",
+            "seaweed-tide-planner",
+            "unresolved"
+          ]
+        },
+        "source_repository": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 200
+        },
+        "source_branch": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 160
+        },
+        "mapping_status": {
+          "enum": [
+            "confirmed",
+            "source_confirmed_deployment_unconfirmed",
+            "unresolved"
+          ]
+        }
+      }
+    },
+    "outcome": {
+      "enum": [
+        "implementation_candidate",
+        "approval_required",
+        "plan_only",
+        "clarification_required",
+        "duplicate",
+        "rejected"
+      ]
+    },
+    "risk_lane": {
+      "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "classification_reasons": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 30,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 300
+      }
+    },
+    "duplicate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "is_duplicate",
+        "duplicate_of"
+      ],
+      "properties": {
+        "is_duplicate": {
+          "type": "boolean"
+        },
+        "duplicate_of": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 160
+        }
+      }
+    },
+    "clarification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "questions"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "questions": {
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "predicted_paths",
+        "predicted_file_count",
+        "predicted_changed_lines",
+        "cross_repository"
+      ],
+      "properties": {
+        "predicted_paths": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          }
+        },
+        "predicted_file_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "predicted_changed_lines": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "cross_repository": {
+          "type": "boolean"
+        }
+      }
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "acceptance_checks",
+        "test_plan",
+        "rollback_plan"
+      ],
+      "properties": {
+        "acceptance_checks": {
+          "type": "array",
+          "maxItems": 30,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "test_plan": {
+          "type": "array",
+          "maxItems": 30,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "rollback_plan": {
+          "type": "array",
+          "maxItems": 30,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      }
+    },
+    "approvals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "coding_required",
+        "merge_required",
+        "deployment_required"
+      ],
+      "properties": {
+        "coding_required": {
+          "type": "boolean"
+        },
+        "merge_required": {
+          "type": "boolean"
+        },
+        "deployment_required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "automation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "coding_authorized",
+        "pull_request_authorized",
+        "merge_authorized",
+        "deployment_authorized"
+      ],
+      "properties": {
+        "coding_authorized": {
+          "const": false
+        },
+        "pull_request_authorized": {
+          "const": false
+        },
+        "merge_authorized": {
+          "const": false
+        },
+        "deployment_authorized": {
+          "const": false
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "reference"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "request_record",
+              "policy",
+              "repository",
+              "duplicate_candidate",
+              "test_capability",
+              "human_decision"
+            ]
+          },
+          "reference": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "duplicate"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "duplicate": {
+            "properties": {
+              "is_duplicate": {
+                "const": true
+              },
+              "duplicate_of": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "clarification_required"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "clarification": {
+            "properties": {
+              "required": {
+                "const": true
+              },
+              "questions": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "risk_lane": {
+            "const": "C"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "approvals": {
+            "properties": {
+              "coding_required": {
+                "const": true
+              },
+              "merge_required": {
+                "const": true
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

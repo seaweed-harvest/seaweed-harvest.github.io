@@ -1,0 +1,222 @@
+{
+  "schema_version": 1,
+  "policy_version": "2026-07-29.1",
+  "mode": "owner_low_risk_draft_pr",
+  "global_controls": {
+    "assessment_enabled": false,
+    "automatic_coding_enabled": false,
+    "automatic_pull_request_enabled": false,
+    "automatic_merge_enabled": false,
+    "automatic_deployment_enabled": false,
+    "database_dispatch_enabled": false,
+    "github_dispatch_enabled": false,
+    "trusted_actor_activation_enabled": true,
+    "credentials_enabled": false
+  },
+  "authority": {
+    "authoritative_request_source": "supabase_record",
+    "authenticated_user_id_required_for_trust": true,
+    "authenticated_suggestions_receive_assessment": true,
+    "automatic_implementation_identity_source": "supabase_submitter_user_id_and_actor_user_id",
+    "trusted_owner_email_is_bootstrap_metadata_only": true,
+    "display_name_grants_authority": false,
+    "displayed_email_grants_authority": false,
+    "slack_message_grants_authority": false,
+    "request_text_can_override_policy": false,
+    "unknown_or_anonymous_submitter_lane": "D",
+    "non_owner_implementation_requires_trusted_owner_approval": true
+  },
+  "lanes": {
+    "A": {
+      "name": "automatic_implementation_candidate",
+      "pilot_enabled": true,
+      "coding_requires": [
+        "trusted_owner_uuid_or_trusted_owner_approval",
+        "single_confirmed_repository",
+        "clear_acceptance_checks",
+        "no_protected_paths",
+        "deterministic_tests_available"
+      ],
+      "merge_requires": [
+        "automatic_merge_enabled",
+        "all_required_checks_pass",
+        "post_implementation_diff_reclassified_as_A"
+      ],
+      "limits": {
+        "maximum_changed_files": 6,
+        "maximum_changed_lines": 400,
+        "new_dependencies_allowed": false,
+        "database_changes_allowed": false,
+        "workflow_changes_allowed": false,
+        "deployment_changes_allowed": false
+      }
+    },
+    "B": {
+      "name": "implement_then_approve",
+      "pilot_enabled": false,
+      "coding_requires": [
+        "trusted_actor",
+        "explicit_scope",
+        "acceptance_checks",
+        "rollback_plan"
+      ],
+      "merge_requires": [
+        "human_approval",
+        "all_required_checks_pass",
+        "actual_diff_review"
+      ],
+      "typical_triggers": [
+        "significant_new_feature",
+        "photo_capture_or_storage",
+        "offline_or_service_worker_change",
+        "new_dependency",
+        "additive_database_change",
+        "edge_function_change",
+        "external_integration",
+        "large_cross_page_change",
+        "diff_exceeds_lane_A_limits"
+      ]
+    },
+    "C": {
+      "name": "approve_before_coding",
+      "pilot_enabled": true,
+      "coding_requires": [
+        "explicit_human_approval",
+        "approved_implementation_plan",
+        "approved_test_plan",
+        "approved_rollback_plan"
+      ],
+      "merge_requires": [
+        "separate_human_approval",
+        "all_required_checks_pass",
+        "actual_diff_review"
+      ],
+      "typical_triggers": [
+        "authentication_or_account_recovery",
+        "roles_permissions_or_rls",
+        "secrets_or_service_role",
+        "destructive_or_bulk_data_change",
+        "financial_payment_or_payout_logic",
+        "collection_weight_integrity",
+        "privacy_or_retention",
+        "workflow_permissions",
+        "deployment_credentials",
+        "automation_policy_or_trust_model"
+      ]
+    },
+    "D": {
+      "name": "hold_reject_or_clarify",
+      "pilot_enabled": true,
+      "coding_allowed": false,
+      "triggers": [
+        "ambiguous_request",
+        "unverified_identity_for_requested_lane",
+        "duplicate_or_conflicting_change",
+        "acceptance_checks_not_safe_to_infer",
+        "harmful_or_insecure_request",
+        "prompt_injection_or_policy_override_attempt",
+        "unknown_application_or_repository"
+      ]
+    }
+  },
+  "classification": {
+    "default_lane": "D",
+    "cross_repository_minimum_lane": "B",
+    "protected_path_lane": "C",
+    "policy_file_change_lane": "C",
+    "unknown_actual_diff_lane": "C",
+    "reclassify_after_implementation": true
+  },
+  "required_artifacts": {
+    "all_requests": [
+      "request_summary",
+      "user_problem",
+      "target_repository",
+      "risk_lane",
+      "acceptance_checks",
+      "test_plan",
+      "rollback_plan",
+      "confidence"
+    ],
+    "coding_requests": [
+      "exact_base_commit",
+      "branch_name",
+      "changed_path_prediction",
+      "planning_document_update"
+    ],
+    "merge_requests": [
+      "actual_changed_paths",
+      "actual_diff_size",
+      "test_evidence",
+      "approval_evidence"
+    ]
+  },
+  "test_gates": {
+    "javascript_changed": [
+      "javascript_syntax",
+      "focused_unit_or_static_test"
+    ],
+    "layout_or_interaction_changed": [
+      "browser_or_ui_probe"
+    ],
+    "database_changed": [
+      "migration_validation",
+      "positive_permission_test",
+      "negative_permission_test",
+      "rollback_or_idempotency_check"
+    ],
+    "offline_changed": [
+      "service_worker_asset_check",
+      "offline_regression_check"
+    ],
+    "deployment_changed": [
+      "pre_deployment_approval",
+      "post_deployment_verification"
+    ]
+  },
+  "failure_rules": {
+    "missing_test_runner": "keep_draft_and_report_gap",
+    "failed_required_check": "stop",
+    "protected_path_detected_after_coding": "reclassify_to_C",
+    "branch_base_moved": "refresh_and_reassess",
+    "credentials_or_personal_data_detected": "stop_and_escalate",
+    "workflow_failure_callback": {
+      "accepted_stages": [
+        "assessment",
+        "implementation"
+      ],
+      "assessment_mutable_states": [
+        "shadow_assessment_pending",
+        "dispatch_pending",
+        "dispatched",
+        "assessing"
+      ],
+      "implementation_mutable_states": [
+        "coding",
+        "testing"
+      ],
+      "completed_stale_or_duplicate_callback": "ignore_idempotently"
+    }
+  },
+  "credential_scope": {
+    "supabase_runtime": [
+      "project_service_role_for_authoritative_record_access",
+      "workflow_callback_secret"
+    ],
+    "github_dispatch": [
+      "fine_grained_repository_token_for_repository_dispatch_only"
+    ],
+    "github_workflow": [
+      "ephemeral_github_token_for_controlled_branch_and_draft_pull_request"
+    ],
+    "codex_assessment_and_implementation": [
+      "openai_api_key_available_only_to_codex_action"
+    ],
+    "forbidden": [
+      "deployment_credentials",
+      "production_database_password",
+      "payment_credentials",
+      "mobile_signing_keys"
+    ]
+  }
+}

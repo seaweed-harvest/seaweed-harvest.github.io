@@ -28,21 +28,22 @@ class FormRecordReportingStaticTest(unittest.TestCase):
 
     def test_form_tabs_match_todays_record_order_and_heading_location(self):
         expected = (
-            "1. Site Water Samples",
-            "2. Intake Collection",
-            "3. Stock Record",
-            "4. Process Record",
+            "Site Water Samples",
+            "Intake",
+            "Stock",
+            "Process",
         )
         self.assertIn('class="today-records-heading form-ledger-heading"', self.records)
-        positions = [self.records.index(label) for label in expected]
+        category_tabs = self.records.split('id="formLedgerCategories"', 1)[1].split("</nav>", 1)[0]
+        positions = [category_tabs.index(f">{label}</button>") for label in expected]
         self.assertEqual(positions, sorted(positions))
         self.assertIn('data-ledger-category="intake"', self.records)
         self.assertNotIn('href="./admin_ledger.html">2. Intake Collection</a>', self.records)
 
-    def test_record_ledgers_defaults_to_embedded_daily_workspace(self):
+    def test_record_ledgers_defaults_to_interval_totals_on_desktop(self):
         periods = (
+            "Interval Totals",
             "Today's Record",
-            "Period Totals",
             "Community Records",
             "Container Lookup",
             "All Records",
@@ -53,9 +54,10 @@ class FormRecordReportingStaticTest(unittest.TestCase):
         self.assertIn('id="todayIntakeDate"', self.records)
         self.assertIn('id="todayIntakeRows"', self.records)
         self.assertIn('data-today-default-category="summary"', self.records)
-        self.assertIn('mode: "today"', self.script)
+        self.assertIn('mode: "monthly"', self.script)
         self.assertIn('category: "summary"', self.script)
         self.assertIn('MOBILE_RECORDS_QUERY', self.script)
+        self.assertIn('state.mode = "today"', self.script)
 
     def test_standalone_daily_route_remains_available_for_collectors(self):
         self.assertIn('id="todayRecordTabs"', self.today)
@@ -100,7 +102,7 @@ class FormRecordReportingStaticTest(unittest.TestCase):
         self.assertIn('"controllerchange"', self.pwa_bootstrap)
         self.assertIn("window.location.reload()", self.pwa_bootstrap)
         self.assertIn('cache: "no-store"', self.service_worker)
-        self.assertIn("seaweed-harvest-collection-v139", self.service_worker)
+        self.assertIn("seaweed-harvest-collection-v140", self.service_worker)
 
     def test_legacy_collection_route_preserves_filters_and_redirects(self):
         self.assertIn('new URL("./records.html"', self.legacy_collection)

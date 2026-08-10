@@ -332,7 +332,7 @@ function setDefaultControls() {
   }
   normalizeLedgerDateFilterControls();
   if (els.ledgerSearch && params.get("search")) els.ledgerSearch.value = params.get("search");
-  if (els.ledgerViewTabs) setLedgerView(params.get("view") || "all", { syncUrl: false });
+  if (els.ledgerViewTabs) setLedgerView(params.get("view") || "monthly", { syncUrl: false });
   if (els.todayIntakeDate) els.todayIntakeDate.value = kenyaDateInputValue(now);
 }
 

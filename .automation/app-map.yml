@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "mode": "owner_low_risk_draft_pr",
+  "targets": {
+    "seaweed-harvest": {
+      "source_repository": "seaweed-harvest/seaweed-harvest.github.io",
+      "source_branch": "main",
+      "deployment_repository": "seaweed-harvest/seaweed-harvest.github.io",
+      "deployment_branch": "main",
+      "deployment_enabled": false,
+      "mapping_status": "source_and_deployment_confirmed",
+      "source_app_values": [
+        "aggregation",
+        "green_space"
+      ],
+      "applications": {
+        "aggregation": {
+          "display_name": "Seaweed Harvest",
+          "repository_scope": ".",
+          "suggestion_route": "seaweed-harvest"
+        },
+        "green_space": {
+          "display_name": "Green Space Log",
+          "repository_scope": ".",
+          "suggestion_route": "seaweed-harvest"
+        }
+      }
+    },
+    "seaweed-tide-planner": {
+      "source_repository": "bosunjm-cloud/Seaweed_Tide_App",
+      "source_branch": "main",
+      "deployment_repository": null,
+      "deployment_branch": null,
+      "deployment_enabled": false,
+      "mapping_status": "deployment_repository_confirmation_required",
+      "source_app_values": [
+        "tide"
+      ],
+      "applications": {
+        "tide": {
+          "display_name": "Seaweed Tide Planner",
+          "repository_scope": ".",
+          "suggestion_route": "seaweed-tide-planner"
+        }
+      }
+    }
+  },
+  "routing_rules": {
+    "unknown_source_app": "hold_for_review",
+    "ambiguous_target": "hold_for_review",
+    "cross_repository_request": "plan_only",
+    "deployment_when_disabled": "stop",
+    "authenticated_non_owner": "assessment_and_plan_until_trusted_owner_approval",
+    "trusted_owner_low_risk_lane_A": "implementation_branch_and_draft_pull_request"
+  }
+}

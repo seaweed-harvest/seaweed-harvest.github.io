@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "assessment_id": "ASMT-AUTH-001",
+  "request_id": "fixture-request-auth-001",
+  "assessed_at": "2026-07-26T09:21:00+03:00",
+  "policy_version": "2026-07-29.1",
+  "mode": "shadow",
+  "request": {
+    "source_app": "aggregation",
+    "title": "Change account permissions and login behaviour",
+    "problem_summary": "The request would alter authentication and role behaviour for operational users.",
+    "acceptance_summary": [
+      "Authorised roles can access only their permitted data.",
+      "Unauthorised users remain blocked."
+    ],
+    "submitter": {
+      "trust_status": "trusted_owner",
+      "trust_source": "approved_actor_record",
+      "actor_id": "fixture-owner-001"
+    }
+  },
+  "target": {
+    "target_key": "seaweed-harvest",
+    "source_repository": "seaweed-harvest/seaweed-harvest.github.io",
+    "source_branch": "main",
+    "mapping_status": "confirmed"
+  },
+  "outcome": "approval_required",
+  "risk_lane": "C",
+  "confidence": 0.99,
+  "classification_reasons": [
+    "Authentication and permissions are protected work.",
+    "Predicted paths include Supabase and authentication files.",
+    "Coding and merge require separate explicit approvals."
+  ],
+  "duplicate": {
+    "is_duplicate": false,
+    "duplicate_of": null
+  },
+  "clarification": {
+    "required": false,
+    "questions": []
+  },
+  "scope": {
+    "predicted_paths": [
+      "assets/js/auth_client.js",
+      "supabase/migrations/20990101000000_fixture_access_change.sql",
+      "tests/fixture_access_negative_test.py"
+    ],
+    "predicted_file_count": 3,
+    "predicted_changed_lines": 220,
+    "cross_repository": false
+  },
+  "checks": {
+    "acceptance_checks": [
+      "Permission matrix is approved before coding.",
+      "Positive and negative role tests pass.",
+      "Tenant isolation remains enforced."
+    ],
+    "test_plan": [
+      "Validate the migration in a disposable environment.",
+      "Run positive permission tests.",
+      "Run negative permission and tenant-isolation tests."
+    ],
+    "rollback_plan": [
+      "Use the approved rollback migration or restore the disposable environment.",
+      "Do not apply to production without separate approval."
+    ]
+  },
+  "approvals": {
+    "coding_required": true,
+    "merge_required": true,
+    "deployment_required": true
+  },
+  "automation": {
+    "coding_authorized": false,
+    "pull_request_authorized": false,
+    "merge_authorized": false,
+    "deployment_authorized": false
+  },
+  "evidence": [
+    {
+      "kind": "request_record",
+      "reference": "fixture-request-auth-001"
+    },
+    {
+      "kind": "policy",
+      "reference": ".automation/development-policy.yml#lanes.C"
+    },
+    {
+      "kind": "policy",
+      "reference": ".automation/protected-paths.yml#lane_C_approval_before_coding"
+    }
+  ]
+}

@@ -77,14 +77,14 @@ const REPORTS = {
       ["lost_kg", "Lost kg", "number"],
       ["press_count", "Presses", "integer"],
       ["avg_wet_dry_percent", "Avg wet/dry %", "number"],
-      ["avg_stock_product_percent", "Avg dry pulp/received %", "number"]
+      ["liquid_per_received_l_kg", "Liquid (L) / Received (kg)", "number"]
     ],
     metrics: [
       ["record_count", "Records", "integer"],
       ["received_kg", "Received", "kg"],
       ["liquid_l", "Liquid", "L"],
       ["dry_pulp_kg", "Dry pulp", "kg"],
-      ["avg_wet_dry_percent", "Avg wet/dry", "%"]
+      ["liquid_per_received_l_kg", "Liquid / received", "L/kg"]
     ]
   },
   site_sample: {
@@ -157,7 +157,7 @@ const MOBILE_RECORDS_QUERY = "(max-width: 980px)";
 const state = {
   profile: null,
   category: "summary",
-  mode: "today",
+  mode: "monthly",
   rows: [],
   total: 0,
   page: 0,
@@ -593,7 +593,7 @@ function configureOperationalSummaryView() {
   const community = state.mode === "community";
   if (monthly) {
     const grouping = reportingGrouping(els.operationalSummaryGrouping.value);
-    els.operationalSummaryTitle.textContent = "Period totals";
+    els.operationalSummaryTitle.textContent = "Interval totals";
     els.operationalSummaryHint.textContent = `Organisation totals grouped by ${reportingGroupingNoun(grouping)}.`;
   } else if (community) {
     els.operationalSummaryTitle.textContent = "Community summary";
@@ -675,7 +675,9 @@ async function loadMonthlyReport() {
     ]);
     state.monthlyRows = periodReport.rows;
     state.monthlyTotals = periodReport.totals;
-    state.dailyRows = activityReport.rows;
+    state.dailyRows = state.category === "stock"
+      ? stockInitialActivityRows(activityReport.rows)
+      : activityReport.rows;
     els.formLedgerMonthlyTitle.textContent = `${REPORTS[state.category].title} by ${reportingGroupingNoun(grouping)}`;
     els.formLedgerPeriodHint.textContent = `Totals grouped by ${reportingGroupingNoun(grouping)}.`;
     renderMonthlyMetrics();
@@ -708,10 +710,30 @@ async function periodTotalsRpc(recordType, start, end, grouping, communityId = n
   });
   if (error) throw error;
   const result = Array.isArray(data) ? data[0] : data;
+  const rows = Array.isArray(result?.rows) ? result.rows : [];
+  const totals = result?.totals || {};
+  if (recordType === "process") {
+    rows.forEach(addLiquidPerReceivedRatio);
+    addLiquidPerReceivedRatio(totals);
+  }
   return {
-    rows: Array.isArray(result?.rows) ? result.rows : [],
-    totals: result?.totals || {}
+    rows,
+    totals
   };
+}
+
+function addLiquidPerReceivedRatio(values) {
+  const receivedKg = Number(values?.received_kg || 0);
+  const liquidL = Number(values?.liquid_l || 0);
+  values.liquid_per_received_l_kg = receivedKg > 0
+    ? Math.round((liquidL / receivedKg) * 100) / 100
+    : null;
+}
+
+function stockInitialActivityRows(rows) {
+  return rows
+    .map((row) => ({ ...row, record_count: Number(row.new_count || 0) }))
+    .filter((row) => row.record_count > 0);
 }
 
 async function loadCommunityReport() {

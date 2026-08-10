@@ -35,27 +35,34 @@ def main():
 
         driver.get(f"{base_url}/records.html")
         wait.until(lambda current: current.find_element(
-            By.ID, "recordTodayWorkspace"
+            By.ID, "operationalSummaryWorkspace"
         ).is_displayed())
         wait.until(lambda current: current.execute_script(
             "return document.body.dataset.recordPeriod || '';"
-        ) == "today")
-        wait.until(lambda current: current.find_element(
-            By.ID, "todaySummaryPanel"
-        ).is_displayed())
-        assert driver.find_element(By.ID, "todayIntakeDate").is_displayed()
+        ) == "monthly")
         period_buttons = driver.find_elements(By.CSS_SELECTOR, "#recordPeriodTabs [data-record-period]")
         assert [button.get_attribute("textContent").strip() for button in period_buttons] == [
+            "Interval Totals",
             "Today's Record",
-            "Period Totals",
             "Community Records",
             "Container Lookup",
             "All Records",
         ]
         period_state = driver.find_element(
-            By.CSS_SELECTOR, '#recordPeriodTabs [data-record-period="today"]'
+            By.CSS_SELECTOR, '#recordPeriodTabs [data-record-period="monthly"]'
         ).get_attribute("aria-selected")
         assert period_state == "true", period_state
+
+        driver.find_element(
+            By.CSS_SELECTOR, '#recordPeriodTabs [data-record-period="today"]'
+        ).click()
+        wait.until(lambda current: current.find_element(
+            By.ID, "recordTodayWorkspace"
+        ).is_displayed())
+        wait.until(lambda current: current.find_element(
+            By.ID, "todaySummaryPanel"
+        ).is_displayed())
+        assert driver.find_element(By.ID, "todayIntakeDate").is_displayed()
         assert driver.find_element(
             By.CSS_SELECTOR, '[data-today-record-tab="summary"]'
         ).get_attribute("aria-selected") == "true"
@@ -122,7 +129,7 @@ def main():
         assert driver.find_element(By.ID, "operationalSummaryStatus").text == ""
         wait.until(lambda current: current.find_element(
             By.ID, "operationalSummaryTitle"
-        ).text == "Period totals")
+        ).text == "Interval totals")
         assert Select(driver.find_element(By.ID, "operationalSummaryGrouping")).first_selected_option.text == "Day"
         assert len(driver.find_elements(
             By.CSS_SELECTOR, "#operationalSummaryCalendar .collection-calendar-month"
@@ -192,7 +199,7 @@ def main():
         ).click()
         wait.until(lambda current: current.find_element(
             By.ID, "operationalSummaryTitle"
-        ).text == "Period totals")
+        ).text == "Interval totals")
         wait.until(lambda current: current.find_element(
             By.ID, "operationalSummaryCount"
         ).text != "Loading")
@@ -306,7 +313,7 @@ def main():
             ) if button.is_displayed()
         ]
         assert visible_stock_periods == [
-            "Today's Record", "Period Totals", "Container Lookup", "All Records"
+            "Interval Totals", "Today's Record", "Container Lookup", "All Records"
         ], visible_stock_periods
         driver.find_element(
             By.CSS_SELECTOR, '#recordPeriodTabs [data-record-period="monthly"]'

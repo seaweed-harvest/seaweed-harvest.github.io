@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "assessment_id": "ASMT-UI-001",
+  "request_id": "fixture-request-ui-001",
+  "assessed_at": "2026-07-26T09:20:00+03:00",
+  "policy_version": "2026-07-29.1",
+  "mode": "shadow",
+  "request": {
+    "source_app": "aggregation",
+    "title": "Clarify an existing dashboard label",
+    "problem_summary": "The dashboard label is unclear and should use an approved plain-language replacement without changing data or behaviour.",
+    "acceptance_summary": [
+      "The existing label uses the approved wording.",
+      "No database, permission or calculation changes are made."
+    ],
+    "submitter": {
+      "trust_status": "trusted_owner",
+      "trust_source": "approved_actor_record",
+      "actor_id": "fixture-owner-001"
+    }
+  },
+  "target": {
+    "target_key": "seaweed-harvest",
+    "source_repository": "seaweed-harvest/seaweed-harvest.github.io",
+    "source_branch": "main",
+    "mapping_status": "confirmed"
+  },
+  "outcome": "implementation_candidate",
+  "risk_lane": "A",
+  "confidence": 0.94,
+  "classification_reasons": [
+    "Single confirmed repository and application.",
+    "Expected text-only change outside protected paths.",
+    "Acceptance checks are deterministic."
+  ],
+  "duplicate": {
+    "is_duplicate": false,
+    "duplicate_of": null
+  },
+  "clarification": {
+    "required": false,
+    "questions": []
+  },
+  "scope": {
+    "predicted_paths": [
+      "home.html",
+      "tests/dashboard_label_static_test.py"
+    ],
+    "predicted_file_count": 2,
+    "predicted_changed_lines": 20,
+    "cross_repository": false
+  },
+  "checks": {
+    "acceptance_checks": [
+      "Approved wording appears once in the intended dashboard section.",
+      "Previous wording is absent from that section."
+    ],
+    "test_plan": [
+      "Run the focused dashboard label static test.",
+      "Inspect the final diff for unrelated changes."
+    ],
+    "rollback_plan": [
+      "Revert the text and focused test commit."
+    ]
+  },
+  "approvals": {
+    "coding_required": false,
+    "merge_required": true,
+    "deployment_required": true
+  },
+  "automation": {
+    "coding_authorized": false,
+    "pull_request_authorized": false,
+    "merge_authorized": false,
+    "deployment_authorized": false
+  },
+  "evidence": [
+    {
+      "kind": "request_record",
+      "reference": "fixture-request-ui-001"
+    },
+    {
+      "kind": "policy",
+      "reference": ".automation/development-policy.yml#lanes.A"
+    },
+    {
+      "kind": "repository",
+      "reference": "seaweed-harvest/seaweed-harvest.github.io@main"
+    }
+  ]
+}

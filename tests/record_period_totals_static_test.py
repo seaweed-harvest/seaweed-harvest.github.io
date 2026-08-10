@@ -34,7 +34,22 @@ class RecordPeriodTotalsStaticTest(unittest.TestCase):
             "formLedgerCalendar",
         ):
             self.assertIn(f'id="{element_id}"', self.records)
-        self.assertEqual(1, self.records.count(">Period Totals</button>"))
+        self.assertEqual(1, self.records.count(">Interval Totals</button>"))
+        self.assertNotIn(">Period Totals</button>", self.records)
+
+    def test_interval_totals_is_the_default_desktop_record_view(self):
+        periods = (
+            "Interval Totals",
+            "Today's Record",
+            "Community Records",
+            "Container Lookup",
+            "All Records",
+        )
+        positions = [self.records.index(label) for label in periods]
+        self.assertEqual(positions, sorted(positions))
+        self.assertIn('data-record-period="monthly" aria-selected="true"', self.records)
+        self.assertIn('mode: "monthly"', self.records_script)
+        self.assertIn('params.get("view") || "monthly"', self.admin_script)
 
     def test_day_is_the_default_and_grouping_changes_reload(self):
         self.assertGreaterEqual(
@@ -88,6 +103,18 @@ class RecordPeriodTotalsStaticTest(unittest.TestCase):
             self.records_script,
         )
         self.assertNotIn("Container Lookup</a>", read("assets/js/app_navigation.js"))
+
+    def test_stock_activity_calendar_excludes_retests(self):
+        self.assertIn("stockInitialActivityRows(activityReport.rows)", self.records_script)
+        self.assertIn("record_count: Number(row.new_count || 0)", self.records_script)
+
+    def test_process_totals_show_liquid_per_received_ratio(self):
+        self.assertIn(
+            '["liquid_per_received_l_kg", "Liquid (L) / Received (kg)", "number"]',
+            self.records_script,
+        )
+        self.assertIn("liquidL / receivedKg", self.records_script)
+        self.assertNotIn("Avg dry pulp/received %", self.records_script)
 
     def test_local_page_links_resolve_to_existing_files(self):
         missing = []

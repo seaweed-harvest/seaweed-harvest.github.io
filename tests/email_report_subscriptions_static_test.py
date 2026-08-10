@@ -129,7 +129,7 @@ class EmailReportSubscriptionsStaticTest(unittest.TestCase):
         self.assertIn("Report emails", auth)
         self.assertIn('requestedFile === "report_subscriptions.html"', login)
         self.assertIn("./report_subscriptions.html", details)
-        self.assertIn('CACHE_VERSION = "seaweed-harvest-collection-v139"', worker)
+        self.assertIn('CACHE_VERSION = "seaweed-harvest-collection-v140"', worker)
         self.assertIn('"./report_subscriptions.html"', worker)
         self.assertIn('"./assets/js/report_subscriptions_page.js"', worker)
 
