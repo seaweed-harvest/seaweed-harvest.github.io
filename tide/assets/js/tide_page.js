@@ -68,6 +68,8 @@ const state = {
 
 const els = {};
 const MAIN_TIDE_DATASET_KEY = "kmfri_2026_mombasa";
+const MAIN_PAGE_LOCATION_KEY = "kenya-coast";
+const MAIN_PAGE_LOCATION_NAME = "Shimoni Region";
 let farmLocations = mainPageLocations(getLocations());
 let tideLocations = farmLocations;
 const TIDE_PROFILES = getProfiles();
@@ -201,7 +203,10 @@ async function loadLocationRecords() {
   const farmResult = await loadPublicFarmLocations();
 
   if (Array.isArray(farmResult.locations) && farmResult.locations.length) {
-    farmLocations = mainPageLocations(farmResult.locations);
+    const refreshedLocations = mainPageLocations(farmResult.locations);
+    if (refreshedLocations.length) {
+      farmLocations = refreshedLocations;
+    }
   }
 
   tideLocations = farmLocations;
@@ -237,19 +242,19 @@ async function refreshLocationRecordsInPlace() {
 }
 
 function mainPageLocations(locations) {
-  return locations
-    .filter((location) => {
-      return location?.locationType !== "tide_reference"
-        && String(location?.status || "").toLowerCase() !== "reference_only";
-    })
-    .map((location) => ({
-      ...location,
-      tideProfileKey: "kenya_mombasa_reference",
-      defaultTideDatasetId: location.defaultTideDatasetKey === MAIN_TIDE_DATASET_KEY
-        ? location.defaultTideDatasetId || ""
-        : "",
-      defaultTideDatasetKey: MAIN_TIDE_DATASET_KEY
-    }));
+  const mainLocation = locations.find((location) => location?.key === MAIN_PAGE_LOCATION_KEY);
+  if (!mainLocation) return [];
+
+  return [{
+    ...mainLocation,
+    name: MAIN_PAGE_LOCATION_NAME,
+    shortName: MAIN_PAGE_LOCATION_NAME,
+    tideProfileKey: "kenya_mombasa_reference",
+    defaultTideDatasetId: mainLocation.defaultTideDatasetKey === MAIN_TIDE_DATASET_KEY
+      ? mainLocation.defaultTideDatasetId || ""
+      : "",
+    defaultTideDatasetKey: MAIN_TIDE_DATASET_KEY
+  }];
 }
 
 function populateLocationSelect() {
