@@ -5416,6 +5416,29 @@ body[data-registration-pending] .registration-flow {
   margin: 0;
 }
 
+.application-access-options {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.application-access-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(140px, 220px) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-subtle, #f7faf9);
+}
+
+@media (max-width: 720px) {
+  .application-access-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .compact-data-table-wrap {
   overflow: auto;
 }

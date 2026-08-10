@@ -1,0 +1,147 @@
+html[data-platform-auth="checking"] body {
+  visibility: hidden;
+}
+
+html[data-platform-auth="ready"] body,
+html[data-platform-auth="error"] body {
+  visibility: visible;
+}
+
+.platform-account-menu {
+  position: relative;
+  margin-left: 0.35rem;
+}
+
+.platform-account-menu > summary {
+  list-style: none;
+}
+
+.platform-account-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.platform-account-trigger {
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border: 1px solid rgba(15, 118, 110, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(15, 75, 69, 0.08);
+}
+
+.platform-account-trigger:focus-visible {
+  outline: 3px solid rgba(15, 118, 110, 0.25);
+  outline-offset: 2px;
+}
+
+.platform-account-avatar {
+  display: grid;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 999px;
+  background: #0f766e;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.platform-account-popover {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 0.55rem);
+  right: 0;
+  width: min(17rem, calc(100vw - 1.5rem));
+  padding: 0.5rem;
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: 0.8rem;
+  background: #fff;
+  box-shadow: 0 16px 40px rgba(18, 64, 59, 0.18);
+}
+
+.platform-account-identity {
+  display: grid;
+  gap: 0.14rem;
+  padding: 0.55rem 0.65rem 0.7rem;
+  border-bottom: 1px solid rgba(15, 118, 110, 0.12);
+  margin-bottom: 0.35rem;
+}
+
+.platform-account-identity strong {
+  color: #173f3b;
+  font-size: 0.94rem;
+}
+
+.platform-account-identity span {
+  color: #62807b;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.platform-account-identity .platform-account-role {
+  color: #0f766e;
+  font-weight: 700;
+}
+
+.platform-account-item {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.62rem 0.65rem;
+  border: 0;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: #244c47;
+  font: inherit;
+  font-size: 0.86rem;
+  line-height: 1.25;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.platform-account-item:hover,
+.platform-account-item:focus-visible {
+  background: #eef8f5;
+  outline: none;
+}
+
+.platform-account-signout {
+  color: #8c2d2d;
+}
+
+.platform-access-error {
+  position: relative;
+  z-index: 100;
+  display: grid;
+  gap: 0.35rem;
+  max-width: 42rem;
+  margin: 1rem auto;
+  padding: 0.85rem 1rem;
+  border: 1px solid #d9b3b3;
+  border-radius: 0.75rem;
+  background: #fff5f5;
+  color: #6f2525;
+  box-shadow: 0 8px 24px rgba(111, 37, 37, 0.08);
+}
+
+.platform-access-error a {
+  color: inherit;
+  font-weight: 700;
+}
+
+@media (max-width: 700px) {
+  .platform-account-trigger {
+    width: 2.2rem;
+    height: 2.2rem;
+  }
+
+  .platform-account-avatar {
+    width: 1.68rem;
+    height: 1.68rem;
+  }
+}

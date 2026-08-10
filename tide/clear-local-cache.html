@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Clear Local Cache - Seaweed Tide Planner</title>
+  <link rel="stylesheet" href="./assets/css/tides.css?v=20260611-disclaimer">
+</head>
+<body>
+  <main class="app-shell">
+    <section class="admin-management-card">
+      <div class="admin-card-body">
+        <h1>Clear Local Cache</h1>
+        <p id="clearStatus" class="field-hint">Clearing local browser cache for this site...</p>
+        <p><a href="./admin.html?fresh=1">Open Admin</a></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="marine-disclaimer-footer">
+    <p><strong>Safety:</strong> Not for marine navigation or safety-of-life decisions. Tide guidance may be wrong, stale, unverified, or affected by local weather and sea conditions. Check official/local sources and current conditions before acting. <button type="button" data-disclaimer-open>Full disclaimer</button></p>
+  </footer>
+
+  <script type="module" src="./assets/js/disclaimer.js?v=20260615-threshold-incomplete"></script>
+  <script>
+    async function clearLocalCache() {
+      const status = document.getElementById("clearStatus");
+      try {
+        if ("serviceWorker" in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map((registration) => registration.unregister()));
+        }
+
+        if ("caches" in window) {
+          const cacheNames = await caches.keys();
+          await Promise.all(cacheNames.map((name) => caches.delete(name)));
+        }
+
+        status.textContent = "Local cache cleared. Opening Admin...";
+        window.setTimeout(() => {
+          window.location.href = "./admin.html?fresh=" + Date.now();
+        }, 600);
+      } catch (error) {
+        status.textContent = "Could not clear automatically. Use Chrome DevTools > Application > Clear site data.";
+      }
+    }
+
+    clearLocalCache();
+  </script>
+</body>
+</html>

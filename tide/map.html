@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <title data-i18n="title.map">Map - Seaweed Tide Planner</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/icons/tide-planner-icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="./assets/css/tides.css?v=20260723-table-harvest-align">
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <p class="eyebrow" data-i18n="app.eyebrow">Seaweed farming tide guidance</p>
+        <h1 data-i18n="page.mapTitle">Farm & Tide Source Map</h1>
+      </div>
+      <div class="header-actions">
+        <nav class="app-nav" aria-label="Main navigation" data-i18n-aria-label="nav.mainLabel">
+          <a href="./index.html?v=20260723-table-harvest-align" data-i18n="nav.tides">Tides</a>
+          <a href="./map.html?v=20260723-table-harvest-align" aria-current="page" data-i18n="nav.map">Map</a>
+        </nav>
+        <div class="header-status">
+          <span id="mapStatus" class="status-pill status-muted" data-i18n="map.statusLoading">Loading locations</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell map-shell">
+    <section class="language-card" aria-label="Language" data-i18n-aria-label="language.ariaLabel">
+      <span class="language-card-label" data-i18n="language.label">Language:</span>
+      <div class="language-card-actions" role="group" aria-label="Language" data-i18n-aria-label="language.ariaLabel">
+        <button type="button" data-language-option="en" aria-pressed="true">English</button>
+        <button type="button" data-language-option="sw" aria-pressed="false">Kiswahili</button>
+      </div>
+    </section>
+
+    <section id="weatherAlertCard" class="weather-warning-strip" aria-label="Weather warning source" data-i18n-aria-label="weatherWarning.ariaLabel" data-weather-alert-status="loading">
+      <span class="weather-warning-icon" aria-hidden="true">!</span>
+      <strong id="weatherAlertLabel" data-i18n="weatherWarning.loadingLabel">Weather alerts:</strong>
+      <span id="weatherAlertText" class="weather-warning-text" data-i18n="weatherWarning.loadingText">Checking Kenya Meteorological Department alerts...</span>
+      <span id="weatherAlertMeta" class="weather-warning-meta" hidden></span>
+      <a id="weatherAlertSource" href="https://meteo.go.ke/weather-warnings/" target="_blank" rel="noopener" data-i18n="weatherWarning.sourceLink">Check Kenya Meteorological Department warnings</a>
+    </section>
+
+    <section class="map-intro-card">
+      <div class="map-intro-main">
+        <h2 data-i18n="map.farmLocations">Farm & Tide Source Locations</h2>
+        <label class="map-region-control" for="mapRegionSelect">
+          <span data-i18n="map.regionLabel">Region</span>
+          <select id="mapRegionSelect" aria-label="Region" data-i18n-aria-label="map.regionLabel"></select>
+        </label>
+      </div>
+      <div class="map-intro-meta">
+        <div class="map-legend" aria-label="Map symbol legend" data-i18n-aria-label="map.legendLabel">
+          <span><i class="map-marker-sample farm" aria-hidden="true">&#127807;</i> <span data-i18n="map.legendFarm">Farm</span></span>
+          <span><i class="map-marker-sample lodge" aria-hidden="true">&#127976;</i> <span data-i18n="map.legendLodge">Lodge</span></span>
+          <span><i class="map-marker-sample tide-reference" aria-hidden="true">&#8776;</i> <span data-i18n="map.legendReference">Tide source</span></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="map-layout" aria-label="Farm location map and list" data-i18n-aria-label="map.layoutLabel">
+      <div class="map-panel">
+        <div id="farmMap" class="farm-map" role="application" aria-label="Farm location map" data-i18n-aria-label="map.mapLabel"></div>
+        <div id="mapFallback" class="empty-state map-fallback" hidden></div>
+      </div>
+
+      <div class="map-list-stack">
+        <section class="panel map-list-panel">
+          <div class="section-head compact">
+            <h2 data-i18n="map.mappedFarms">Mapped Farms</h2>
+            <span id="mappedCount" class="status-pill">0</span>
+          </div>
+          <div id="mappedLocationList" class="map-table-wrap"></div>
+        </section>
+
+        <section class="panel map-list-panel">
+          <div class="section-head compact">
+            <h2 data-i18n="map.tideReferences">Tide Sources</h2>
+            <span id="referenceCount" class="status-pill">0</span>
+          </div>
+          <div id="tideReferenceList" class="map-table-wrap"></div>
+        </section>
+
+        <section id="missingLocationPanel" class="panel map-list-panel" hidden>
+          <div class="section-head compact">
+            <h2 data-i18n="map.needsGps">Needs GPS</h2>
+            <span id="missingCount" class="status-pill status-muted">0</span>
+          </div>
+          <div id="missingLocationList" class="map-table-wrap"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="marine-disclaimer-footer">
+    <p><strong class="safety-label" data-i18n="safety.footerLabel">Safety:</strong> <span class="marine-disclaimer-text" data-i18n="safety.footerText">Not for marine navigation or safety-of-life decisions. Tide guidance may be wrong, stale, unverified, or affected by local weather and sea conditions. Check official/local sources and current conditions before acting.</span> <button type="button" data-disclaimer-open data-i18n="safety.fullDisclaimerShort">Full disclaimer</button></p>
+  </footer>
+
+  <noscript>
+    <div class="noscript" data-i18n="noscript.map">JavaScript is required to display the farm map.</div>
+  </noscript>
+
+  <script src="./assets/vendor/leaflet/leaflet.js"></script>
+  <script type="module" src="./assets/js/disclaimer.js?v=20260723-table-harvest-align"></script>
+  <script type="module" src="./assets/js/language.js?v=20260723-table-harvest-align"></script>
+  <script type="module" src="./assets/js/weather_alerts.js?v=20260723-table-harvest-align"></script>
+  <script type="module" src="./assets/js/pwa.js?v=20260723-table-harvest-align"></script>
+  <script type="module" src="./assets/js/map_page.js?v=20260810-offline-bundle-v2"></script>
+</body>
+</html>

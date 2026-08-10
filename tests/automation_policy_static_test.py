@@ -55,9 +55,16 @@ def main() -> None:
         "green_space",
     }
     assert app_map["targets"]["seaweed-tide-planner"]["source_repository"] == (
-        "bosunjm-cloud/Seaweed_Tide_App"
+        "bosunjm-cloud/Seaweed_Ag_Hub"
     )
-    assert app_map["targets"]["seaweed-tide-planner"]["source_app_values"] == ["tide"]
+    tide_target = app_map["targets"]["seaweed-tide-planner"]
+    assert tide_target["source_app_values"] == ["tide"]
+    assert tide_target["deployment_repository"] == (
+        "seaweed-harvest/seaweed-harvest.github.io"
+    )
+    assert tide_target["deployment_branch"] == "main"
+    assert tide_target["mapping_status"] == "source_and_deployment_confirmed"
+    assert tide_target["applications"]["tide"]["repository_scope"] == "tide"
     assert all(
         target["deployment_enabled"] is False
         for target in app_map["targets"].values()

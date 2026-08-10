@@ -14,6 +14,7 @@ import {
   updateMyDisplayName,
   updatePassword
 } from "./auth_client.js?v=22";
+import { currentApplicationAccess } from "./platform_access.js?v=1";
 import { transitionTo } from "./app_transition.js";
 import { loadOfflineCollectionAccess } from "./offline_store.js";
 
@@ -207,17 +208,30 @@ async function routeSignedInUser(options = {}) {
   const requested = new URLSearchParams(window.location.search).get("return");
   const requestedPage = safePage(requested);
   const requestedFile = requestedPage.split("?")[0];
-  const canUseRequestedPage = requestedFile === "my_details.html"
-    || requestedFile === "report_subscriptions.html"
-    || (requestedFile === "green-space/ledger.html"
-      && (profile?.app_role === "system_admin" || profile?.can_manage_green_space))
-    || profile?.app_role === "system_admin"
-    || profile?.can_access_admin
-    || (requestedFile === "collection.html" && profile?.can_submit_collection)
-    || (requestedFile === "collector_dashboard.html" && profile?.can_submit_collection)
-    || (requestedFile === "farmer.html" && profile?.app_role === "farmer_viewer")
-    || requestedFile === "access_pending.html";
-  const destination = requested && canUseRequestedPage ? `./${requestedPage}` : routeForProfile(profile);
+  const requestedApp = applicationForPage(requestedFile);
+  const needsApplicationAccess = Boolean(requestedApp) || profile?.app_role === "platform_user";
+  const applications = needsApplicationAccess
+    ? await currentApplicationAccess(true).catch(() => ({}))
+    : {};
+
+  const canUseRequestedPage = requestedApp
+    ? Boolean(applications?.[requestedApp])
+    : requestedFile === "my_details.html"
+      || requestedFile === "report_subscriptions.html"
+      || (requestedFile === "green-space/ledger.html"
+        && (profile?.app_role === "system_admin" || profile?.can_manage_green_space))
+      || profile?.app_role === "system_admin"
+      || profile?.can_access_admin
+      || (requestedFile === "collection.html" && profile?.can_submit_collection)
+      || (requestedFile === "collector_dashboard.html" && profile?.can_submit_collection)
+      || (requestedFile === "farmer.html" && profile?.app_role === "farmer_viewer")
+      || requestedFile === "access_pending.html";
+
+  let destination = requested && canUseRequestedPage ? `./${requestedPage}` : routeForProfile(profile);
+  if (!requested && profile?.app_role === "platform_user") {
+    destination = defaultApplicationRoute(applications) || destination;
+  }
+
   if (options.animate === false) {
     window.location.replace(destination);
     return;
@@ -267,7 +281,18 @@ function signInErrorMessage(error) {
 function safePage(value) {
   const file = String(value || "").replace(/^\.\//, "");
   if (file === "green-space/ledger.html") return file;
+  if (/^tide\/[a-z0-9_.-]+(?:\?[a-z0-9_.=&%+-]*)?$/i.test(file)) return file;
   return /^[a-z0-9_.?=&%-]+$/i.test(file) ? file : "home.html";
+}
+
+function applicationForPage(file) {
+  if (String(file || "").startsWith("tide/")) return "tide";
+  return "";
+}
+
+function defaultApplicationRoute(applications) {
+  if (applications?.tide) return "./tide/index.html";
+  return "";
 }
 
 function requiresPasswordChange(value) {

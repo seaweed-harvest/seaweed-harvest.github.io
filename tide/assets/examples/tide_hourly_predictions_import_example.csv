@@ -1,0 +1,2 @@
+prediction_time_utc,local_date,local_time,local_hour,height_m,source_record_id,source_pdf_page,source_row_text,quality_flag,notes
+2025-12-31T21:00:00Z,2026-01-01,00:00,0,2.52,example-hourly-2026-01-01-00,42,"Example source row text",imported_from_source_pdf,

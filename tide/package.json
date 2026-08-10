@@ -1,0 +1,13 @@
+{
+  "name": "seaweed-tide-planner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "python -m http.server 8080",
+    "test": "node tests/tide_core_smoke.test.js && node tests/tide_data_paging.test.js",
+    "prepare:android-web": "powershell -NoProfile -ExecutionPolicy Bypass -File ./tools/prepare_android_web.ps1",
+    "cap:sync:android": "npm run prepare:android-web && npx cap sync android",
+    "cap:open:android": "npx cap open android"
+  }
+}
