@@ -53,6 +53,7 @@ const APP_SHELL = [
   "./assets/js/report_subscriptions_page.js",
   "./assets/js/dashboard_preferences.js",
   "./assets/js/process_record_form.js",
+  "./assets/js/process_timestamps.mjs",
   "./assets/js/suggested_input.js",
   "./assets/js/stabilization_packing_form.js",
   "./assets/js/site_water_sample_form.js",

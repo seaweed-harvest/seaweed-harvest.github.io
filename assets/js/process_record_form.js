@@ -1,5 +1,10 @@
 import { authClient, requireOrganisationCapability } from "./auth_client.js";
 import { setupFavoriteFormButton } from "./favorite_forms.js?v=3";
+import {
+  defaultFinishDate,
+  formatProcessDuration,
+  processTimestampRange
+} from "./process_timestamps.mjs";
 import { selectRows } from "./supabase_client.js";
 
 const PHOTO_BUCKET = "process-record-photos";
@@ -12,7 +17,8 @@ const state = {
   access: null,
   submissionId: crypto.randomUUID(),
   photo: null,
-  photoUrl: null
+  photoUrl: null,
+  finishDateChanged: false
 };
 
 document.addEventListener("DOMContentLoaded", init);
@@ -20,7 +26,8 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   [
     "processRecordForm", "processRecordNumber", "processRecordedBy", "processDate",
-    "processStartTime", "processEndTime", "processSpecies", "processReceivedKg",
+    "processStartTime", "processFinishDate", "processEndTime", "processFinishError",
+    "processSpecies", "processReceivedKg",
     "processReceivedHint", "processPressedLiquidL", "processPressedLiquidHint",
     "processWetPulpKg", "processDryPulpKg",
     "processLostSeaweedKg", "processPressCount", "processTotalTime", "processAveragePress",
@@ -61,7 +68,17 @@ async function init() {
 function bindEvents() {
   els.processRecordForm.addEventListener("submit", submitProcessRecord);
   els.clearProcessRecord.addEventListener("click", clearForm);
-  els.processDate.addEventListener("change", loadFormContext);
+  els.processDate.addEventListener("change", () => {
+    syncDefaultFinishDate();
+    updateCalculations();
+    void loadFormContext();
+  });
+  els.processStartTime.addEventListener("input", syncDefaultFinishDate);
+  els.processEndTime.addEventListener("input", syncDefaultFinishDate);
+  els.processFinishDate.addEventListener("change", () => {
+    state.finishDateChanged = true;
+    updateCalculations();
+  });
   els.processPhoto.addEventListener("change", selectPhoto);
   els.deleteProcessPhoto.addEventListener("click", clearPhoto);
   els.processRecordForm.addEventListener("input", () => {
@@ -77,7 +94,9 @@ function setDefaults() {
     || "Signed-in user";
   els.processDate.value = kenyaDate();
   els.processStartTime.value = kenyaTime();
+  els.processFinishDate.value = els.processDate.value;
   els.processEndTime.value = "";
+  state.finishDateChanged = false;
 }
 
 async function loadSpecies() {
@@ -156,12 +175,9 @@ function clearPhotoPreviewUrl() {
 
 async function submitProcessRecord(event) {
   event.preventDefault();
+  syncDefaultFinishDate();
+  updateTimestampValidation();
   if (!els.processRecordForm.reportValidity()) return;
-  if (els.processEndTime.value <= els.processStartTime.value) {
-    setStatus("Enter an end time after the start time.", "error");
-    els.processEndTime.focus();
-    return;
-  }
 
   els.saveProcessRecord.disabled = true;
   setStatus("Saving...");
@@ -172,9 +188,10 @@ async function submitProcessRecord(event) {
     const { data, error } = await authClient.rpc("ag_submit_process_record", {
       p_submission_id: state.submissionId,
       p_record: {
-        process_date: els.processDate.value,
+        start_date: els.processDate.value,
         start_time: els.processStartTime.value,
-        end_time: els.processEndTime.value,
+        finish_date: els.processFinishDate.value,
+        finish_time: els.processEndTime.value,
         species: els.processSpecies.value,
         recorded_by_name: textOrNull(els.processRecordedBy.value),
         received_seaweed_kg: numberOrNull(els.processReceivedKg.value),
@@ -225,10 +242,13 @@ function updateCalculations() {
   const dry = positiveNumber(els.processDryPulpKg.value);
   const received = positiveNumber(els.processReceivedKg.value);
   const presses = positiveNumber(els.processPressCount.value);
-  els.processTotalTime.textContent = processingDuration(
+  els.processTotalTime.textContent = formatProcessDuration(
+    els.processDate.value,
     els.processStartTime.value,
+    els.processFinishDate.value,
     els.processEndTime.value
   );
+  updateTimestampValidation();
   els.processAveragePress.textContent = wet !== null && presses !== null
     ? `${formatNumber(wet / presses)} kg`
     : "-";
@@ -240,15 +260,32 @@ function updateCalculations() {
     : "-";
 }
 
-function processingDuration(startValue, endValue) {
-  if (!startValue || !endValue || endValue <= startValue) return "-";
-  const [startHour, startMinute] = startValue.split(":").map(Number);
-  const [endHour, endMinute] = endValue.split(":").map(Number);
-  const minutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  if (!hours) return `${remainder} min`;
-  return remainder ? `${hours} h ${remainder} min` : `${hours} h`;
+function syncDefaultFinishDate() {
+  if (state.finishDateChanged || !els.processDate.value) return;
+  els.processFinishDate.value = defaultFinishDate(
+    els.processDate.value,
+    els.processStartTime.value,
+    els.processEndTime.value
+  );
+}
+
+function updateTimestampValidation() {
+  const timestamps = processTimestampRange(
+    els.processDate.value,
+    els.processStartTime.value,
+    els.processFinishDate.value,
+    els.processEndTime.value
+  );
+  const invalid = Boolean(timestamps && timestamps.finish <= timestamps.start);
+  const message = invalid
+    ? "Finish date and time must be later than the start date and time."
+    : "";
+  els.processEndTime.setCustomValidity(message);
+  els.processFinishDate.setAttribute("aria-invalid", invalid ? "true" : "false");
+  els.processEndTime.setAttribute("aria-invalid", invalid ? "true" : "false");
+  els.processFinishError.textContent = message;
+  els.processFinishError.hidden = !invalid;
+  return !invalid;
 }
 
 function updateFieldHighlights() {

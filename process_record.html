@@ -55,16 +55,20 @@
             <input id="processRecordedBy" type="text" maxlength="160" autocomplete="name" required>
           </label>
 
-          <fieldset class="process-session-fields">
+          <fieldset class="process-session-fields standard-form-grid" data-columns="4">
             <legend>Processing session</legend>
-            <label><span class="standard-field-label standard-field-label-aligned">Date</span>
+            <label><span class="standard-field-label standard-field-label-aligned">Start date</span>
               <input id="processDate" type="date" required>
             </label>
-            <label><span class="standard-field-label standard-field-label-aligned">Processing start time</span>
+            <label><span class="standard-field-label standard-field-label-aligned">Start time</span>
               <input id="processStartTime" type="time" required>
             </label>
-            <label><span class="standard-field-label standard-field-label-aligned">Processing end time</span>
-              <input id="processEndTime" type="time" required>
+            <label><span class="standard-field-label standard-field-label-aligned">Finish date</span>
+              <input id="processFinishDate" type="date" aria-describedby="processFinishError" required>
+            </label>
+            <label><span class="standard-field-label standard-field-label-aligned">Finish time</span>
+              <input id="processEndTime" type="time" aria-describedby="processFinishError" required>
+              <small id="processFinishError" class="standard-field-error" role="alert" hidden></small>
             </label>
           </fieldset>
 
@@ -115,7 +119,7 @@
           </fieldset>
 
           <section class="process-calculation-strip" aria-label="Calculated cross-checks">
-            <div title="Processing end time minus processing start time"><span>Total processing time</span><strong id="processTotalTime">-</strong></div>
+            <div title="Finish timestamp minus start timestamp"><span>Total processing time</span><strong id="processTotalTime">-</strong></div>
             <div title="Wet pulp weight divided by number of presses"><span>Avg Wet Pulp Per Press</span><strong id="processAveragePress">-</strong></div>
             <div title="Percentage of wet pulp weight removed during drying"><span>Wet/dry extraction</span><strong id="processWetDryRatio">-</strong></div>
             <div title="Dry pulp weight divided by received seaweed total weight"><span>Dry pulp / received</span><strong id="processStockProductRatio">-</strong></div>
@@ -146,6 +150,6 @@
   </main>
 
   <script type="module" src="./assets/js/admin_page.js?v=35"></script>
-  <script type="module" src="./assets/js/process_record_form.js?v=7"></script>
+  <script type="module" src="./assets/js/process_record_form.js?v=8"></script>
 </body>
 </html>
