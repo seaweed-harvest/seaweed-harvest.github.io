@@ -10,6 +10,15 @@ def read(relative_path):
 
 
 class AuthFirstPartyLinksStaticTest(unittest.TestCase):
+    def test_public_login_pages_do_not_offer_self_registration(self):
+        for page_name in ("index.html", "login.html"):
+            page = read(page_name)
+            self.assertNotIn('href="./register.html"', page)
+            self.assertNotIn("Make account", page)
+            self.assertIn('id="showResetPassword"', page)
+
+        self.assertTrue((ROOT / "register.html").exists())
+
     def test_confirmation_gateway_requires_a_deliberate_user_action(self):
         page = read("auth_confirm.html")
         script = read("assets/js/auth_confirm_page.js")
