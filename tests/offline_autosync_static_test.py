@@ -45,4 +45,4 @@ class OfflineAutoSyncStaticTest(unittest.TestCase):
         worker = read("service-worker.js")
 
         self.assertIn('"./assets/js/offline_autosync.js"', worker)
-        self.assertIn('CACHE_VERSION = "seaweed-harvest-collection-v141"', worker)
+        self.assertIn('CACHE_VERSION = "seaweed-harvest-collection-v142"', worker)
