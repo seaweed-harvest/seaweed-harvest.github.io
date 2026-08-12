@@ -10,7 +10,7 @@ import {
 } from "./auth_client.js?v=25";
 import { applyDashboardPreferences } from "./dashboard_preferences.js";
 import { renderFavoriteForms } from "./favorite_forms.js?v=3";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=14";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
 import { moonEvents } from "./moon_calendar.js";
 import { farmerButtonMarkup, setupFarmerCards } from "./farmer_card.js?v=1";
 import { photoButtonMarkup, setupPhotoViewer } from "./photo_viewer.js?v=1";

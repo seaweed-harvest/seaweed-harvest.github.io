@@ -9,9 +9,9 @@ class MobileAppNavigationStaticTest(unittest.TestCase):
     def test_shared_navigation_is_connected_to_admin_and_collection(self):
         admin = (ROOT / "assets/js/admin_page.js").read_text(encoding="utf-8")
         collection = (ROOT / "assets/js/collection_form.js").read_text(encoding="utf-8")
-        self.assertIn('from "./app_navigation.js?v=14"', admin)
+        self.assertIn('from "./app_navigation.js?v=15"', admin)
         self.assertIn("setupAppNavigation({", admin)
-        self.assertIn('from "./app_navigation.js?v=14"', collection)
+        self.assertIn('from "./app_navigation.js?v=15"', collection)
         self.assertIn("setupAppNavigation({", collection)
         self.assertIn("populateAppSidebar", admin)
         self.assertIn("populateAppSidebar", collection)
@@ -34,6 +34,15 @@ class MobileAppNavigationStaticTest(unittest.TestCase):
         self.assertIn('label: "Community Map"', navigation)
         self.assertIn('drawerGroup("User Registry"', navigation)
         self.assertIn('drawerGroup("Tools"', navigation)
+        for label in ("Site Water Samples", "Intake", "Stock", "Process"):
+            self.assertIn(f'label: "{label}"', navigation)
+        for old_label in (
+            "1. Site Water Samples",
+            "2. Intake Collection",
+            "3. Stock Record",
+            "4. Process Record",
+        ):
+            self.assertNotIn(f'label: "{old_label}"', navigation)
         self.assertIn("export function populateAppSidebar", navigation)
         self.assertIn('const SIDEBAR_PINNED_KEY = "seaweed_ag:admin_sidebar_pinned"', navigation)
         self.assertIn('const SIDEBAR_GROUP_KEY_PREFIX = "seaweed_ag:admin_menu:"', navigation)
@@ -53,7 +62,7 @@ class MobileAppNavigationStaticTest(unittest.TestCase):
         collector = (ROOT / "assets/js/collector_dashboard_page.js").read_text(encoding="utf-8")
         details = (ROOT / "assets/js/my_details_page.js").read_text(encoding="utf-8")
         for source in (today, collector, details):
-            self.assertIn('from "./app_navigation.js?v=14"', source)
+            self.assertIn('from "./app_navigation.js?v=15"', source)
             self.assertIn("setupAppNavigation({", source)
 
     def test_my_details_uses_the_shared_desktop_sidebar_and_mobile_drawer(self):

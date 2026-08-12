@@ -3,7 +3,7 @@ import {
   requireAdminAccess,
   setupAccountControls
 } from "./auth_client.js?v=25";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=14";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
 import { photoButtonMarkup, setupPhotoViewer } from "./photo_viewer.js?v=1";
 
 const PAGE_SIZE = 50;

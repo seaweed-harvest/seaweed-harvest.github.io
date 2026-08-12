@@ -5,7 +5,7 @@ import {
   routeForProfile,
   setupAccountControls
 } from "./auth_client.js?v=25";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=14";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
 import { setupFavoriteFormButton } from "./favorite_forms.js?v=3";
 import { callPublicRpc } from "./supabase_client.js";
 

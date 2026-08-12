@@ -374,10 +374,10 @@ function navigationLink(link, currentFile) {
 
 function formLinks(profile) {
   const links = [
-    { label: "1. Site Water Samples", href: "./site_water_sample.html", permission: "can_submit_collection", capability: "form_site_water_samples" },
-    { label: "2. Intake Collection", href: "./collection.html", capability: "form_intake_collection", publicFallback: true },
-    { label: "3. Stock Record", href: "./stabilization_packing.html", permission: "can_submit_collection", capability: "form_stock_record" },
-    { label: "4. Process Record", href: "./process_record.html", permission: "can_submit_collection", capability: "form_process_record" }
+    { label: "Site Water Samples", href: "./site_water_sample.html", permission: "can_submit_collection", capability: "form_site_water_samples" },
+    { label: "Intake", href: "./collection.html", capability: "form_intake_collection", publicFallback: true },
+    { label: "Stock", href: "./stabilization_packing.html", permission: "can_submit_collection", capability: "form_stock_record" },
+    { label: "Process", href: "./process_record.html", permission: "can_submit_collection", capability: "form_process_record" }
   ];
   links.push({
     label: "Green Space Log",

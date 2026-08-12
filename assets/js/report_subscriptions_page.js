@@ -5,7 +5,7 @@ import {
   routeForProfile,
   setupAccountControls
 } from "./auth_client.js?v=22";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=14";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
 
 const els = {};
 let profile = null;

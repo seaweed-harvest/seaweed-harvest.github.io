@@ -9,7 +9,7 @@ import {
 } from "./offline_store.js";
 import { syncPendingCollections } from "./offline_sync.js";
 import { createOperationFeedback } from "./operation_feedback.js";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=14";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
 import { photoButtonMarkup, setupPhotoViewer } from "./photo_viewer.js?v=1";
 
 const COLLECTOR_NAME_STORAGE_KEY = "seaweed_harvest:collector_name";

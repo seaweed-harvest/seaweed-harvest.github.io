@@ -4,7 +4,7 @@ import {
   setupAccountControls
 } from "./auth_client.js?v=25";
 import { dataModeLabel } from "./supabase_client.js";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=14";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
 
 const PAGE_SIZE = 50;
 const EXPORT_PAGE_SIZE = 5000;
