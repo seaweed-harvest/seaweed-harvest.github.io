@@ -1,0 +1,433 @@
+.mawimbi-process-content {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.mawimbi-capture-panel,
+.mawimbi-process-panel {
+  min-width: 0;
+  padding: var(--panel-padding);
+}
+
+.mawimbi-capture-bar,
+.mawimbi-capture-title,
+.mawimbi-process-toolbar,
+.mawimbi-matrix-actions,
+.mawimbi-capture-actions,
+.mawimbi-capture-badges,
+.mawimbi-panel-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mawimbi-capture-bar,
+.mawimbi-capture-title,
+.mawimbi-process-toolbar,
+.mawimbi-panel-foot {
+  justify-content: space-between;
+}
+
+.mawimbi-capture-picker {
+  min-width: min(430px, 100%);
+  display: grid;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+
+.mawimbi-capture-picker select {
+  min-height: 36px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: .8rem;
+  text-transform: none;
+}
+
+.mawimbi-capture-actions,
+.mawimbi-matrix-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.mawimbi-capture-actions button,
+.mawimbi-matrix-actions button {
+  min-height: 34px;
+  padding: 5px 10px;
+}
+
+.mawimbi-capture-title {
+  margin-top: 13px;
+  align-items: flex-end;
+}
+
+.mawimbi-capture-title h2,
+.mawimbi-capture-title p,
+.mawimbi-capture-summary {
+  margin: 0;
+}
+
+.mawimbi-capture-summary {
+  max-width: 820px;
+  margin-top: 5px;
+  color: var(--text-sec);
+  font-size: .78rem;
+}
+
+.mawimbi-version-badge,
+.mawimbi-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-sec);
+  background: var(--panel-soft);
+  font-size: .68rem;
+  font-weight: 800;
+}
+
+.mawimbi-status-badge {
+  text-transform: capitalize;
+}
+
+.mawimbi-status-badge.is-draft { color: #8a5b00; background: #fff8dc; border-color: #f0d991; }
+.mawimbi-status-badge.is-published { color: #17633d; background: #e6f5eb; border-color: #b8dec5; }
+.mawimbi-status-badge.is-archived { color: var(--text-muted); }
+
+.mawimbi-process-toolbar {
+  margin-bottom: 9px;
+}
+
+.mawimbi-legend {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  font-size: .68rem;
+}
+
+.mawimbi-legend span,
+.mawimbi-variable {
+  padding: 3px 6px;
+  border: 1px solid rgba(18, 54, 47, .12);
+  border-radius: 5px;
+  line-height: 1.2;
+}
+
+.mawimbi-process-flow-page .is-input { background: #fde5d4; }
+.mawimbi-process-flow-page .is-measured { background: #dff3e5; }
+.mawimbi-process-flow-page .is-both { background: #dcecf7; }
+
+.mawimbi-matrix-wrap {
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.mawimbi-matrix {
+  width: max-content;
+  min-width: 100%;
+  border-spacing: 0;
+  border-collapse: separate;
+  color: var(--text-sec);
+  font-size: .72rem;
+}
+
+.mawimbi-matrix th,
+.mawimbi-matrix td {
+  width: 164px;
+  min-width: 164px;
+  padding: 7px 8px;
+  border-right: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  vertical-align: top;
+  text-align: left;
+}
+
+.mawimbi-matrix tr:last-child > * { border-bottom: 0; }
+.mawimbi-matrix tr > *:last-child { border-right: 0; }
+
+.mawimbi-matrix .mawimbi-row-label {
+  width: 128px;
+  min-width: 128px;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--panel-soft);
+  color: var(--text-sec);
+  font-size: .67rem;
+  font-weight: 800;
+}
+
+.mawimbi-matrix thead .mawimbi-row-label { z-index: 4; }
+.mawimbi-matrix thead th { padding: 4px 6px; background: #f8fbfa; }
+.mawimbi-number-row td { color: var(--accent); font-weight: 800; }
+.mawimbi-resource-row td { background: #fbfcfc; }
+
+.mawimbi-stage-heading.is-dragging { opacity: .45; }
+
+.mawimbi-stage-order-controls {
+  min-height: 30px;
+  display: grid;
+  grid-template-columns: 30px 1fr 30px;
+  align-items: center;
+  gap: 3px;
+}
+
+.mawimbi-stage-order-controls button {
+  width: 30px;
+  min-width: 30px;
+  min-height: 28px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.mawimbi-stage-order-controls button:hover:not(:disabled),
+.mawimbi-stage-order-controls button:focus-visible {
+  border-color: var(--border);
+  background: var(--panel);
+  color: var(--accent);
+}
+
+.mawimbi-drag-handle {
+  text-align: center;
+  color: var(--text-muted);
+  cursor: grab;
+  letter-spacing: -2px;
+}
+
+.mawimbi-stage-button {
+  width: 100%;
+  min-height: 56px;
+  padding: 5px 6px;
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  border-color: transparent;
+  background: transparent;
+  text-align: left;
+}
+
+.mawimbi-stage-button:hover,
+.mawimbi-stage-button:focus-visible {
+  border-color: var(--border);
+  background: var(--accent-soft);
+}
+
+.mawimbi-stage-button strong { color: var(--text); font-size: .77rem; line-height: 1.2; }
+.mawimbi-stage-button small { color: var(--text-muted); font-size: .63rem; }
+.mawimbi-cell-muted { color: var(--text-muted); }
+
+.mawimbi-variable-list {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+button.mawimbi-variable {
+  min-height: 0;
+  padding: 3px 6px;
+  color: var(--text-sec);
+  font-size: .64rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.mawimbi-panel-foot {
+  min-height: 24px;
+  padding-top: 6px;
+  color: var(--text-muted);
+  font-size: .67rem;
+}
+
+.admin-status.is-error { color: var(--danger, #b42318); }
+
+.mawimbi-dialog {
+  width: min(820px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 20px 60px rgba(18, 54, 47, .22);
+}
+
+.mawimbi-stage-dialog { width: min(1100px, calc(100vw - 24px)); }
+.mawimbi-small-dialog { width: min(560px, calc(100vw - 24px)); }
+.mawimbi-dialog::backdrop { background: rgba(18, 54, 47, .38); }
+.mawimbi-dialog form,
+.mawimbi-dialog-static { padding: 16px; }
+
+.mawimbi-dialog-header,
+.mawimbi-dialog-actions,
+.mawimbi-dialog-version {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mawimbi-revision-picker {
+  display: grid;
+  gap: 2px;
+  color: var(--text-muted);
+  font-size: .62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.mawimbi-revision-picker select {
+  min-height: 30px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--text-sec);
+  font-size: .72rem;
+  text-transform: none;
+}
+
+.mawimbi-dialog-header {
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.mawimbi-dialog-header h2,
+.mawimbi-dialog-header p { margin-bottom: 0; }
+
+.mawimbi-dialog-header > button,
+.mawimbi-dialog-version > button {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  font-size: 1.25rem;
+}
+
+.mawimbi-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mawimbi-editor-grid label,
+.mawimbi-single-field {
+  display: grid;
+  gap: 5px;
+  color: var(--text-sec);
+  font-size: var(--label-font-size);
+  font-weight: 700;
+}
+
+.mawimbi-editor-grid label small { font-size: .66rem; font-weight: 500; }
+.mawimbi-editor-grid .wide { grid-column: 1 / -1; }
+.mawimbi-editor-grid input,
+.mawimbi-editor-grid textarea,
+.mawimbi-editor-grid select,
+.mawimbi-single-field input { width: 100%; }
+
+.mawimbi-dialog-actions {
+  margin-top: 14px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.mawimbi-dialog-actions .admin-status { margin-right: auto; }
+.mawimbi-primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+
+.mawimbi-variable-editor {
+  margin-top: 16px;
+  padding-top: 13px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.mawimbi-variable-editor h3,
+.mawimbi-variable-usage h3 { margin: 0; font-size: .88rem; }
+.mawimbi-variable-table { min-width: 930px; margin-top: 7px; }
+.mawimbi-variable-table th,
+.mawimbi-variable-table td { white-space: nowrap; }
+.mawimbi-variable-table th:nth-child(1) { width: 145px; }
+.mawimbi-variable-table th:nth-child(2) { width: 220px; }
+.mawimbi-variable-table th:nth-child(3) { width: 85px; }
+.mawimbi-variable-table th:nth-child(4) { width: 105px; }
+.mawimbi-variable-table th:last-child { width: 94px; }
+
+.mawimbi-variable-table input,
+.mawimbi-variable-table select {
+  width: 100%;
+  min-height: 31px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+
+.mawimbi-variable-select-wrap { display: grid; gap: 4px; }
+.mawimbi-variable-table td.is-value-optional input { background: #f8fbfa; }
+.mawimbi-row-remove { color: var(--danger, #b42318); }
+.mawimbi-row-controls { display: flex; gap: 2px; }
+.mawimbi-row-controls button {
+  width: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+}
+
+.mawimbi-variable-usage {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.mawimbi-variable-usage ul,
+.mawimbi-history-list {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: var(--text-sec);
+  font-size: .78rem;
+}
+
+.mawimbi-history-list { display: grid; gap: 8px; }
+.mawimbi-history-list li { padding-left: 3px; }
+.mawimbi-history-list strong,
+.mawimbi-history-list time { display: block; }
+.mawimbi-history-list time { margin-top: 2px; color: var(--text-muted); font-size: .68rem; }
+
+@media (max-width: 700px) {
+  .mawimbi-capture-panel,
+  .mawimbi-process-panel { padding: 10px; }
+  .mawimbi-capture-bar,
+  .mawimbi-capture-title,
+  .mawimbi-process-toolbar { align-items: flex-start; flex-direction: column; }
+  .mawimbi-capture-picker { width: 100%; min-width: 0; }
+  .mawimbi-capture-actions,
+  .mawimbi-matrix-actions { width: 100%; justify-content: flex-start; }
+  .mawimbi-capture-title { flex-direction: row; align-items: flex-end; }
+  .mawimbi-matrix th,
+  .mawimbi-matrix td { width: 154px; min-width: 154px; }
+  .mawimbi-matrix .mawimbi-row-label { width: 112px; min-width: 112px; }
+  .mawimbi-dialog { width: 100vw; max-width: none; max-height: 100dvh; border-radius: 0; }
+  .mawimbi-editor-grid { grid-template-columns: 1fr; }
+  .mawimbi-editor-grid .wide { grid-column: auto; }
+  .mawimbi-editor-grid input,
+  .mawimbi-editor-grid textarea,
+  .mawimbi-editor-grid select,
+  .mawimbi-single-field input { min-height: 44px; font-size: 16px; }
+  .mawimbi-stage-actions .danger-button { margin-right: auto; }
+}
