@@ -1,12 +1,17 @@
 import { authClient } from "./auth_client.js?v=25";
 
 const RESOURCE_ROWS = [
-  ["quantity", "Reference quantity"],
-  ["people_count", "People"],
-  ["touch_time_minutes", "Touch time"],
-  ["elapsed_time_minutes", "Elapsed time"],
-  ["waiting_time_minutes", "Waiting time"],
-  ["equipment", "Equipment"]
+  ["material_state", "Material state"],
+  ["equipment_list", "Equipment"]
+];
+
+const STANDARD_OPERATIONAL_INPUTS = [
+  ["Reference quantity", ""],
+  ["People", "people"],
+  ["Touch time", "min"],
+  ["Elapsed time", "min"],
+  ["Waiting time", "min"],
+  ["Equipment time", "min"]
 ];
 
 const state = {
@@ -44,7 +49,8 @@ function cacheElements() {
     "mawimbiMatrixBody", "mawimbiPageStatus", "mawimbiCaptureDialog", "mawimbiCaptureForm",
     "mawimbiDuplicateDialog", "mawimbiDuplicateForm", "mawimbiAddStageDialog", "mawimbiAddStageForm",
     "mawimbiStageDialog", "mawimbiStageForm", "mawimbiStageNumber", "mawimbiStageTitle",
-    "mawimbiStageVersion", "mawimbiStageRevisionSelect", "mawimbiVariableRows", "mawimbiAddVariableRow", "mawimbiRemoveStage",
+    "mawimbiStageVersion", "mawimbiStageRevisionSelect", "mawimbiVariableRows", "mawimbiAddVariableRow",
+    "mawimbiEquipmentRows", "mawimbiAddEquipmentRow", "mawimbiRemoveStage",
     "mawimbiStageStatus", "mawimbiVariableDialog", "mawimbiVariableForm", "mawimbiVariableTitle",
     "mawimbiVariableUsage", "mawimbiHistoryDialog", "mawimbiHistoryList"
   ].forEach((id) => { els[id] = document.getElementById(id); });
@@ -69,6 +75,7 @@ function bindEvents() {
   els.mawimbiStageForm.addEventListener("submit", saveStageRevision);
   els.mawimbiStageRevisionSelect.addEventListener("change", () => renderStageRevision(els.mawimbiStageRevisionSelect.value));
   els.mawimbiAddVariableRow.addEventListener("click", () => addVariableRow());
+  els.mawimbiAddEquipmentRow.addEventListener("click", () => addEquipmentRow());
   els.mawimbiRemoveStage.addEventListener("click", removeStage);
   els.mawimbiVariableForm.addEventListener("submit", saveVariable);
   document.querySelectorAll("[data-close-dialog]").forEach((button) => {
@@ -138,7 +145,7 @@ function renderMatrix() {
   els.mawimbiMatrixBody.querySelectorAll(".mawimbi-resource-row").forEach((row) => {
     row.hidden = !state.resourcesVisible;
   });
-  els.mawimbiToggleResources.textContent = state.resourcesVisible ? "Hide resources & timing" : "Show resources & timing";
+  els.mawimbiToggleResources.textContent = state.resourcesVisible ? "Hide material & equipment" : "Show material & equipment";
   els.mawimbiToggleResources.setAttribute("aria-expanded", String(state.resourcesVisible));
 }
 
@@ -217,12 +224,13 @@ function variableBadges(link, kind) {
 
 function resourceValue(revision, key) {
   if (!revision) return "—";
-  if (key === "quantity") {
-    const quantity = revision.quantity_value == null ? "" : `${plainNumber(revision.quantity_value)} ${revision.quantity_unit || ""}`.trim();
-    return [quantity, revision.material_state].filter(Boolean).join(" · ") || "—";
+  if (key === "equipment_list") {
+    return state.workspace.stage_equipment
+      .filter((item) => item.stage_revision_id === revision.id)
+      .sort((a, b) => a.position - b.position)
+      .map((item) => item.equipment_name)
+      .join(", ") || "—";
   }
-  if (key.endsWith("_minutes")) return revision[key] == null ? "—" : `${plainNumber(revision[key])} min`;
-  if (key === "people_count") return revision[key] == null ? "—" : plainNumber(revision[key]);
   return revision[key] || "—";
 }
 
@@ -368,11 +376,16 @@ function renderStageRevision(revisionId) {
   els.mawimbiStageVersion.textContent = `v${revision.version_major}.${revision.version_minor}`;
   els.mawimbiStageRevisionSelect.value = revision.id;
   setForm(els.mawimbiStageForm, revision);
-  const rows = state.workspace.stage_variables
+  const rows = operationalInputRows(state.workspace.stage_variables
     .filter((item) => item.stage_revision_id === revision.id)
-    .sort((a, b) => a.position - b.position);
+    .sort((a, b) => a.position - b.position));
   els.mawimbiVariableRows.replaceChildren(...rows.map((row) => variableEditorRow(row)));
   if (!rows.length) addVariableRow();
+  const equipmentRows = state.workspace.stage_equipment
+    .filter((item) => item.stage_revision_id === revision.id)
+    .sort((a, b) => a.position - b.position);
+  els.mawimbiEquipmentRows.replaceChildren(...equipmentRows.map((row) => equipmentEditorRow(row)));
+  if (!equipmentRows.length) addEquipmentRow();
   const editable = activeFlow()?.status === "draft" && revision.id === current.id;
   els.mawimbiStageForm.querySelectorAll("input, textarea, select, button")
     .forEach((control) => { control.disabled = !editable; });
@@ -384,6 +397,26 @@ function renderStageRevision(revisionId) {
 
 function addVariableRow(data = null) {
   els.mawimbiVariableRows.append(variableEditorRow(data));
+}
+
+function operationalInputRows(rows) {
+  const remaining = [...rows];
+  const standardRows = STANDARD_OPERATIONAL_INPUTS.flatMap(([name, defaultUnit]) => {
+    const variable = state.workspace.variables.find((item) => item.name.toLowerCase() === name.toLowerCase());
+    if (!variable) return [];
+    const existingIndex = remaining.findIndex((item) => (
+      item.variable_id === variable.id && item.variable_kind === "input_setting"
+    ));
+    if (existingIndex >= 0) return remaining.splice(existingIndex, 1);
+    return [{
+      variable_kind: "input_setting",
+      variable_id: variable.id,
+      unit: variable.default_unit || defaultUnit,
+      defined_value: "",
+      notes: ""
+    }];
+  });
+  return [...standardRows, ...remaining];
 }
 
 function variableUnitOptions(variableId, currentUnit = "") {
@@ -400,7 +433,6 @@ function variableUnitOptions(variableId, currentUnit = "") {
 
 function variableEditorRow(item = null) {
   const row = document.createElement("tr");
-  row.className = "mawimbi-variable-edit-row";
   const type = selectControl([
     ["input_setting", "Input / setting"],
     ["measured", "Measured variable"]
@@ -478,16 +510,61 @@ function variableEditorRow(item = null) {
     const selected = variableById(variableSelect.value);
     refreshUnitOptions(variableSelect.value, selected?.default_unit || "");
   });
-  type.addEventListener("change", () => {
-    value.closest("td").classList.toggle("is-value-optional", type.value === "measured");
-  });
+  type.addEventListener("change", () => syncVariableRowType(row, type.value, value));
 
   [type, variableWrap, unitWrap, value, notes, controls].forEach((control) => {
     const td = document.createElement("td");
     td.append(control);
     row.append(td);
   });
-  if (type.value === "measured") value.closest("td").classList.add("is-value-optional");
+  syncVariableRowType(row, type.value, value);
+  return row;
+}
+
+function syncVariableRowType(row, kind, valueControl) {
+  row.className = `mawimbi-variable-edit-row ${kind === "measured" ? "is-measured" : "is-input"}`;
+  valueControl.closest("td").classList.toggle("is-value-optional", kind === "measured");
+}
+
+function addEquipmentRow(data = null) {
+  els.mawimbiEquipmentRows.append(equipmentEditorRow(data));
+}
+
+function equipmentEditorRow(item = null) {
+  const row = document.createElement("tr");
+  row.className = "mawimbi-equipment-edit-row";
+  const name = inputControl("text", "Equipment name", "equipment_name");
+  name.maxLength = 160;
+  name.value = item?.equipment_name || "";
+  const note = textareaControl("Equipment note", "equipment_note", 2);
+  note.maxLength = 2000;
+  note.value = item?.equipment_note || "";
+  const commissioningDate = inputControl("date", "Commissioning date", "commissioning_date");
+  commissioningDate.value = item?.commissioning_date || "";
+  const controls = element("div", "mawimbi-row-controls");
+  const up = document.createElement("button");
+  up.type = "button";
+  up.textContent = "↑";
+  up.setAttribute("aria-label", "Move equipment row up");
+  up.addEventListener("click", () => row.previousElementSibling?.before(row));
+  const down = document.createElement("button");
+  down.type = "button";
+  down.textContent = "↓";
+  down.setAttribute("aria-label", "Move equipment row down");
+  down.addEventListener("click", () => row.nextElementSibling?.after(row));
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "icon-button mawimbi-row-remove";
+  remove.textContent = "×";
+  remove.setAttribute("aria-label", "Remove equipment row");
+  remove.addEventListener("click", () => row.remove());
+  controls.append(up, down, remove);
+
+  [name, note, commissioningDate, controls].forEach((control) => {
+    const td = document.createElement("td");
+    td.append(control);
+    row.append(td);
+  });
   return row;
 }
 
@@ -497,6 +574,7 @@ async function saveStageRevision(event) {
   try {
     const stage = formValues(form);
     const variables = collectVariableRows();
+    stage.equipment_rows = collectEquipmentRows();
     if (!variables.length && !window.confirm("Save this stage with no inputs or measured variables?")) return;
     setDialogStatus(form, "Saving revision…");
     const { error } = await authClient.rpc("ag_mawimbi_save_stage_revision", {
@@ -531,6 +609,21 @@ function collectVariableRows() {
       defined_value: row.querySelector('[data-field="defined_value"]').value.trim() || null,
       notes: row.querySelector('[data-field="notes"]').value.trim() || null
     };
+  });
+}
+
+function collectEquipmentRows() {
+  return [...els.mawimbiEquipmentRows.querySelectorAll("tr")].flatMap((row) => {
+    const equipmentName = row.querySelector('[data-field="equipment_name"]').value.trim();
+    const equipmentNote = row.querySelector('[data-field="equipment_note"]').value.trim();
+    const commissioningDate = row.querySelector('[data-field="commissioning_date"]').value;
+    if (!equipmentName && !equipmentNote && !commissioningDate) return [];
+    if (!equipmentName) throw new Error("Enter an equipment name for every equipment row.");
+    return [{
+      equipment_name: equipmentName,
+      equipment_note: equipmentNote || null,
+      commissioning_date: commissioningDate || null
+    }];
   });
 }
 
@@ -625,7 +718,16 @@ function variableById(id) {
 }
 
 function emptyWorkspace() {
-  return { flows: [], flow_stages: [], stage_families: [], stage_revisions: [], variables: [], stage_variables: [], events: [] };
+  return {
+    flows: [],
+    flow_stages: [],
+    stage_families: [],
+    stage_revisions: [],
+    variables: [],
+    stage_variables: [],
+    stage_equipment: [],
+    events: []
+  };
 }
 
 function normalizeWorkspace(value) {
@@ -687,6 +789,14 @@ function inputControl(type, ariaLabel, field) {
   input.setAttribute("aria-label", ariaLabel);
   input.dataset.field = field;
   return input;
+}
+
+function textareaControl(ariaLabel, field, rows = 2) {
+  const textarea = document.createElement("textarea");
+  textarea.setAttribute("aria-label", ariaLabel);
+  textarea.dataset.field = field;
+  textarea.rows = rows;
+  return textarea;
 }
 
 function orderButton(text, label, disabled, handler) {
