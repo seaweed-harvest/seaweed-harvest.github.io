@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Mawimbi Process Flow - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/mawimbi_process_flow.css?v=3">
+  <link rel="stylesheet" href="./assets/css/mawimbi_process_flow.css?v=4">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -53,7 +53,7 @@
             <span class="is-input">Input / setting</span><span class="is-measured">Measured</span><span class="is-both">Both</span>
           </div>
           <div class="mawimbi-matrix-actions">
-            <button id="mawimbiToggleResources" type="button" aria-expanded="false">Show resources &amp; timing</button>
+            <button id="mawimbiToggleResources" type="button" aria-expanded="false">Show material &amp; equipment</button>
             <button id="mawimbiAddStage" type="button">+ Add stage</button>
           </div>
         </div>
@@ -111,15 +111,7 @@
       <div class="mawimbi-editor-grid">
         <label class="wide">Stage name<input name="stage_name" type="text" maxlength="160" required></label>
         <label class="wide">Current method<textarea name="method_description" rows="3" maxlength="5000"></textarea></label>
-        <label>Reference quantity<input name="quantity_value" type="number" min="0" step="any"></label>
-        <label>Quantity unit<input name="quantity_unit" type="text" maxlength="40" placeholder="kg"></label>
         <label>Material state<input name="material_state" type="text" maxlength="120" placeholder="Wet, drained, filtered…"></label>
-        <label>People<input name="people_count" type="number" min="0" step="0.25"></label>
-        <label>Touch time <small>(min)</small><input name="touch_time_minutes" type="number" min="0" step="any"></label>
-        <label>Elapsed time <small>(min)</small><input name="elapsed_time_minutes" type="number" min="0" step="any"></label>
-        <label>Waiting time <small>(min)</small><input name="waiting_time_minutes" type="number" min="0" step="any"></label>
-        <label>Equipment time <small>(min)</small><input name="equipment_time_minutes" type="number" min="0" step="any"></label>
-        <label class="wide">Equipment<textarea name="equipment" rows="2" maxlength="2000"></textarea></label>
         <label>Evidence<select name="evidence_status"><option value="not_measured">Not measured</option><option value="reported">Reported</option><option value="observed">Observed</option></select></label>
         <label>Revision note<input name="change_note" type="text" maxlength="1000" placeholder="What changed in this version"></label>
         <label class="wide">Notes<textarea name="notes" rows="2" maxlength="5000"></textarea></label>
@@ -131,6 +123,16 @@
           <table class="management-table mawimbi-variable-table">
             <thead><tr><th>Type</th><th>Variable</th><th>Unit</th><th>Value</th><th>Notes</th><th></th></tr></thead>
             <tbody id="mawimbiVariableRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="mawimbi-equipment-editor">
+        <div class="section-head compact"><h3>Equipment</h3><button id="mawimbiAddEquipmentRow" type="button">+ Add equipment</button></div>
+        <div class="responsive-table-wrap">
+          <table class="management-table mawimbi-equipment-table">
+            <thead><tr><th>Equipment name</th><th>Equipment note</th><th>Commissioning date</th><th></th></tr></thead>
+            <tbody id="mawimbiEquipmentRows"></tbody>
           </table>
         </div>
       </section>
@@ -169,6 +171,6 @@
   </dialog>
 
   <script type="module" src="./assets/js/admin_page.js?v=37"></script>
-  <script type="module" src="./assets/js/mawimbi_process_flow.js?v=4"></script>
+  <script type="module" src="./assets/js/mawimbi_process_flow.js?v=5"></script>
 </body>
 </html>
