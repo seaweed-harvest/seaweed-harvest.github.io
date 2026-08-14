@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Mawimbi Process Flow - Seaweed Harvest</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+  <link rel="stylesheet" href="./assets/css/mawimbi_process_flow.css?v=3">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Seaweed Harvest">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./favicon.ico" sizes="any">
+  <link rel="icon" href="./assets/images/seaweed-harvest-icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
+  <script type="module" src="./assets/js/pwa_bootstrap.js"></script>
+</head>
+<body class="admin-console-page mawimbi-process-flow-page" data-auth-pending>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div><p class="eyebrow">Mawimbi</p><h1>Process flow</h1></div>
+      <div class="header-actions admin-header-controls">
+        <nav class="app-nav" aria-label="Main navigation"><a href="./home.html">Home</a></nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell admin-shell admin-layout">
+    <aside id="mawimbiProcessSidebar" class="admin-sidebar" aria-label="Application menu"></aside>
+    <section class="admin-content admin-page-section mawimbi-process-content">
+      <section class="panel mawimbi-capture-panel">
+        <div class="mawimbi-capture-bar">
+          <label class="mawimbi-capture-picker">Process capture<select id="mawimbiCaptureSelect" aria-label="Process capture"></select></label>
+          <div class="mawimbi-capture-actions">
+            <button id="mawimbiEditCapture" type="button">Edit capture</button>
+            <button id="mawimbiDuplicateCapture" type="button">New version</button>
+            <button id="mawimbiOpenHistory" type="button">History</button>
+          </div>
+        </div>
+        <div class="mawimbi-capture-title">
+          <div><p id="mawimbiCaptureReference" class="eyebrow"></p><h2 id="mawimbiCaptureName">Loading…</h2></div>
+          <div class="mawimbi-capture-badges"><span id="mawimbiCaptureVersion" class="mawimbi-version-badge"></span><span id="mawimbiCaptureStatus" class="mawimbi-status-badge"></span></div>
+        </div>
+        <p id="mawimbiCaptureSummary" class="mawimbi-capture-summary"></p>
+      </section>
+
+      <section class="panel mawimbi-process-panel">
+        <div class="section-head compact mawimbi-process-toolbar">
+          <div class="mawimbi-legend" aria-label="Variable key">
+            <span class="is-input">Input / setting</span><span class="is-measured">Measured</span><span class="is-both">Both</span>
+          </div>
+          <div class="mawimbi-matrix-actions">
+            <button id="mawimbiToggleResources" type="button" aria-expanded="false">Show resources &amp; timing</button>
+            <button id="mawimbiAddStage" type="button">+ Add stage</button>
+          </div>
+        </div>
+        <div class="mawimbi-matrix-wrap" tabindex="0" aria-label="Mawimbi process matrix">
+          <table class="mawimbi-matrix">
+            <thead><tr id="mawimbiMatrixHead"></tr></thead>
+            <tbody id="mawimbiMatrixBody"></tbody>
+          </table>
+        </div>
+        <div class="mawimbi-panel-foot"><span id="mawimbiPageStatus" class="admin-status" aria-live="polite"></span><span>Drag stages to reorder</span></div>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="mawimbiCaptureDialog" class="mawimbi-dialog" aria-labelledby="mawimbiCaptureDialogTitle">
+    <form id="mawimbiCaptureForm" method="dialog">
+      <header class="mawimbi-dialog-header"><h2 id="mawimbiCaptureDialogTitle">Capture details</h2><button type="button" data-close-dialog aria-label="Close">×</button></header>
+      <div class="mawimbi-editor-grid">
+        <label class="wide">Name<input name="name" type="text" maxlength="160" required></label>
+        <label>Reference month<input name="reference_month" type="month" required></label>
+        <label>Status<select name="status"><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></label>
+        <label class="wide">Summary<textarea name="summary" rows="2" maxlength="1000"></textarea></label>
+        <label class="wide">Notes<textarea name="notes" rows="3" maxlength="4000"></textarea></label>
+      </div>
+      <footer class="mawimbi-dialog-actions"><span class="admin-status" aria-live="polite"></span><button type="button" data-close-dialog>Cancel</button><button class="mawimbi-primary" type="submit">Save</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="mawimbiDuplicateDialog" class="mawimbi-dialog mawimbi-small-dialog" aria-labelledby="mawimbiDuplicateTitle">
+    <form id="mawimbiDuplicateForm" method="dialog">
+      <header class="mawimbi-dialog-header"><h2 id="mawimbiDuplicateTitle">New process version</h2><button type="button" data-close-dialog aria-label="Close">×</button></header>
+      <div class="mawimbi-editor-grid">
+        <label class="wide">Name<input name="name" type="text" maxlength="160" required></label>
+        <label>Reference month<input name="reference_month" type="month" required></label>
+        <label>Version change<select name="version_change"><option value="minor">Minor · next revision</option><option value="major">Major · next whole version</option></select></label>
+      </div>
+      <footer class="mawimbi-dialog-actions"><span class="admin-status" aria-live="polite"></span><button type="button" data-close-dialog>Cancel</button><button class="mawimbi-primary" type="submit">Create</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="mawimbiAddStageDialog" class="mawimbi-dialog mawimbi-small-dialog" aria-labelledby="mawimbiAddStageTitle">
+    <form id="mawimbiAddStageForm" method="dialog">
+      <header class="mawimbi-dialog-header"><h2 id="mawimbiAddStageTitle">Add process stage</h2><button type="button" data-close-dialog aria-label="Close">×</button></header>
+      <label class="mawimbi-single-field">Stage name<input name="stage_name" type="text" maxlength="160" required></label>
+      <footer class="mawimbi-dialog-actions"><span class="admin-status" aria-live="polite"></span><button type="button" data-close-dialog>Cancel</button><button class="mawimbi-primary" type="submit">Add</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="mawimbiStageDialog" class="mawimbi-dialog mawimbi-stage-dialog" aria-labelledby="mawimbiStageTitle">
+    <form id="mawimbiStageForm" method="dialog">
+      <header class="mawimbi-dialog-header">
+        <div><p id="mawimbiStageNumber" class="eyebrow"></p><h2 id="mawimbiStageTitle"></h2></div>
+        <div class="mawimbi-dialog-version"><label class="mawimbi-revision-picker">Revision<select id="mawimbiStageRevisionSelect" aria-label="Stage revision"></select></label><span id="mawimbiStageVersion" class="mawimbi-version-badge"></span><button type="button" data-close-dialog aria-label="Close">×</button></div>
+      </header>
+      <div class="mawimbi-editor-grid">
+        <label class="wide">Stage name<input name="stage_name" type="text" maxlength="160" required></label>
+        <label class="wide">Current method<textarea name="method_description" rows="3" maxlength="5000"></textarea></label>
+        <label>Reference quantity<input name="quantity_value" type="number" min="0" step="any"></label>
+        <label>Quantity unit<input name="quantity_unit" type="text" maxlength="40" placeholder="kg"></label>
+        <label>Material state<input name="material_state" type="text" maxlength="120" placeholder="Wet, drained, filtered…"></label>
+        <label>People<input name="people_count" type="number" min="0" step="0.25"></label>
+        <label>Touch time <small>(min)</small><input name="touch_time_minutes" type="number" min="0" step="any"></label>
+        <label>Elapsed time <small>(min)</small><input name="elapsed_time_minutes" type="number" min="0" step="any"></label>
+        <label>Waiting time <small>(min)</small><input name="waiting_time_minutes" type="number" min="0" step="any"></label>
+        <label>Equipment time <small>(min)</small><input name="equipment_time_minutes" type="number" min="0" step="any"></label>
+        <label class="wide">Equipment<textarea name="equipment" rows="2" maxlength="2000"></textarea></label>
+        <label>Evidence<select name="evidence_status"><option value="not_measured">Not measured</option><option value="reported">Reported</option><option value="observed">Observed</option></select></label>
+        <label>Revision note<input name="change_note" type="text" maxlength="1000" placeholder="What changed in this version"></label>
+        <label class="wide">Notes<textarea name="notes" rows="2" maxlength="5000"></textarea></label>
+      </div>
+
+      <section class="mawimbi-variable-editor">
+        <div class="section-head compact"><h3>Inputs &amp; measurements</h3><button id="mawimbiAddVariableRow" type="button">+ Add row</button></div>
+        <div class="responsive-table-wrap">
+          <table class="management-table mawimbi-variable-table">
+            <thead><tr><th>Type</th><th>Variable</th><th>Unit</th><th>Value</th><th>Notes</th><th></th></tr></thead>
+            <tbody id="mawimbiVariableRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer class="mawimbi-dialog-actions mawimbi-stage-actions">
+        <button id="mawimbiRemoveStage" class="danger-button" type="button">Remove stage</button>
+        <span id="mawimbiStageStatus" class="admin-status" aria-live="polite"></span>
+        <button type="button" data-close-dialog>Cancel</button>
+        <button name="version_change" value="major" type="submit">Save major</button>
+        <button class="mawimbi-primary" name="version_change" value="minor" type="submit">Save</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="mawimbiVariableDialog" class="mawimbi-dialog" aria-labelledby="mawimbiVariableTitle">
+    <form id="mawimbiVariableForm" method="dialog">
+      <header class="mawimbi-dialog-header"><h2 id="mawimbiVariableTitle">Variable</h2><button type="button" data-close-dialog aria-label="Close">×</button></header>
+      <input name="variable_id" type="hidden">
+      <div class="mawimbi-editor-grid">
+        <label>Variable name<input name="name" type="text" maxlength="160" required></label>
+        <label>Standard unit<input name="default_unit" type="text" maxlength="40"></label>
+        <label class="wide">About<textarea name="description" rows="2" maxlength="2000"></textarea></label>
+        <label class="wide">Measurement equipment<textarea name="measurement_equipment" rows="2" maxlength="2000"></textarea></label>
+        <label class="wide">Notes<textarea name="notes" rows="2" maxlength="3000"></textarea></label>
+      </div>
+      <section class="mawimbi-variable-usage"><h3>Used in this capture</h3><ul id="mawimbiVariableUsage"></ul></section>
+      <footer class="mawimbi-dialog-actions"><span class="admin-status" aria-live="polite"></span><button type="button" data-close-dialog>Cancel</button><button class="mawimbi-primary" type="submit">Save</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="mawimbiHistoryDialog" class="mawimbi-dialog" aria-labelledby="mawimbiHistoryTitle">
+    <div class="mawimbi-dialog-static">
+      <header class="mawimbi-dialog-header"><h2 id="mawimbiHistoryTitle">Capture history</h2><button type="button" data-close-dialog aria-label="Close">×</button></header>
+      <ol id="mawimbiHistoryList" class="mawimbi-history-list"></ol>
+    </div>
+  </dialog>
+
+  <script type="module" src="./assets/js/admin_page.js?v=37"></script>
+  <script type="module" src="./assets/js/mawimbi_process_flow.js?v=4"></script>
+</body>
+</html>
