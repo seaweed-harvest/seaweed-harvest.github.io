@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Permissions - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/permissions.css?v=3">
+  <link rel="stylesheet" href="./assets/css/permissions.css?v=4">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -98,11 +98,6 @@
             <legend>Organisation access</legend>
             <div id="inviteAggregators" class="aggregator-access-options"></div>
           </fieldset>
-          <fieldset id="inviteDailySummaryFieldset" class="aggregator-access-fieldset wide-field">
-            <legend>Daily email summary</legend>
-            <div id="inviteDailySummaries" class="aggregator-access-options"></div>
-            <span class="field-help">Sends the previous day's record at 08:00 Kenya time.</span>
-          </fieldset>
           <fieldset id="inviteFormAccessFieldset" class="user-form-access-fieldset wide-field">
             <legend>Form access</legend>
             <div id="inviteFormAccess" class="user-form-access-groups"></div>
@@ -120,7 +115,7 @@
 
         <div class="responsive-table-wrap compact-data-table-wrap user-directory-wrap">
           <table class="management-table admin-data-table user-directory-table">
-            <thead><tr><th>Sign-in</th><th>Name</th><th>Application role</th><th>Organisations</th><th>Daily email</th><th>Status</th><th>Community</th><th>Last sign in</th><th>Manage users</th><th>Manage admins</th><th></th></tr></thead>
+            <thead><tr><th>Sign-in</th><th>Name</th><th>Application role</th><th>Organisations</th><th>Status</th><th>Community</th><th>Last sign in</th><th>Manage users</th><th>Manage admins</th><th></th></tr></thead>
             <tbody id="userDirectoryRows"></tbody>
           </table>
         </div>
@@ -143,11 +138,37 @@
               <option value="admin">Admin</option>
             </select>
           </label>
+          <label>Access period
+            <select id="applicationInviteDuration">
+              <option value="none">No time limit</option>
+              <option value="one_month">One month</option>
+              <option value="three_months">Three months</option>
+              <option value="custom">Choose an end date</option>
+            </select>
+          </label>
+          <label id="applicationInviteExpiryField" hidden>Access ends
+            <input id="applicationInviteExpiry" type="date">
+            <span class="field-help">Access ends at the end of this date. This date is not included in the invitation email.</span>
+          </label>
           <div class="button-row wide-field">
-            <button type="submit">Invite or grant access</button>
+            <button type="submit">Send Tide invitation</button>
             <span id="applicationInviteStatus" class="admin-status" aria-live="polite"></span>
           </div>
         </form>
+
+        <div class="section-head compact application-testers-heading">
+          <h3>Approved Tide testers</h3>
+          <span id="applicationTesterCount" class="status-pill">0 testers</span>
+        </div>
+        <div class="responsive-table-wrap compact-data-table-wrap">
+          <table class="management-table admin-data-table application-tester-table">
+            <thead>
+              <tr><th>Name</th><th>Email</th><th>Role</th><th>Access ends</th><th>Status</th><th>Last sign in</th><th></th></tr>
+            </thead>
+            <tbody id="applicationTesterRows"></tbody>
+          </table>
+        </div>
+        <p id="applicationTesterStatus" class="admin-status" aria-live="polite"></p>
       </section>
 
       <section class="panel">
@@ -174,11 +195,6 @@
           <fieldset class="aggregator-access-fieldset wide-field">
             <legend>Organisation access</legend>
             <div id="editAggregators" class="aggregator-access-options"></div>
-          </fieldset>
-          <fieldset id="editDailySummaryFieldset" class="aggregator-access-fieldset wide-field">
-            <legend>Daily email summary</legend>
-            <div id="editDailySummaries" class="aggregator-access-options"></div>
-            <span class="field-help">Sends the previous day's record at 08:00 Kenya time.</span>
           </fieldset>
           <fieldset id="editFormAccessFieldset" class="user-form-access-fieldset wide-field">
             <legend>Form access</legend>
@@ -261,6 +277,6 @@
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
   <script type="module" src="./assets/js/admin_page.js?v=35"></script>
-  <script type="module" src="./assets/js/users_page.js?v=11"></script>
+  <script type="module" src="./assets/js/users_page.js?v=12"></script>
 </body>
 </html>

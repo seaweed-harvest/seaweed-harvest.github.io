@@ -7,7 +7,6 @@
   border-radius: 8px;
   background: var(--panel-soft);
 }
-
 .permission-page-tabs button {
   min-width: 140px;
   border-color: transparent;
@@ -185,6 +184,44 @@
 .user-form-access-empty {
   color: var(--text-muted);
   font-size: var(--supporting-font-size);
+}
+
+.application-testers-heading {
+  margin-top: var(--layout-gap);
+}
+
+.application-tester-table {
+  min-width: 980px;
+}
+
+.application-tester-table select,
+.application-tester-table input[type="date"] {
+  width: 100%;
+  min-width: 120px;
+  min-height: 36px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+
+.application-tester-table .row-actions {
+  min-width: 150px;
+}
+
+.application-tester-status {
+  font-weight: 700;
+}
+
+.application-tester-status[data-status="active"] {
+  color: var(--success, #157347);
+}
+
+.application-tester-status[data-status="expired"],
+.application-tester-status[data-status="revoked"] {
+  color: var(--danger, #b42318);
 }
 
 @media (max-width: 760px) {

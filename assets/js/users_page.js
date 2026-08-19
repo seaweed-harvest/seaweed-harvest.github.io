@@ -84,6 +84,7 @@ const state = {
   activity: [],
   organisationPermissionAccess: null,
   organisationPermissions: null,
+  applicationTesters: [],
   actor: null,
   editingUser: null,
   editingApplicationAccess: null
@@ -96,9 +97,9 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   [
     "reloadUsers", "inviteUserForm", "inviteEmail", "invitePhone", "inviteName", "inviteRole",
-    "inviteCommunity", "inviteFarmerIdField", "inviteFarmerId", "inviteTemporaryPasswordField", "inviteTemporaryPassword", "inviteAggregators", "inviteDailySummaryFieldset", "inviteDailySummaries", "inviteFormAccessFieldset", "inviteFormAccess", "invitePermissions", "inviteDashboardPreferences", "inviteStatus", "userDirectoryRows",
+    "inviteCommunity", "inviteFarmerIdField", "inviteFarmerId", "inviteTemporaryPasswordField", "inviteTemporaryPassword", "inviteAggregators", "inviteFormAccessFieldset", "inviteFormAccess", "invitePermissions", "inviteDashboardPreferences", "inviteStatus", "userDirectoryRows",
     "userEditorPanel", "closeUserEditor", "editUserForm", "editUserId", "editUserEmail",
-    "editUserName", "editUserRole", "editUserStatus", "editUserCommunity", "editFarmerIdField", "editFarmerId", "editAggregators", "editDailySummaryFieldset", "editDailySummaries", "editFormAccessFieldset", "editFormAccess", "editPermissions", "editDashboardPreferences",
+    "editUserName", "editUserRole", "editUserStatus", "editUserCommunity", "editFarmerIdField", "editFarmerId", "editAggregators", "editFormAccessFieldset", "editFormAccess", "editPermissions", "editDashboardPreferences",
     "editUserMessage", "deleteUser", "passwordHelpCount", "passwordHelpRows", "passwordHelpStatus",
     "temporaryPasswordDialog", "temporaryPasswordForm", "temporaryPasswordRequestId", "temporaryPasswordAccount", "temporaryPasswordValue", "generateTemporaryPassword", "saveTemporaryPassword", "copyTemporaryPassword", "closeTemporaryPassword", "temporaryPasswordStatus",
     "passwordResetLinkDialog", "passwordResetLinkAccount", "passwordResetLinkInstructions", "passwordResetLinkField", "passwordResetLinkValue", "copyPasswordResetLink", "closePasswordResetLink", "passwordResetLinkStatus",
@@ -111,7 +112,9 @@ async function init() {
     "organisationToolPermissions", "saveOrganisationPermissions",
     "organisationPermissionsStatus",
     "applicationUsersPanel", "applicationInviteForm", "applicationInviteEmail",
-    "applicationInviteName", "applicationInviteRole", "applicationInviteStatus",
+    "applicationInviteName", "applicationInviteRole", "applicationInviteDuration",
+    "applicationInviteExpiryField", "applicationInviteExpiry", "applicationInviteStatus",
+    "applicationTesterCount", "applicationTesterRows", "applicationTesterStatus",
     "editApplicationAccessFieldset", "editApplicationAccess", "saveApplicationAccess",
     "editApplicationAccessStatus", "saveUser"
   ].forEach((id) => { els[id] = document.getElementById(id); });
@@ -131,6 +134,7 @@ async function init() {
   renderDashboardInputs("invite", els.inviteRole.value);
   configureFarmerRoleFields("invite");
   configureInviteContactMode();
+  configureApplicationInviteDuration();
   await loadPageData();
   await resumePasswordResetLink();
 }
@@ -142,27 +146,20 @@ function bindEvents() {
   });
   els.organisationPermissionsForm.addEventListener("submit", saveOrganisationPermissions);
   els.reloadUsers.addEventListener("click", loadPageData);
-  els.inviteEmail.addEventListener("input", () => {
-    configureInviteContactMode();
-    renderDailySummaryInputs("invite", readDailySummaryAggregatorIds("invite"));
-  });
+  els.inviteEmail.addEventListener("input", configureInviteContactMode);
   els.inviteRole.addEventListener("change", () => {
     const formAccess = readUserFormAccess("invite");
-    const dailySummaryIds = readDailySummaryAggregatorIds("invite");
     applyRolePreset("invite", els.inviteRole.value);
     renderDashboardInputs("invite", els.inviteRole.value);
     configureFarmerRoleFields("invite");
     renderAggregatorInputs("invite", selectedAggregatorIds("invite"), false, formAccess);
-    renderDailySummaryInputs("invite", dailySummaryIds);
   });
   els.inviteAggregators.addEventListener("change", () => {
     renderUserFormAccess("invite", readUserFormAccess("invite"));
-    renderDailySummaryInputs("invite", readDailySummaryAggregatorIds("invite"));
     updateOrganisationPermissionEligibility("invite");
   });
   els.editUserRole.addEventListener("change", () => {
     const formAccess = readUserFormAccess("edit");
-    const dailySummaryIds = readDailySummaryAggregatorIds("edit");
     applyRolePreset("edit", els.editUserRole.value);
     renderDashboardInputs("edit", els.editUserRole.value);
     configureFarmerRoleFields("edit");
@@ -172,11 +169,9 @@ function bindEvents() {
       els.editUserRole.value === "system_admin",
       formAccess
     );
-    renderDailySummaryInputs("edit", dailySummaryIds);
   });
   els.editAggregators.addEventListener("change", () => {
     renderUserFormAccess("edit", readUserFormAccess("edit"));
-    renderDailySummaryInputs("edit", readDailySummaryAggregatorIds("edit"));
     updateOrganisationPermissionEligibility("edit");
   });
   els.inviteUserForm.addEventListener("submit", inviteUser);
@@ -197,6 +192,8 @@ function bindEvents() {
   els.closePasswordResetLink.addEventListener("click", closePasswordResetLinkDialog);
   els.farmerRegistrationRows.addEventListener("click", handleRegistrationClick);
   els.applicationInviteForm.addEventListener("submit", inviteApplicationUser);
+  els.applicationInviteDuration.addEventListener("change", configureApplicationInviteDuration);
+  els.applicationTesterRows.addEventListener("click", handleApplicationTesterClick);
   els.editApplicationAccess.addEventListener("change", handleApplicationAccessChange);
   els.saveApplicationAccess.addEventListener("click", saveApplicationAccess);
 }
@@ -207,33 +204,25 @@ async function loadPageData() {
     const activityRequest = canViewUserActivity()
       ? authClient.rpc("ag_admin_activity_log", { p_limit: 20 })
       : Promise.resolve({ data: [], error: null });
-    const [usersResponse, registrationsResponse, passwordHelpResponse, activityResponse, aggregatorResponse, organisationAccessResponse, dailySummaryResponse, communities] = await Promise.all([
+    const applicationUsersRequest = canManageApplicationAccess()
+      ? invokePlatformAppUsers({ action: "list", app_key: "tide" })
+      : Promise.resolve({ testers: [] });
+    const [usersResponse, registrationsResponse, passwordHelpResponse, activityResponse, aggregatorResponse, organisationAccessResponse, communities, applicationUsersResponse] = await Promise.all([
       authClient.rpc("ag_admin_user_directory"),
       authClient.rpc("ag_admin_farmer_registration_requests"),
       invokeAdminUsers({ action: "list_password_help" }),
       activityRequest,
       authClient.rpc("ag_admin_user_aggregator_options"),
       authClient.rpc("ag_admin_organisation_permission_options"),
-      authClient.rpc("ag_admin_daily_summary_recipient_state"),
-      selectRows(APP_CONFIG.tables.communities, "select=community_id,community_name&order=community_name.asc")
+      selectRows(APP_CONFIG.tables.communities, "select=community_id,community_name&order=community_name.asc"),
+      applicationUsersRequest
     ]);
     if (usersResponse.error) throw usersResponse.error;
     if (registrationsResponse.error) throw registrationsResponse.error;
     if (activityResponse.error) throw activityResponse.error;
     if (aggregatorResponse.error) throw aggregatorResponse.error;
     if (organisationAccessResponse.error) throw organisationAccessResponse.error;
-    if (dailySummaryResponse.error) throw dailySummaryResponse.error;
-    const summaryIdsByUser = new Map();
-    for (const row of dailySummaryResponse.data || []) {
-      const userId = String(row.user_id);
-      const ids = summaryIdsByUser.get(userId) || [];
-      ids.push(String(row.aggregator_id));
-      summaryIdsByUser.set(userId, ids);
-    }
-    state.users = (usersResponse.data || []).map((user) => ({
-      ...user,
-      daily_summary_aggregator_ids: summaryIdsByUser.get(String(user.id)) || []
-    }));
+    state.users = usersResponse.data || [];
     state.registrations = registrationsResponse.data || [];
     state.passwordHelp = passwordHelpResponse.requests || [];
     state.activity = activityResponse.data || [];
@@ -241,14 +230,15 @@ async function loadPageData() {
     state.organisationPermissionAccess = organisationAccessResponse.data || null;
     state.organisationPermissions = null;
     state.communities = communities;
+    state.applicationTesters = applicationUsersResponse.testers || [];
     await configureOrganisationPermissionAccess();
     renderCommunityOptions();
     renderAggregatorInputs("invite", defaultInviteAggregatorIds());
-    renderDailySummaryInputs("invite");
     renderUsers();
     renderPasswordHelp();
     renderRegistrations();
     renderActivity();
+    renderApplicationTesters();
     setStatus(els.inviteStatus, "");
   } catch (error) {
     setStatus(els.inviteStatus, error.message, "error");
@@ -412,9 +402,11 @@ async function inviteApplicationUser(event) {
       app_key: "tide",
       email: els.applicationInviteEmail.value.trim(),
       display_name: els.applicationInviteName.value.trim(),
-      role: els.applicationInviteRole.value
+      role: els.applicationInviteRole.value,
+      expires_at: applicationInviteExpiry()
     });
     els.applicationInviteForm.reset();
+    configureApplicationInviteDuration();
     await loadPageData();
     setStatus(
       els.applicationInviteStatus,
@@ -425,6 +417,110 @@ async function inviteApplicationUser(event) {
   } catch (error) {
     setStatus(els.applicationInviteStatus, error.message, "error");
   }
+}
+
+function configureApplicationInviteDuration() {
+  const custom = els.applicationInviteDuration.value === "custom";
+  els.applicationInviteExpiryField.hidden = !custom;
+  els.applicationInviteExpiry.required = custom;
+  if (!custom) els.applicationInviteExpiry.value = "";
+  els.applicationInviteExpiry.min = localDateValue(new Date());
+}
+
+function applicationInviteExpiry() {
+  const duration = els.applicationInviteDuration.value;
+  if (duration === "none") return null;
+  if (duration === "custom") return expiryFromDateInput(els.applicationInviteExpiry.value);
+  const expiry = new Date();
+  expiry.setHours(23, 59, 59, 999);
+  expiry.setMonth(expiry.getMonth() + (duration === "three_months" ? 3 : 1));
+  return expiry.toISOString();
+}
+
+function renderApplicationTesters() {
+  if (!canManageApplicationAccess()) return;
+  const testers = state.applicationTesters || [];
+  els.applicationTesterCount.textContent = `${testers.length} ${testers.length === 1 ? "tester" : "testers"}`;
+  els.applicationTesterRows.innerHTML = testers.length
+    ? testers.map((tester) => `
+      <tr data-application-tester="${escapeHtml(tester.access_id)}">
+        <td>${escapeHtml(tester.display_name || "-")}</td>
+        <td>${escapeHtml(tester.email)}</td>
+        <td>
+          <select data-application-tester-role aria-label="Tide role for ${escapeHtml(tester.email)}">
+            ${[["user", "User"], ["operator", "Operator"], ["admin", "Admin"]]
+              .map(([value, label]) => `<option value="${value}"${tester.role === value ? " selected" : ""}>${label}</option>`)
+              .join("")}
+          </select>
+        </td>
+        <td><input data-application-tester-expiry type="date" value="${escapeHtml(dateInputValue(tester.expires_at))}" aria-label="Access end date for ${escapeHtml(tester.email)}"></td>
+        <td><span class="application-tester-status" data-status="${escapeHtml(tester.status)}">${escapeHtml(applicationTesterStatusLabel(tester.status))}</span></td>
+        <td>${escapeHtml(formatDate(tester.last_sign_in_at))}</td>
+        <td class="row-actions">
+          <button type="button" data-application-tester-save>Save</button>
+          <button type="button" data-application-tester-toggle>${["active", "invitation_sent"].includes(tester.status) ? "Revoke" : "Restore"}</button>
+        </td>
+      </tr>
+    `).join("")
+    : '<tr><td colspan="7">No Tide testers have been added.</td></tr>';
+}
+
+async function handleApplicationTesterClick(event) {
+  const saveButton = event.target.closest("[data-application-tester-save]");
+  const toggleButton = event.target.closest("[data-application-tester-toggle]");
+  if (!saveButton && !toggleButton) return;
+  const row = event.target.closest("[data-application-tester]");
+  const tester = state.applicationTesters.find((item) => item.access_id === row?.dataset.applicationTester);
+  if (!row || !tester) return;
+
+  const enabling = toggleButton ? !["active", "invitation_sent"].includes(tester.status) : true;
+  const expiryValue = row.querySelector("[data-application-tester-expiry]")?.value || "";
+  let expiresAt = enabling && expiryValue ? expiryFromDateInput(expiryValue) : null;
+  if (toggleButton && expiresAt && new Date(expiresAt).getTime() <= Date.now()) expiresAt = null;
+  row.querySelectorAll("button, select, input").forEach((control) => { control.disabled = true; });
+  setStatus(els.applicationTesterStatus, enabling ? "Saving Tide access..." : "Revoking Tide access...");
+  try {
+    await invokePlatformAppUsers({
+      action: "set_access",
+      app_key: "tide",
+      access_id: tester.access_id,
+      role: row.querySelector("[data-application-tester-role]")?.value || tester.role,
+      enabled: enabling,
+      expires_at: expiresAt
+    });
+    await loadPageData();
+    setStatus(els.applicationTesterStatus, enabling ? "Tide access saved." : "Tide access revoked.");
+  } catch (error) {
+    row.querySelectorAll("button, select, input").forEach((control) => { control.disabled = false; });
+    setStatus(els.applicationTesterStatus, error.message, "error");
+  }
+}
+
+function expiryFromDateInput(value) {
+  if (!value) return null;
+  const expiry = new Date(`${value}T23:59:59.999`);
+  if (Number.isNaN(expiry.getTime())) throw new Error("Choose a valid access end date.");
+  return expiry.toISOString();
+}
+
+function localDateValue(date) {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+}
+
+function dateInputValue(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : localDateValue(date);
+}
+
+function applicationTesterStatusLabel(status) {
+  return {
+    invitation_sent: "Invitation sent",
+    active: "Active",
+    expired: "Expired",
+    revoked: "Revoked"
+  }[status] || "Unknown";
 }
 
 async function inviteUser(event) {
@@ -457,8 +553,7 @@ async function inviteUser(event) {
       aggregator_ids: aggregatorIds,
       organisation_form_access: readUserFormAccess("invite"),
       permissions: readPermissions("invite"),
-      dashboard_widgets: readDashboardWidgets("invite"),
-      daily_summary_aggregator_ids: readDailySummaryAggregatorIds("invite")
+      dashboard_widgets: readDashboardWidgets("invite")
     });
     els.inviteUserForm.reset();
     els.inviteRole.value = "company_admin";
@@ -467,7 +562,6 @@ async function inviteUser(event) {
     applyRolePreset("invite", "company_admin");
     renderDashboardInputs("invite", "company_admin");
     renderAggregatorInputs("invite", defaultInviteAggregatorIds());
-    renderDailySummaryInputs("invite");
     await loadPageData();
     setStatus(
       els.inviteStatus,
@@ -504,8 +598,7 @@ async function saveUser(event) {
       aggregator_ids: aggregatorIds,
       organisation_form_access: readUserFormAccess("edit"),
       permissions: readPermissions("edit"),
-      dashboard_widgets: readDashboardWidgets("edit"),
-      daily_summary_aggregator_ids: readDailySummaryAggregatorIds("edit")
+      dashboard_widgets: readDashboardWidgets("edit")
     });
     setStatus(els.editUserMessage, "Saved.");
     state.editingUser = null;
@@ -554,7 +647,6 @@ function renderUsers() {
         : '<span class="user-name-warning" title="This user must add a name">Name required</span>'}</td>
       <td>${escapeHtml(roleLabels[user.app_role] || user.app_role)}</td>
       <td>${escapeHtml(formatAggregatorAccess(user))}</td>
-      <td>${escapeHtml(formatDailySummaryAccess(user))}</td>
       <td>${escapeHtml(capitalize(user.account_status))}</td>
       <td>${escapeHtml(user.community_id || "All")}</td>
       <td>${escapeHtml(formatDate(user.last_sign_in_at))}</td>
@@ -565,7 +657,7 @@ function renderUsers() {
         : `<button type="button" data-edit-user="${escapeHtml(user.id)}">Edit</button>`}
         <button type="button" data-password-reset-link="${escapeHtml(user.id)}"${canCreatePasswordResetLink(user) ? "" : " disabled"}>${user.email ? "Email reset" : "Reset link"}</button></td>
     </tr>
-  `).join("") : '<tr><td colspan="11">No users yet.</td></tr>';
+  `).join("") : '<tr><td colspan="10">No users yet.</td></tr>';
 }
 
 function renderPasswordHelp() {
@@ -667,7 +759,6 @@ async function handleUserTableClick(event) {
       user.all_aggregators,
       formAccessResponse.data || {}
     );
-    renderDailySummaryInputs("edit", user.daily_summary_aggregator_ids || []);
     els.deleteUser.disabled = user.id === state.actor?.id;
     els.deleteUser.title = user.id === state.actor?.id ? "You cannot delete your own account" : "Delete this user account";
     writePermissions("edit", user);
@@ -1039,38 +1130,6 @@ function renderAggregatorInputs(prefix, selectedIds = [], allAggregators = false
   updateOrganisationPermissionEligibility(prefix);
 }
 
-function renderDailySummaryInputs(prefix, selectedIds = []) {
-  const container = prefix === "invite" ? els.inviteDailySummaries : els.editDailySummaries;
-  const fieldset = prefix === "invite" ? els.inviteDailySummaryFieldset : els.editDailySummaryFieldset;
-  const role = prefix === "invite" ? els.inviteRole.value : els.editUserRole.value;
-  const email = prefix === "invite"
-    ? els.inviteEmail.value.trim()
-    : String(state.editingUser?.email || "").trim();
-  const availableIds = role === "system_admin"
-    ? new Set(state.aggregators.map((row) => String(row.id)))
-    : new Set(selectedAggregatorIds(prefix).map(String));
-  const selected = new Set((selectedIds || []).map(String));
-  const organisations = state.aggregators.filter((row) => availableIds.has(String(row.id)));
-
-  fieldset.hidden = false;
-  if (!email) {
-    container.innerHTML = '<span class="admin-status">An email sign-in is required for daily summaries.</span>';
-    return;
-  }
-  container.innerHTML = organisations.map((row) => `
-    <label class="aggregator-access-option">
-      <input type="checkbox" data-daily-summary="${prefix}" value="${escapeHtml(row.id)}"${selected.has(String(row.id)) ? " checked" : ""}>
-      ${escapeHtml(row.aggregator_code)} - ${escapeHtml(row.organisation_name)}
-    </label>
-  `).join("") || '<span class="admin-status">Select an organisation first.</span>';
-}
-
-function readDailySummaryAggregatorIds(prefix) {
-  const container = prefix === "invite" ? els.inviteDailySummaries : els.editDailySummaries;
-  return [...container.querySelectorAll(`[data-daily-summary="${prefix}"]:checked`)]
-    .map((input) => input.value);
-}
-
 function renderUserFormAccess(prefix, accessMap = undefined) {
   const container = prefix === "invite" ? els.inviteFormAccess : els.editFormAccess;
   const fieldset = prefix === "invite" ? els.inviteFormAccessFieldset : els.editFormAccessFieldset;
@@ -1171,16 +1230,6 @@ function formatAggregatorAccess(user) {
   if (user.all_aggregators) return "All";
   const names = Array.isArray(user.aggregator_names) ? user.aggregator_names : [];
   return names.length ? names.join(", ") : "None";
-}
-
-function formatDailySummaryAccess(user) {
-  const selected = new Set(
-    (user.daily_summary_aggregator_ids || []).map(String)
-  );
-  const names = state.aggregators
-    .filter((row) => selected.has(String(row.id)))
-    .map((row) => row.aggregator_code);
-  return names.length ? names.join(", ") : "-";
 }
 
 function applyRolePreset(prefix, role) {
