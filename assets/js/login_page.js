@@ -209,8 +209,7 @@ async function routeSignedInUser(options = {}) {
   const requestedPage = safePage(requested);
   const requestedFile = requestedPage.split("?")[0];
   const requestedApp = applicationForPage(requestedFile);
-  const needsApplicationAccess = Boolean(requestedApp) || profile?.app_role === "platform_user";
-  const applications = needsApplicationAccess
+  const applications = requestedApp
     ? await currentApplicationAccess(true).catch(() => ({}))
     : {};
 
@@ -229,7 +228,7 @@ async function routeSignedInUser(options = {}) {
 
   let destination = requested && canUseRequestedPage ? `./${requestedPage}` : routeForProfile(profile);
   if (!requested && profile?.app_role === "platform_user") {
-    destination = defaultApplicationRoute(applications) || destination;
+    destination = profile?.is_protected_owner ? "./home.html" : "./my_details.html";
   }
 
   if (options.animate === false) {
@@ -287,11 +286,6 @@ function safePage(value) {
 
 function applicationForPage(file) {
   if (String(file || "").startsWith("tide/")) return "tide";
-  return "";
-}
-
-function defaultApplicationRoute(applications) {
-  if (applications?.tide) return "./tide/index.html";
   return "";
 }
 

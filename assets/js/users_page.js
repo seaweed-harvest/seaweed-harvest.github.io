@@ -84,6 +84,7 @@ const state = {
   activity: [],
   organisationPermissionAccess: null,
   organisationPermissions: null,
+  applicationTesters: [],
   actor: null,
   editingUser: null,
   editingApplicationAccess: null
@@ -111,7 +112,9 @@ async function init() {
     "organisationToolPermissions", "saveOrganisationPermissions",
     "organisationPermissionsStatus",
     "applicationUsersPanel", "applicationInviteForm", "applicationInviteEmail",
-    "applicationInviteName", "applicationInviteRole", "applicationInviteStatus",
+    "applicationInviteName", "applicationInviteRole", "applicationInviteDuration",
+    "applicationInviteExpiryField", "applicationInviteExpiry", "applicationInviteStatus",
+    "applicationTesterCount", "applicationTesterRows", "applicationTesterStatus",
     "editApplicationAccessFieldset", "editApplicationAccess", "saveApplicationAccess",
     "editApplicationAccessStatus", "saveUser"
   ].forEach((id) => { els[id] = document.getElementById(id); });
@@ -131,6 +134,7 @@ async function init() {
   renderDashboardInputs("invite", els.inviteRole.value);
   configureFarmerRoleFields("invite");
   configureInviteContactMode();
+  configureApplicationInviteDuration();
   await loadPageData();
   await resumePasswordResetLink();
 }
@@ -197,6 +201,8 @@ function bindEvents() {
   els.closePasswordResetLink.addEventListener("click", closePasswordResetLinkDialog);
   els.farmerRegistrationRows.addEventListener("click", handleRegistrationClick);
   els.applicationInviteForm.addEventListener("submit", inviteApplicationUser);
+  els.applicationInviteDuration.addEventListener("change", configureApplicationInviteDuration);
+  els.applicationTesterRows.addEventListener("click", handleApplicationTesterClick);
   els.editApplicationAccess.addEventListener("change", handleApplicationAccessChange);
   els.saveApplicationAccess.addEventListener("click", saveApplicationAccess);
 }
@@ -207,7 +213,10 @@ async function loadPageData() {
     const activityRequest = canViewUserActivity()
       ? authClient.rpc("ag_admin_activity_log", { p_limit: 20 })
       : Promise.resolve({ data: [], error: null });
-    const [usersResponse, registrationsResponse, passwordHelpResponse, activityResponse, aggregatorResponse, organisationAccessResponse, dailySummaryResponse, communities] = await Promise.all([
+    const applicationUsersRequest = canManageApplicationAccess()
+      ? invokePlatformAppUsers({ action: "list", app_key: "tide" })
+      : Promise.resolve({ testers: [] });
+    const [usersResponse, registrationsResponse, passwordHelpResponse, activityResponse, aggregatorResponse, organisationAccessResponse, dailySummaryResponse, communities, applicationUsersResponse] = await Promise.all([
       authClient.rpc("ag_admin_user_directory"),
       authClient.rpc("ag_admin_farmer_registration_requests"),
       invokeAdminUsers({ action: "list_password_help" }),
@@ -215,7 +224,8 @@ async function loadPageData() {
       authClient.rpc("ag_admin_user_aggregator_options"),
       authClient.rpc("ag_admin_organisation_permission_options"),
       authClient.rpc("ag_admin_daily_summary_recipient_state"),
-      selectRows(APP_CONFIG.tables.communities, "select=community_id,community_name&order=community_name.asc")
+      selectRows(APP_CONFIG.tables.communities, "select=community_id,community_name&order=community_name.asc"),
+      applicationUsersRequest
     ]);
     if (usersResponse.error) throw usersResponse.error;
     if (registrationsResponse.error) throw registrationsResponse.error;
@@ -241,6 +251,7 @@ async function loadPageData() {
     state.organisationPermissionAccess = organisationAccessResponse.data || null;
     state.organisationPermissions = null;
     state.communities = communities;
+    state.applicationTesters = applicationUsersResponse.testers || [];
     await configureOrganisationPermissionAccess();
     renderCommunityOptions();
     renderAggregatorInputs("invite", defaultInviteAggregatorIds());
@@ -249,6 +260,7 @@ async function loadPageData() {
     renderPasswordHelp();
     renderRegistrations();
     renderActivity();
+    renderApplicationTesters();
     setStatus(els.inviteStatus, "");
   } catch (error) {
     setStatus(els.inviteStatus, error.message, "error");
@@ -412,9 +424,11 @@ async function inviteApplicationUser(event) {
       app_key: "tide",
       email: els.applicationInviteEmail.value.trim(),
       display_name: els.applicationInviteName.value.trim(),
-      role: els.applicationInviteRole.value
+      role: els.applicationInviteRole.value,
+      expires_at: applicationInviteExpiry()
     });
     els.applicationInviteForm.reset();
+    configureApplicationInviteDuration();
     await loadPageData();
     setStatus(
       els.applicationInviteStatus,
@@ -425,6 +439,110 @@ async function inviteApplicationUser(event) {
   } catch (error) {
     setStatus(els.applicationInviteStatus, error.message, "error");
   }
+}
+
+function configureApplicationInviteDuration() {
+  const custom = els.applicationInviteDuration.value === "custom";
+  els.applicationInviteExpiryField.hidden = !custom;
+  els.applicationInviteExpiry.required = custom;
+  if (!custom) els.applicationInviteExpiry.value = "";
+  els.applicationInviteExpiry.min = localDateValue(new Date());
+}
+
+function applicationInviteExpiry() {
+  const duration = els.applicationInviteDuration.value;
+  if (duration === "none") return null;
+  if (duration === "custom") return expiryFromDateInput(els.applicationInviteExpiry.value);
+  const expiry = new Date();
+  expiry.setHours(23, 59, 59, 999);
+  expiry.setMonth(expiry.getMonth() + (duration === "three_months" ? 3 : 1));
+  return expiry.toISOString();
+}
+
+function renderApplicationTesters() {
+  if (!canManageApplicationAccess()) return;
+  const testers = state.applicationTesters || [];
+  els.applicationTesterCount.textContent = `${testers.length} ${testers.length === 1 ? "tester" : "testers"}`;
+  els.applicationTesterRows.innerHTML = testers.length
+    ? testers.map((tester) => `
+      <tr data-application-tester="${escapeHtml(tester.access_id)}">
+        <td>${escapeHtml(tester.display_name || "-")}</td>
+        <td>${escapeHtml(tester.email)}</td>
+        <td>
+          <select data-application-tester-role aria-label="Tide role for ${escapeHtml(tester.email)}">
+            ${[["user", "User"], ["operator", "Operator"], ["admin", "Admin"]]
+              .map(([value, label]) => `<option value="${value}"${tester.role === value ? " selected" : ""}>${label}</option>`)
+              .join("")}
+          </select>
+        </td>
+        <td><input data-application-tester-expiry type="date" value="${escapeHtml(dateInputValue(tester.expires_at))}" aria-label="Access end date for ${escapeHtml(tester.email)}"></td>
+        <td><span class="application-tester-status" data-status="${escapeHtml(tester.status)}">${escapeHtml(applicationTesterStatusLabel(tester.status))}</span></td>
+        <td>${escapeHtml(formatDate(tester.last_sign_in_at))}</td>
+        <td class="row-actions">
+          <button type="button" data-application-tester-save>Save</button>
+          <button type="button" data-application-tester-toggle>${["active", "invitation_sent"].includes(tester.status) ? "Revoke" : "Restore"}</button>
+        </td>
+      </tr>
+    `).join("")
+    : '<tr><td colspan="7">No Tide testers have been added.</td></tr>';
+}
+
+async function handleApplicationTesterClick(event) {
+  const saveButton = event.target.closest("[data-application-tester-save]");
+  const toggleButton = event.target.closest("[data-application-tester-toggle]");
+  if (!saveButton && !toggleButton) return;
+  const row = event.target.closest("[data-application-tester]");
+  const tester = state.applicationTesters.find((item) => item.access_id === row?.dataset.applicationTester);
+  if (!row || !tester) return;
+
+  const enabling = toggleButton ? !["active", "invitation_sent"].includes(tester.status) : true;
+  const expiryValue = row.querySelector("[data-application-tester-expiry]")?.value || "";
+  let expiresAt = enabling && expiryValue ? expiryFromDateInput(expiryValue) : null;
+  if (toggleButton && expiresAt && new Date(expiresAt).getTime() <= Date.now()) expiresAt = null;
+  row.querySelectorAll("button, select, input").forEach((control) => { control.disabled = true; });
+  setStatus(els.applicationTesterStatus, enabling ? "Saving Tide access..." : "Revoking Tide access...");
+  try {
+    await invokePlatformAppUsers({
+      action: "set_access",
+      app_key: "tide",
+      access_id: tester.access_id,
+      role: row.querySelector("[data-application-tester-role]")?.value || tester.role,
+      enabled: enabling,
+      expires_at: expiresAt
+    });
+    await loadPageData();
+    setStatus(els.applicationTesterStatus, enabling ? "Tide access saved." : "Tide access revoked.");
+  } catch (error) {
+    row.querySelectorAll("button, select, input").forEach((control) => { control.disabled = false; });
+    setStatus(els.applicationTesterStatus, error.message, "error");
+  }
+}
+
+function expiryFromDateInput(value) {
+  if (!value) return null;
+  const expiry = new Date(`${value}T23:59:59.999`);
+  if (Number.isNaN(expiry.getTime())) throw new Error("Choose a valid access end date.");
+  return expiry.toISOString();
+}
+
+function localDateValue(date) {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+}
+
+function dateInputValue(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : localDateValue(date);
+}
+
+function applicationTesterStatusLabel(status) {
+  return {
+    invitation_sent: "Invitation sent",
+    active: "Active",
+    expired: "Expired",
+    revoked: "Revoked"
+  }[status] || "Unknown";
 }
 
 async function inviteUser(event) {
