@@ -226,10 +226,14 @@ async function routeSignedInUser(options = {}) {
       || (requestedFile === "farmer.html" && profile?.app_role === "farmer_viewer")
       || requestedFile === "access_pending.html";
 
-  let destination = requested && canUseRequestedPage ? `./${requestedPage}` : routeForProfile(profile);
   if (!requested && profile?.app_role === "platform_user") {
-    destination = profile?.is_protected_owner ? "./home.html" : "./my_details.html";
+    const { error } = await authClient.auth.signOut({ scope: "local" });
+    if (error) throw error;
+    window.location.replace("./index.html?account=platform_only");
+    return;
   }
+
+  const destination = requested && canUseRequestedPage ? `./${requestedPage}` : routeForProfile(profile);
 
   if (options.animate === false) {
     window.location.replace(destination);
@@ -257,6 +261,9 @@ function showQueryMessage() {
   const params = new URLSearchParams(window.location.search);
   if (params.get("error")) setStatus(params.get("error"), "error");
   if (params.get("mode") === "invite") setStatus("Open the newest invite link, then set your password.");
+  if (params.get("account") === "platform_only") {
+    setStatus("That account has Tide access only. Sign in with a Seaweed Harvest operational account to open Harvest.");
+  }
 }
 
 function passwordModeTitle(mode) {
