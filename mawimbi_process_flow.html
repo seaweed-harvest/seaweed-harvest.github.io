@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Mawimbi Process Flow - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/mawimbi_process_flow.css?v=5">
+  <link rel="stylesheet" href="./assets/css/mawimbi_process_flow.css?v=6">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -112,7 +112,7 @@
         <label class="wide">Stage name<input name="stage_name" type="text" maxlength="160" required></label>
         <label class="wide">Current method<textarea name="method_description" rows="3" maxlength="5000"></textarea></label>
         <label>Material state<input name="material_state" type="text" maxlength="120" placeholder="Wet, drained, filtered…"></label>
-        <label>Evidence<select name="evidence_status"><option value="not_measured">Not measured</option><option value="reported">Reported</option><option value="observed">Observed</option></select></label>
+        <label>Evidence basis<select name="evidence_status" title="How this stage information was established"><option value="not_measured">Not yet verified</option><option value="reported">Reported / documented</option><option value="observed">Directly observed</option></select></label>
         <label class="wide">Notes<textarea name="notes" rows="2" maxlength="5000"></textarea></label>
       </div>
 
@@ -171,6 +171,6 @@
   </dialog>
 
   <script type="module" src="./assets/js/admin_page.js?v=37"></script>
-  <script type="module" src="./assets/js/mawimbi_process_flow.js?v=6"></script>
+  <script type="module" src="./assets/js/mawimbi_process_flow.js?v=7"></script>
 </body>
 </html>
