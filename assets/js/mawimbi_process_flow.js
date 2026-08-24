@@ -49,7 +49,7 @@ function cacheElements() {
     "mawimbiMatrixBody", "mawimbiPageStatus", "mawimbiCaptureDialog", "mawimbiCaptureForm",
     "mawimbiDuplicateDialog", "mawimbiDuplicateForm", "mawimbiAddStageDialog", "mawimbiAddStageForm",
     "mawimbiStageDialog", "mawimbiStageForm", "mawimbiStageNumber", "mawimbiStageTitle",
-    "mawimbiStageVersion", "mawimbiStageRevisionSelect", "mawimbiVariableRows", "mawimbiAddVariableRow",
+    "mawimbiStageRevisionSelect", "mawimbiVariableRows", "mawimbiAddVariableRow",
     "mawimbiEquipmentRows", "mawimbiAddEquipmentRow", "mawimbiRemoveStage",
     "mawimbiStageStatus", "mawimbiVariableDialog", "mawimbiVariableForm", "mawimbiVariableTitle",
     "mawimbiVariableUsage", "mawimbiHistoryDialog", "mawimbiHistoryList"
@@ -373,7 +373,6 @@ function renderStageRevision(revisionId) {
   if (!link || !current || !revision || revision.stage_family_id !== link.stage_family_id) return;
   state.viewedStageRevisionId = revision.id;
   els.mawimbiStageTitle.textContent = revision.stage_name;
-  els.mawimbiStageVersion.textContent = `v${revision.version_major}.${revision.version_minor}`;
   els.mawimbiStageRevisionSelect.value = revision.id;
   setForm(els.mawimbiStageForm, revision);
   const rows = operationalInputRows(state.workspace.stage_variables
