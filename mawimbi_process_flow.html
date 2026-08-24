@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Mawimbi Process Flow - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/mawimbi_process_flow.css?v=4">
+  <link rel="stylesheet" href="./assets/css/mawimbi_process_flow.css?v=6">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -106,14 +106,13 @@
     <form id="mawimbiStageForm" method="dialog">
       <header class="mawimbi-dialog-header">
         <div><p id="mawimbiStageNumber" class="eyebrow"></p><h2 id="mawimbiStageTitle"></h2></div>
-        <div class="mawimbi-dialog-version"><label class="mawimbi-revision-picker">Revision<select id="mawimbiStageRevisionSelect" aria-label="Stage revision"></select></label><span id="mawimbiStageVersion" class="mawimbi-version-badge"></span><button type="button" data-close-dialog aria-label="Close">×</button></div>
+        <div class="mawimbi-dialog-version"><label class="mawimbi-revision-picker">Revision<select id="mawimbiStageRevisionSelect" aria-label="Stage revision"></select></label><button type="button" data-close-dialog aria-label="Close">×</button></div>
       </header>
       <div class="mawimbi-editor-grid">
         <label class="wide">Stage name<input name="stage_name" type="text" maxlength="160" required></label>
         <label class="wide">Current method<textarea name="method_description" rows="3" maxlength="5000"></textarea></label>
         <label>Material state<input name="material_state" type="text" maxlength="120" placeholder="Wet, drained, filtered…"></label>
-        <label>Evidence<select name="evidence_status"><option value="not_measured">Not measured</option><option value="reported">Reported</option><option value="observed">Observed</option></select></label>
-        <label>Revision note<input name="change_note" type="text" maxlength="1000" placeholder="What changed in this version"></label>
+        <label>Evidence basis<select name="evidence_status" title="How this stage information was established"><option value="not_measured">Not yet verified</option><option value="reported">Reported / documented</option><option value="observed">Directly observed</option></select></label>
         <label class="wide">Notes<textarea name="notes" rows="2" maxlength="5000"></textarea></label>
       </div>
 
@@ -140,6 +139,7 @@
       <footer class="mawimbi-dialog-actions mawimbi-stage-actions">
         <button id="mawimbiRemoveStage" class="danger-button" type="button">Remove stage</button>
         <span id="mawimbiStageStatus" class="admin-status" aria-live="polite"></span>
+        <label class="mawimbi-save-revision-note">Revision note<input name="change_note" type="text" maxlength="1000" placeholder="What changed in this version"></label>
         <button type="button" data-close-dialog>Cancel</button>
         <button name="version_change" value="major" type="submit">Save major</button>
         <button class="mawimbi-primary" name="version_change" value="minor" type="submit">Save</button>
@@ -171,6 +171,6 @@
   </dialog>
 
   <script type="module" src="./assets/js/admin_page.js?v=37"></script>
-  <script type="module" src="./assets/js/mawimbi_process_flow.js?v=5"></script>
+  <script type="module" src="./assets/js/mawimbi_process_flow.js?v=7"></script>
 </body>
 </html>

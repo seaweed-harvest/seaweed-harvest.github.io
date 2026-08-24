@@ -49,7 +49,7 @@ function cacheElements() {
     "mawimbiMatrixBody", "mawimbiPageStatus", "mawimbiCaptureDialog", "mawimbiCaptureForm",
     "mawimbiDuplicateDialog", "mawimbiDuplicateForm", "mawimbiAddStageDialog", "mawimbiAddStageForm",
     "mawimbiStageDialog", "mawimbiStageForm", "mawimbiStageNumber", "mawimbiStageTitle",
-    "mawimbiStageVersion", "mawimbiStageRevisionSelect", "mawimbiVariableRows", "mawimbiAddVariableRow",
+    "mawimbiStageRevisionSelect", "mawimbiVariableRows", "mawimbiAddVariableRow",
     "mawimbiEquipmentRows", "mawimbiAddEquipmentRow", "mawimbiRemoveStage",
     "mawimbiStageStatus", "mawimbiVariableDialog", "mawimbiVariableForm", "mawimbiVariableTitle",
     "mawimbiVariableUsage", "mawimbiHistoryDialog", "mawimbiHistoryList"
@@ -133,12 +133,14 @@ function renderMatrix() {
   const corner = tableCell("th", "Process detail", "mawimbi-row-label");
   corner.scope = "col";
   const headers = links.map((link, index) => stageHeader(link, index, links.length));
+  const alignedInputs = sharedVariableIds(links, "input_setting");
+  const alignedMeasurements = sharedVariableIds(links, "measured");
   els.mawimbiMatrixHead.replaceChildren(corner, ...headers);
   const rows = [
     renderMatrixRow("Number", links, (_, index) => String(index + 1), "mawimbi-number-row"),
     renderMatrixRow("Process", links, (link, index) => processButton(link, index)),
-    renderMatrixRow("Inputs / settings", links, (link) => variableBadges(link, "input_setting")),
-    renderMatrixRow("Measured variables", links, (link) => variableBadges(link, "measured")),
+    renderMatrixRow("Inputs / settings", links, (link) => variableBadges(link, "input_setting", alignedInputs)),
+    renderMatrixRow("Measured variables", links, (link) => variableBadges(link, "measured", alignedMeasurements)),
     ...RESOURCE_ROWS.map(([key, label]) => renderMatrixRow(label, links, (link) => resourceValue(stageRevision(link), key), "mawimbi-resource-row"))
   ];
   els.mawimbiMatrixBody.replaceChildren(...rows);
@@ -198,16 +200,37 @@ function processButton(link, index) {
   return button;
 }
 
-function variableBadges(link, kind) {
+function sharedVariableIds(links, kind) {
+  const counts = new Map();
+  const order = [];
+  links.forEach((link) => {
+    const revision = stageRevision(link);
+    const stageVariableIds = new Set(state.workspace.stage_variables
+      .filter((item) => item.stage_revision_id === revision?.id && item.variable_kind === kind)
+      .sort((a, b) => (a.position || 0) - (b.position || 0))
+      .map((item) => item.variable_id));
+    stageVariableIds.forEach((variableId) => {
+      if (!counts.has(variableId)) order.push(variableId);
+      counts.set(variableId, (counts.get(variableId) || 0) + 1);
+    });
+  });
+  return order.filter((variableId) => counts.get(variableId) > 1);
+}
+
+function variableBadges(link, kind, alignedVariableIds = []) {
   const wrap = element("div", "mawimbi-variable-list");
   const revision = stageRevision(link);
-  const rows = state.workspace.stage_variables.filter((item) => item.stage_revision_id === revision?.id);
+  const rows = state.workspace.stage_variables
+    .filter((item) => item.stage_revision_id === revision?.id)
+    .sort((a, b) => (a.position || 0) - (b.position || 0));
+  const kindRows = rows.filter((item) => item.variable_kind === kind);
   const kindsByVariable = new Map();
   rows.forEach((item) => {
     if (!kindsByVariable.has(item.variable_id)) kindsByVariable.set(item.variable_id, new Set());
     kindsByVariable.get(item.variable_id).add(item.variable_kind);
   });
-  rows.filter((item) => item.variable_kind === kind).forEach((item) => {
+
+  function appendBadge(container, item) {
     const variable = variableById(item.variable_id);
     if (!variable) return;
     const both = kindsByVariable.get(item.variable_id)?.size > 1;
@@ -216,9 +239,30 @@ function variableBadges(link, kind) {
     button.className = `mawimbi-variable is-${both ? "both" : kind === "measured" ? "measured" : "input"}`;
     button.textContent = item.defined_value ? `${variable.name}: ${item.defined_value}${item.unit ? ` ${item.unit}` : ""}` : variable.name;
     button.addEventListener("click", () => openVariable(variable.id));
-    wrap.append(button);
-  });
-  if (!wrap.childElementCount) wrap.append(textValue("—", true));
+    container.append(button);
+  }
+
+  const rowsByVariable = new Map(kindRows.map((item) => [item.variable_id, item]));
+  const alignedSet = new Set(alignedVariableIds);
+  if (alignedVariableIds.length) {
+    wrap.classList.add("is-aligned");
+    alignedVariableIds.forEach((variableId) => {
+      const slot = element("div", "mawimbi-variable-slot");
+      const item = rowsByVariable.get(variableId);
+      if (item) appendBadge(slot, item);
+      else {
+        slot.classList.add("is-empty");
+        slot.setAttribute("aria-hidden", "true");
+      }
+      wrap.append(slot);
+    });
+  }
+
+  const remainingRows = kindRows.filter((item) => !alignedSet.has(item.variable_id));
+  const remaining = alignedVariableIds.length ? element("div", "mawimbi-variable-unmatched") : wrap;
+  remainingRows.forEach((item) => appendBadge(remaining, item));
+  if (remaining !== wrap && remaining.childElementCount) wrap.append(remaining);
+  if (!kindRows.length && !alignedVariableIds.length) wrap.append(textValue("—", true));
   return wrap;
 }
 
@@ -373,7 +417,6 @@ function renderStageRevision(revisionId) {
   if (!link || !current || !revision || revision.stage_family_id !== link.stage_family_id) return;
   state.viewedStageRevisionId = revision.id;
   els.mawimbiStageTitle.textContent = revision.stage_name;
-  els.mawimbiStageVersion.textContent = `v${revision.version_major}.${revision.version_minor}`;
   els.mawimbiStageRevisionSelect.value = revision.id;
   setForm(els.mawimbiStageForm, revision);
   const rows = operationalInputRows(state.workspace.stage_variables
