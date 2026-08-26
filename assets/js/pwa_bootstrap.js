@@ -11,6 +11,12 @@ if (window.location.pathname.endsWith("/reef_nursery.html")) {
   }
 }
 
+if (window.location.pathname.endsWith("/admin_users.html")) {
+  import("./tide_activation_admin.js?v=1").catch((error) => {
+    console.warn("Tide activation-link controls could not be loaded.", error);
+  });
+}
+
 if (canRegister) {
   const upgradingExistingWorker = Boolean(navigator.serviceWorker.controller);
   let reloadingForUpdate = false;
