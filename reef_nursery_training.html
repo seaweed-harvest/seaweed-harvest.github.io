@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Reef Nursery - Seaweed Harvest</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+  <link rel="stylesheet" href="./assets/css/form_foundation.css?v=2">
+  <link rel="stylesheet" href="./assets/css/reef_nursery_wp01.css?v=1">
+  <link rel="stylesheet" href="./assets/css/reef_nursery_wp02.css?v=1">
+  <link rel="stylesheet" href="./assets/css/reef_nursery_wp03.css?v=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Seaweed Harvest">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./favicon.ico" sizes="any">
+  <link rel="icon" href="./assets/images/seaweed-harvest-icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
+  <script type="module" src="./assets/js/pwa_bootstrap.js"></script>
+</head>
+<body class="reef-training-page" data-auth-pending>
+  <header class="reef-training-header">
+    <div>
+      <p class="eyebrow">COSME Reef Nursery</p>
+      <h1>Reef Nursery</h1>
+      <p class="reef-training-subtitle">Training, competency, Seaweed and inspection records.</p>
+    </div>
+    <div class="reef-training-account-actions">
+      <span id="reefAccessStatus" class="reef-access-status">Checking access…</span>
+      <a id="reefSignIn" class="secondary-action" href="./login.html?return=reef_nursery.html">Sign in</a>
+      <a id="reefHome" class="secondary-action" href="./home.html" hidden>Home</a>
+    </div>
+  </header>
+
+  <main class="reef-training-shell">
+    <section id="reefAccessGate" class="reef-access-gate" role="alert" hidden>
+      <h2>Reef Nursery is not open for public entry</h2>
+      <p id="reefAccessGateMessage"></p>
+      <a id="reefGateSignIn" class="primary-link" href="./login.html?return=reef_nursery.html">Sign in with an authorised COSME Reef account</a>
+    </section>
+
+    <div id="reefTrainingWorkspace" hidden>
+      <section id="reefPublicNotice" class="reef-public-notice" hidden>
+        <strong>Public production entry</strong>
+        <span>No login is required. Recent Reef records remain openly viewable and editable for 7 days (168 hours) from creation; older records require an authorised COSME Reef login.</span>
+      </section>
+
+      <nav id="reefTrainingTabs" class="reef-training-tabs" aria-label="Reef Nursery record sections" role="tablist">
+        <button type="button" role="tab" aria-selected="true" data-reef-training-tab="session">Session details</button>
+        <button type="button" role="tab" aria-selected="false" data-reef-training-tab="participants">Participants</button>
+        <button type="button" role="tab" aria-selected="false" data-reef-training-tab="training">Training delivered</button>
+        <button type="button" role="tab" aria-selected="false" data-reef-training-tab="competency">Competency Assessment</button>
+        <button type="button" role="tab" aria-selected="false" data-reef-training-tab="records">Previous Records</button>
+        <button type="button" role="tab" aria-selected="false" data-reef-training-tab="seaweed">Seaweed Record</button>
+        <button type="button" role="tab" aria-selected="false" data-reef-training-tab="inspection">Raft and Mooring Inspection</button>
+      </nav>
+
+      <section class="reef-training-card">
+        <form id="reefTrainingForm" novalidate>
+          <section class="reef-training-panel" data-reef-training-panel="session" role="tabpanel">
+            <div class="reef-panel-heading">
+              <div>
+                <p class="eyebrow">Training / competency record</p>
+                <h2>Session details</h2>
+              </div>
+              <div class="reef-record-meta" aria-label="Record state">
+                <strong id="reefRecordNumber">New record</strong>
+                <span id="reefRecordState">Unsaved</span>
+              </div>
+            </div>
+
+            <div class="reef-form-grid">
+              <label>Training date
+                <input id="reefTrainingDate" type="date" required>
+              </label>
+              <label>Location
+                <select id="reefLocation">
+                  <option value="">Select location</option>
+                  <option value="mkwiro">Mkwiro</option>
+                  <option value="offshore_nursery">Offshore nursery site</option>
+                  <option value="shoreline_preparation">Shoreline preparation area</option>
+                </select>
+              </label>
+              <label>Start time
+                <input id="reefStartTime" type="time" required>
+              </label>
+              <label>Finish time
+                <input id="reefFinishTime" type="time" required>
+              </label>
+              <label>Trainer's name
+                <input id="reefTrainerName" type="text" maxlength="160" autocomplete="name">
+              </label>
+              <label>Supporting staff
+                <input id="reefSupportingStaff" type="text" maxlength="500">
+              </label>
+            </div>
+
+            <fieldset class="reef-fieldset">
+              <legend>Type of session</legend>
+              <div id="reefSessionTypes" class="reef-choice-grid">
+                <label><input type="checkbox" value="general_in_water_training"><span>General in-water training</span></label>
+                <label><input type="checkbox" value="seeding"><span>Seeding</span></label>
+                <label><input type="checkbox" value="harvesting"><span>Harvesting</span></label>
+                <label><input type="checkbox" value="line_inspection_maintenance"><span>Line inspection and maintenance</span></label>
+                <label><input type="checkbox" value="mooring_inspection_maintenance"><span>Mooring inspection and maintenance</span></label>
+                <label><input type="checkbox" value="nursery_deployment_recovery"><span>Nursery deployment / recovery</span></label>
+                <label><input type="checkbox" value="other"><span>Other</span></label>
+              </div>
+              <label id="reefOtherSessionTypeField" hidden>Other session type
+                <input id="reefOtherSessionType" type="text" maxlength="200" placeholder="Enter session type">
+              </label>
+            </fieldset>
+
+            <div class="reef-form-grid">
+              <label class="reef-span-two">Weather and sea conditions
+                <textarea id="reefConditions" rows="3" maxlength="1000"></textarea>
+              </label>
+              <label class="reef-span-two">Nursery raft, cage or mooring reference
+                <input id="reefNurseryReference" type="text" maxlength="200">
+              </label>
+            </div>
+          </section>
+
+          <section class="reef-training-panel" data-reef-training-panel="participants" role="tabpanel" hidden>
+            <div class="reef-panel-heading">
+              <div>
+                <p class="eyebrow">Training / competency record</p>
+                <h2>Participants</h2>
+              </div>
+              <button id="addReefParticipant" class="secondary-action" type="button">Add participant</button>
+            </div>
+            <p class="reef-help">Add each participant who took part in the session. Farmer ID / phone is stored in the record but is not shown in the open Previous Records list.</p>
+            <div id="reefParticipantRows" class="reef-participant-list"></div>
+          </section>
+
+          <section class="reef-training-panel" data-reef-training-panel="training" role="tabpanel" hidden>
+            <div class="reef-panel-heading">
+              <div>
+                <p class="eyebrow">Training / competency record</p>
+                <h2>Training delivered</h2>
+              </div>
+            </div>
+            <p id="reefTrainingEmpty" class="reef-help">Select the session types first.</p>
+            <div id="reefTrainingSections" class="reef-training-sections"></div>
+          </section>
+
+          <section class="reef-training-panel" data-reef-training-panel="competency" role="tabpanel" hidden>
+            <div class="reef-panel-heading">
+              <div>
+                <p class="eyebrow">Training / competency record</p>
+                <h2>Competency Assessment</h2>
+              </div>
+            </div>
+            <p class="reef-help">Assess selected training activities for all participants, or override an individual participant where needed.</p>
+            <p id="reefCompetencyEmpty" class="reef-help">Select activities under Training delivered first.</p>
+            <div id="reefCompetencySections" class="reef-competency-sections"></div>
+          </section>
+
+          <section class="reef-training-panel" data-reef-training-panel="records" role="tabpanel" hidden>
+            <div class="reef-panel-heading">
+              <div>
+                <p class="eyebrow">Training / competency record</p>
+                <h2>Previous Records</h2>
+              </div>
+              <button id="reefRecordsRefresh" class="secondary-action" type="button">Refresh</button>
+            </div>
+            <p id="reefRecordsAccessHelp" class="reef-help"></p>
+            <div class="reef-records-toolbar">
+              <label>Search
+                <input id="reefRecordsSearch" type="search" placeholder="Record, trainer, location or session type" autocomplete="off">
+              </label>
+              <button id="reefRecordsSearchButton" type="button">Search</button>
+            </div>
+            <p id="reefRecordsStatus" class="reef-status" aria-live="polite"></p>
+            <div class="reef-record-table-wrap">
+              <table class="reef-record-table">
+                <thead>
+                  <tr>
+                    <th>Record</th>
+                    <th>Date</th>
+                    <th>Trainer</th>
+                    <th>Location</th>
+                    <th>Session type</th>
+                    <th>Access</th>
+                    <th><span class="visually-hidden">Open</span></th>
+                  </tr>
+                </thead>
+                <tbody id="reefRecordsBody"></tbody>
+              </table>
+            </div>
+            <div class="reef-records-pagination">
+              <button id="reefRecordsPrevious" class="secondary-action" type="button">Previous</button>
+              <span id="reefRecordsPage">0 records</span>
+              <button id="reefRecordsNext" class="secondary-action" type="button">Next</button>
+            </div>
+          </section>
+
+          <div id="reefTrainingFormActions" class="reef-form-actions">
+            <button id="submitReefTraining" type="submit">Submit and start new</button>
+            <button id="saveReefTrainingChanges" type="button" hidden>Save changes</button>
+            <button id="clearReefTraining" class="secondary-action" type="button">Clear</button>
+            <p id="reefTrainingStatus" class="reef-status" aria-live="polite"></p>
+          </div>
+        </form>
+
+        <section class="reef-training-panel reef-seaweed-panel" data-reef-training-panel="seaweed" role="tabpanel" hidden>
+          <form id="reefSeaweedForm" novalidate>
+            <div class="reef-panel-heading">
+              <div>
+                <p class="eyebrow">Standalone record</p>
+                <h2>Seaweed Record</h2>
+              </div>
+              <div class="reef-record-meta" aria-label="Seaweed record state">
+                <strong id="reefSeaweedRecordNumber">New record</strong>
+                <span id="reefSeaweedRecordState">Unsaved</span>
+              </div>
+            </div>
+            <p class="reef-help">This record submits independently. Training, participants, competency and inspection fields are not required.</p>
+
+            <div class="reef-form-grid">
+              <label>Date
+                <input id="reefSeaweedDate" type="date" required>
+              </label>
+              <label>Location
+                <select id="reefSeaweedLocation" required>
+                  <option value="">Select location</option>
+                  <option value="tumbe_offshore">Tumbe – Offshore Nursery Site</option>
+                  <option value="tumbe_shore">Tumbe – Shore</option>
+                  <option value="mkwiro_offshore">Mkwiro – Offshore Nursery Site</option>
+                  <option value="mkwiro_shore">Mkwiro – Shore</option>
+                </select>
+              </label>
+              <label class="reef-span-two">Person filling the form
+                <input id="reefSeaweedRecordedBy" type="text" maxlength="160" autocomplete="name" required>
+              </label>
+            </div>
+
+            <fieldset class="reef-fieldset">
+              <legend>Select rafts or shore farm</legend>
+              <p class="reef-help">Offshore locations use Raft #1–#5. Shore locations use their matching farm.</p>
+              <div id="reefSeaweedUnitSelector" class="reef-choice-grid reef-seaweed-unit-selector">
+                <label data-seaweed-unit-option="raft_1"><input type="checkbox" data-seaweed-unit="raft_1"><span>Raft #1</span></label>
+                <label data-seaweed-unit-option="raft_2"><input type="checkbox" data-seaweed-unit="raft_2"><span>Raft #2</span></label>
+                <label data-seaweed-unit-option="raft_3"><input type="checkbox" data-seaweed-unit="raft_3"><span>Raft #3</span></label>
+                <label data-seaweed-unit-option="raft_4"><input type="checkbox" data-seaweed-unit="raft_4"><span>Raft #4</span></label>
+                <label data-seaweed-unit-option="raft_5"><input type="checkbox" data-seaweed-unit="raft_5"><span>Raft #5</span></label>
+                <label data-seaweed-unit-option="mkwiro_farm"><input type="checkbox" data-seaweed-unit="mkwiro_farm"><span>Mkwiro Farm</span></label>
+                <label data-seaweed-unit-option="tumbe_farm"><input type="checkbox" data-seaweed-unit="tumbe_farm"><span>Tumbe Farm</span></label>
+              </div>
+            </fieldset>
+
+            <div id="reefSeaweedUnitCards" class="reef-seaweed-unit-cards"></div>
+
+            <fieldset class="reef-fieldset">
+              <legend>Seaweed Record photo</legend>
+              <p class="reef-help">One photo per record. Photos are compressed to JPEG and stored privately.</p>
+              <div class="reef-seaweed-photo-actions">
+                <button id="reefSeaweedTakePhoto" class="secondary-action" type="button">Take Photo</button>
+                <button id="reefSeaweedChoosePhoto" class="secondary-action" type="button">Choose Photo</button>
+              </div>
+              <input id="reefSeaweedCameraInput" class="reef-hidden-file" type="file" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
+              <input id="reefSeaweedGalleryInput" class="reef-hidden-file" type="file" accept="image/*" tabindex="-1" aria-hidden="true">
+              <p id="reefSeaweedPhotoStatus" class="reef-help" aria-live="polite">No photo selected.</p>
+              <div id="reefSeaweedPhotoPreview" class="reef-seaweed-photo-preview" hidden>
+                <img id="reefSeaweedPhotoImage" alt="Seaweed Record photo preview">
+                <div>
+                  <strong id="reefSeaweedPhotoName"></strong>
+                  <p id="reefSeaweedPhotoMeta" class="reef-seaweed-photo-meta"></p>
+                </div>
+              </div>
+            </fieldset>
+
+            <div class="reef-seaweed-actions">
+              <button id="submitReefSeaweed" type="submit">Submit Seaweed Record</button>
+              <button id="saveReefSeaweedChanges" type="button" hidden>Save changes</button>
+              <button id="clearReefSeaweed" class="secondary-action" type="button">Clear Seaweed Record</button>
+              <p id="reefSeaweedStatus" class="reef-status" aria-live="polite"></p>
+            </div>
+          </form>
+        </section>
+
+        <section class="reef-training-panel reef-inspection-panel" data-reef-training-panel="inspection" role="tabpanel" hidden>
+          <form id="reefInspectionForm" novalidate>
+            <div class="reef-panel-heading">
+              <div>
+                <p class="eyebrow">Standalone record</p>
+                <h2>Raft and Mooring Inspection</h2>
+              </div>
+              <div class="reef-record-meta" aria-label="Inspection record state">
+                <strong id="reefInspectionRecordNumber">New record</strong>
+                <span id="reefInspectionRecordState">Unsaved</span>
+              </div>
+            </div>
+            <p class="reef-help">This inspection submits independently. Select one or more rafts and record a separate complete field group for each.</p>
+
+            <div class="reef-form-grid">
+              <label>Inspection date
+                <input id="reefInspectionDate" type="date" required>
+              </label>
+              <label>Offshore nursery location
+                <select id="reefInspectionLocation" required>
+                  <option value="">Select location</option>
+                  <option value="tumbe_offshore">Tumbe – Offshore Nursery Site</option>
+                  <option value="mkwiro_offshore">Mkwiro – Offshore Nursery Site</option>
+                </select>
+              </label>
+              <label class="reef-span-two">Person filling the form
+                <input id="reefInspectionRecordedBy" type="text" maxlength="160" autocomplete="name" required>
+              </label>
+            </div>
+
+            <fieldset class="reef-fieldset">
+              <legend>Select rafts to inspect</legend>
+              <p class="reef-help">Choose any combination of Raft #1–#5.</p>
+              <div id="reefInspectionRaftSelector" class="reef-choice-grid reef-inspection-raft-selector">
+                <label><input type="checkbox" data-inspection-raft="1"><span>Raft #1</span></label>
+                <label><input type="checkbox" data-inspection-raft="2"><span>Raft #2</span></label>
+                <label><input type="checkbox" data-inspection-raft="3"><span>Raft #3</span></label>
+                <label><input type="checkbox" data-inspection-raft="4"><span>Raft #4</span></label>
+                <label><input type="checkbox" data-inspection-raft="5"><span>Raft #5</span></label>
+              </div>
+            </fieldset>
+
+            <div id="reefInspectionRaftCards" class="reef-inspection-raft-cards"></div>
+
+            <label class="reef-inspection-general-notes">General Notes
+              <textarea id="reefInspectionGeneralNotes" rows="4" maxlength="3000" placeholder="Notes applying to the inspection as a whole"></textarea>
+            </label>
+
+            <div class="reef-inspection-actions">
+              <button id="submitReefInspection" type="submit">Submit Raft and Mooring Inspection</button>
+              <button id="saveReefInspectionChanges" type="button" hidden>Save changes</button>
+              <button id="clearReefInspection" class="secondary-action" type="button">Clear inspection</button>
+              <p id="reefInspectionStatus" class="reef-status" aria-live="polite"></p>
+            </div>
+          </form>
+        </section>
+      </section>
+    </div>
+  </main>
+
+  <template id="reefParticipantTemplate">
+    <article class="reef-participant-card" data-participant-row>
+      <div class="reef-participant-head">
+        <strong data-participant-title>Participant</strong>
+        <button class="reef-text-action" type="button" data-remove-participant>Remove</button>
+      </div>
+      <div class="reef-form-grid reef-participant-fields">
+        <label>Participant name
+          <input type="text" data-participant-name maxlength="160" autocomplete="name">
+        </label>
+        <label>Farmer ID / phone
+          <input type="text" data-participant-reference maxlength="100" autocomplete="tel">
+        </label>
+        <label>Gender
+          <select data-participant-gender>
+            <option value="">Not recorded</option>
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+            <option value="other">Other</option>
+            <option value="prefer_not_to_say">Prefer not to say</option>
+          </select>
+        </label>
+      </div>
+    </article>
+  </template>
+
+  <script type="module" src="./assets/js/reef_nursery_training_public.js?v=1"></script>
+  <script type="module" src="./assets/js/reef_nursery_seaweed.js?v=1"></script>
+  <script type="module" src="./assets/js/reef_nursery_inspection.js?v=1"></script>
+</body>
+</html>

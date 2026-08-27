@@ -1,0 +1,97 @@
+.reef-inspection-panel {
+  padding-bottom: 1.5rem;
+}
+
+body:has([data-reef-training-panel="inspection"]:not([hidden])) #reefTrainingFormActions {
+  display: none !important;
+}
+
+.reef-inspection-raft-selector {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.reef-inspection-raft-cards {
+  display: grid;
+  gap: 1rem;
+  margin: 1rem 0 1.25rem;
+}
+
+.reef-inspection-raft-card {
+  border: 1px solid var(--reef-border);
+  border-radius: 12px;
+  padding: 1rem;
+  background: var(--reef-soft);
+}
+
+.reef-inspection-raft-card h3,
+.reef-inspection-subgroup legend {
+  margin: 0;
+}
+
+.reef-inspection-raft-card .reef-panel-heading {
+  margin-bottom: 1rem;
+}
+
+.reef-inspection-subgroup {
+  margin: 1rem 0;
+  padding: .9rem;
+  border: 1px solid #dce7e3;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.reef-inspection-subgroup legend {
+  padding: 0 .3rem;
+  font-weight: 700;
+}
+
+.reef-inspection-subgroup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .8rem;
+}
+
+.reef-inspection-mooring-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.reef-inspection-general-notes {
+  display: grid;
+  gap: .35rem;
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 1px solid var(--reef-border);
+  border-radius: 12px;
+  background: #fff;
+  font-weight: 600;
+}
+
+.reef-inspection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .7rem;
+  margin-top: 1rem;
+}
+
+.reef-inspection-actions .reef-status {
+  flex: 1 1 280px;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .reef-inspection-raft-selector {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .reef-inspection-mooring-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .reef-inspection-raft-selector,
+  .reef-inspection-subgroup-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v145";
+const CACHE_VERSION = "seaweed-harvest-collection-v122";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -6,15 +6,14 @@ const APP_SHELL = [
   "./login.html",
   "./collection.html",
   "./my_details.html",
-  "./report_subscriptions.html",
   "./process_record.html",
   "./stabilization_packing.html",
   "./site_water_sample.html",
   "./reef_nursery.html",
+  "./reef_nursery_training.html",
   "./reef_nursery_records.html",
   "./dryer_table.html",
   "./records.html",
-  "./container_lookup.html",
   "./photos.html",
   "./deleted_records.html",
   "./historical_records.html",
@@ -30,6 +29,10 @@ const APP_SHELL = [
   "./assets/css/form_foundation.css",
   "./assets/css/site_water_sample.css",
   "./assets/css/reef_nursery.css",
+  "./assets/css/reef_nursery_wp01.css",
+  "./assets/css/reef_nursery_wp02.css",
+  "./assets/css/reef_nursery_wp03.css",
+  "./assets/css/reef_nursery_wp04.css",
   "./assets/css/dataset_dashboard.css",
   "./assets/css/historical_records.css",
   "./assets/css/dryer_table.css",
@@ -50,22 +53,26 @@ const APP_SHELL = [
   "./assets/js/login_page.js",
   "./assets/js/collection_form.js",
   "./assets/js/my_details_page.js",
-  "./assets/js/report_subscriptions_page.js",
   "./assets/js/dashboard_preferences.js",
   "./assets/js/process_record_form.js",
   "./assets/js/process_timestamps.mjs",
   "./assets/js/suggested_input.js",
   "./assets/js/stabilization_packing_form.js",
   "./assets/js/site_water_sample_form.js",
+  "./assets/js/reef_nursery_boot.js",
   "./assets/js/reef_nursery_form.js",
   "./assets/js/reef_nursery_records.js",
+  "./assets/js/reef_nursery_training_public.js",
+  "./assets/js/reef_nursery_seaweed.js",
+  "./assets/js/reef_nursery_seaweed_math.js",
+  "./assets/js/reef_nursery_inspection.js",
+  "./assets/js/reef_nursery_records_unified.js",
   "./assets/js/reef_review_matrix_collaboration.js",
   "./assets/js/dryer_table_bootstrap.js",
   "./assets/js/dryer_table_config.js",
   "./assets/js/dryer_table_form.js",
   "./assets/js/dryer_table_language.js",
   "./assets/js/records_page.js",
-  "./assets/js/container_lookup_page.js",
   "./assets/js/photos_page.js",
   "./assets/js/deleted_records_page.js",
   "./assets/js/photo_viewer.js",
@@ -83,7 +90,6 @@ const APP_SHELL = [
   "./assets/js/collection_language.js",
   "./assets/js/offline_store.js",
   "./assets/js/offline_sync.js",
-  "./assets/js/offline_autosync.js",
   "./assets/js/operation_feedback.js",
   "./assets/js/today_page.js",
   "./assets/js/today_record_tabs.js",
@@ -137,10 +143,7 @@ async function networkFirst(request, fallbackUrl = null) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), NETWORK_TIMEOUT_MS);
   try {
-    const response = await fetch(request, {
-      cache: "no-store",
-      signal: controller.signal
-    });
+    const response = await fetch(request, { signal: controller.signal });
     if (response && (response.ok || response.type === "opaque")) {
       await cache.put(request, response.clone());
     }
