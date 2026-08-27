@@ -1,0 +1,175 @@
+[data-reef-unified-records="true"] {
+  min-height: 420px;
+}
+
+.reef-unified-heading-actions,
+.reef-unified-records-toolbar,
+.reef-legacy-photo-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .65rem;
+  align-items: flex-end;
+}
+
+.reef-unified-records-toolbar {
+  display: grid;
+  grid-template-columns: minmax(180px, .45fr) minmax(240px, 1fr) auto;
+  margin: 1rem 0;
+}
+
+.reef-unified-records-toolbar label {
+  display: grid;
+  gap: .35rem;
+  font-weight: 600;
+}
+
+.reef-unified-account-note,
+.reef-legacy-read-only-note {
+  display: flex;
+  gap: .55rem;
+  align-items: flex-start;
+  padding: .8rem .9rem;
+  border: 1px solid #cfe1da;
+  border-radius: 10px;
+  background: var(--reef-soft);
+  color: #355b4e;
+}
+
+.reef-record-type,
+.reef-unified-read-only {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 .35rem .2rem 0;
+  padding: .2rem .5rem;
+  border-radius: 999px;
+  font-size: .8rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.reef-record-type {
+  background: var(--reef-soft-strong);
+  color: #285649;
+}
+
+.reef-record-type.is-seaweed {
+  background: #edf6df;
+  color: #3f6420;
+}
+
+.reef-record-type.is-inspection {
+  background: #edf2fb;
+  color: #35527a;
+}
+
+.reef-record-type.is-legacy,
+.reef-unified-read-only {
+  background: #f5efe3;
+  color: #715b31;
+}
+
+.reef-record-summary {
+  display: block;
+  margin-top: .2rem;
+  color: var(--reef-muted);
+  font-size: .88rem;
+  max-width: 430px;
+}
+
+.reef-legacy-record-detail {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--reef-border);
+  border-radius: 12px;
+  background: #fbfdfc;
+}
+
+.reef-legacy-record-detail[hidden],
+.reef-unified-account-note[hidden],
+.reef-legacy-photo-viewer[hidden] {
+  display: none;
+}
+
+.reef-legacy-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .7rem;
+  margin-bottom: 1rem;
+}
+
+.reef-legacy-summary-grid > div {
+  display: grid;
+  gap: .2rem;
+  padding: .7rem;
+  border: 1px solid var(--reef-border);
+  border-radius: 9px;
+  background: #fff;
+}
+
+.reef-legacy-summary-grid span {
+  color: var(--reef-muted);
+  font-size: .82rem;
+}
+
+.reef-legacy-section {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--reef-border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.reef-legacy-section h4 {
+  margin: 0 0 .75rem;
+}
+
+.reef-legacy-section p {
+  overflow-wrap: anywhere;
+}
+
+.reef-legacy-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .65rem;
+}
+
+.reef-legacy-list article,
+.reef-legacy-subsection {
+  display: grid;
+  gap: .25rem;
+  padding: .75rem;
+  border: 1px solid #e2ebe7;
+  border-radius: 9px;
+  background: var(--reef-soft);
+}
+
+.reef-legacy-subsection + .reef-legacy-subsection {
+  margin-top: .65rem;
+}
+
+.reef-legacy-photo-viewer {
+  display: grid;
+  gap: .65rem;
+  margin-top: 1rem;
+}
+
+.reef-legacy-photo-viewer img {
+  width: min(100%, 720px);
+  max-height: 620px;
+  object-fit: contain;
+  border: 1px solid var(--reef-border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+@media (max-width: 800px) {
+  .reef-unified-records-toolbar,
+  .reef-legacy-summary-grid,
+  .reef-legacy-list {
+    grid-template-columns: 1fr;
+  }
+
+  .reef-unified-heading-actions {
+    align-items: stretch;
+  }
+}

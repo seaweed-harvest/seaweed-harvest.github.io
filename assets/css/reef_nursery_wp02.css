@@ -1,0 +1,145 @@
+.reef-seaweed-panel {
+  padding-bottom: 1.5rem;
+}
+
+body:has([data-reef-training-panel="seaweed"]:not([hidden])) #reefTrainingFormActions {
+  display: none !important;
+}
+
+.reef-seaweed-unit-selector {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.reef-seaweed-unit-selector label[hidden] {
+  display: none;
+}
+
+.reef-seaweed-unit-cards {
+  display: grid;
+  gap: 1rem;
+  margin: 1rem 0 1.25rem;
+}
+
+.reef-seaweed-unit-card {
+  border: 1px solid var(--reef-border);
+  border-radius: 12px;
+  padding: 1rem;
+  background: var(--reef-soft);
+}
+
+.reef-seaweed-unit-card h3 {
+  margin: 0;
+}
+
+.reef-seaweed-unit-card .reef-panel-heading {
+  margin-bottom: 1rem;
+}
+
+.reef-seaweed-weight-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 105px minmax(150px, .8fr);
+  gap: .65rem;
+  align-items: end;
+}
+
+.reef-seaweed-weight-group .reef-per-line {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  padding: 0 .75rem;
+  border: 1px solid #cbd9d4;
+  border-radius: 9px;
+  background: #fff;
+  color: #355b4e;
+  font-weight: 650;
+}
+
+.reef-seaweed-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .65rem;
+  margin: .5rem 0;
+}
+
+.reef-hidden-file {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.reef-seaweed-photo-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) 1fr;
+  gap: 1rem;
+  align-items: start;
+  margin-top: .8rem;
+}
+
+.reef-seaweed-photo-preview img {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--reef-border);
+  background: #fff;
+}
+
+.reef-seaweed-photo-preview[hidden] {
+  display: none;
+}
+
+.reef-seaweed-photo-meta {
+  color: var(--reef-muted);
+  overflow-wrap: anywhere;
+}
+
+.reef-seaweed-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .7rem;
+  margin-top: 1rem;
+}
+
+.reef-seaweed-actions .reef-status {
+  flex: 1 1 280px;
+  margin: 0;
+}
+
+.reef-seaweed-records {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--reef-border);
+}
+
+.reef-seaweed-records h3 {
+  margin: 0;
+}
+
+.reef-seaweed-records .reef-panel-heading {
+  margin-bottom: .5rem;
+}
+
+@media (max-width: 900px) {
+  .reef-seaweed-unit-selector {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reef-seaweed-weight-group {
+    grid-template-columns: 1fr 90px;
+  }
+
+  .reef-seaweed-weight-group .reef-per-line {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 620px) {
+  .reef-seaweed-unit-selector,
+  .reef-seaweed-photo-preview {
+    grid-template-columns: 1fr;
+  }
+}
