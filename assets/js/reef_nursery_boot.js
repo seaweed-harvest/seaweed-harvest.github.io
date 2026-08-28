@@ -1,5 +1,5 @@
 await import("./reef_nursery_training_rpc_guard.js?v=1");
-await import("./reef_nursery_training_dom_guard.js?v=1");
+await import("./reef_nursery_training_dom_guard.js?v=2");
 await import("./reef_nursery_training_optional_participants.js?v=1");
 await import("./reef_nursery_training_public.js?v=3");
 
