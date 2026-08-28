@@ -1,6 +1,21 @@
-import { authClient } from "./auth_client.js?v=25";
+import { APP_CONFIG } from "./config.js";
+import {
+  authClient,
+  currentProfile,
+  currentSession,
+  setupAccountControls
+} from "./auth_client.js?v=25";
+import { callPublicRpc } from "./supabase_client.js";
+import { setupFavoriteFormButton } from "./favorite_forms.js?v=3";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=9";
 
-const PAGE_SIZE = 40;
+const PHOTO_BUCKET = "reef-nursery-photos";
+const PHOTO_MAX_COUNT = 8;
+const PHOTO_MAX_BYTES = 1024 * 1024;
+const PHOTO_TARGET_BYTES = 850 * 1024;
+const PHOTO_MAX_EDGE = 2200;
+const REVIEW_PAGE_SIZE = 50;
+const TRAINING_TABS = new Set(["session", "participants", "training", "competency", "photos"]);
 const TRAINING_SECTION_KEYS = [
   "general_in_water_training",
   "seeding",
@@ -14,12 +29,7 @@ const COMPETENCY_LEVELS = [
   { value: "with_supervision", label: "Can complete supervised" },
   { value: "independent", label: "Can complete independently" }
 ];
-const LOCATION_LABELS = {
-  mkwiro: "Mkwiro",
-  offshore_nursery: "Offshore nursery site",
-  shoreline_preparation: "Shoreline preparation area"
-};
-const SESSION_TYPE_LABELS = {
+const SESSION_TYPE_LABELS = Object.freeze({
   general_in_water_training: "General in-water training",
   seeding: "Seeding",
   harvesting: "Harvesting",
@@ -27,135 +37,345 @@ const SESSION_TYPE_LABELS = {
   mooring_inspection_maintenance: "Mooring inspection and maintenance",
   nursery_deployment_recovery: "Nursery deployment / recovery",
   other: "Other"
-};
+});
+const LOCATION_LABELS = Object.freeze({
+  mkwiro: "Mkwiro",
+  offshore_nursery: "Offshore nursery site",
+  shoreline_preparation: "Shoreline preparation area"
+});
+const EMPTY_SEAWEED_RECORD = Object.freeze({
+  seaweed_health: null,
+  seed_weight_value: null,
+  seed_weight_unit: "kg",
+  harvest_weight_value: null,
+  harvest_weight_unit: "kg",
+  equipment_replaced: null
+});
+const EMPTY_RAFT_INSPECTION = Object.freeze({
+  overall_condition: null,
+  seaweed_lines_attachments: null,
+  hdpe_floating_frame: null,
+  rigging_harness_bridle: null
+});
 
 const els = {};
 const trainingDrafts = new Map();
 const competencyDrafts = new Map();
+const photoState = {
+  files: [],
+  existing: [],
+  userId: null,
+  canSelect: false,
+  activePhotoUrl: null,
+  activePhotoIsObjectUrl: false
+};
 const state = {
-  accessMode: "denied",
-  profileName: "",
-  entryAccess: "private",
+  mode: "denied",
+  profile: null,
+  context: null,
+  reviewContext: null,
+  reviewShareToken: null,
+  reviewOrganisation: null,
+  reviewClientKey: null,
   trainingMatrix: [],
+  trainingMatrixEditor: [],
+  submissionId: createUuid(),
   editingSessionId: null,
+  recordStatus: "unsaved",
   publicEditUntil: null,
-  submissionId: crypto.randomUUID(),
-  recordsPage: 0,
-  recordsTotal: 0,
-  recordsSearch: ""
+  activeTab: "session",
+  reviewRecordsPage: 0,
+  reviewRecordsTotal: 0,
+  reviewRecordsSearch: "",
+  reviewRecordsLoading: false
 };
 
-document.addEventListener("DOMContentLoaded", init);
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init, { once: true });
+} else {
+  void init();
+}
 
 async function init() {
-  [
-    "reefAccessStatus", "reefSignIn", "reefHome", "reefAccessGate", "reefAccessGateMessage",
-    "reefGateSignIn", "reefTrainingWorkspace", "reefPublicNotice", "reefTrainingTabs",
-    "reefTrainingForm", "reefTrainingFormActions", "reefRecordNumber", "reefRecordState",
-    "reefTrainingDate", "reefLocation", "reefStartTime", "reefFinishTime", "reefTrainerName",
-    "reefSupportingStaff", "reefSessionTypes", "reefOtherSessionTypeField", "reefOtherSessionType",
-    "reefConditions", "reefNurseryReference", "addReefParticipant", "reefParticipantRows",
-    "reefParticipantTemplate", "reefTrainingEmpty", "reefTrainingSections", "reefCompetencyEmpty",
-    "reefCompetencySections", "reefRecordsRefresh", "reefRecordsAccessHelp", "reefRecordsSearch",
-    "reefRecordsSearchButton", "reefRecordsStatus", "reefRecordsBody", "reefRecordsPrevious",
-    "reefRecordsPage", "reefRecordsNext", "submitReefTraining", "saveReefTrainingChanges",
-    "clearReefTraining", "reefTrainingStatus"
-  ].forEach((id) => { els[id] = document.getElementById(id); });
-
+  cacheElements();
   bindEvents();
+  configureDropboxLink();
+
   try {
-    const context = await rpc("ag_reef_training_workspace_context");
-    if (!context?.allowed) {
-      showAccessGate(context?.reason || "Sign in with an authorised COSME Reef account to continue.");
-      return;
+    const params = new URLSearchParams(window.location.search);
+    state.reviewShareToken = params.get("share");
+    state.reviewOrganisation = params.get("org");
+
+    if (state.reviewShareToken && state.reviewOrganisation) {
+      await initialiseReviewMode();
+    } else {
+      await initialiseWorkspaceMode();
     }
 
-    state.accessMode = context.access_mode || "public";
-    state.profileName = context.profile_name || "";
-    state.entryAccess = context.entry_access || "private";
-    state.trainingMatrix = normalizeTrainingMatrix(context.training_matrix);
-    if (state.trainingMatrix.length !== TRAINING_SECTION_KEYS.length) {
-      throw new Error("The Reef Nursery training matrix is incomplete.");
-    }
+    if (state.mode === "denied") return;
 
-    configureAccessDisplay();
+    configureShell();
+    configureModeSurfaces();
     els.reefTrainingWorkspace.hidden = false;
     initializeNewRecord();
 
-    const requestedRecord = new URLSearchParams(window.location.search).get("record");
-    if (requestedRecord) await loadRecord(requestedRecord);
+    const requestedRecord = params.get("record");
+    const requestedTab = params.get("tab");
+    if (requestedRecord && state.mode !== "review") {
+      await loadRecord(requestedRecord);
+    } else if (requestedTab) {
+      showTab(requestedTab);
+    } else {
+      showTab("session");
+    }
+
+    if (state.mode === "review" && requestedTab === "records") {
+      await loadReviewRecords();
+    }
   } catch (error) {
-    showAccessGate(error.message || "The Reef Nursery Training record could not be opened.");
+    showAccessGate(error.message || "The Reef Nursery workspace could not be opened.");
   } finally {
     document.body.removeAttribute("data-auth-pending");
   }
 }
 
-function bindEvents() {
-  els.reefTrainingTabs.addEventListener("click", (event) => {
-    const tab = event.target.closest("[data-reef-training-tab]");
-    if (tab) showTab(tab.dataset.reefTrainingTab);
-  });
-  els.reefTrainingTabs.addEventListener("keydown", handleTabKeydown);
-  els.reefSessionTypes.addEventListener("change", handleSessionTypeChange);
-  els.addReefParticipant.addEventListener("click", () => addParticipant({ focus: true }));
-  els.reefParticipantRows.addEventListener("click", handleParticipantAction);
-  els.reefParticipantRows.addEventListener("input", () => renderCompetency());
-  els.reefParticipantRows.addEventListener("change", () => renderCompetency());
-  els.reefTrainingSections.addEventListener("change", handleTrainingChange);
-  els.reefTrainingSections.addEventListener("input", captureTrainingDrafts);
-  els.reefCompetencySections.addEventListener("change", handleCompetencyChange);
-  els.reefTrainingForm.addEventListener("submit", submitNewRecord);
-  els.saveReefTrainingChanges.addEventListener("click", saveRecordChanges);
-  els.clearReefTraining.addEventListener("click", () => clearRecord());
-  els.reefRecordsRefresh.addEventListener("click", () => loadRecords());
-  els.reefRecordsSearchButton.addEventListener("click", searchRecords);
-  els.reefRecordsSearch.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      searchRecords();
-    }
-  });
-  els.reefRecordsBody.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-open-record]");
-    if (button) void openRecord(button.dataset.openRecord);
-  });
-  els.reefRecordsPrevious.addEventListener("click", () => changeRecordsPage(-1));
-  els.reefRecordsNext.addEventListener("click", () => changeRecordsPage(1));
+function cacheElements() {
+  [
+    "reefNurserySidebar", "reefAccessStatus", "reefSignInAction", "favoriteReefNurseryForm",
+    "reefAccessGate", "reefAccessGateMessage", "reefGateSignIn", "reefReviewNotice",
+    "reefPublicNotice", "reefTrainingWorkspace", "reefNurseryTabs", "reefNurseryForm",
+    "reefRecordNumber", "reefRecordStatus", "reefTrainingDate", "reefLocation",
+    "reefStartTime", "reefFinishTime", "reefTrainerName", "reefSupportingStaff",
+    "reefSessionTypes", "reefOtherSessionTypeField", "reefOtherSessionType",
+    "reefConditions", "reefNurseryReference", "reefParticipantRows", "reefParticipantCount",
+    "addReefParticipant", "reefTrainingEmpty", "reefTrainingSections",
+    "reefCompetencyEmpty", "reefCompetencySections", "reefTrainingFormActions",
+    "saveReefNursery", "submitReefNursery", "clearReefNursery", "reefNurseryStatus",
+    "openReefTrainingMatrix", "reefTrainingMatrixDialog", "reefTrainingMatrixForm",
+    "reefTrainingMatrixEditor", "reefTrainingMatrixStatus", "closeReefTrainingMatrix",
+    "cancelReefTrainingMatrix", "saveReefTrainingMatrix", "reefTakePhoto",
+    "reefChoosePhotos", "reefCameraPhoto", "reefGalleryPhotos", "reefPhotoStatus",
+    "reefPhotoPreview", "reefDropboxLink", "reefDropboxPending", "reefPhotoViewer",
+    "reefPhotoViewerImage", "reefPhotoViewerName", "reefClosePhotoViewer",
+    "reefRecordsPanel", "reefInspectionTab", "reefSeaweedTab"
+  ].forEach((id) => { els[id] = document.getElementById(id); });
 }
 
-function configureAccessDisplay() {
-  const authenticated = state.accessMode === "authenticated";
-  els.reefAccessStatus.textContent = authenticated
-    ? `Signed in${state.profileName ? ` as ${state.profileName}` : ""}`
-    : "Public entry — no login required";
-  els.reefSignIn.hidden = authenticated;
-  els.reefHome.hidden = !authenticated;
-  els.reefPublicNotice.hidden = authenticated;
-  els.reefRecordsAccessHelp.textContent = authenticated
-    ? "Signed-in COSME Reef access shows the full Training record history, including records older than 7 days."
-    : "Records created in the last 7 days are openly listed and editable. Records disappear from public access at 168 hours and then require an authorised COSME Reef login.";
+function bindEvents() {
+  setupTabs();
+
+  els.addReefParticipant.addEventListener("click", () => addParticipantRow({ focus: true }));
+  els.reefParticipantRows.addEventListener("click", handleParticipantAction);
+  els.reefParticipantRows.addEventListener("input", handleParticipantInput);
+  els.reefParticipantRows.addEventListener("change", handleParticipantInput);
+  els.reefParticipantRows.addEventListener("keydown", handleParticipantKeydown);
+
+  els.reefSessionTypes.addEventListener("change", handleSessionTypesChange);
+  els.reefTrainingSections.addEventListener("change", updateTrainingDraft);
+  els.reefTrainingSections.addEventListener("input", updateTrainingDraft);
+  els.reefCompetencySections.addEventListener("click", handleCompetencyAction);
+  els.reefCompetencySections.addEventListener("change", handleCompetencyChange);
+  document.addEventListener("click", closeCompetencyPickerOnOutsideClick);
+  window.addEventListener("resize", positionOpenCompetencyPicker);
+  window.addEventListener("scroll", positionOpenCompetencyPicker, true);
+
+  els.openReefTrainingMatrix.addEventListener("click", openTrainingMatrixEditor);
+  els.closeReefTrainingMatrix.addEventListener("click", closeTrainingMatrixEditor);
+  els.cancelReefTrainingMatrix.addEventListener("click", closeTrainingMatrixEditor);
+  els.reefTrainingMatrixDialog.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeTrainingMatrixEditor();
+  });
+  els.reefTrainingMatrixEditor.addEventListener("click", handleTrainingMatrixAction);
+  els.reefTrainingMatrixForm.addEventListener("submit", saveTrainingMatrix);
+
+  els.reefTakePhoto.addEventListener("click", () => {
+    if (photoState.canSelect) els.reefCameraPhoto.click();
+  });
+  els.reefChoosePhotos.addEventListener("click", () => {
+    if (photoState.canSelect) els.reefGalleryPhotos.click();
+  });
+  els.reefCameraPhoto.addEventListener("change", addSelectedPhotos);
+  els.reefGalleryPhotos.addEventListener("change", addSelectedPhotos);
+  els.reefPhotoPreview.addEventListener("click", handlePhotoAction);
+  els.reefClosePhotoViewer.addEventListener("click", closePhotoViewer);
+  els.reefPhotoViewer.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closePhotoViewer();
+  });
+  els.reefPhotoViewer.addEventListener("close", releasePhotoViewerUrl);
+
+  els.reefNurseryForm.addEventListener("submit", submitTrainingRecord);
+  els.saveReefNursery.addEventListener("click", saveTrainingRecord);
+  els.clearReefNursery.addEventListener("click", () => clearForm());
+  els.reefNurseryForm.addEventListener("input", updateFieldHighlights);
+  els.reefNurseryForm.addEventListener("change", updateFieldHighlights);
+}
+
+async function initialiseWorkspaceMode() {
+  const context = await rpc("ag_reef_training_workspace_context");
+  if (!context?.allowed) {
+    showAccessGate(context?.reason || "Sign in with an authorised COSME Reef account to continue.");
+    return;
+  }
+
+  state.context = context;
+  state.mode = context.access_mode === "authenticated" ? "authenticated" : "public";
+  state.trainingMatrix = normalizeTrainingMatrix(context.training_matrix);
+  assertTrainingMatrix();
+
+  if (state.mode === "authenticated") {
+    const session = await currentSession();
+    if (!session?.user) {
+      showAccessGate("Sign in with an authorised COSME Reef account to continue.");
+      return;
+    }
+    state.profile = await currentProfile();
+    photoState.userId = session.user.id;
+  }
+}
+
+async function initialiseReviewMode() {
+  const data = await callPublicRpc("ag_public_form_entry_context", {
+    p_form_key: "form_reef_nursery",
+    p_organisation_code: state.reviewOrganisation,
+    p_share_token: state.reviewShareToken
+  });
+  if (!data?.allowed || data?.submission_kind !== "test") {
+    throw new Error(data?.reason || "This review link is invalid or no longer active.");
+  }
+
+  state.mode = "review";
+  state.reviewContext = data;
+  state.reviewClientKey = stableReviewClientKey();
+  state.trainingMatrix = normalizeTrainingMatrix(data.training_matrix);
+  assertTrainingMatrix();
+  document.body.classList.add("reef-review-mode");
+}
+
+function assertTrainingMatrix() {
+  if (state.trainingMatrix.length !== TRAINING_SECTION_KEYS.length) {
+    throw new Error("The Reef Nursery training matrix is incomplete.");
+  }
+}
+
+function configureShell() {
+  const header = document.querySelector(".app-header");
+  const staticNav = header?.querySelector(".app-nav");
+  const title = header?.querySelector("h1");
+  const eyebrow = header?.querySelector(".eyebrow");
+
+  if (state.mode === "authenticated") {
+    populateAppSidebar(els.reefNurserySidebar, {
+      profile: state.profile,
+      dashboardHref: "./home.html",
+      currentFile: "reef_nursery.html"
+    });
+    setupAccountControls(state.profile, {
+      returnPage: "reef_nursery.html",
+      container: header?.querySelector(".header-actions")
+    });
+    setupAppNavigation({
+      header,
+      sidebar: els.reefNurserySidebar,
+      profile: state.profile,
+      dashboardHref: "./home.html"
+    });
+    els.favoriteReefNurseryForm.hidden = !canUploadAuthenticatedTrainingPhotos();
+    if (!els.favoriteReefNurseryForm.hidden) {
+      setupFavoriteFormButton({
+        button: els.favoriteReefNurseryForm,
+        formKey: "reef_nursery",
+        profile: state.profile,
+        client: authClient,
+        returnPage: "reef_nursery.html"
+      });
+    }
+    els.reefSignInAction.hidden = true;
+    els.reefAccessStatus.textContent = state.context?.profile_name
+      ? `Signed in as ${state.context.profile_name}`
+      : "Signed-in COSME Reef access";
+  } else {
+    if (staticNav) staticNav.hidden = true;
+    populateAppSidebar(els.reefNurserySidebar, {
+      profile: null,
+      dashboardHref: "./login.html?return=reef_nursery.html",
+      currentFile: "reef_nursery.html"
+    });
+    setupAppNavigation({
+      header,
+      sidebar: els.reefNurserySidebar,
+      profile: null,
+      dashboardHref: "./login.html?return=reef_nursery.html"
+    });
+    els.favoriteReefNurseryForm.hidden = true;
+    els.reefSignInAction.hidden = state.mode === "review";
+    if (title) title.textContent = "Reef Nursery";
+    if (eyebrow) eyebrow.textContent = "Seaweed Harvest";
+    els.reefAccessStatus.textContent = state.mode === "review"
+      ? "Review mode — test submissions only"
+      : "Public entry — no login required";
+  }
+}
+
+function configureModeSurfaces() {
+  const publicMode = state.mode === "public";
+  const reviewMode = state.mode === "review";
+  els.reefPublicNotice.hidden = !publicMode;
+  els.reefReviewNotice.hidden = !reviewMode;
+  els.openReefTrainingMatrix.hidden = !canUploadAuthenticatedTrainingPhotos();
+
+  if (reviewMode) {
+    els.reefInspectionTab.hidden = true;
+    els.reefSeaweedTab.hidden = true;
+    setupReviewRecordsSurface();
+  }
+
+  photoState.canSelect = reviewMode || canUploadAuthenticatedTrainingPhotos();
+  els.reefTakePhoto.disabled = !photoState.canSelect;
+  els.reefChoosePhotos.disabled = !photoState.canSelect;
+  if (!photoState.canSelect) {
+    setPhotoStatus(publicMode
+      ? "Training photos require a signed-in account. Public Training submissions keep the existing private storage boundary."
+      : "This account can submit Reef records but does not have the existing Training photo-upload permission.");
+  } else {
+    setPhotoStatus(`Up to ${PHOTO_MAX_COUNT} photos. Compressed before upload.`);
+  }
+}
+
+function canUploadAuthenticatedTrainingPhotos() {
+  if (state.mode !== "authenticated") return false;
+  return state.profile?.app_role === "system_admin" || Boolean(state.profile?.can_submit_collection);
 }
 
 function showAccessGate(message) {
-  const requestedRecord = new URLSearchParams(window.location.search).get("record");
-  const returnPage = requestedRecord
-    ? `reef_nursery.html?record=${encodeURIComponent(requestedRecord)}`
-    : "reef_nursery.html";
-  const signInHref = `./login.html?return=${encodeURIComponent(returnPage)}`;
-  els.reefSignIn.href = signInHref;
-  els.reefGateSignIn.href = signInHref;
+  state.mode = "denied";
+  const params = new URLSearchParams(window.location.search);
+  const returnPage = `reef_nursery.html${params.toString() ? `?${params}` : ""}`;
+  const href = `./login.html?return=${encodeURIComponent(returnPage)}`;
+  els.reefSignInAction.href = href;
+  els.reefGateSignIn.href = href;
+  els.reefSignInAction.hidden = false;
   els.reefAccessStatus.textContent = "Sign-in required";
   els.reefAccessGateMessage.textContent = message;
   els.reefAccessGate.hidden = false;
   els.reefTrainingWorkspace.hidden = true;
-  document.body.removeAttribute("data-auth-pending");
+}
+
+function setupTabs() {
+  els.reefNurseryTabs.addEventListener("click", (event) => {
+    const tab = event.target.closest("[data-reef-tab]");
+    if (!tab || tab.hidden || tab.disabled) return;
+    showTab(tab.dataset.reefTab);
+  });
+  els.reefNurseryTabs.addEventListener("keydown", handleTabKeydown);
 }
 
 function handleTabKeydown(event) {
   if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-  const tabs = [...els.reefTrainingTabs.querySelectorAll("[data-reef-training-tab]")];
-  const current = tabs.indexOf(event.target.closest("[data-reef-training-tab]"));
+  const tabs = [...els.reefNurseryTabs.querySelectorAll("[data-reef-tab]")]
+    .filter((tab) => !tab.hidden && !tab.disabled);
+  const current = tabs.indexOf(event.target.closest("[data-reef-tab]"));
   if (current < 0) return;
   event.preventDefault();
   let next = current;
@@ -164,83 +384,163 @@ function handleTabKeydown(event) {
   if (event.key === "Home") next = 0;
   if (event.key === "End") next = tabs.length - 1;
   tabs[next].focus();
-  showTab(tabs[next].dataset.reefTrainingTab);
+  showTab(tabs[next].dataset.reefTab);
 }
 
 function showTab(name) {
-  els.reefTrainingTabs.querySelectorAll("[data-reef-training-tab]").forEach((tab) => {
-    const active = tab.dataset.reefTrainingTab === name;
-    tab.setAttribute("aria-selected", String(active));
-    tab.tabIndex = active ? 0 : -1;
+  const tab = els.reefNurseryTabs.querySelector(`[data-reef-tab="${cssEscape(name)}"]`);
+  if (!tab || tab.hidden || tab.disabled) name = "session";
+  state.activeTab = name;
+
+  els.reefNurseryTabs.querySelectorAll("[data-reef-tab]").forEach((item) => {
+    const active = item.dataset.reefTab === name;
+    item.setAttribute("aria-selected", String(active));
+    item.tabIndex = active ? 0 : -1;
   });
-  document.querySelectorAll("[data-reef-training-panel]").forEach((panel) => {
-    panel.hidden = panel.dataset.reefTrainingPanel !== name;
+  document.querySelectorAll("[data-reef-panel]").forEach((panel) => {
+    panel.hidden = panel.dataset.reefPanel !== name;
   });
-  els.reefTrainingFormActions.hidden = name === "records";
-  if (name === "records") void loadRecords();
+
+  const trainingTab = TRAINING_TABS.has(name);
+  els.reefNurseryForm.hidden = !trainingTab;
+  els.reefTrainingFormActions.hidden = !trainingTab;
+  if (trainingTab) {
+    const panel = document.querySelector(`[data-reef-panel="${cssEscape(name)}"]`);
+    if (panel) panel.hidden = false;
+  }
+
+  if (name === "records" && state.mode === "review") void loadReviewRecords();
+  if (name === "competency") requestAnimationFrame(positionOpenCompetencyPicker);
 }
 
-function initializeNewRecord() {
-  state.editingSessionId = null;
-  state.publicEditUntil = null;
-  state.submissionId = crypto.randomUUID();
-  trainingDrafts.clear();
-  competencyDrafts.clear();
-  els.reefTrainingForm.reset();
-  els.reefRecordNumber.textContent = "New record";
-  els.reefRecordState.textContent = "Unsaved";
-  els.reefTrainingDate.value = kenyaDate();
-  els.reefParticipantRows.replaceChildren();
-  addParticipant();
-  els.reefOtherSessionTypeField.hidden = true;
-  renderTrainingSections();
-  renderCompetency();
-  updateEditActions();
-  showTab("session");
+
+function addParticipantRow({ participant = {}, focus = false } = {}) {
+  const row = document.createElement("tr");
+  row.dataset.participantKey = createUuid();
+  row.innerHTML = `
+    <td data-label="Participant name">
+      <input type="text" maxlength="160" autocomplete="name" data-participant-field="name" aria-label="Participant name">
+    </td>
+    <td data-label="Farmer ID / phone">
+      <input type="text" maxlength="120" inputmode="tel" data-participant-field="reference" aria-label="Farmer ID or phone">
+    </td>
+    <td data-label="Gender">
+      <select data-participant-field="gender" aria-label="Gender">
+        <option value="">Select</option>
+        <option value="female">Female</option>
+        <option value="male">Male</option>
+        <option value="other">Other</option>
+        <option value="prefer_not_to_say">Prefer not to say</option>
+      </select>
+    </td>
+    <td data-label="Actions">
+      <button class="reef-icon-action danger standard-repeat-remove" type="button" data-remove-participant aria-label="Remove participant" title="Remove participant">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"></path></svg>
+      </button>
+    </td>`;
+  row.querySelector('[data-participant-field="name"]').value = participant.participant_name || "";
+  row.querySelector('[data-participant-field="reference"]').value = participant.farmer_reference_phone || "";
+  row.querySelector('[data-participant-field="gender"]').value = participant.gender || "";
+  els.reefParticipantRows.append(row);
+  updateParticipantCount();
+  renderCompetencyAssessment();
+  if (focus) row.querySelector('[data-participant-field="name"]').focus();
+  return row;
 }
 
-function clearRecord({ preserveStatus = false } = {}) {
-  initializeNewRecord();
-  history.replaceState({}, "", "./reef_nursery.html");
-  document.title = "Reef Nursery - Seaweed Harvest";
-  if (!preserveStatus) setStatus("");
+function handleParticipantAction(event) {
+  const remove = event.target.closest("[data-remove-participant]");
+  if (!remove) return;
+  const row = remove.closest("tr");
+  const key = row?.dataset.participantKey;
+  if (!row) return;
+
+  if (els.reefParticipantRows.rows.length === 1) {
+    row.querySelectorAll("input").forEach((control) => { control.value = ""; });
+    row.querySelector("select").value = "";
+  } else {
+    row.remove();
+  }
+  if (key) competencyDrafts.forEach((draft) => draft.overrides.delete(key));
+  updateParticipantCount();
+  renderCompetencyAssessment();
 }
 
-function updateEditActions() {
-  const editing = Boolean(state.editingSessionId);
-  els.submitReefTraining.hidden = editing;
-  els.saveReefTrainingChanges.hidden = !editing;
-  els.clearReefTraining.textContent = editing ? "Cancel edit" : "Clear";
+function handleParticipantInput() {
+  updateParticipantCount();
+  renderCompetencyAssessment();
 }
 
-function handleSessionTypeChange() {
-  captureTrainingDrafts();
-  const selected = selectedSessionTypes();
-  els.reefOtherSessionTypeField.hidden = !selected.includes("other");
-  if (!selected.includes("other")) els.reefOtherSessionType.value = "";
-  renderTrainingSections();
-  renderCompetency();
+function handleParticipantKeydown(event) {
+  if (event.key !== "Enter" || event.shiftKey) return;
+  const row = event.target.closest("tr");
+  if (!row || event.target.tagName === "SELECT") return;
+  const rows = [...els.reefParticipantRows.rows];
+  if (row !== rows.at(-1)) return;
+  event.preventDefault();
+  addParticipantRow({ focus: true });
 }
 
-function selectedSessionTypes() {
-  return [...els.reefSessionTypes.querySelectorAll('input[type="checkbox"]:checked')]
-    .map((control) => control.value);
+function updateParticipantCount() {
+  const count = [...els.reefParticipantRows.rows]
+    .filter((row) => row.querySelector('[data-participant-field="name"]').value.trim()).length;
+  els.reefParticipantCount.textContent = `${count} ${count === 1 ? "participant" : "participants"}`;
+}
+
+function collectParticipantEntries() {
+  return [...els.reefParticipantRows.rows].map((row) => ({
+    row,
+    participantKey: row.dataset.participantKey,
+    participant_name: row.querySelector('[data-participant-field="name"]').value.trim(),
+    farmer_reference_phone: textOrNull(row.querySelector('[data-participant-field="reference"]').value),
+    gender: textOrNull(row.querySelector('[data-participant-field="gender"]').value)
+  })).filter((participant) => (
+    participant.participant_name || participant.farmer_reference_phone || participant.gender
+  ));
 }
 
 function normalizeTrainingMatrix(value) {
-  return (Array.isArray(value) ? value : [])
+  const rows = Array.isArray(value) ? value : [];
+  return rows
     .filter((section) => TRAINING_SECTION_KEYS.includes(String(section?.section_key || "")))
     .map((section) => ({
       section_key: String(section.section_key),
-      section_label: String(section.section_label || SESSION_TYPE_LABELS[section.section_key] || section.section_key),
+      section_label: String(
+        section.section_label
+        || SESSION_TYPE_LABELS[section.section_key]
+        || section.section_key
+      ),
       section_order: Number(section.section_order || 0),
-      activities: (Array.isArray(section.activities) ? section.activities : []).map((activity) => ({
-        id: String(activity.id || ""),
-        label: String(activity.label || activity.activity_label || ""),
-        activity_order: Number(activity.activity_order || 0)
-      })).filter((activity) => activity.id && activity.label)
+      activities: (Array.isArray(section.activities) ? section.activities : [])
+        .map((activity) => ({
+          id: String(activity.id || ""),
+          label: String(activity.label || activity.activity_label || ""),
+          activity_order: Number(activity.activity_order || 0)
+        }))
+        .filter((activity) => activity.id && activity.label)
+        .sort((left, right) => left.activity_order - right.activity_order)
     }))
     .sort((left, right) => left.section_order - right.section_order);
+}
+
+function selectedTrainingKeys() {
+  return [...els.reefNurseryForm.querySelectorAll('[name="reefSessionType"]:checked')]
+    .map((control) => control.value);
+}
+
+function handleSessionTypesChange() {
+  const otherSelected = Boolean(
+    els.reefNurseryForm.querySelector('[name="reefSessionType"][value="other"]:checked')
+  );
+  els.reefOtherSessionTypeField.hidden = !otherSelected;
+  els.reefOtherSessionType.required = otherSelected;
+  if (!otherSelected) {
+    els.reefOtherSessionType.value = "";
+    els.reefOtherSessionType.classList.remove("empty-value-control");
+  }
+  renderTrainingSections();
+  renderCompetencyAssessment();
+  updateFieldHighlights();
 }
 
 function trainingDraft(sectionKey) {
@@ -250,353 +550,715 @@ function trainingDraft(sectionKey) {
   return trainingDrafts.get(sectionKey);
 }
 
-function captureTrainingDrafts() {
-  els.reefTrainingSections.querySelectorAll("[data-training-section]").forEach((section) => {
-    const sectionKey = section.dataset.trainingSection;
-    const draft = trainingDraft(sectionKey);
-    draft.activityIds = new Set(
-      [...section.querySelectorAll("[data-training-activity]:checked")]
-        .map((control) => control.value)
-    );
-    draft.otherText = section.querySelector("[data-training-other]")?.value || "";
-  });
-}
-
 function renderTrainingSections() {
-  const selected = new Set(selectedSessionTypes());
-  const sections = state.trainingMatrix.filter((section) => selected.has(section.section_key));
-  els.reefTrainingEmpty.hidden = sections.length > 0;
-  els.reefTrainingSections.innerHTML = sections.map((section) => {
-    const draft = trainingDraft(section.section_key);
-    return `
-      <section class="reef-training-section" data-training-section="${escapeHtml(section.section_key)}">
-        <div class="reef-training-section-head"><h3>${escapeHtml(section.section_label)}</h3></div>
-        <div class="reef-activity-list">
-          ${section.activities.map((activity) => `
-            <label class="reef-activity-option">
-              <input type="checkbox" data-training-activity value="${escapeHtml(activity.id)}" ${draft.activityIds.has(activity.id) ? "checked" : ""}>
-              <span>${escapeHtml(activity.label)}</span>
-            </label>`).join("")}
-        </div>
-        <label class="reef-other-activity">Other training delivered
-          <input type="text" data-training-other maxlength="500" value="${escapeHtml(draft.otherText)}" placeholder="Optional">
-        </label>
-      </section>`;
-  }).join("");
-}
-
-function handleTrainingChange(event) {
-  captureTrainingDrafts();
-  if (event.target.matches("[data-training-activity]")) renderCompetency();
-}
-
-function addParticipant({ participant = {}, focus = false } = {}) {
-  const fragment = els.reefParticipantTemplate.content.cloneNode(true);
-  const row = fragment.querySelector("[data-participant-row]");
-  row.dataset.participantKey = crypto.randomUUID();
-  row.querySelector("[data-participant-name]").value = participant.participant_name || "";
-  row.querySelector("[data-participant-reference]").value = participant.farmer_reference_phone || "";
-  row.querySelector("[data-participant-gender]").value = participant.gender || "";
-  els.reefParticipantRows.append(fragment);
-  updateParticipantTitles();
-  renderCompetency();
-  if (focus) row.querySelector("[data-participant-name]").focus();
-  return row;
-}
-
-function handleParticipantAction(event) {
-  const remove = event.target.closest("[data-remove-participant]");
-  if (!remove) return;
-  captureCompetencyDrafts();
-  const row = remove.closest("[data-participant-row]");
-  const key = row?.dataset.participantKey;
-  if (els.reefParticipantRows.querySelectorAll("[data-participant-row]").length === 1) {
-    row.querySelectorAll("input").forEach((input) => { input.value = ""; });
-    row.querySelector("select").value = "";
-  } else {
-    row.remove();
-  }
-  if (key) competencyDrafts.forEach((draft) => draft.overrides.delete(key));
-  updateParticipantTitles();
-  renderCompetency();
-}
-
-function updateParticipantTitles() {
-  [...els.reefParticipantRows.querySelectorAll("[data-participant-row]")].forEach((row, index) => {
-    row.querySelector("[data-participant-title]").textContent = `Participant ${index + 1}`;
-  });
-}
-
-function participantRows({ includeBlank = false } = {}) {
-  return [...els.reefParticipantRows.querySelectorAll("[data-participant-row]")]
-    .map((row) => ({
-      row,
-      key: row.dataset.participantKey,
-      participant_name: row.querySelector("[data-participant-name]").value.trim(),
-      farmer_reference_phone: textOrNull(row.querySelector("[data-participant-reference]").value),
-      gender: textOrNull(row.querySelector("[data-participant-gender]").value)
-    }))
-    .filter((participant) => includeBlank
-      || participant.participant_name
-      || participant.farmer_reference_phone
-      || participant.gender);
-}
-
-function deliveredActivities() {
-  const matrixBySection = new Map(state.trainingMatrix.map((section) => [section.section_key, section]));
-  const activities = [];
-  for (const sectionKey of selectedSessionTypes().filter((key) => TRAINING_SECTION_KEYS.includes(key))) {
-    const section = matrixBySection.get(sectionKey);
-    const draft = trainingDraft(sectionKey);
-    if (!section) continue;
-    section.activities.forEach((activity) => {
-      if (draft.activityIds.has(activity.id)) {
-        activities.push({ ...activity, section_key: sectionKey, section_label: section.section_label });
-      }
-    });
-  }
-  return activities;
-}
-
-function competencyDraft(activityId) {
-  if (!competencyDrafts.has(activityId)) {
-    competencyDrafts.set(activityId, { groupLevel: "", overrides: new Map() });
-  }
-  return competencyDrafts.get(activityId);
-}
-
-function captureCompetencyDrafts() {
-  els.reefCompetencySections.querySelectorAll("[data-competency-activity]").forEach((activity) => {
-    const draft = competencyDraft(activity.dataset.competencyActivity);
-    draft.groupLevel = activity.querySelector("[data-competency-group]")?.value || "";
-    draft.overrides.clear();
-    activity.querySelectorAll("[data-competency-participant]").forEach((control) => {
-      if (control.value) draft.overrides.set(control.dataset.competencyParticipant, control.value);
-    });
-  });
-}
-
-function renderCompetency() {
-  captureCompetencyDrafts();
-  const activities = deliveredActivities();
-  const participants = participantRows();
-  els.reefCompetencyEmpty.hidden = activities.length > 0;
-  if (!activities.length) {
-    els.reefCompetencySections.replaceChildren();
+  const selected = new Set(
+    selectedTrainingKeys().filter((key) => TRAINING_SECTION_KEYS.includes(key))
+  );
+  els.reefTrainingSections.replaceChildren();
+  els.reefTrainingEmpty.hidden = selected.size > 0;
+  if (!selected.size) {
+    els.reefTrainingEmpty.textContent = "Select the session types first.";
     return;
   }
 
-  const bySection = new Map();
-  activities.forEach((activity) => {
-    if (!bySection.has(activity.section_key)) bySection.set(activity.section_key, []);
-    bySection.get(activity.section_key).push(activity);
-  });
-
-  els.reefCompetencySections.innerHTML = [...bySection.entries()].map(([sectionKey, sectionActivities]) => {
-    const sectionLabel = sectionActivities[0]?.section_label || SESSION_TYPE_LABELS[sectionKey] || sectionKey;
-    return `
-      <section class="reef-competency-section">
-        <h3>${escapeHtml(sectionLabel)}</h3>
-        <div class="reef-competency-activity-list">
-          ${sectionActivities.map((activity) => renderCompetencyActivity(activity, participants)).join("")}
-        </div>
-      </section>`;
-  }).join("");
-}
-
-function renderCompetencyActivity(activity, participants) {
-  const draft = competencyDraft(activity.id);
-  return `
-    <article class="reef-competency-activity" data-competency-activity="${escapeHtml(activity.id)}" data-section-key="${escapeHtml(activity.section_key)}">
-      <div class="reef-competency-activity-head"><strong>${escapeHtml(activity.label)}</strong></div>
-      <div class="reef-competency-controls">
-        <label>All participants
-          <select data-competency-group>
-            <option value="">Not assessed as a group</option>
-            ${COMPETENCY_LEVELS.map((level) => `<option value="${level.value}" ${draft.groupLevel === level.value ? "selected" : ""}>${escapeHtml(level.label)}</option>`).join("")}
-          </select>
-        </label>
-        ${participants.length ? `
-          <div class="reef-participant-override-list">
-            ${participants.map((participant) => {
-              const value = draft.overrides.get(participant.key) || "";
-              return `
-                <label class="reef-participant-override">
-                  <span>${escapeHtml(participant.participant_name || "Unnamed participant")}</span>
-                  <select data-competency-participant="${escapeHtml(participant.key)}" aria-label="Individual result for ${escapeHtml(participant.participant_name || "participant")}">
-                    <option value="">Use group result</option>
-                    ${COMPETENCY_LEVELS.map((level) => `<option value="${level.value}" ${value === level.value ? "selected" : ""}>${escapeHtml(level.label)}</option>`).join("")}
-                  </select>
-                </label>`;
-            }).join("")}
-          </div>` : '<p class="reef-help">Add participant names to set individual results.</p>'}
+  state.trainingMatrix.filter((section) => selected.has(section.section_key)).forEach((section) => {
+    const draft = trainingDraft(section.section_key);
+    const block = document.createElement("section");
+    block.className = "reef-training-section";
+    block.dataset.trainingSection = section.section_key;
+    block.innerHTML = `
+      <div class="reef-training-section-head">
+        <h3>${escapeHtml(section.section_label)}</h3>
+        <span class="status-pill" data-training-count>0 selected</span>
       </div>
-    </article>`;
-}
-
-function handleCompetencyChange() {
-  captureCompetencyDrafts();
-}
-
-async function submitNewRecord(event) {
-  event.preventDefault();
-  if (state.editingSessionId) return;
-  const record = validatedRecord();
-  if (!record) return;
-  setSaveDisabled(true);
-  setStatus("Submitting Training record...");
-  try {
-    const saved = await rpc("ag_reef_training_workspace_submit", {
-      p_submission_id: state.submissionId,
-      p_session: record.session,
-      p_participants: record.participants,
-      p_training_delivered: record.trainingDelivered,
-      p_practical_competencies: record.practicalCompetencies
-    });
-    const recordNumber = saved?.record_number || "Training record";
-    const participantCount = Number(saved?.participant_count || record.participants.length);
-    const trainingCount = Number(saved?.training_activity_count || 0);
-    const competencyCount = Number(saved?.competency_count || 0);
-    clearRecord({ preserveStatus: true });
-    setStatus(`${recordNumber} submitted with ${participantCount} ${participantCount === 1 ? "participant" : "participants"}, ${trainingCount} training ${trainingCount === 1 ? "activity" : "activities"} and ${competencyCount} practical ${competencyCount === 1 ? "assessment" : "assessments"}.`, "success");
-  } catch (error) {
-    setStatus(error.message || "The Training record could not be submitted.", "error");
-  } finally {
-    setSaveDisabled(false);
-  }
-}
-
-async function saveRecordChanges() {
-  if (!state.editingSessionId) return;
-  const record = validatedRecord();
-  if (!record) return;
-  setSaveDisabled(true);
-  setStatus("Saving changes...");
-  try {
-    const saved = await rpc("ag_reef_training_workspace_update", {
-      p_session_id: state.editingSessionId,
-      p_session: record.session,
-      p_participants: record.participants,
-      p_training_delivered: record.trainingDelivered,
-      p_practical_competencies: record.practicalCompetencies
-    });
-    state.publicEditUntil = saved?.public_edit_until || state.publicEditUntil;
-    els.reefRecordState.textContent = recordStateLabel(saved?.record_status || "submitted", state.publicEditUntil);
-    setStatus(`${saved?.record_number || els.reefRecordNumber.textContent} changes saved. The original 7-day public access deadline is unchanged.`, "success");
-    await loadRecords({ silent: true });
-  } catch (error) {
-    if (shouldRequireLogin(error)) {
-      routeToLoginForRecord(state.editingSessionId);
-      return;
-    }
-    setStatus(error.message || "The Training record changes could not be saved.", "error");
-  } finally {
-    setSaveDisabled(false);
-  }
-}
-
-function validatedRecord() {
-  const required = [
-    [els.reefTrainingDate, "Training date", "session"],
-    [els.reefStartTime, "Start time", "session"],
-    [els.reefFinishTime, "Finish time", "session"]
-  ];
-  for (const [control, label, tab] of required) {
-    if (String(control.value || "").trim()) continue;
-    return validationError(`${label} is required before submission.`, tab, control);
-  }
-  if (els.reefFinishTime.value <= els.reefStartTime.value) {
-    return validationError("Finish time must be after start time.", "session", els.reefFinishTime);
-  }
-
-  const sessionTypes = selectedSessionTypes();
-  if (!sessionTypes.length) {
-    return validationError("Select at least one type of session before submission.", "session", els.reefSessionTypes);
-  }
-  if (sessionTypes.includes("other") && !els.reefOtherSessionType.value.trim()) {
-    return validationError("Enter the other session type before submission.", "session", els.reefOtherSessionType);
-  }
-
-  captureTrainingDrafts();
-  captureCompetencyDrafts();
-  const participantEntries = participantRows();
-  const missingParticipant = participantEntries.find((participant) => !participant.participant_name);
-  if (missingParticipant) {
-    return validationError("Participant name is required for every participant row that contains information.", "participants", missingParticipant.row.querySelector("[data-participant-name]"));
-  }
-
-  const participants = participantEntries.map((participant) => ({
-    participant_name: participant.participant_name,
-    farmer_reference_phone: participant.farmer_reference_phone,
-    gender: participant.gender
-  }));
-  const trainingDelivered = selectedSessionTypes()
-    .filter((sectionKey) => TRAINING_SECTION_KEYS.includes(sectionKey))
-    .map((sectionKey) => {
-      const draft = trainingDraft(sectionKey);
-      return {
-        section_key: sectionKey,
-        activity_ids: [...draft.activityIds],
-        other_text: textOrNull(draft.otherText)
-      };
-    })
-    .filter((section) => section.activity_ids.length || section.other_text);
-
-  const participantOrder = new Map(participantEntries.map((participant, index) => [participant.key, index + 1]));
-  const practicalCompetencies = deliveredActivities().flatMap((activity) => {
-    const draft = competencyDraft(activity.id);
-    const overrides = [...draft.overrides.entries()]
-      .filter(([key, level]) => participantOrder.has(key) && level)
-      .map(([key, level]) => ({ participant_order: participantOrder.get(key), competency_level: level }));
-    if (!draft.groupLevel && !overrides.length) return [];
-    return [{
-      section_key: activity.section_key,
-      activity_id: activity.id,
-      group_level: draft.groupLevel || null,
-      participant_overrides: overrides
-    }];
+      <div class="reef-training-activity-list">
+        ${section.activities.map((activity) => `
+          <label>
+            <input type="checkbox" data-training-activity="${escapeHtml(activity.id)}" ${draft.activityIds.has(activity.id) ? "checked" : ""}>
+            <span>${escapeHtml(activity.label)}</span>
+          </label>`).join("")}
+      </div>
+      <label class="reef-training-other">Other
+        <input type="text" data-training-other maxlength="500" value="${escapeHtml(draft.otherText)}" placeholder="Add another activity">
+      </label>`;
+    els.reefTrainingSections.append(block);
+    updateTrainingSectionCount(block);
   });
+}
+
+function updateTrainingDraft(event) {
+  const section = event.target.closest("[data-training-section]");
+  if (!section) return;
+  const draft = trainingDraft(section.dataset.trainingSection);
+  if (event.target.matches("[data-training-activity]")) {
+    const activityId = event.target.dataset.trainingActivity;
+    if (event.target.checked) draft.activityIds.add(activityId);
+    else draft.activityIds.delete(activityId);
+  }
+  if (event.target.matches("[data-training-other]")) draft.otherText = event.target.value;
+  section.classList.remove("missing-training-selection");
+  updateTrainingSectionCount(section);
+  renderCompetencyAssessment();
+}
+
+function updateTrainingSectionCount(section) {
+  const count = section.querySelectorAll("[data-training-activity]:checked").length
+    + (String(section.querySelector("[data-training-other]")?.value || "").trim() ? 1 : 0);
+  const pill = section.querySelector("[data-training-count]");
+  if (pill) pill.textContent = `${count} selected`;
+}
+
+function deliveredCompetencyActivities() {
+  const selectedSections = new Set(
+    selectedTrainingKeys().filter((key) => TRAINING_SECTION_KEYS.includes(key))
+  );
+  return state.trainingMatrix.flatMap((section) => {
+    if (!selectedSections.has(section.section_key)) return [];
+    const deliveredIds = trainingDraft(section.section_key).activityIds;
+    return section.activities
+      .filter((activity) => deliveredIds.has(activity.id))
+      .map((activity) => ({
+        ...activity,
+        section_key: section.section_key,
+        section_label: section.section_label,
+        section_order: section.section_order
+      }));
+  });
+}
+
+function competencyDraft(activity) {
+  if (!competencyDrafts.has(activity.id)) {
+    competencyDrafts.set(activity.id, {
+      sectionKey: activity.section_key,
+      assessed: false,
+      groupLevel: "",
+      expandedLevel: "",
+      overrides: new Map()
+    });
+  }
+  const draft = competencyDrafts.get(activity.id);
+  draft.sectionKey = activity.section_key;
+  return draft;
+}
+
+function namedParticipantRows() {
+  return [...els.reefParticipantRows.rows].map((row) => ({
+    key: row.dataset.participantKey,
+    name: row.querySelector('[data-participant-field="name"]').value.trim(),
+    reference: row.querySelector('[data-participant-field="reference"]').value.trim()
+  })).filter((participant) => participant.name);
+}
+
+function renderCompetencyAssessment() {
+  if (!els.reefCompetencySections || !els.reefCompetencyEmpty) return;
+  const activities = deliveredCompetencyActivities();
+  const participants = namedParticipantRows();
+  els.reefCompetencySections.replaceChildren();
+  els.reefCompetencyEmpty.hidden = activities.length > 0;
+  if (!activities.length) {
+    els.reefCompetencyEmpty.textContent = "Select activities under Training Delivered first.";
+    return;
+  }
+
+  const sectionGroups = new Map();
+  activities.forEach((activity) => {
+    if (!sectionGroups.has(activity.section_key)) {
+      sectionGroups.set(activity.section_key, {
+        label: activity.section_label,
+        activities: []
+      });
+    }
+    sectionGroups.get(activity.section_key).activities.push(activity);
+  });
+
+  sectionGroups.forEach((section) => {
+    const block = document.createElement("section");
+    block.className = "reef-competency-section";
+    block.innerHTML = `
+      <h3>${escapeHtml(section.label)}</h3>
+      <div class="reef-competency-table" role="table" aria-label="${escapeHtml(section.label)} practical competency">
+        <div class="reef-competency-head" role="row">
+          <span role="columnheader">Key practical task</span>
+          ${COMPETENCY_LEVELS.map((level) => `<span role="columnheader">${escapeHtml(level.label)}</span>`).join("")}
+          <span role="columnheader"><span class="reef-visually-hidden">Individual results</span></span>
+        </div>
+      </div>`;
+    const table = block.querySelector(".reef-competency-table");
+    section.activities.forEach((activity) => {
+      table.append(renderCompetencyRow(activity, participants));
+    });
+    els.reefCompetencySections.append(block);
+  });
+  requestAnimationFrame(positionOpenCompetencyPicker);
+}
+
+function renderCompetencyRow(activity, participants) {
+  const draft = competencyDraft(activity);
+  const overrideCount = [...draft.overrides.entries()]
+    .filter(([participantKey, level]) => participants.some((participant) => participant.key === participantKey) && level)
+    .length;
+  const hasResult = Boolean(draft.groupLevel || overrideCount);
+  const resultSummary = draft.groupLevel
+    ? (overrideCount
+      ? `All participants, with ${overrideCount} individual ${overrideCount === 1 ? "result" : "results"}`
+      : "Applies to all participants")
+    : (overrideCount
+      ? `${overrideCount} individual participant ${overrideCount === 1 ? "result" : "results"}`
+      : "");
+  const wrapper = document.createElement("article");
+  wrapper.className = "reef-competency-task";
+  wrapper.dataset.competencyActivity = activity.id;
+  wrapper.innerHTML = `
+    <div class="reef-competency-row" role="row">
+      <div class="reef-competency-task-name" role="cell">
+        <strong>${escapeHtml(activity.label)}</strong>
+        ${resultSummary ? `<small>${resultSummary}</small>` : ""}
+      </div>
+      ${COMPETENCY_LEVELS.map((level) => renderCompetencyLevel(activity, level, participants, draft)).join("")}
+      ${hasResult
+        ? `<button class="reef-competency-clear" type="button" data-clear-competency
+            aria-label="Clear result for ${escapeHtml(activity.label)}" title="Clear this assessment">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+          </button>`
+        : '<span class="reef-competency-clear-space" aria-hidden="true"></span>'}
+    </div>`;
+  return wrapper;
+}
+
+function renderCompetencyLevel(activity, level, participants, draft) {
+  const count = [...draft.overrides.entries()]
+    .filter(([participantKey, value]) => (
+      value === level.value
+      && participants.some((participant) => participant.key === participantKey)
+    )).length;
+  const pickerOpen = draft.expandedLevel === level.value;
+  return `
+    <div class="reef-competency-level" role="cell">
+      <label class="reef-competency-level-choice">
+        <input type="radio" name="competency-${escapeHtml(activity.id)}" value="${escapeHtml(level.value)}"
+          data-competency-group-level ${draft.groupLevel === level.value ? "checked" : ""}>
+        <span>${escapeHtml(level.label)}</span>
+      </label>
+      <button class="reef-competency-person-trigger${count ? " has-results" : ""}" type="button"
+        data-open-competency-level="${escapeHtml(level.value)}"
+        aria-expanded="${String(pickerOpen)}"
+        aria-label="${count
+          ? `${count} individual ${count === 1 ? "result" : "results"} for ${escapeHtml(level.label)}`
+          : `Add individual results for ${escapeHtml(level.label)}`}"
+        title="${participants.length ? `Add participants: ${escapeHtml(level.label)}` : "Add participant names first"}"
+        ${participants.length ? "" : "disabled"}>
+        ${count
+          ? `<span aria-hidden="true">${count}</span>`
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>'}
+      </button>
+      ${renderCompetencyParticipantPicker(participants, draft, level)}
+    </div>`;
+}
+
+function renderCompetencyParticipantPicker(participants, draft, level) {
+  if (draft.expandedLevel !== level.value) return "";
+  return `
+    <div class="reef-competency-overrides" role="dialog" aria-label="${escapeHtml(level.label)} individual participants">
+      <div class="reef-competency-picker-head">
+        <p><strong>${escapeHtml(level.label)}:</strong> select individual participants.</p>
+        <button type="button" data-close-competency-picker aria-label="Close participant selection" title="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+        </button>
+      </div>
+      <div class="reef-competency-participants">
+        ${participants.map((participant) => {
+          const selectedLevel = draft.overrides.get(participant.key) || "";
+          const selected = selectedLevel === level.value;
+          const currentLevel = COMPETENCY_LEVELS.find((item) => item.value === selectedLevel);
+          const reference = participant.reference ? ` (${participant.reference})` : "";
+          return `
+            <button class="reef-competency-participant${selected ? " is-selected" : ""}" type="button"
+              data-competency-participant="${escapeHtml(participant.key)}"
+              data-set-competency-participant="${escapeHtml(level.value)}"
+              aria-pressed="${String(selected)}">
+              <span>${escapeHtml(participant.name)}${escapeHtml(reference)}</span>
+              <small>${selected ? "Selected" : (currentLevel ? currentLevel.label : "Add")}</small>
+            </button>`;
+        }).join("")}
+      </div>
+    </div>`;
+}
+
+function handleCompetencyAction(event) {
+  const task = event.target.closest("[data-competency-activity]");
+  if (!task) return;
+  const draft = competencyDrafts.get(task.dataset.competencyActivity);
+  if (!draft) return;
+
+  if (event.target.closest("[data-clear-competency]")) {
+    draft.assessed = false;
+    draft.groupLevel = "";
+    draft.expandedLevel = "";
+    draft.overrides.clear();
+    renderCompetencyAssessment();
+    return;
+  }
+
+  if (event.target.closest("[data-close-competency-picker]")) {
+    draft.expandedLevel = "";
+    renderCompetencyAssessment();
+    return;
+  }
+
+  const levelButton = event.target.closest("[data-open-competency-level]");
+  if (levelButton) {
+    const level = levelButton.dataset.openCompetencyLevel;
+    competencyDrafts.forEach((otherDraft) => {
+      if (otherDraft !== draft) otherDraft.expandedLevel = "";
+    });
+    draft.expandedLevel = draft.expandedLevel === level ? "" : level;
+    renderCompetencyAssessment();
+    return;
+  }
+
+  const participantButton = event.target.closest("[data-set-competency-participant]");
+  if (participantButton) {
+    const participantKey = participantButton.dataset.competencyParticipant;
+    const level = participantButton.dataset.setCompetencyParticipant;
+    if (draft.overrides.get(participantKey) === level) draft.overrides.delete(participantKey);
+    else draft.overrides.set(participantKey, level);
+    draft.assessed = Boolean(draft.groupLevel || draft.overrides.size);
+    renderCompetencyAssessment();
+  }
+}
+
+function closeCompetencyPickerOnOutsideClick(event) {
+  if (!els.reefCompetencySections?.querySelector(".reef-competency-overrides")) return;
+  if (event.target.closest(".reef-competency-overrides, [data-open-competency-level]")) return;
+
+  let changed = false;
+  competencyDrafts.forEach((draft) => {
+    if (!draft.expandedLevel) return;
+    draft.expandedLevel = "";
+    changed = true;
+  });
+  if (changed) renderCompetencyAssessment();
+}
+
+function positionOpenCompetencyPicker() {
+  const picker = els.reefCompetencySections?.querySelector(".reef-competency-overrides");
+  if (!picker) return;
+  const task = picker.closest("[data-competency-activity]");
+  const draft = competencyDrafts.get(task?.dataset.competencyActivity);
+  const trigger = draft?.expandedLevel
+    ? task.querySelector(`[data-open-competency-level="${cssEscape(draft.expandedLevel)}"]`)
+    : null;
+  if (!trigger) return;
+
+  const triggerRect = trigger.getBoundingClientRect();
+  const pickerRect = picker.getBoundingClientRect();
+  const gutter = 8;
+  const left = Math.min(
+    window.innerWidth - pickerRect.width - gutter,
+    Math.max(gutter, triggerRect.right - pickerRect.width)
+  );
+  const spaceBelow = window.innerHeight - triggerRect.bottom;
+  const top = spaceBelow >= pickerRect.height + gutter
+    ? triggerRect.bottom + 5
+    : Math.max(gutter, triggerRect.top - pickerRect.height - 5);
+  picker.style.left = `${Math.round(left)}px`;
+  picker.style.top = `${Math.round(top)}px`;
+  picker.classList.add("is-positioned");
+}
+
+function handleCompetencyChange(event) {
+  const task = event.target.closest("[data-competency-activity]");
+  if (!task) return;
+  const draft = competencyDrafts.get(task.dataset.competencyActivity);
+  if (!draft) return;
+  if (event.target.matches("[data-competency-group-level]")) {
+    draft.assessed = true;
+    draft.groupLevel = event.target.value;
+  }
+  renderCompetencyAssessment();
+}
+
+function loadCompetencyDrafts(value) {
+  competencyDrafts.clear();
+  const participantRows = [...els.reefParticipantRows.rows];
+  (Array.isArray(value) ? value : []).forEach((item) => {
+    const activity = deliveredCompetencyActivities()
+      .find((candidate) => candidate.id === String(item.activity_id || ""));
+    if (!activity) return;
+    const draft = competencyDraft(activity);
+    draft.assessed = true;
+    draft.groupLevel = String(item.group_level || "");
+    (Array.isArray(item.participant_overrides) ? item.participant_overrides : []).forEach((override) => {
+      const row = participantRows[Number(override.participant_order) - 1];
+      if (row && override.competency_level) {
+        draft.overrides.set(row.dataset.participantKey, String(override.competency_level));
+      }
+    });
+    draft.expandedLevel = "";
+  });
+  renderCompetencyAssessment();
+}
+
+
+function validatedTrainingRecord({ requireComplete = true } = {}) {
+  if (requireComplete) {
+    const required = [
+      [els.reefTrainingDate, "Training date", "session"],
+      [els.reefStartTime, "Start time", "session"],
+      [els.reefFinishTime, "Finish time", "session"]
+    ];
+    for (const [control, label, tab] of required) {
+      if (String(control.value || "").trim()) continue;
+      return validationError(`${label} is required before submission.`, tab, control);
+    }
+    if (els.reefFinishTime.value <= els.reefStartTime.value) {
+      return validationError("Finish time must be after start time.", "session", els.reefFinishTime);
+    }
+  }
+
+  const sessionTypes = selectedTrainingKeys();
+  if (requireComplete && !sessionTypes.length) {
+    els.reefSessionTypes.classList.add("missing-selection");
+    return validationError(
+      "Select at least one type of session before submission.",
+      "session",
+      els.reefSessionTypes
+    );
+  }
+  const otherSelected = sessionTypes.includes("other");
+  if (requireComplete && otherSelected && !els.reefOtherSessionType.value.trim()) {
+    return validationError(
+      "Enter the other session type before submission.",
+      "session",
+      els.reefOtherSessionType
+    );
+  }
+
+  const participantEntries = collectParticipantEntries();
+  if (requireComplete && !participantEntries.length) {
+    return validationError(
+      "Add at least one participant before submission.",
+      "participants",
+      els.reefParticipantRows.querySelector('[data-participant-field="name"]')
+    );
+  }
+  const firstMissing = participantEntries.findIndex((participant) => !participant.participant_name);
+  if (requireComplete && firstMissing >= 0) {
+    return validationError(
+      "Participant name is required for every row.",
+      "participants",
+      participantEntries[firstMissing].row.querySelector('[data-participant-field="name"]')
+    );
+  }
+
+  const trainingDelivered = [];
+  for (const sectionKey of sessionTypes.filter((key) => TRAINING_SECTION_KEYS.includes(key))) {
+    const draft = trainingDraft(sectionKey);
+    const activityIds = [...draft.activityIds];
+    const otherText = textOrNull(draft.otherText);
+    if (!activityIds.length && !otherText) continue;
+    trainingDelivered.push({
+      section_key: sectionKey,
+      activity_ids: activityIds,
+      other_text: otherText
+    });
+  }
+
+  const practicalCompetencies = validatedPracticalCompetencies(
+    participantEntries,
+    { requireComplete }
+  );
+  if (practicalCompetencies === null) return null;
 
   return {
     session: {
       training_date: els.reefTrainingDate.value,
-      location: els.reefLocation.value || null,
+      location: els.reefLocation.value,
       start_time: els.reefStartTime.value,
       finish_time: els.reefFinishTime.value,
-      trainer_name: els.reefTrainerName.value.trim() || null,
+      trainer_name: els.reefTrainerName.value.trim(),
       supporting_staff: textOrNull(els.reefSupportingStaff.value),
       session_types: sessionTypes,
-      other_session_type: sessionTypes.includes("other") ? els.reefOtherSessionType.value.trim() : null,
+      other_session_type: otherSelected ? els.reefOtherSessionType.value.trim() : null,
       weather_sea_conditions: textOrNull(els.reefConditions.value),
       nursery_reference: textOrNull(els.reefNurseryReference.value)
     },
-    participants,
+    participants: participantEntries.map(({
+      row: _row,
+      participantKey: _participantKey,
+      ...participant
+    }) => participant),
     trainingDelivered,
     practicalCompetencies
   };
 }
 
+function validatedPracticalCompetencies(
+  participantEntries,
+  { requireComplete = true } = {}
+) {
+  const participantOrderByKey = new Map(
+    participantEntries.map((participant, index) => [participant.participantKey, index + 1])
+  );
+  const result = [];
+
+  for (const activity of deliveredCompetencyActivities()) {
+    const draft = competencyDraft(activity);
+    if (!draft.groupLevel && !draft.overrides.size) continue;
+    if (draft.groupLevel && !COMPETENCY_LEVELS.some((level) => level.value === draft.groupLevel)) {
+      if (!requireComplete) continue;
+      return validationError(
+        `Choose a competency level for ${activity.label}.`,
+        "competency",
+        els.reefCompetencySections.querySelector(
+          `[data-competency-activity="${cssEscape(activity.id)}"] [data-competency-group-level]`
+        ) || els.reefCompetencySections
+      );
+    }
+
+    const participantOverrides = [];
+    for (const [participantKey, level] of draft.overrides.entries()) {
+      const participantOrder = participantOrderByKey.get(participantKey);
+      if (!participantOrder) continue;
+      if (!COMPETENCY_LEVELS.some((item) => item.value === level)) {
+        if (!requireComplete) continue;
+        return validationError(
+          "Choose an individual competency level before submission.",
+          "competency",
+          els.reefCompetencySections
+        );
+      }
+      participantOverrides.push({
+        participant_order: participantOrder,
+        competency_level: level
+      });
+    }
+    result.push({
+      section_key: activity.section_key,
+      activity_id: activity.id,
+      group_level: draft.groupLevel || null,
+      participant_overrides: participantOverrides
+    });
+  }
+  return result;
+}
+
 function validationError(message, tab, control) {
   showTab(tab);
   setStatus(message, "error");
+  control?.classList?.add("empty-value-control");
   control?.focus?.();
   return null;
 }
 
-async function loadRecord(sessionId) {
-  setSaveDisabled(true);
-  setStatus("Loading Training record...");
+async function submitTrainingRecord(event) {
+  event.preventDefault();
+  const record = validatedTrainingRecord({ requireComplete: true });
+  if (!record) return;
+  await persistTrainingRecord(record, { submitAndReset: true });
+}
+
+async function saveTrainingRecord() {
+  const draftSave = state.mode === "authenticated"
+    && canUploadAuthenticatedTrainingPhotos()
+    && state.recordStatus !== "submitted";
+  const record = validatedTrainingRecord({ requireComplete: !draftSave });
+  if (!record) return;
+  await persistTrainingRecord(record, { submitAndReset: false });
+}
+
+async function persistTrainingRecord(record, { submitAndReset }) {
+  if (state.mode === "review") {
+    await persistReviewTraining(record);
+    return;
+  }
+  if (state.mode === "authenticated" && canUploadAuthenticatedTrainingPhotos()) {
+    await persistAuthenticatedTraining(record, { submitAndReset });
+    return;
+  }
+  await persistPublicTraining(record, { submitAndReset });
+}
+
+async function persistPublicTraining(record, { submitAndReset }) {
+  setSaveActionsDisabled(true);
+  setStatus(state.editingSessionId ? "Saving Training changes…" : "Submitting Training record…");
   try {
-    const data = await rpc("ag_reef_training_workspace_detail", { p_session_id: sessionId });
-    hydrateRecord(data);
+    const args = {
+      p_session: record.session,
+      p_participants: record.participants,
+      p_training_delivered: record.trainingDelivered,
+      p_practical_competencies: record.practicalCompetencies
+    };
+    let saved;
+    if (state.editingSessionId) {
+      saved = await rpc("ag_reef_training_workspace_update", {
+        p_session_id: state.editingSessionId,
+        ...args
+      });
+    } else {
+      saved = await rpc("ag_reef_training_workspace_submit", {
+        p_submission_id: state.submissionId,
+        ...args
+      });
+    }
+
+    const recordNumber = saved?.record_number || els.reefRecordNumber.textContent || "Training record";
+    state.publicEditUntil = saved?.public_edit_until || state.publicEditUntil;
+    if (submitAndReset) {
+      clearForm({ preserveStatus: true });
+      setStatus(`${recordNumber} submitted. A new Training record is ready.`);
+    } else {
+      state.editingSessionId = saved?.session_id || state.editingSessionId;
+      state.recordStatus = saved?.record_status || "submitted";
+      els.reefRecordNumber.textContent = recordNumber;
+      history.replaceState(
+        {},
+        "",
+        `./reef_nursery.html?record=${encodeURIComponent(state.editingSessionId)}`
+      );
+      updateRecordActions();
+      setStatus(`${recordNumber} updated.`);
+    }
+  } catch (error) {
+    if (shouldRequireLogin(error)) {
+      routeToLoginForRecord(state.editingSessionId);
+      return;
+    }
+    setStatus(error.message || "The Training record could not be saved.", "error");
+  } finally {
+    setSaveActionsDisabled(false);
+  }
+}
+
+async function persistAuthenticatedTraining(record, { submitAndReset }) {
+  setSaveActionsDisabled(true);
+  let uploadedPhotos = [];
+  let uploadsAttached = false;
+  const savingDraft = !submitAndReset && state.recordStatus !== "submitted";
+  setStatus(photoState.files.length
+    ? "Preparing Training photos…"
+    : (savingDraft ? "Saving draft…" : "Saving Training record…"));
+
+  try {
+    uploadedPhotos = await prepareAndUploadPhotos();
+    const payload = {
+      p_session: record.session,
+      p_participants: record.participants,
+      p_seaweed_record: { ...EMPTY_SEAWEED_RECORD },
+      p_photos: uploadedPhotos.map((photo) => photo.manifest),
+      p_training_delivered: record.trainingDelivered,
+      p_practical_competencies: record.practicalCompetencies,
+      p_raft_records: [],
+      p_raft_inspection: { ...EMPTY_RAFT_INSPECTION }
+    };
+
+    let rpcName;
+    if (savingDraft) {
+      rpcName = "ag_save_reef_nursery_draft_v3";
+      payload.p_session_id = state.editingSessionId;
+      payload.p_submission_id = state.submissionId;
+    } else {
+      rpcName = state.editingSessionId
+        ? "ag_update_reef_nursery_session_v3"
+        : "ag_submit_reef_nursery_session_v3";
+      if (state.editingSessionId) payload.p_session_id = state.editingSessionId;
+      else payload.p_submission_id = state.submissionId;
+    }
+
+    const saved = await rpc(rpcName, payload);
+    uploadsAttached = true;
+    const savedSessionId = saved?.session_id || state.editingSessionId;
+
+    if (submitAndReset && state.editingSessionId && state.recordStatus === "draft") {
+      await rpc("ag_mark_reef_nursery_submitted", {
+        p_session_id: state.editingSessionId
+      });
+    }
+
+    const recordNumber = saved?.record_number || els.reefRecordNumber.textContent || "Training record";
+    if (submitAndReset) {
+      clearForm({ preserveStatus: true });
+      setStatus(`${recordNumber} submitted. A new Training record is ready.`);
+    } else if (savedSessionId) {
+      history.replaceState(
+        {},
+        "",
+        `./reef_nursery.html?record=${encodeURIComponent(savedSessionId)}`
+      );
+      await loadRecord(savedSessionId);
+      setStatus(savingDraft ? `${recordNumber} draft saved.` : `${recordNumber} updated.`);
+    }
+  } catch (error) {
+    if (!uploadsAttached) {
+      await removeUploadedPhotos(uploadedPhotos.map((photo) => photo.manifest.storage_path));
+    }
+    setStatus(error.message || "The Training record could not be saved.", "error");
+  } finally {
+    setSaveActionsDisabled(false);
+  }
+}
+
+async function persistReviewTraining(record) {
+  setSaveActionsDisabled(true);
+  setStatus("Submitting test record…");
+  try {
+    const photoMetadata = photoState.files.map((file) => ({
+      original_name: String(file.name || "photo").slice(0, 255),
+      byte_size: Number(file.size || 0),
+      content_type: String(file.type || "application/octet-stream").slice(0, 100)
+    }));
+    const trainerName = String(record.session.trainer_name || "").trim();
+    const result = await callPublicRpc("ag_public_shared_form_submission", {
+      p_share_token: state.reviewShareToken,
+      p_submission_id: state.submissionId,
+      p_payload: {
+        form: "reef_nursery",
+        record,
+        photos: photoMetadata,
+        review_page: window.location.pathname
+      },
+      p_submitter_name: trainerName.length >= 2 ? trainerName : null,
+      p_client_key: state.reviewClientKey,
+      p_user_agent: navigator.userAgent
+    });
+    if (!result?.ok) throw new Error("The test submission was not accepted.");
+    clearForm({ preserveStatus: true });
+    state.reviewRecordsPage = 0;
+    setStatus("Test submission received. Thank you for reviewing the Reef Nursery form.");
+  } catch (error) {
+    setStatus(error.message || "The test submission could not be saved.", "error");
+  } finally {
+    setSaveActionsDisabled(false);
+  }
+}
+
+async function loadRecord(sessionId) {
+  if (!sessionId) return;
+  setSaveActionsDisabled(true);
+  setStatus("Loading Training record…");
+  try {
+    const data = state.mode === "authenticated" && canUploadAuthenticatedTrainingPhotos()
+      ? await rpc("ag_reef_nursery_session_detail_v4", { p_session_id: sessionId })
+      : await rpc("ag_reef_training_workspace_detail", { p_session_id: sessionId });
+    if (!data?.session_id) throw new Error("The Training record was not found.");
+
     state.editingSessionId = data.session_id;
+    state.recordStatus = data.record_status || "submitted";
+    state.submissionId = data.submission_id || state.submissionId;
     state.publicEditUntil = data.public_edit_until || null;
-    els.reefRecordNumber.textContent = data.record_number || "Training record";
-    els.reefRecordState.textContent = recordStateLabel(data.record_status, state.publicEditUntil);
-    updateEditActions();
-    history.replaceState({}, "", `./reef_nursery.html?record=${encodeURIComponent(sessionId)}`);
+    els.reefRecordNumber.textContent = data.record_number || "Existing record";
+    hydrateRecordFields(data);
+
+    photoState.files = [];
+    photoState.existing = state.mode === "authenticated" && canUploadAuthenticatedTrainingPhotos()
+      ? await loadExistingTrainingPhotos(data.photos)
+      : [];
+    renderPhotoPreview();
+    updateRecordActions();
+    els.clearReefNursery.textContent = "Cancel edit";
     document.title = `${data.record_number || "Reef Nursery"} - Seaweed Harvest`;
     showTab("session");
+    updateFieldHighlights();
     setStatus(`${data.record_number || "Training record"} loaded.`);
   } catch (error) {
     if (shouldRequireLogin(error)) {
@@ -605,11 +1267,20 @@ async function loadRecord(sessionId) {
     }
     setStatus(error.message || "The Training record could not be opened.", "error");
   } finally {
-    setSaveDisabled(false);
+    setSaveActionsDisabled(false);
   }
 }
 
-function hydrateRecord(data) {
+async function loadExistingTrainingPhotos(value) {
+  const photos = Array.isArray(value) ? value : [];
+  return Promise.all(photos.map(async (photo) => {
+    const { data } = await authClient.storage.from(PHOTO_BUCKET)
+      .createSignedUrl(photo.storage_path, 3600);
+    return { ...photo, signedUrl: data?.signedUrl || "" };
+  }));
+}
+
+function hydrateRecordFields(data) {
   els.reefTrainingDate.value = String(data.training_date || "").slice(0, 10);
   els.reefLocation.value = data.location || "";
   els.reefStartTime.value = String(data.start_time || "").slice(0, 5);
@@ -620,150 +1291,793 @@ function hydrateRecord(data) {
   els.reefNurseryReference.value = data.nursery_reference || "";
 
   const sessionTypes = new Set(Array.isArray(data.session_types) ? data.session_types : []);
-  els.reefSessionTypes.querySelectorAll('input[type="checkbox"]').forEach((control) => {
+  els.reefNurseryForm.querySelectorAll('[name="reefSessionType"]').forEach((control) => {
     control.checked = sessionTypes.has(control.value);
   });
   els.reefOtherSessionType.value = data.other_session_type || "";
-  els.reefOtherSessionTypeField.hidden = !sessionTypes.has("other");
-
-  els.reefParticipantRows.replaceChildren();
-  const savedParticipants = Array.isArray(data.participants) ? data.participants : [];
-  if (savedParticipants.length) savedParticipants.forEach((participant) => addParticipant({ participant }));
-  else addParticipant();
 
   trainingDrafts.clear();
   (Array.isArray(data.training_delivered) ? data.training_delivered : []).forEach((section) => {
-    trainingDrafts.set(String(section.section_key), {
+    trainingDrafts.set(section.section_key, {
       activityIds: new Set((Array.isArray(section.activity_ids) ? section.activity_ids : []).map(String)),
       otherText: String(section.other_text || "")
     });
   });
-  renderTrainingSections();
+  handleSessionTypesChange();
 
+  els.reefParticipantRows.replaceChildren();
+  (Array.isArray(data.participants) ? data.participants : []).forEach((participant) => {
+    addParticipantRow({ participant });
+  });
+  if (!els.reefParticipantRows.rows.length) addParticipantRow();
+  loadCompetencyDrafts(data.practical_competencies);
+  updateParticipantCount();
+}
+
+function initializeNewRecord() {
+  state.editingSessionId = null;
+  state.recordStatus = "unsaved";
+  state.publicEditUntil = null;
+  state.submissionId = createUuid();
+  els.reefNurseryForm.reset();
+  els.reefRecordNumber.textContent = state.mode === "review" ? "Test submission" : "New record";
+  els.reefTrainingDate.value = kenyaDate();
+  els.reefParticipantRows.replaceChildren();
+  trainingDrafts.clear();
   competencyDrafts.clear();
-  const rows = [...els.reefParticipantRows.querySelectorAll("[data-participant-row]")];
-  (Array.isArray(data.practical_competencies) ? data.practical_competencies : []).forEach((item) => {
-    const draft = competencyDraft(String(item.activity_id || ""));
-    draft.groupLevel = String(item.group_level || "");
-    (Array.isArray(item.participant_overrides) ? item.participant_overrides : []).forEach((override) => {
-      const row = rows[Number(override.participant_order) - 1];
-      if (row && override.competency_level) {
-        draft.overrides.set(row.dataset.participantKey, String(override.competency_level));
-      }
+  photoState.files = [];
+  photoState.existing = [];
+  els.reefCameraPhoto.value = "";
+  els.reefGalleryPhotos.value = "";
+  closePhotoViewer();
+  addParticipantRow();
+  handleSessionTypesChange();
+  renderPhotoPreview();
+  updateRecordActions();
+  els.clearReefNursery.textContent = "Clear";
+  document.title = state.mode === "review"
+    ? "Reef Nursery Review - Seaweed Harvest"
+    : "Reef Nursery - Seaweed Harvest";
+  updateFieldHighlights();
+}
+
+function clearForm({ preserveStatus = false } = {}) {
+  if (state.mode !== "review") history.replaceState({}, "", "./reef_nursery.html");
+  initializeNewRecord();
+  showTab("session");
+  if (!preserveStatus) setStatus("");
+}
+
+function updateRecordActions() {
+  const editing = Boolean(state.editingSessionId);
+  const submitted = state.recordStatus === "submitted";
+  els.reefRecordStatus.textContent = state.mode === "review"
+    ? "Test"
+    : (submitted ? "Submitted" : (state.recordStatus === "draft" ? "Draft" : "Unsaved"));
+  els.reefRecordStatus.dataset.recordStatus = state.recordStatus;
+
+  if (state.mode === "review") {
+    els.saveReefNursery.hidden = true;
+    els.submitReefNursery.hidden = false;
+    els.submitReefNursery.textContent = "Submit test and start new";
+    return;
+  }
+
+  if (state.mode === "public" || !canUploadAuthenticatedTrainingPhotos()) {
+    els.saveReefNursery.hidden = !editing;
+    els.saveReefNursery.textContent = "Save changes";
+    els.submitReefNursery.hidden = editing;
+    els.submitReefNursery.textContent = "Submit and start new";
+    return;
+  }
+
+  els.saveReefNursery.hidden = false;
+  els.saveReefNursery.textContent = editing && submitted ? "Save changes" : "Save draft";
+  els.submitReefNursery.hidden = false;
+  els.submitReefNursery.textContent = editing ? "Save and start new" : "Submit and start new";
+}
+
+function setSaveActionsDisabled(disabled) {
+  els.saveReefNursery.disabled = disabled;
+  els.submitReefNursery.disabled = disabled;
+}
+
+function updateFieldHighlights() {
+  els.reefNurseryForm.querySelectorAll("input, select, textarea").forEach((control) => {
+    const type = String(control.type || "").toLowerCase();
+    const excluded = ["hidden", "checkbox", "radio", "button", "submit", "reset"].includes(type)
+      || control.disabled
+      || control.readOnly;
+    control.classList.toggle(
+      "empty-value-control",
+      !excluded && control.required && String(control.value ?? "").trim() === ""
+    );
+  });
+  const hasSessionType = Boolean(
+    els.reefNurseryForm.querySelector('[name="reefSessionType"]:checked')
+  );
+  els.reefSessionTypes.classList.toggle("missing-selection", !hasSessionType);
+}
+
+
+function setupReviewRecordsSurface() {
+  els.reefRecordsPanel.innerHTML = `
+    <div class="reef-embedded-records">
+      <div class="section-head compact">
+        <div>
+          <h3>Previous review records</h3>
+          <p id="reefReviewRecordsCount">Test submissions made through this review link.</p>
+        </div>
+        <button id="reefReviewStartNew" type="button">New test record</button>
+      </div>
+      <div class="reef-records-toolbar">
+        <label>Search
+          <input id="reefReviewRecordsSearch" type="search" placeholder="Trainer, location or session type" autocomplete="off">
+        </label>
+        <button id="reefReviewRecordsLoad" type="button">Search</button>
+      </div>
+      <p id="reefReviewRecordsStatus" class="admin-status" aria-live="polite"></p>
+      <div class="reef-records-table-wrap">
+        <table class="reef-records-table">
+          <thead>
+            <tr>
+              <th>Record</th>
+              <th>Date</th>
+              <th>Trainer</th>
+              <th>Location</th>
+              <th>Session type</th>
+              <th><span class="reef-visually-hidden">Open</span></th>
+            </tr>
+          </thead>
+          <tbody id="reefReviewRecordsRows"></tbody>
+        </table>
+      </div>
+      <div class="reef-records-pagination">
+        <button id="reefReviewRecordsPrevious" type="button">Previous</button>
+        <span id="reefReviewRecordsPage">0 records</span>
+        <button id="reefReviewRecordsNext" type="button">Next</button>
+      </div>
+    </div>`;
+
+  [
+    "reefReviewRecordsCount", "reefReviewStartNew", "reefReviewRecordsSearch",
+    "reefReviewRecordsLoad", "reefReviewRecordsStatus", "reefReviewRecordsRows",
+    "reefReviewRecordsPrevious", "reefReviewRecordsPage", "reefReviewRecordsNext"
+  ].forEach((id) => { els[id] = document.getElementById(id); });
+
+  els.reefReviewStartNew.addEventListener("click", () => {
+    clearForm();
+    showTab("session");
+  });
+  els.reefReviewRecordsLoad.addEventListener("click", searchReviewRecords);
+  els.reefReviewRecordsSearch.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    searchReviewRecords();
+  });
+  els.reefReviewRecordsRows.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-open-review-record]");
+    if (!button) return;
+    const row = reviewRecordRows[Number(button.dataset.openReviewRecord)];
+    if (row) loadReviewRecord(row);
+  });
+  els.reefReviewRecordsPrevious.addEventListener("click", () => changeReviewPage(-1));
+  els.reefReviewRecordsNext.addEventListener("click", () => changeReviewPage(1));
+}
+
+let reviewRecordRows = [];
+
+async function loadReviewRecords() {
+  if (state.mode !== "review" || state.reviewRecordsLoading) return;
+  state.reviewRecordsLoading = true;
+  setReviewRecordsLoading(true);
+  setReviewRecordsStatus("Loading review records…");
+  try {
+    const data = await callPublicRpc("ag_public_reef_review_submissions", {
+      p_share_token: state.reviewShareToken,
+      p_search: state.reviewRecordsSearch || null,
+      p_sort: "training_date",
+      p_direction: "desc",
+      p_limit: REVIEW_PAGE_SIZE,
+      p_offset: state.reviewRecordsPage * REVIEW_PAGE_SIZE
+    });
+    reviewRecordRows = Array.isArray(data) ? data : [];
+    state.reviewRecordsTotal = Number(reviewRecordRows[0]?.total_count || 0);
+    renderReviewRecords();
+    setReviewRecordsStatus("");
+  } catch (error) {
+    reviewRecordRows = [];
+    state.reviewRecordsTotal = 0;
+    renderReviewRecords();
+    setReviewRecordsStatus(error.message || "Previous review records could not be loaded.", "error");
+  } finally {
+    state.reviewRecordsLoading = false;
+    setReviewRecordsLoading(false);
+  }
+}
+
+function renderReviewRecords() {
+  els.reefReviewRecordsRows.replaceChildren();
+  if (!reviewRecordRows.length) {
+    const row = document.createElement("tr");
+    row.innerHTML = '<td class="reef-records-empty" colspan="6">No matching review records found.</td>';
+    els.reefReviewRecordsRows.append(row);
+  } else {
+    reviewRecordRows.forEach((record, index) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td data-label="Record"><strong>${escapeHtml(record.record_number || "Review submission")}</strong></td>
+        <td data-label="Date">${escapeHtml(formatDate(record.training_date || record.created_at))}</td>
+        <td data-label="Trainer">${escapeHtml(record.trainer_name || "-")}</td>
+        <td data-label="Location">${escapeHtml(LOCATION_LABELS[record.location] || record.location || "-")}</td>
+        <td data-label="Session type">${escapeHtml(formatSessionTypes(record.session_types))}</td>
+        <td data-label="Open"><button type="button" data-open-review-record="${index}">Use as starting point</button></td>`;
+      els.reefReviewRecordsRows.append(row);
+    });
+  }
+
+  const start = state.reviewRecordsTotal
+    ? state.reviewRecordsPage * REVIEW_PAGE_SIZE + 1
+    : 0;
+  const end = Math.min(
+    (state.reviewRecordsPage + 1) * REVIEW_PAGE_SIZE,
+    state.reviewRecordsTotal
+  );
+  els.reefReviewRecordsCount.textContent = state.reviewRecordsTotal
+    ? `${state.reviewRecordsTotal} test ${state.reviewRecordsTotal === 1 ? "submission" : "submissions"}`
+    : "No test submissions yet.";
+  els.reefReviewRecordsPage.textContent = state.reviewRecordsTotal
+    ? `${start}-${end} of ${state.reviewRecordsTotal}`
+    : "0 records";
+  els.reefReviewRecordsPrevious.disabled = state.reviewRecordsPage === 0;
+  els.reefReviewRecordsNext.disabled = end >= state.reviewRecordsTotal;
+}
+
+function loadReviewRecord(row) {
+  const record = row?.payload?.record;
+  if (!record?.session || typeof record.session !== "object") {
+    setReviewRecordsStatus("That review record could not be opened.", "error");
+    return;
+  }
+
+  clearForm({ preserveStatus: true });
+  hydrateRecordFields({
+    ...record.session,
+    participants: record.participants,
+    training_delivered: record.trainingDelivered,
+    practical_competencies: record.practicalCompetencies
+  });
+  state.editingSessionId = null;
+  state.recordStatus = "unsaved";
+  state.submissionId = createUuid();
+  photoState.files = [];
+  photoState.existing = [];
+  renderPhotoPreview();
+  els.reefRecordNumber.textContent = "Test submission";
+  updateRecordActions();
+  showTab("session");
+  updateFieldHighlights();
+  setStatus("Previous review record loaded. Submitting creates a new test record.");
+}
+
+function searchReviewRecords() {
+  state.reviewRecordsSearch = els.reefReviewRecordsSearch.value.trim();
+  state.reviewRecordsPage = 0;
+  void loadReviewRecords();
+}
+
+function changeReviewPage(direction) {
+  const next = state.reviewRecordsPage + direction;
+  if (next < 0 || next * REVIEW_PAGE_SIZE >= state.reviewRecordsTotal) return;
+  state.reviewRecordsPage = next;
+  void loadReviewRecords();
+}
+
+function setReviewRecordsLoading(loading) {
+  if (!els.reefReviewRecordsLoad) return;
+  els.reefReviewRecordsLoad.disabled = loading;
+  els.reefReviewRecordsSearch.disabled = loading;
+  els.reefReviewRecordsPrevious.disabled = loading || state.reviewRecordsPage === 0;
+  els.reefReviewRecordsNext.disabled = loading
+    || (state.reviewRecordsPage + 1) * REVIEW_PAGE_SIZE >= state.reviewRecordsTotal;
+}
+
+function setReviewRecordsStatus(message, kind = "") {
+  if (!els.reefReviewRecordsStatus) return;
+  els.reefReviewRecordsStatus.textContent = message || "";
+  if (kind) els.reefReviewRecordsStatus.dataset.status = kind;
+  else delete els.reefReviewRecordsStatus.dataset.status;
+}
+
+
+function openTrainingMatrixEditor() {
+  if (state.mode !== "authenticated") return;
+  state.trainingMatrixEditor = state.trainingMatrix.map((section) => ({
+    ...section,
+    activities: section.activities.map((activity) => ({ ...activity }))
+  }));
+  setTrainingMatrixStatus("");
+  renderTrainingMatrixEditor();
+  if (typeof els.reefTrainingMatrixDialog.showModal === "function") {
+    els.reefTrainingMatrixDialog.showModal();
+  } else {
+    els.reefTrainingMatrixDialog.setAttribute("open", "");
+  }
+}
+
+function closeTrainingMatrixEditor() {
+  if (typeof els.reefTrainingMatrixDialog.close === "function" && els.reefTrainingMatrixDialog.open) {
+    els.reefTrainingMatrixDialog.close();
+  } else {
+    els.reefTrainingMatrixDialog.removeAttribute("open");
+  }
+}
+
+function renderTrainingMatrixEditor() {
+  els.reefTrainingMatrixEditor.innerHTML = state.trainingMatrixEditor.map((section) => `
+    <section class="reef-matrix-section" data-matrix-section="${escapeHtml(section.section_key)}">
+      <div class="reef-matrix-section-head">
+        <h3>${escapeHtml(section.section_label)}</h3>
+        <button type="button" data-add-matrix-activity="${escapeHtml(section.section_key)}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+          <span>Add activity</span>
+        </button>
+      </div>
+      <div class="reef-matrix-rows">
+        ${section.activities.map((activity, index) => `
+          <div class="reef-matrix-row" data-matrix-activity="${escapeHtml(activity.id)}">
+            <span class="reef-matrix-row-number">${index + 1}</span>
+            <input type="text" data-matrix-label maxlength="300" value="${escapeHtml(activity.label)}" aria-label="Activity ${index + 1}">
+            <button class="reef-icon-action" type="button" data-move-matrix="up" aria-label="Move activity up" title="Move up" ${index === 0 ? "disabled" : ""}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 15 6-6 6 6"></path></svg>
+            </button>
+            <button class="reef-icon-action" type="button" data-move-matrix="down" aria-label="Move activity down" title="Move down" ${index === section.activities.length - 1 ? "disabled" : ""}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+            </button>
+            <button class="reef-icon-action danger" type="button" data-remove-matrix-activity aria-label="Remove activity" title="Remove">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"></path></svg>
+            </button>
+          </div>`).join("")}
+      </div>
+    </section>`).join("");
+}
+
+function captureTrainingMatrixInputs() {
+  els.reefTrainingMatrixEditor.querySelectorAll("[data-matrix-section]").forEach((sectionElement) => {
+    const section = state.trainingMatrixEditor.find(
+      (item) => item.section_key === sectionElement.dataset.matrixSection
+    );
+    if (!section) return;
+    sectionElement.querySelectorAll("[data-matrix-activity]").forEach((row) => {
+      const activity = section.activities.find(
+        (item) => item.id === row.dataset.matrixActivity
+      );
+      if (activity) activity.label = row.querySelector("[data-matrix-label]").value;
     });
   });
-  renderCompetency();
 }
 
-async function openRecord(sessionId) {
-  await loadRecord(sessionId);
+function handleTrainingMatrixAction(event) {
+  const add = event.target.closest("[data-add-matrix-activity]");
+  const remove = event.target.closest("[data-remove-matrix-activity]");
+  const move = event.target.closest("[data-move-matrix]");
+  if (!add && !remove && !move) return;
+
+  captureTrainingMatrixInputs();
+  const sectionElement = event.target.closest("[data-matrix-section]");
+  const section = state.trainingMatrixEditor.find(
+    (item) => item.section_key === sectionElement?.dataset.matrixSection
+  );
+  if (!section) return;
+
+  if (add) {
+    const activity = {
+      id: createUuid(),
+      label: "",
+      activity_order: section.activities.length + 1
+    };
+    section.activities.push(activity);
+    renderTrainingMatrixEditor();
+    els.reefTrainingMatrixEditor
+      .querySelector(`[data-matrix-activity="${cssEscape(activity.id)}"] [data-matrix-label]`)
+      ?.focus();
+    return;
+  }
+
+  const row = event.target.closest("[data-matrix-activity]");
+  const index = section.activities.findIndex(
+    (activity) => activity.id === row?.dataset.matrixActivity
+  );
+  if (index < 0) return;
+  if (remove) section.activities.splice(index, 1);
+  if (move?.dataset.moveMatrix === "up" && index > 0) {
+    [section.activities[index - 1], section.activities[index]] = [
+      section.activities[index],
+      section.activities[index - 1]
+    ];
+  }
+  if (move?.dataset.moveMatrix === "down" && index < section.activities.length - 1) {
+    [section.activities[index + 1], section.activities[index]] = [
+      section.activities[index],
+      section.activities[index + 1]
+    ];
+  }
+  renderTrainingMatrixEditor();
 }
 
-async function loadRecords({ silent = false } = {}) {
-  if (!silent) setRecordsStatus("Loading records...");
-  setRecordsLoading(true);
-  try {
-    const rows = await rpc("ag_reef_training_workspace_records", {
-      p_search: state.recordsSearch || null,
-      p_limit: PAGE_SIZE,
-      p_offset: state.recordsPage * PAGE_SIZE
-    });
-    const records = Array.isArray(rows) ? rows : [];
-    state.recordsTotal = Number(records[0]?.total_count || 0);
-    if (state.recordsPage > 0 && !records.length && state.recordsTotal > 0) {
-      state.recordsPage = Math.max(0, Math.ceil(state.recordsTotal / PAGE_SIZE) - 1);
-      await loadRecords({ silent });
+async function saveTrainingMatrix(event) {
+  event.preventDefault();
+  if (state.mode !== "authenticated") return;
+  captureTrainingMatrixInputs();
+
+  for (const section of state.trainingMatrixEditor) {
+    const labels = section.activities.map((activity) => activity.label.trim());
+    if (labels.some((label) => !label)) {
+      setTrainingMatrixStatus(`Every activity in ${section.section_label} needs a name.`, "error");
       return;
     }
-    renderRecords(records);
-    if (!silent) setRecordsStatus("");
+    if (new Set(labels.map((label) => label.toLowerCase())).size !== labels.length) {
+      setTrainingMatrixStatus(`${section.section_label} contains a duplicate activity.`, "error");
+      return;
+    }
+  }
+
+  els.saveReefTrainingMatrix.disabled = true;
+  setTrainingMatrixStatus("Saving training matrix…");
+  const payload = state.trainingMatrixEditor.map((section) => ({
+    section_key: section.section_key,
+    activities: section.activities.map((activity, index) => ({
+      id: activity.id,
+      label: activity.label.trim(),
+      activity_order: index + 1
+    }))
+  }));
+  try {
+    const data = await rpc("ag_update_reef_training_matrix", { p_matrix: payload });
+    state.trainingMatrix = normalizeTrainingMatrix(data);
+    assertTrainingMatrix();
+    const activeIds = new Set(
+      state.trainingMatrix.flatMap((section) => section.activities.map((activity) => activity.id))
+    );
+    trainingDrafts.forEach((draft) => {
+      draft.activityIds = new Set([...draft.activityIds].filter((id) => activeIds.has(id)));
+    });
+    renderTrainingSections();
+    renderCompetencyAssessment();
+    closeTrainingMatrixEditor();
+    setStatus("Training matrix updated.");
   } catch (error) {
-    renderRecords([]);
-    setRecordsStatus(error.message || "Previous Records could not be loaded.", "error");
+    setTrainingMatrixStatus(error.message || "The training matrix could not be saved.", "error");
   } finally {
-    setRecordsLoading(false);
+    els.saveReefTrainingMatrix.disabled = false;
   }
 }
 
-function renderRecords(records) {
-  els.reefRecordsBody.replaceChildren();
-  if (!records.length) {
-    const row = document.createElement("tr");
-    row.innerHTML = '<td colspan="7">No Training records found.</td>';
-    els.reefRecordsBody.append(row);
+function setTrainingMatrixStatus(message, kind = "") {
+  els.reefTrainingMatrixStatus.textContent = message || "";
+  if (kind) els.reefTrainingMatrixStatus.dataset.status = kind;
+  else delete els.reefTrainingMatrixStatus.dataset.status;
+}
+
+
+function configureDropboxLink() {
+  const configured = String(APP_CONFIG.externalLinks?.reefNurseryDropbox || "").trim();
+  let valid = false;
+  try {
+    const url = new URL(configured);
+    valid = ["http:", "https:"].includes(url.protocol);
+  } catch {
+    valid = false;
+  }
+  els.reefDropboxLink.hidden = !valid;
+  els.reefDropboxPending.hidden = valid;
+  if (valid) els.reefDropboxLink.href = configured;
+  else els.reefDropboxLink.removeAttribute("href");
+}
+
+function addSelectedPhotos(event) {
+  if (!photoState.canSelect) {
+    event.currentTarget.value = "";
+    return;
+  }
+  const input = event.currentTarget;
+  const candidates = [...(input.files || [])];
+  const available = Math.max(
+    0,
+    PHOTO_MAX_COUNT - photoState.existing.length - photoState.files.length
+  );
+  if (candidates.length > available) {
+    setPhotoStatus(`Only ${PHOTO_MAX_COUNT} photos can be added.`, "error");
+  }
+  candidates.slice(0, available).forEach((file) => {
+    if (isImageFile(file)) photoState.files.push(file);
+    else setPhotoStatus("Only image files can be added.", "error");
+  });
+  input.value = "";
+  renderPhotoPreview();
+}
+
+function isImageFile(file) {
+  return String(file?.type || "").startsWith("image/")
+    || /\.(jpe?g|png|webp|heic|heif)$/i.test(String(file?.name || ""));
+}
+
+function renderPhotoPreview() {
+  els.reefPhotoPreview.replaceChildren();
+
+  photoState.existing.forEach((photo, index) => {
+    const card = document.createElement("article");
+    card.className = "reef-photo-card reef-photo-card-existing standard-photo-card";
+
+    const view = document.createElement("button");
+    view.type = "button";
+    view.className = "reef-photo-view standard-photo-view";
+    view.dataset.viewExistingPhoto = String(index);
+    view.setAttribute("aria-label", `View saved photo ${index + 1}`);
+
+    const image = document.createElement("img");
+    if (photo.signedUrl) image.src = photo.signedUrl;
+    image.alt = `Saved Reef Nursery photo ${index + 1}`;
+    const caption = document.createElement("span");
+    caption.textContent = photo.original_name || `Saved photo ${index + 1}`;
+    view.append(image, caption);
+    card.append(view);
+    els.reefPhotoPreview.append(card);
+  });
+
+  photoState.files.forEach((file, index) => {
+    const card = document.createElement("article");
+    card.className = "reef-photo-card standard-photo-card";
+
+    const view = document.createElement("button");
+    view.type = "button";
+    view.className = "reef-photo-view standard-photo-view";
+    view.dataset.viewPhoto = String(index);
+    view.setAttribute("aria-label", `View photo ${index + 1}`);
+
+    const image = document.createElement("img");
+    const objectUrl = URL.createObjectURL(file);
+    image.src = objectUrl;
+    image.alt = `Selected Reef Nursery photo ${index + 1}`;
+    image.addEventListener("load", () => URL.revokeObjectURL(objectUrl), { once: true });
+    image.addEventListener("error", () => URL.revokeObjectURL(objectUrl), { once: true });
+
+    const caption = document.createElement("span");
+    caption.textContent = file.name || `Photo ${index + 1}`;
+    view.append(image, caption);
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "reef-photo-remove standard-photo-remove";
+    remove.dataset.removePhoto = String(index);
+    remove.setAttribute("aria-label", `Remove photo ${index + 1}`);
+    remove.title = "Remove photo";
+    remove.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"></path></svg>';
+
+    card.append(view, remove);
+    els.reefPhotoPreview.append(card);
+  });
+
+  const total = photoState.existing.length + photoState.files.length;
+  if (total) {
+    setPhotoStatus(
+      `${total} of ${PHOTO_MAX_COUNT} photos ${state.editingSessionId ? "attached" : "ready"}.`
+    );
+  } else if (photoState.canSelect) {
+    setPhotoStatus(
+      state.mode === "review"
+        ? `Up to ${PHOTO_MAX_COUNT} photos can be previewed. Review submissions store photo names only.`
+        : `Up to ${PHOTO_MAX_COUNT} photos. Compressed before upload.`
+    );
   } else {
-    records.forEach((record) => {
-      const row = document.createElement("tr");
-      const publicUntil = record.public_edit_until || null;
-      const access = state.accessMode === "authenticated"
-        ? '<span class="reef-access-pill is-signed-in">Signed-in</span>'
-        : `<span class="reef-access-pill">Open until ${escapeHtml(formatDateTime(publicUntil))}</span>`;
-      row.innerHTML = `
-        <td><strong>${escapeHtml(record.record_number || "-")}</strong></td>
-        <td>${escapeHtml(formatDate(record.training_date))}</td>
-        <td>${escapeHtml(record.trainer_name || "-")}</td>
-        <td>${escapeHtml(LOCATION_LABELS[record.location] || record.location || "-")}</td>
-        <td>${escapeHtml(formatSessionTypes(record.session_types, record.other_session_type))}</td>
-        <td>${access}</td>
-        <td><button class="secondary-action" type="button" data-open-record="${escapeHtml(record.session_id)}">Open</button></td>`;
-      els.reefRecordsBody.append(row);
+    setPhotoStatus(
+      state.mode === "public"
+        ? "Training photos require a signed-in account. Public Training submissions keep the existing private storage boundary."
+        : "This account can submit Reef records but does not have the existing Training photo-upload permission."
+    );
+  }
+}
+
+function handlePhotoAction(event) {
+  const remove = event.target.closest("[data-remove-photo]");
+  if (remove) {
+    photoState.files.splice(Number(remove.dataset.removePhoto), 1);
+    renderPhotoPreview();
+    return;
+  }
+  const existingView = event.target.closest("[data-view-existing-photo]");
+  if (existingView) {
+    openPhotoViewer("existing", Number(existingView.dataset.viewExistingPhoto));
+    return;
+  }
+  const view = event.target.closest("[data-view-photo]");
+  if (view) openPhotoViewer("new", Number(view.dataset.viewPhoto));
+}
+
+function openPhotoViewer(kind, index) {
+  releasePhotoViewerUrl();
+  if (kind === "existing") {
+    const photo = photoState.existing[index];
+    if (!photo?.signedUrl) return;
+    photoState.activePhotoUrl = photo.signedUrl;
+    photoState.activePhotoIsObjectUrl = false;
+    els.reefPhotoViewerName.textContent = photo.original_name || `Saved photo ${index + 1}`;
+  } else {
+    const file = photoState.files[index];
+    if (!file) return;
+    photoState.activePhotoUrl = URL.createObjectURL(file);
+    photoState.activePhotoIsObjectUrl = true;
+    els.reefPhotoViewerName.textContent = file.name || `Photo ${index + 1}`;
+  }
+  els.reefPhotoViewerImage.src = photoState.activePhotoUrl;
+  if (typeof els.reefPhotoViewer.showModal === "function") els.reefPhotoViewer.showModal();
+  else els.reefPhotoViewer.setAttribute("open", "");
+}
+
+function closePhotoViewer() {
+  if (typeof els.reefPhotoViewer.close === "function" && els.reefPhotoViewer.open) {
+    els.reefPhotoViewer.close();
+  } else {
+    els.reefPhotoViewer.removeAttribute("open");
+    releasePhotoViewerUrl();
+  }
+}
+
+function releasePhotoViewerUrl() {
+  if (photoState.activePhotoUrl && photoState.activePhotoIsObjectUrl) {
+    URL.revokeObjectURL(photoState.activePhotoUrl);
+  }
+  photoState.activePhotoUrl = null;
+  photoState.activePhotoIsObjectUrl = false;
+  els.reefPhotoViewerImage.removeAttribute("src");
+  els.reefPhotoViewerName.textContent = "";
+}
+
+async function prepareAndUploadPhotos() {
+  if (!photoState.files.length) return [];
+  if (state.mode !== "authenticated" || !photoState.userId) {
+    throw new Error("Sign in again before uploading Training photos.");
+  }
+  if (!canUploadAuthenticatedTrainingPhotos()) {
+    throw new Error("This account does not have the existing Training photo-upload permission.");
+  }
+
+  const uploaded = [];
+  for (let index = 0; index < photoState.files.length; index += 1) {
+    const file = photoState.files[index];
+    setPhotoStatus(`Compressing photo ${index + 1} of ${photoState.files.length}…`);
+    const blob = await compressReefPhoto(file);
+    if (blob.size > PHOTO_MAX_BYTES) {
+      throw new Error("A photo could not be reduced below 1 MB.");
+    }
+    const objectPath = `${photoState.userId}/${state.submissionId}/${String(index + 1).padStart(2, "0")}-${createUuid()}.jpg`;
+    setPhotoStatus(`Uploading photo ${index + 1} of ${photoState.files.length}…`);
+    const { error } = await authClient.storage.from(PHOTO_BUCKET).upload(objectPath, blob, {
+      cacheControl: "31536000",
+      contentType: "image/jpeg",
+      upsert: false
+    });
+    if (error) {
+      await removeUploadedPhotos(uploaded.map((photo) => photo.manifest.storage_path));
+      throw error;
+    }
+    uploaded.push({
+      manifest: {
+        storage_path: objectPath,
+        original_name: String(file.name || `photo-${index + 1}.jpg`).slice(0, 255),
+        byte_size: blob.size,
+        content_type: "image/jpeg"
+      }
     });
   }
-  const start = state.recordsTotal ? state.recordsPage * PAGE_SIZE + 1 : 0;
-  const end = Math.min((state.recordsPage + 1) * PAGE_SIZE, state.recordsTotal);
-  els.reefRecordsPage.textContent = state.recordsTotal ? `${start}-${end} of ${state.recordsTotal}` : "0 records";
-  els.reefRecordsPrevious.disabled = state.recordsPage === 0;
-  els.reefRecordsNext.disabled = end >= state.recordsTotal;
+  return uploaded;
 }
 
-function searchRecords() {
-  state.recordsSearch = els.reefRecordsSearch.value.trim();
-  state.recordsPage = 0;
-  void loadRecords();
+async function removeUploadedPhotos(paths) {
+  const uniquePaths = [...new Set((paths || []).filter(Boolean))];
+  if (!uniquePaths.length) return;
+  await authClient.storage.from(PHOTO_BUCKET).remove(uniquePaths).catch(() => {});
 }
 
-function changeRecordsPage(direction) {
-  const next = state.recordsPage + direction;
-  if (next < 0 || next * PAGE_SIZE >= state.recordsTotal) return;
-  state.recordsPage = next;
-  void loadRecords();
+async function compressReefPhoto(file) {
+  const image = await loadReefImage(file);
+  let width = image.naturalWidth || image.width;
+  let height = image.naturalHeight || image.height;
+  if (!width || !height) throw new Error("A selected photo could not be opened.");
+  const scale = Math.min(1, PHOTO_MAX_EDGE / Math.max(width, height));
+  width = Math.max(1, Math.round(width * scale));
+  height = Math.max(1, Math.round(height * scale));
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d", { alpha: false });
+    if (!context) throw new Error("This browser could not prepare the selected photo.");
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, width, height);
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(image, 0, 0, width, height);
+    const blob = await jpegBlobNearTarget(canvas);
+    if (blob.size <= PHOTO_MAX_BYTES) return blob;
+    const reduction = Math.min(
+      0.9,
+      Math.sqrt(PHOTO_TARGET_BYTES / blob.size) * 0.96
+    );
+    width = Math.max(1, Math.round(width * reduction));
+    height = Math.max(1, Math.round(height * reduction));
+  }
+  throw new Error("A photo could not be reduced below 1 MB.");
 }
 
-function setRecordsLoading(loading) {
-  els.reefRecordsRefresh.disabled = loading;
-  els.reefRecordsSearchButton.disabled = loading;
-  els.reefRecordsPrevious.disabled = loading || state.recordsPage === 0;
-  els.reefRecordsNext.disabled = loading || (state.recordsPage + 1) * PAGE_SIZE >= state.recordsTotal;
+function loadReefImage(file) {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("A selected photo could not be opened. Try a JPEG image."));
+    };
+    image.src = objectUrl;
+  });
 }
 
-function setSaveDisabled(disabled) {
-  els.submitReefTraining.disabled = disabled;
-  els.saveReefTrainingChanges.disabled = disabled;
-  els.clearReefTraining.disabled = disabled;
+async function jpegBlobNearTarget(canvas) {
+  let low = 0.38;
+  let high = 0.92;
+  let best = null;
+  let smallest = null;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const quality = (low + high) / 2;
+    const blob = await canvasToJpegBlob(canvas, quality);
+    if (!smallest || blob.size < smallest.size) smallest = blob;
+    if (blob.size <= PHOTO_TARGET_BYTES) {
+      best = blob;
+      low = quality;
+    } else {
+      high = quality;
+    }
+  }
+  return best || smallest;
+}
+
+function canvasToJpegBlob(canvas, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("This browser could not compress the selected photo."));
+    }, "image/jpeg", quality);
+  });
+}
+
+function setPhotoStatus(message, kind = "") {
+  els.reefPhotoStatus.textContent = message || "";
+  if (kind) els.reefPhotoStatus.dataset.status = kind;
+  else delete els.reefPhotoStatus.dataset.status;
+}
+
+async function rpc(name, args = {}) {
+  const { data, error } = await authClient.rpc(name, args);
+  if (error) throw error;
+  if (name === "ag_update_reef_training_matrix") return data;
+  return Array.isArray(data) ? data[0] || {} : data;
 }
 
 function setStatus(message, kind = "") {
-  els.reefTrainingStatus.textContent = message;
-  if (kind) els.reefTrainingStatus.dataset.status = kind;
-  else delete els.reefTrainingStatus.dataset.status;
-}
-
-function setRecordsStatus(message, kind = "") {
-  els.reefRecordsStatus.textContent = message;
-  if (kind) els.reefRecordsStatus.dataset.status = kind;
-  else delete els.reefRecordsStatus.dataset.status;
-}
-
-function recordStateLabel(status, publicEditUntil) {
-  if (state.accessMode === "authenticated") return status === "draft" ? "Draft" : "Submitted";
-  if (!publicEditUntil) return status === "draft" ? "Draft" : "Submitted";
-  return `Open until ${formatDateTime(publicEditUntil)}`;
+  els.reefNurseryStatus.textContent = message || "";
+  if (kind) els.reefNurseryStatus.dataset.status = kind;
+  else delete els.reefNurseryStatus.dataset.status;
 }
 
 function shouldRequireLogin(error) {
-  return state.accessMode !== "authenticated"
+  return state.mode === "public"
     && (String(error?.code || "") === "42501"
-      || /sign in|expired|authorised cosme reef/i.test(String(error?.message || "")));
+      || /older than 7 days|sign in|authorised cosme reef|expired/i.test(String(error?.message || "")));
 }
 
 function routeToLoginForRecord(sessionId) {
@@ -771,33 +2085,27 @@ function routeToLoginForRecord(sessionId) {
   window.location.assign(`./login.html?return=${encodeURIComponent(returnPage)}`);
 }
 
-async function rpc(name, args = {}) {
-  const { data, error } = await authClient.rpc(name, args);
-  if (error) throw error;
-  return Array.isArray(data) && data.length === 1 && name !== "ag_reef_training_workspace_records"
-    ? data[0]
-    : data;
-}
-
 function kenyaDate() {
-  return new Intl.DateTimeFormat("en-CA", {
+  const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Africa/Nairobi",
     year: "numeric",
     month: "2-digit",
     day: "2-digit"
-  }).format(new Date());
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 function formatDate(value) {
   if (!value) return "-";
-  const date = new Date(`${String(value).slice(0, 10)}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) return String(value);
+  const [year, month, day] = String(value).slice(0, 10).split("-").map(Number);
+  if (!year || !month || !day) return String(value);
   return new Intl.DateTimeFormat("en-GB", {
     timeZone: "UTC",
     day: "2-digit",
     month: "short",
     year: "numeric"
-  }).format(date);
+  }).format(new Date(Date.UTC(year, month - 1, day)));
 }
 
 function formatDateTime(value) {
@@ -827,8 +2135,39 @@ function textOrNull(value) {
   return text || null;
 }
 
+function stableReviewClientKey() {
+  const key = "seaweed-harvest:form-review-client";
+  try {
+    const existing = localStorage.getItem(key);
+    if (existing && /^[0-9a-f-]{36}$/i.test(existing)) return existing;
+    const value = createUuid();
+    localStorage.setItem(key, value);
+    return value;
+  } catch {
+    return createUuid();
+  }
+}
+
+function createUuid() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map((value) => value.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function cssEscape(value) {
+  if (globalThis.CSS?.escape) return CSS.escape(String(value));
+  return String(value).replace(/[^a-zA-Z0-9_-]/g, (character) => `\\${character}`);
+}
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>'"]/g, (character) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    '"': "&quot;"
   })[character]);
 }
