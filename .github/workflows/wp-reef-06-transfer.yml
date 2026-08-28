@@ -1,0 +1,57 @@
+name: WP-REEF-06 verified renderer transfer
+
+on:
+  push:
+    branches:
+      - release/wp-reef-06-shell-parity-20260828
+
+permissions:
+  contents: write
+
+jobs:
+  reconstruct:
+    if: contains(github.event.head_commit.message, '[wp-reef-06-transfer]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out release branch
+        uses: actions/checkout@v5
+        with:
+          ref: release/wp-reef-06-shell-parity-20260828
+          fetch-depth: 0
+
+      - name: Reconstruct and verify approved Training renderer
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          parts = sorted(Path('.wp-reef-06-transfer').glob('part-*.txt'))
+          if len(parts) != 11:
+              raise SystemExit(f'Expected 11 transfer parts, found {len(parts)}')
+          content = '\n'.join(path.read_text(encoding='utf-8') for path in parts)
+          target = Path('assets/js/reef_nursery_training_public.js')
+          target.parent.mkdir(parents=True, exist_ok=True)
+          target.write_bytes(content.encode('utf-8'))
+          PY
+          actual="$(git hash-object assets/js/reef_nursery_training_public.js)"
+          expected="a4bcba914fc96409006ef87127f1cc447a381e9a"
+          test "$actual" = "$expected" || {
+            echo "Renderer hash mismatch: expected $expected, got $actual" >&2
+            exit 1
+          }
+          echo "PASS: renderer hash $actual"
+
+      - name: Commit clean verified release branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .wp-reef-06-transfer
+          rm -f .github/workflows/wp-reef-06-transfer.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "Complete verified WP-REEF-06 production runtime"
+          git push origin HEAD:release/wp-reef-06-shell-parity-20260828

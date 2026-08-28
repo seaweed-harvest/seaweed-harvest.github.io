@@ -1,0 +1,200 @@
+
+
+function setupReviewRecordsSurface() {
+  els.reefRecordsPanel.innerHTML = `
+    <div class="reef-embedded-records">
+      <div class="section-head compact">
+        <div>
+          <h3>Previous review records</h3>
+          <p id="reefReviewRecordsCount">Test submissions made through this review link.</p>
+        </div>
+        <button id="reefReviewStartNew" type="button">New test record</button>
+      </div>
+      <div class="reef-records-toolbar">
+        <label>Search
+          <input id="reefReviewRecordsSearch" type="search" placeholder="Trainer, location or session type" autocomplete="off">
+        </label>
+        <button id="reefReviewRecordsLoad" type="button">Search</button>
+      </div>
+      <p id="reefReviewRecordsStatus" class="admin-status" aria-live="polite"></p>
+      <div class="reef-records-table-wrap">
+        <table class="reef-records-table">
+          <thead>
+            <tr>
+              <th>Record</th>
+              <th>Date</th>
+              <th>Trainer</th>
+              <th>Location</th>
+              <th>Session type</th>
+              <th><span class="reef-visually-hidden">Open</span></th>
+            </tr>
+          </thead>
+          <tbody id="reefReviewRecordsRows"></tbody>
+        </table>
+      </div>
+      <div class="reef-records-pagination">
+        <button id="reefReviewRecordsPrevious" type="button">Previous</button>
+        <span id="reefReviewRecordsPage">0 records</span>
+        <button id="reefReviewRecordsNext" type="button">Next</button>
+      </div>
+    </div>`;
+
+  [
+    "reefReviewRecordsCount", "reefReviewStartNew", "reefReviewRecordsSearch",
+    "reefReviewRecordsLoad", "reefReviewRecordsStatus", "reefReviewRecordsRows",
+    "reefReviewRecordsPrevious", "reefReviewRecordsPage", "reefReviewRecordsNext"
+  ].forEach((id) => { els[id] = document.getElementById(id); });
+
+  els.reefReviewStartNew.addEventListener("click", () => {
+    clearForm();
+    showTab("session");
+  });
+  els.reefReviewRecordsLoad.addEventListener("click", searchReviewRecords);
+  els.reefReviewRecordsSearch.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    searchReviewRecords();
+  });
+  els.reefReviewRecordsRows.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-open-review-record]");
+    if (!button) return;
+    const row = reviewRecordRows[Number(button.dataset.openReviewRecord)];
+    if (row) loadReviewRecord(row);
+  });
+  els.reefReviewRecordsPrevious.addEventListener("click", () => changeReviewPage(-1));
+  els.reefReviewRecordsNext.addEventListener("click", () => changeReviewPage(1));
+}
+
+let reviewRecordRows = [];
+
+async function loadReviewRecords() {
+  if (state.mode !== "review" || state.reviewRecordsLoading) return;
+  state.reviewRecordsLoading = true;
+  setReviewRecordsLoading(true);
+  setReviewRecordsStatus("Loading review records…");
+  try {
+    const data = await callPublicRpc("ag_public_reef_review_submissions", {
+      p_share_token: state.reviewShareToken,
+      p_search: state.reviewRecordsSearch || null,
+      p_sort: "training_date",
+      p_direction: "desc",
+      p_limit: REVIEW_PAGE_SIZE,
+      p_offset: state.reviewRecordsPage * REVIEW_PAGE_SIZE
+    });
+    reviewRecordRows = Array.isArray(data) ? data : [];
+    state.reviewRecordsTotal = Number(reviewRecordRows[0]?.total_count || 0);
+    renderReviewRecords();
+    setReviewRecordsStatus("");
+  } catch (error) {
+    reviewRecordRows = [];
+    state.reviewRecordsTotal = 0;
+    renderReviewRecords();
+    setReviewRecordsStatus(error.message || "Previous review records could not be loaded.", "error");
+  } finally {
+    state.reviewRecordsLoading = false;
+    setReviewRecordsLoading(false);
+  }
+}
+
+function renderReviewRecords() {
+  els.reefReviewRecordsRows.replaceChildren();
+  if (!reviewRecordRows.length) {
+    const row = document.createElement("tr");
+    row.innerHTML = '<td class="reef-records-empty" colspan="6">No matching review records found.</td>';
+    els.reefReviewRecordsRows.append(row);
+  } else {
+    reviewRecordRows.forEach((record, index) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td data-label="Record"><strong>${escapeHtml(record.record_number || "Review submission")}</strong></td>
+        <td data-label="Date">${escapeHtml(formatDate(record.training_date || record.created_at))}</td>
+        <td data-label="Trainer">${escapeHtml(record.trainer_name || "-")}</td>
+        <td data-label="Location">${escapeHtml(LOCATION_LABELS[record.location] || record.location || "-")}</td>
+        <td data-label="Session type">${escapeHtml(formatSessionTypes(record.session_types))}</td>
+        <td data-label="Open"><button type="button" data-open-review-record="${index}">Use as starting point</button></td>`;
+      els.reefReviewRecordsRows.append(row);
+    });
+  }
+
+  const start = state.reviewRecordsTotal
+    ? state.reviewRecordsPage * REVIEW_PAGE_SIZE + 1
+    : 0;
+  const end = Math.min(
+    (state.reviewRecordsPage + 1) * REVIEW_PAGE_SIZE,
+    state.reviewRecordsTotal
+  );
+  els.reefReviewRecordsCount.textContent = state.reviewRecordsTotal
+    ? `${state.reviewRecordsTotal} test ${state.reviewRecordsTotal === 1 ? "submission" : "submissions"}`
+    : "No test submissions yet.";
+  els.reefReviewRecordsPage.textContent = state.reviewRecordsTotal
+    ? `${start}-${end} of ${state.reviewRecordsTotal}`
+    : "0 records";
+  els.reefReviewRecordsPrevious.disabled = state.reviewRecordsPage === 0;
+  els.reefReviewRecordsNext.disabled = end >= state.reviewRecordsTotal;
+}
+
+function loadReviewRecord(row) {
+  const record = row?.payload?.record;
+  if (!record?.session || typeof record.session !== "object") {
+    setReviewRecordsStatus("That review record could not be opened.", "error");
+    return;
+  }
+
+  clearForm({ preserveStatus: true });
+  hydrateRecordFields({
+    ...record.session,
+    participants: record.participants,
+    training_delivered: record.trainingDelivered,
+    practical_competencies: record.practicalCompetencies
+  });
+  state.editingSessionId = null;
+  state.recordStatus = "unsaved";
+  state.submissionId = createUuid();
+  photoState.files = [];
+  photoState.existing = [];
+  renderPhotoPreview();
+  els.reefRecordNumber.textContent = "Test submission";
+  updateRecordActions();
+  showTab("session");
+  updateFieldHighlights();
+  setStatus("Previous review record loaded. Submitting creates a new test record.");
+}
+
+function searchReviewRecords() {
+  state.reviewRecordsSearch = els.reefReviewRecordsSearch.value.trim();
+  state.reviewRecordsPage = 0;
+  void loadReviewRecords();
+}
+
+function changeReviewPage(direction) {
+  const next = state.reviewRecordsPage + direction;
+  if (next < 0 || next * REVIEW_PAGE_SIZE >= state.reviewRecordsTotal) return;
+  state.reviewRecordsPage = next;
+  void loadReviewRecords();
+}
+
+function setReviewRecordsLoading(loading) {
+  if (!els.reefReviewRecordsLoad) return;
+  els.reefReviewRecordsLoad.disabled = loading;
+  els.reefReviewRecordsSearch.disabled = loading;
+  els.reefReviewRecordsPrevious.disabled = loading || state.reviewRecordsPage === 0;
+  els.reefReviewRecordsNext.disabled = loading
+    || (state.reviewRecordsPage + 1) * REVIEW_PAGE_SIZE >= state.reviewRecordsTotal;
+}
+
+function setReviewRecordsStatus(message, kind = "") {
+  if (!els.reefReviewRecordsStatus) return;
+  els.reefReviewRecordsStatus.textContent = message || "";
+  if (kind) els.reefReviewRecordsStatus.dataset.status = kind;
+  else delete els.reefReviewRecordsStatus.dataset.status;
+}
+
+
+function openTrainingMatrixEditor() {
+  if (state.mode !== "authenticated") return;
+  state.trainingMatrixEditor = state.trainingMatrix.map((section) => ({
+    ...section,
+    activities: section.activities.map((activity) => ({ ...activity }))
+  }));
+  setTrainingMatrixStatus("");
+  renderTrainingMatrixEditor();
