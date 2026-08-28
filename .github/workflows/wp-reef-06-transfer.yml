@@ -20,48 +20,25 @@ jobs:
           ref: release/wp-reef-06-shell-parity-20260828
           fetch-depth: 0
 
-      - name: Reconstruct and verify approved Training renderer
+      - name: Import and verify exact approved Training renderer
         shell: bash
+        env:
+          RENDERER_ARTIFACT_URL: "https://sdmntpraustraliaeast.oaiusercontent.com/files/00000000-2298-81fa-93e6-182dbd3712a6/raw?se=2026-08-28T05%3A41%3A06Z&sp=r&sv=2026-02-06&sr=b&scid=d9673e2e-9c7c-5369-8d21-563231a56dc0&skoid=cb94e22a-e3df-4e6a-9e17-1696f40fa435&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-28T03%3A33%3A12Z&ske=2026-08-29T03%3A33%3A12Z&sks=b&skv=2026-02-06&sig=ZU2xquousXiydJ5b5Kgdj5Z78NfGy2yJuXru3yOtdJ4%3D"
         run: |
           set -euo pipefail
-          python - <<'PY'
-          from hashlib import sha1
-          from pathlib import Path
-
-          expected = 'a4bcba914fc96409006ef87127f1cc447a381e9a'
-          parts = sorted(Path('.wp-reef-06-transfer').glob('part-*.txt'))
-          if len(parts) != 11:
-              raise SystemExit(f'Expected 11 transfer parts, found {len(parts)}')
-          texts = [path.read_text(encoding='utf-8') for path in parts]
-
-          def blob_hash(text: str) -> str:
-              data = text.encode('utf-8')
-              header = f'blob {len(data)}\0'.encode('ascii')
-              return sha1(header + data).hexdigest()
-
-          variants = {
-              'joined-without-boundary': ''.join(texts),
-              'joined-with-newline': '\n'.join(texts),
-              'joined-without-boundary-plus-eof': ''.join(texts) + '\n',
-              'joined-with-newline-plus-eof': '\n'.join(texts) + '\n',
-          }
-          matches = []
-          for name, content in variants.items():
-              digest = blob_hash(content)
-              print(f'{name}: {digest} ({len(content.encode("utf-8"))} bytes)')
-              if digest == expected:
-                  matches.append((name, content))
-          if len(matches) != 1:
-              raise SystemExit(f'Expected one exact renderer match, found {len(matches)}')
-          name, content = matches[0]
-          target = Path('assets/js/reef_nursery_training_public.js')
-          target.parent.mkdir(parents=True, exist_ok=True)
-          target.write_bytes(content.encode('utf-8'))
-          print(f'PASS: selected {name}')
-          PY
+          rm -rf /tmp/wp-reef-06-renderer /tmp/wp-reef-06-renderer.zip
+          mkdir -p /tmp/wp-reef-06-renderer
+          curl --fail --location --retry 2 "$RENDERER_ARTIFACT_URL" -o /tmp/wp-reef-06-renderer.zip
+          unzip -q /tmp/wp-reef-06-renderer.zip -d /tmp/wp-reef-06-renderer
+          source_file="$(find /tmp/wp-reef-06-renderer -type f -name reef_nursery_training_public.js -print -quit)"
+          test -n "$source_file"
+          cp "$source_file" assets/js/reef_nursery_training_public.js
           actual="$(git hash-object assets/js/reef_nursery_training_public.js)"
           expected="a4bcba914fc96409006ef87127f1cc447a381e9a"
-          test "$actual" = "$expected"
+          test "$actual" = "$expected" || {
+            echo "Renderer hash mismatch: expected $expected, got $actual" >&2
+            exit 1
+          }
           echo "PASS: renderer hash $actual"
 
       - name: Commit clean verified release branch
