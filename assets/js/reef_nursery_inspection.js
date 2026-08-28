@@ -11,6 +11,72 @@ const FIELD_KEYS = Object.freeze([
   "mooring_attachment_points"
 ]);
 
+const INSPECTION_SECTIONS = Object.freeze([
+  {
+    label: "Overall position and operating condition",
+    field: "overall_position_condition",
+    prompts: [
+      "Raft position, alignment and stability",
+      "Floatation level and general shape",
+      "Fouling, debris or access hazards"
+    ]
+  },
+  {
+    label: "Seaweed lines and attachments",
+    field: "seaweed_lines_attachments",
+    prompts: [
+      "Missing, loose, tangled or overloaded lines",
+      "Wear to ropes, knots and attachment points",
+      "Seaweed condition, spacing and fouling"
+    ]
+  },
+  {
+    label: "HDPE floating frame",
+    field: "hdpe_floating_frame",
+    prompts: [
+      "Cracks, cuts, deformation or damage to HDPE pipes",
+      "Condition of welded joints and fittings",
+      "Uneven floating or signs of water inside pipes"
+    ]
+  },
+  {
+    label: "Rigging harness and bridle",
+    field: "rigging_harness",
+    prompts: [
+      "Wear, fraying or damage to harness and bridle ropes",
+      "Secure knots, loops and connection points",
+      "Even loading without slipping or excessive chafing"
+    ]
+  },
+  {
+    label: "Mooring Components",
+    field: "mooring_components",
+    prompts: [
+      "Wear or damage to ropes, chain, swivels and shackles",
+      "Condition of floats, connectors and other hardware",
+      "Corrosion, chafing, loose fittings or missing components"
+    ]
+  },
+  {
+    label: "Mooring Anchors",
+    field: "mooring_anchors",
+    prompts: [
+      "Anchor position and any evidence of movement or dragging",
+      "Holding condition and visible seabed engagement",
+      "Damage, burial or exposure affecting anchor security"
+    ]
+  },
+  {
+    label: "Mooring Attachment points to raft",
+    field: "mooring_attachment_points",
+    prompts: [
+      "Wear or damage where the mooring connects to the raft",
+      "Security of knots, shackles, loops and connection fittings",
+      "Chafe protection and even load at attachment points"
+    ]
+  }
+]);
+
 const els = {};
 const inspectionDrafts = new Map();
 const state = {
@@ -146,70 +212,29 @@ function renderInspectionCard(raftNumber) {
       <div class="reef-panel-heading">
         <div><h3>Raft #${raftNumber}</h3></div>
       </div>
-
-      ${renderTextArea(
-        "Overall position and operating condition",
-        "overall_position_condition",
-        draft.overall_position_condition,
-        "Position, orientation, flotation and general operating condition"
-      )}
-
-      ${renderTextArea(
-        "Seaweed lines and attachments",
-        "seaweed_lines_attachments",
-        draft.seaweed_lines_attachments,
-        "Lines, ties, clips and attachment condition"
-      )}
-
-      <fieldset class="reef-inspection-subgroup">
-        <legend>HDPE floating frame &amp; Rigging harness</legend>
-        <div class="reef-inspection-subgroup-grid">
-          ${renderTextArea(
-            "HDPE floating frame",
-            "hdpe_floating_frame",
-            draft.hdpe_floating_frame,
-            "Pipe, joints, flotation and visible damage"
-          )}
-          ${renderTextArea(
-            "Rigging harness",
-            "rigging_harness",
-            draft.rigging_harness,
-            "Harness, bridles, knots, chafe and load distribution"
-          )}
-        </div>
-      </fieldset>
-
-      <fieldset class="reef-inspection-subgroup">
-        <legend>Mooring</legend>
-        <div class="reef-inspection-subgroup-grid reef-inspection-mooring-grid">
-          ${renderTextArea(
-            "Components",
-            "mooring_components",
-            draft.mooring_components,
-            "Rope, chain, swivels, shackles, floats and wear"
-          )}
-          ${renderTextArea(
-            "Anchors",
-            "mooring_anchors",
-            draft.mooring_anchors,
-            "Anchor position, holding and visible condition"
-          )}
-          ${renderTextArea(
-            "Attachment points to raft",
-            "mooring_attachment_points",
-            draft.mooring_attachment_points,
-            "Connection points, chafe protection and security"
-          )}
-        </div>
-      </fieldset>
+      <div class="reef-inspection-grid">
+        ${INSPECTION_SECTIONS.map((section) => renderInspectionField(
+          section.label,
+          section.field,
+          section.prompts,
+          draft[section.field]
+        )).join("")}
+      </div>
     </article>`;
 }
 
-function renderTextArea(label, field, value, placeholder) {
+function renderInspectionField(label, field, prompts, value) {
   return `
-    <label>${escapeHtml(label)}
-      <textarea rows="3" maxlength="3000" data-inspection-field="${escapeHtml(field)}" placeholder="${escapeHtml(placeholder)}">${escapeHtml(value)}</textarea>
-    </label>`;
+    <section class="reef-inspection-field">
+      <h3>${escapeHtml(label)}</h3>
+      <ul>
+        ${prompts.map((prompt) => `<li>${escapeHtml(prompt)}</li>`).join("")}
+      </ul>
+      <label>
+        Inspection notes
+        <textarea rows="5" maxlength="3000" data-inspection-field="${escapeHtml(field)}" placeholder="Record findings, defects or action needed.">${escapeHtml(value)}</textarea>
+      </label>
+    </section>`;
 }
 
 async function submitInspectionRecord(event) {

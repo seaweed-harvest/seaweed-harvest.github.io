@@ -19,6 +19,6 @@ const reviewMode = Boolean(parameters.get("share") && parameters.get("org"));
 if (!reviewMode) {
   await Promise.all([
     import("./reef_nursery_seaweed.js?v=1"),
-    import("./reef_nursery_inspection.js?v=1")
+    import("./reef_nursery_inspection.js?v=2")
   ]);
 }
