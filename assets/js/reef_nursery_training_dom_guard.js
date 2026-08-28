@@ -58,6 +58,21 @@ function syncDomContracts() {
     if (!fallback.hidden) fallback.hidden = true;
   });
 
+  // Public Reef entry is intentionally form-only. Keep the signed-in sidebar
+  // contract unchanged, but remove the Public desktop sidebar and its mobile
+  // Menu entry point so unrelated Intake navigation is not exposed here.
+  if (publicMode) {
+    const publicSidebar = document.getElementById("reefNurserySidebar");
+    const publicLayout = publicSidebar?.closest(".admin-layout");
+    if (publicSidebar && !publicSidebar.hidden) publicSidebar.hidden = true;
+    if (publicLayout && !publicLayout.classList.contains("admin-sidebar-unpinned")) {
+      publicLayout.classList.add("admin-sidebar-unpinned");
+    }
+    document.querySelectorAll(".admin-sidebar-reveal, .mobile-menu-toggle").forEach((control) => {
+      if (!control.hidden) control.hidden = true;
+    });
+  }
+
   if (!reviewMode) lockTrainingPhotos();
 
   const saveButton = document.getElementById("saveReefNursery");
@@ -160,5 +175,6 @@ export const REEF_TRAINING_DOM_GUARD_CONTRACT = Object.freeze({
   participantReferenceMaxLength: PARTICIPANT_REFERENCE_MAX_LENGTH,
   originalParticipantTabBehaviour: true,
   duplicateSignInRemoved: true,
+  publicSidebarHidden: true,
   trainingPhotoStorageBoundaryPreserved: true
 });
