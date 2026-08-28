@@ -25,22 +25,43 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
+          from hashlib import sha1
           from pathlib import Path
 
+          expected = 'a4bcba914fc96409006ef87127f1cc447a381e9a'
           parts = sorted(Path('.wp-reef-06-transfer').glob('part-*.txt'))
           if len(parts) != 11:
               raise SystemExit(f'Expected 11 transfer parts, found {len(parts)}')
-          content = '\n'.join(path.read_text(encoding='utf-8') for path in parts)
+          texts = [path.read_text(encoding='utf-8') for path in parts]
+
+          def blob_hash(text: str) -> str:
+              data = text.encode('utf-8')
+              header = f'blob {len(data)}\0'.encode('ascii')
+              return sha1(header + data).hexdigest()
+
+          variants = {
+              'joined-without-boundary': ''.join(texts),
+              'joined-with-newline': '\n'.join(texts),
+              'joined-without-boundary-plus-eof': ''.join(texts) + '\n',
+              'joined-with-newline-plus-eof': '\n'.join(texts) + '\n',
+          }
+          matches = []
+          for name, content in variants.items():
+              digest = blob_hash(content)
+              print(f'{name}: {digest} ({len(content.encode("utf-8"))} bytes)')
+              if digest == expected:
+                  matches.append((name, content))
+          if len(matches) != 1:
+              raise SystemExit(f'Expected one exact renderer match, found {len(matches)}')
+          name, content = matches[0]
           target = Path('assets/js/reef_nursery_training_public.js')
           target.parent.mkdir(parents=True, exist_ok=True)
           target.write_bytes(content.encode('utf-8'))
+          print(f'PASS: selected {name}')
           PY
           actual="$(git hash-object assets/js/reef_nursery_training_public.js)"
           expected="a4bcba914fc96409006ef87127f1cc447a381e9a"
-          test "$actual" = "$expected" || {
-            echo "Renderer hash mismatch: expected $expected, got $actual" >&2
-            exit 1
-          }
+          test "$actual" = "$expected"
           echo "PASS: renderer hash $actual"
 
       - name: Commit clean verified release branch
