@@ -308,7 +308,10 @@ function renderObservations() {
     if (from && (!date || date < from)) return false;
     if (to && (!date || date > to)) return false;
     return true;
-  }).sort((first, second) => recordTime({ loading_at: first.observation_at || first.recorded_at }) < recordTime({ loading_at: second.observation_at || second.recorded_at }) ? 1 : -1);
+  }).sort((first, second) => (
+    recordTime({ loading_at: second.observation_at || second.recorded_at })
+      - recordTime({ loading_at: first.observation_at || first.recorded_at })
+  ));
 
   els.dryerObservationRows.innerHTML = rows.length
     ? rows.map((row) => `<tr>
@@ -339,7 +342,9 @@ function textCell(value) {
 
 function sumNumbers(rows, key) {
   return rows.reduce((sum, row) => {
-    const number = Number(row[key]);
+    const value = row[key];
+    if (value === null || value === undefined || value === "") return sum;
+    const number = Number(value);
     return Number.isFinite(number) ? sum + number : sum;
   }, 0);
 }
@@ -401,11 +406,17 @@ function formatDateTime(value) {
   });
 }
 
-function formatOptionalKg(value) {
+function optionalNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
-  return Number.isFinite(number)
-    ? number.toLocaleString("en-GB", { minimumFractionDigits: number % 1 === 0 ? 0 : 1, maximumFractionDigits: 2 })
-    : "-";
+  return Number.isFinite(number) ? number : null;
+}
+
+function formatOptionalKg(value) {
+  const number = optionalNumber(value);
+  return number === null
+    ? "-"
+    : number.toLocaleString("en-GB", { minimumFractionDigits: number % 1 === 0 ? 0 : 1, maximumFractionDigits: 2 });
 }
 
 function formatKg(value) {
@@ -415,13 +426,15 @@ function formatKg(value) {
 }
 
 function formatWeightLoss(value) {
-  const number = Number(value);
-  return Number.isFinite(number) ? `${number.toFixed(1)}%` : "-";
+  const number = optionalNumber(value);
+  return number === null ? "-" : `${number.toFixed(1)}%`;
 }
 
 function formatDryingMinutes(value) {
-  const minutes = Math.round(Number(value));
-  if (!Number.isFinite(minutes) || minutes < 0) return "-";
+  const number = optionalNumber(value);
+  if (number === null) return "-";
+  const minutes = Math.round(number);
+  if (minutes < 0) return "-";
   const days = Math.floor(minutes / 1440);
   const hours = Math.floor((minutes % 1440) / 60);
   const mins = minutes % 60;
