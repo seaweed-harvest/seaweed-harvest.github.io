@@ -8,11 +8,52 @@ if (document.readyState === "loading") {
 
 function init() {
   if (window.location.pathname.endsWith("/stabilization_packing.html")) {
+    installPackingStockActionStyles();
     waitForElement("packingStockActions", setupPackingActionBridge);
   }
   if (window.location.pathname.endsWith("/records.html")) {
     waitForElement("stockActionLedgerStatus", setupLedgerLookupBridge);
   }
+}
+
+function installPackingStockActionStyles() {
+  if (document.getElementById("packingStockActionTabStyles")) return;
+  const style = document.createElement("style");
+  style.id = "packingStockActionTabStyles";
+  style.textContent = `
+    body.form-record-page #packingStockActions .standard-segmented-control {
+      width: fit-content;
+      max-width: 100%;
+      grid-template-columns: repeat(var(--packing-stock-action-columns, 3), minmax(130px, 1fr));
+    }
+    body.form-record-page #packingStockActions .standard-segmented-control label {
+      display: block;
+      color: var(--text-sec);
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: none;
+      cursor: pointer;
+    }
+    body.form-record-page #packingStockActions .standard-segmented-control input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      min-width: 1px;
+      min-height: 1px;
+      padding: 0;
+      border: 0;
+      margin: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+    @media (max-width: 640px) {
+      body.form-record-page #packingStockActions .standard-segmented-control {
+        width: 100%;
+        grid-template-columns: repeat(var(--packing-stock-action-columns, 3), minmax(0, 1fr));
+      }
+    }
+  `;
+  document.head.append(style);
 }
 
 function setupPackingActionBridge(actionSelector) {
@@ -21,6 +62,23 @@ function setupPackingActionBridge(actionSelector) {
 
   const clearButton = document.getElementById("clearPackingRecord");
   const status = document.getElementById("packingRecordStatus");
+  const retestLabel = actionSelector.querySelector("#packingRetestActionLabel");
+
+  const syncColumns = () => {
+    actionSelector.style.setProperty(
+      "--packing-stock-action-columns",
+      retestLabel?.hidden ? "2" : "3"
+    );
+  };
+  syncColumns();
+
+  if (retestLabel) {
+    const observer = new MutationObserver(syncColumns);
+    observer.observe(retestLabel, {
+      attributes: true,
+      attributeFilter: ["hidden"]
+    });
+  }
 
   clearButton?.addEventListener("click", () => {
     setTimeout(syncVisibleActionFromLegacy, 0);
