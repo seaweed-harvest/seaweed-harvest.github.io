@@ -9,7 +9,8 @@ const state = {
   profile: null,
   bayRows: [],
   observations: [],
-  activeTab: "all"
+  activeTab: "all",
+  expandedGroups: new Set()
 };
 
 const els = {};
@@ -96,10 +97,15 @@ function bindEvents() {
     els.dryerFromDate.value = "";
     els.dryerToDate.value = "";
     els.dryerStatusFilter.value = "";
-    els.dryerGroupBy.value = "table";
+    els.dryerGroupBy.value = "event";
+    state.expandedGroups.clear();
     renderAllRecords();
   });
-  els.dryerGroupBy?.addEventListener("change", renderAllRecords);
+  els.dryerGroupBy?.addEventListener("change", () => {
+    state.expandedGroups.clear();
+    renderAllRecords();
+  });
+  els.dryerRecordRows?.addEventListener("click", handleGroupToggle);
   els.applyDryerObservationFilters?.addEventListener("click", renderObservations);
   els.clearDryerObservationFilters?.addEventListener("click", () => {
     els.dryerObservationTableFilter.value = "";
@@ -212,14 +218,20 @@ function renderAllRecords() {
     return;
   }
 
-  const groups = groupedBayRows(rows, els.dryerGroupBy.value);
+  const mode = els.dryerGroupBy.value || "event";
+  const groups = groupedBayRows(rows, mode);
   const html = [];
   groups.forEach((group) => {
-    html.push(groupHeaderRow(group));
-    group.rows.forEach((row) => html.push(bayRowMarkup(row)));
+    const expanded = state.expandedGroups.has(group.storageKey);
+    html.push(groupHeaderRow(group, expanded));
+    group.rows.forEach((row) => html.push(bayRowMarkup(row, group.storageKey, expanded)));
   });
   els.dryerRecordRows.innerHTML = html.join("");
-  setStatus(els.dryerRecordsStatus, `${rows.length} ${rows.length === 1 ? "bay record" : "bay records"}`);
+  const groupLabel = mode === "event" ? (groups.length === 1 ? "event" : "events") : (groups.length === 1 ? "group" : "groups");
+  setStatus(
+    els.dryerRecordsStatus,
+    `${rows.length} ${rows.length === 1 ? "bay record" : "bay records"} · ${groups.length} ${groupLabel}`
+  );
 }
 
 function filteredBayRows() {
@@ -240,38 +252,107 @@ function filteredBayRows() {
 function groupedBayRows(rows, mode) {
   const groups = new Map();
   rows.forEach((row) => {
-    const key = mode === "load_date"
-      ? kenyaDateKey(row.loading_at || row.unloading_at || row.recorded_at) || "unknown"
-      : row.table_location || "Unknown table";
+    const key = groupKeyForRow(row, mode);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(row);
   });
 
-  const entries = [...groups.entries()];
-  entries.sort(([first], [second]) => mode === "load_date"
-    ? second.localeCompare(first)
-    : naturalCompare(first, second));
-  return entries.map(([key, groupRows]) => ({
-    key,
-    label: mode === "load_date" ? formatDateKey(key) : key,
-    rows: [...groupRows].sort((first, second) => {
-      const firstTime = recordTime(first);
-      const secondTime = recordTime(second);
-      return secondTime - firstTime || Number(first.bay_number || 0) - Number(second.bay_number || 0);
+  return [...groups.entries()]
+    .map(([key, groupRows]) => {
+      const sortedRows = sortGroupRows(groupRows, mode);
+      return {
+        key,
+        storageKey: `${mode}:${key}`,
+        mode,
+        label: groupLabel(sortedRows, mode, key),
+        rows: sortedRows,
+        sortTime: groupSortTime(sortedRows, mode)
+      };
     })
-  }));
+    .sort((first, second) => {
+      if (mode === "table") return naturalCompare(first.label, second.label);
+      return second.sortTime - first.sortTime || naturalCompare(first.label, second.label);
+    });
 }
 
-function groupHeaderRow(group) {
+function groupKeyForRow(row, mode) {
+  if (mode === "event") {
+    return String(
+      row.submission_id
+      || row.receipt_number
+      || `${row.table_location || "unknown"}:${row.loading_at || row.recorded_at || row.unloading_at || "unknown"}`
+    );
+  }
+  if (mode === "load_date") {
+    return kenyaDateKey(row.loading_at || row.unloading_at || row.recorded_at) || "unknown";
+  }
+  return row.table_location || "Unknown table";
+}
+
+function groupLabel(rows, mode, key) {
+  if (mode === "load_date") return formatDateKey(key);
+  if (mode === "table") return key;
+
+  const table = rows.find((row) => row.table_location)?.table_location || "Unknown table";
+  const loadedAt = earliestTimestamp(rows, "loading_at");
+  const eventAt = loadedAt
+    || earliestTimestamp(rows, "recorded_at")
+    || earliestTimestamp(rows, "unloading_at");
+  return `${table} — ${formatDateTime(eventAt)}`;
+}
+
+function sortGroupRows(rows, mode) {
+  return [...rows].sort((first, second) => {
+    if (mode === "event") {
+      return Number(first.bay_number || 0) - Number(second.bay_number || 0);
+    }
+    const timeDifference = recordTime(second) - recordTime(first);
+    if (timeDifference) return timeDifference;
+    return naturalCompare(first.table_location, second.table_location)
+      || Number(first.bay_number || 0) - Number(second.bay_number || 0);
+  });
+}
+
+function groupSortTime(rows, mode) {
+  if (mode === "load_date") {
+    const date = kenyaDateKey(rows[0]?.loading_at || rows[0]?.unloading_at || rows[0]?.recorded_at);
+    return Date.parse(date ? `${date}T12:00:00+03:00` : "") || 0;
+  }
+  const eventAt = earliestTimestamp(rows, "loading_at")
+    || earliestTimestamp(rows, "recorded_at")
+    || earliestTimestamp(rows, "unloading_at");
+  return Date.parse(eventAt || "") || 0;
+}
+
+function earliestTimestamp(rows, field) {
+  let earliestValue = "";
+  let earliestTime = Number.POSITIVE_INFINITY;
+  rows.forEach((row) => {
+    const value = row?.[field];
+    const time = Date.parse(value || "");
+    if (!Number.isFinite(time) || time >= earliestTime) return;
+    earliestTime = time;
+    earliestValue = value;
+  });
+  return earliestValue;
+}
+
+function groupHeaderRow(group, expanded) {
   const wet = sumNumbers(group.rows, "loading_weight_kg");
   const dry = sumNumbers(group.rows, "unloading_weight_kg");
   const drying = group.rows.filter((row) => row.status === "drying").length;
   const complete = group.rows.filter((row) => row.status === "complete").length;
-  return `<tr class="table-total-row"><th colspan="10" scope="rowgroup"><strong>${escapeHtml(group.label)}</strong> — ${escapeHtml(formatInteger(group.rows.length))} bays · ${escapeHtml(formatKg(wet))} kg loaded · ${escapeHtml(formatKg(dry))} kg unloaded · ${escapeHtml(formatInteger(drying))} drying · ${escapeHtml(formatInteger(complete))} complete</th></tr>`;
+  const toggleLabel = `${expanded ? "Collapse" : "Expand"} ${group.label}`;
+  return `<tr class="table-total-row dryer-group-header" data-dryer-group-header>
+    <th colspan="10" scope="rowgroup">
+      <button class="icon-button" type="button" data-dryer-group-toggle data-dryer-group-key="${escapeAttribute(group.storageKey)}" aria-expanded="${expanded ? "true" : "false"}" aria-label="${escapeAttribute(toggleLabel)}" title="${escapeAttribute(toggleLabel)}"><span data-dryer-group-marker aria-hidden="true">${expanded ? "▾" : "▸"}</span></button>
+      <strong>${escapeHtml(group.label)}</strong> — ${escapeHtml(formatInteger(group.rows.length))} bays · ${escapeHtml(formatKg(wet))} kg loaded · ${escapeHtml(formatKg(dry))} kg unloaded · ${escapeHtml(formatInteger(drying))} drying · ${escapeHtml(formatInteger(complete))} complete
+    </th>
+  </tr>`;
 }
 
-function bayRowMarkup(row) {
-  return `<tr>
+function bayRowMarkup(row, groupKey, expanded) {
+  return `<tr data-dryer-group-row="${escapeAttribute(groupKey)}"${expanded ? "" : " hidden"}>
     <td><strong>${escapeHtml(row.table_location || "-")}</strong></td>
     <td>${escapeHtml(row.bay_number ?? "-")}</td>
     <td>${statusPill(row.status)}</td>
@@ -283,6 +364,30 @@ function bayRowMarkup(row) {
     <td>${escapeHtml(formatDryingMinutes(row.drying_minutes))}</td>
     <td>${escapeHtml(formatInteger(row.photo_count))}</td>
   </tr>`;
+}
+
+function handleGroupToggle(event) {
+  const button = event.target.closest("[data-dryer-group-toggle]");
+  if (!button) return;
+  const groupKey = button.dataset.dryerGroupKey;
+  if (!groupKey) return;
+
+  const expanded = button.getAttribute("aria-expanded") !== "true";
+  button.setAttribute("aria-expanded", String(expanded));
+  const marker = button.querySelector("[data-dryer-group-marker]");
+  if (marker) marker.textContent = expanded ? "▾" : "▸";
+  const label = button.closest("th")?.querySelector("strong")?.textContent || "group";
+  button.setAttribute("aria-label", `${expanded ? "Collapse" : "Expand"} ${label}`);
+  button.title = `${expanded ? "Collapse" : "Expand"} ${label}`;
+
+  if (expanded) state.expandedGroups.add(groupKey);
+  else state.expandedGroups.delete(groupKey);
+
+  let row = button.closest("tr")?.nextElementSibling || null;
+  while (row && !row.hasAttribute("data-dryer-group-header")) {
+    row.hidden = !expanded;
+    row = row.nextElementSibling;
+  }
 }
 
 function renderSummary(rows) {
@@ -447,7 +552,8 @@ function formatDryingMinutes(value) {
 
 function formatInteger(value) {
   const number = Number(value);
-  return Number.isFinite(number) ? Math.round(number).toLocaleString("en-GB") : "0";
+  if (!Number.isFinite(number)) return "0";
+  return Math.round(number).toLocaleString("en-GB");
 }
 
 function naturalCompare(first, second) {
