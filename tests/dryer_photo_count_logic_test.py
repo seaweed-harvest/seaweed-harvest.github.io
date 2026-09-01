@@ -8,12 +8,28 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT_PATH = ROOT / "assets/js/dryer_table_records.js"
 
 
+def previous_significant_character(source, index, lower_bound):
+    cursor = index - 1
+    while cursor >= lower_bound and source[cursor].isspace():
+        cursor -= 1
+    return source[cursor] if cursor >= lower_bound else ""
+
+
+def starts_regular_expression(source, index, lower_bound):
+    if index + 1 >= len(source) or source[index + 1] in ("/", "*"):
+        return False
+    previous = previous_significant_character(source, index, lower_bound)
+    return not previous or previous in "([{:;,=!?&|+-*%^~<>"
+
+
 def extract_function(source, name):
     marker = f"function {name}("
     start = source.index(marker)
     opening = source.index("{", start)
     depth = 0
     quote = None
+    regex = False
+    regex_character_class = False
     escaped = False
     template_depth = 0
 
@@ -22,8 +38,16 @@ def extract_function(source, name):
         if escaped:
             escaped = False
             continue
-        if character == "\\" and quote:
+        if character == "\\" and (quote or regex):
             escaped = True
+            continue
+        if regex:
+            if character == "[" and not regex_character_class:
+                regex_character_class = True
+            elif character == "]" and regex_character_class:
+                regex_character_class = False
+            elif character == "/" and not regex_character_class:
+                regex = False
             continue
         if quote:
             if quote == "`" and character == "$" and index + 1 < len(source) and source[index + 1] == "{":
@@ -34,6 +58,10 @@ def extract_function(source, name):
                 continue
             if character == quote and template_depth == 0:
                 quote = None
+            continue
+        if character == "/" and starts_regular_expression(source, index, opening):
+            regex = True
+            regex_character_class = False
             continue
         if character in ("'", '"', "`"):
             quote = character
