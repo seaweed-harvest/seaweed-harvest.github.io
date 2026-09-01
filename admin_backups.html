@@ -7,360 +7,263 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Backups - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Seaweed Harvest">
+  <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./favicon.ico" sizes="any">
   <link rel="icon" href="./assets/images/seaweed-harvest-icon-192.png" type="image/png" sizes="192x192">
-  <script type="module" src="./assets/js/admin_backups_summary.js?v=1"></script>
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
+  <script type="module" src="./assets/js/pwa_bootstrap.js"></script>
   <style>
-    .backup-page {
-      background: #f3f7f6;
-    }
-
-    .backup-page .app-header {
-      margin-bottom: 0;
-    }
-
-    .backup-shell {
-      max-width: 1240px;
-      margin: 0 auto;
-      padding: 24px;
-    }
-
+    .backup-page .admin-content,
     .backup-panel {
-      display: grid;
-      gap: 24px;
-    }
-
-    .backup-title-row,
-    .backup-export-row {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 20px;
-    }
-
-    .backup-title-row h2,
-    .backup-export-row h2 {
-      margin-bottom: 6px;
-    }
-
-    .backup-title-row p,
-    .backup-export-row p {
-      max-width: 760px;
-      margin: 0;
-      color: #52645f;
-    }
-
-    .backup-preview-pill {
-      flex: 0 0 auto;
-    }
-
-    .backup-summary-grid {
-      display: grid;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
-      gap: 12px;
-    }
-
-    .backup-summary-card {
       min-width: 0;
-      padding: 16px;
-      border: 1px solid #d9e4e1;
-      border-radius: 12px;
-      background: #ffffff;
     }
 
-    .backup-summary-card span {
-      display: block;
-      margin-bottom: 8px;
-      color: #52645f;
-      font-size: 0.82rem;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-      text-transform: uppercase;
+    .backup-summary-note {
+      margin: 12px 0 0;
+      border-left-color: var(--accent);
+      background: rgba(15, 118, 110, 0.08);
+      color: var(--text-sec);
     }
 
-    .backup-summary-card strong {
-      display: block;
-      color: #173f38;
-      font-size: clamp(1.45rem, 2.5vw, 2rem);
+    .backup-summary-note[data-status="error"] {
+      border-left-color: var(--danger);
+      background: rgba(220, 38, 38, 0.07);
+      color: var(--danger);
+    }
+
+    .backup-summary-metrics {
+      margin-top: 12px;
+    }
+
+    .backup-summary-metrics .form-ledger-metric strong {
       font-variant-numeric: tabular-nums;
-      line-height: 1.1;
     }
 
-    .backup-summary-card small {
-      display: block;
-      margin-top: 6px;
-      color: #6b7c77;
-      font-size: 0.78rem;
-      line-height: 1.35;
-    }
-
-    .backup-table-section {
-      display: grid;
-      gap: 12px;
-    }
-
-    .backup-table-section .section-head {
-      margin-bottom: 0;
-    }
-
-    .backup-table th,
-    .backup-table td {
-      white-space: nowrap;
-    }
-
-    .backup-table th:first-child,
-    .backup-table td:first-child,
-    .backup-table th:last-child,
-    .backup-table td:last-child {
-      white-space: normal;
+    .backup-table {
+      min-width: 880px;
     }
 
     .backup-table td[data-backup-field] {
       font-variant-numeric: tabular-nums;
     }
 
-    .backup-total-row {
-      background: #edf7f4;
+    .backup-total-row td {
+      background: rgba(15, 118, 110, 0.07);
     }
 
-    .backup-archive-row {
+    .backup-archive-row td {
       background: #fff8e8;
     }
 
-    .backup-export-card {
-      padding: 20px;
-      border: 1px solid #c9ddd8;
-      border-radius: 14px;
-      background: #f7fbfa;
+    .backup-export-head {
+      align-items: flex-start;
+      margin-bottom: 0;
+    }
+
+    .backup-export-head .field-hint {
+      max-width: 780px;
+      margin-top: 4px;
     }
 
     .backup-export-actions {
+      min-width: 230px;
       display: grid;
       justify-items: end;
-      gap: 8px;
-      min-width: 210px;
+      gap: 5px;
     }
 
     .backup-export-actions button {
-      width: 100%;
-      min-height: 44px;
-    }
-
-    .backup-export-actions button:disabled {
-      cursor: not-allowed;
-      opacity: 0.62;
+      min-width: 190px;
     }
 
     .backup-export-status {
+      max-width: 310px;
       margin: 0;
-      color: #6b7c77;
-      font-size: 0.82rem;
       text-align: right;
     }
 
-    .backup-scope-note {
-      margin: 0;
-      padding: 12px 14px;
-      border-left: 4px solid #0f766e;
-      border-radius: 8px;
-      background: #e9f5f2;
-      color: #284f47;
-      line-height: 1.5;
-    }
-
-    .backup-scope-note[data-status="error"] {
-      border-left-color: #b42318;
-      background: #fef3f2;
-      color: #7a271a;
-    }
-
-    @media (max-width: 1040px) {
-      .backup-summary-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
-    }
-
-    @media (max-width: 720px) {
-      .backup-shell {
-        padding: 16px;
-      }
-
-      .backup-title-row,
-      .backup-export-row {
+    @media (max-width: 760px) {
+      .backup-export-head {
+        align-items: stretch;
         flex-direction: column;
-      }
-
-      .backup-summary-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
       .backup-export-actions {
         width: 100%;
+        min-width: 0;
         justify-items: stretch;
       }
 
-      .backup-export-status {
-        text-align: left;
+      .backup-export-actions button {
+        width: 100%;
+        min-width: 0;
       }
-    }
 
-    @media (max-width: 430px) {
-      .backup-summary-grid {
-        grid-template-columns: 1fr;
+      .backup-export-status {
+        max-width: none;
+        text-align: left;
       }
     }
   </style>
 </head>
-<body class="admin-console-page backup-page">
+<body class="admin-console-page backup-page" data-auth-pending>
   <header class="app-header">
     <div class="app-header-inner">
-      <div>
-        <p class="eyebrow">Seaweed aggregation</p>
-        <h1>Backups</h1>
-      </div>
+      <div><p class="eyebrow">Seaweed aggregation</p><h1>Backups</h1></div>
       <div class="header-actions admin-header-controls">
         <nav class="app-nav" aria-label="Main navigation">
+          <a href="./collection.html">Collection</a>
           <a href="./home.html">Home</a>
         </nav>
-        <span id="backupConnectionStatus" class="status-pill status-muted" aria-live="polite">Loading</span>
       </div>
     </div>
   </header>
 
-  <main class="backup-shell">
-    <section id="backupSummaryPanel" class="panel backup-panel" aria-labelledby="backupSummaryHeading" aria-busy="true">
-      <div class="backup-title-row">
-        <div>
-          <h2 id="backupSummaryHeading">Mawimbi backup summary</h2>
-          <p>A simple view of the records and photographs intended for the Mawimbi backup ZIP.</p>
-        </div>
-        <span id="backupSummaryStatus" class="status-pill status-muted backup-preview-pill">Loading live data</span>
-      </div>
-
-      <p id="backupScopeNote" class="backup-scope-note" role="status" aria-live="polite">
-        Loading the current read-only Mawimbi summary from Supabase. No backup is being created.
-      </p>
-
-      <div class="backup-summary-grid" aria-label="Backup totals">
-        <article class="backup-summary-card">
-          <span>Active records</span>
-          <strong id="backupActiveRecordCount">—</strong>
-          <small>Current operational rows</small>
-        </article>
-        <article class="backup-summary-card">
-          <span>Deleted archive</span>
-          <strong id="backupDeletedRecordCount">—</strong>
-          <small>Retained deleted-record rows</small>
-        </article>
-        <article class="backup-summary-card">
-          <span>Total records</span>
-          <strong id="backupTotalRecordCount">—</strong>
-          <small>Active plus deleted archive</small>
-        </article>
-        <article class="backup-summary-card">
-          <span>Photos linked</span>
-          <strong id="backupLinkedPhotoCount">—</strong>
-          <small>Referenced by displayed records</small>
-        </article>
-        <article class="backup-summary-card">
-          <span>Photos available</span>
-          <strong id="backupAvailablePhotoCount">—</strong>
-          <small>Currently available for export</small>
-        </article>
-        <article class="backup-summary-card">
-          <span>Record export</span>
-          <strong id="backupRecordExportSize">—</strong>
-          <small>Approximate data only, before photos</small>
-        </article>
-      </div>
-
-      <section class="backup-table-section" aria-labelledby="backupDatasetHeading">
-        <div class="section-head compact">
+  <main class="app-shell admin-shell admin-layout">
+    <aside id="backupSidebar" class="admin-sidebar" aria-label="Application menu"></aside>
+    <section class="admin-content">
+      <section id="backupSummaryPanel" class="panel admin-page-section backup-panel" aria-labelledby="backupSummaryHeading" aria-busy="true">
+        <div class="today-records-heading form-ledger-heading">
           <div>
-            <h2 id="backupDatasetHeading">Dataset detail</h2>
-            <p class="field-hint">Photographs linked and photographs available are shown separately.</p>
+            <h2 id="backupSummaryHeading">Mawimbi backup summary</h2>
+            <p class="field-hint">Current records and linked photographs intended for the Mawimbi backup.</p>
           </div>
+          <span id="backupSummaryStatus" class="status-pill status-muted" aria-live="polite">Loading</span>
         </div>
 
-        <div class="responsive-table-wrap">
-          <table class="management-table admin-data-table backup-table">
-            <thead>
-              <tr>
-                <th scope="col">Mawimbi dataset</th>
-                <th scope="col">Records</th>
-                <th scope="col">Photos linked</th>
-                <th scope="col">Photos available</th>
-                <th scope="col">Approx. record export</th>
-                <th scope="col">Current date range</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr data-backup-dataset="intake">
-                <td><strong>Intake records</strong></td>
-                <td data-backup-field="records">—</td>
-                <td data-backup-field="photos-linked">—</td>
-                <td data-backup-field="photos-available">—</td>
-                <td data-backup-field="record-export">—</td>
-                <td data-backup-field="date-range">Loading…</td>
-              </tr>
-              <tr data-backup-dataset="site_water_samples">
-                <td><strong>Site water samples</strong></td>
-                <td data-backup-field="records">—</td>
-                <td data-backup-field="photos-linked">—</td>
-                <td data-backup-field="photos-available">—</td>
-                <td data-backup-field="record-export">—</td>
-                <td data-backup-field="date-range">Loading…</td>
-              </tr>
-              <tr data-backup-dataset="stock_records">
-                <td><strong>Stock records</strong></td>
-                <td data-backup-field="records">—</td>
-                <td data-backup-field="photos-linked">—</td>
-                <td data-backup-field="photos-available">—</td>
-                <td data-backup-field="record-export">—</td>
-                <td data-backup-field="date-range">Loading…</td>
-              </tr>
-              <tr data-backup-dataset="process_records">
-                <td><strong>Process records</strong></td>
-                <td data-backup-field="records">—</td>
-                <td data-backup-field="photos-linked">—</td>
-                <td data-backup-field="photos-available">—</td>
-                <td data-backup-field="record-export">—</td>
-                <td data-backup-field="date-range">Loading…</td>
-              </tr>
-              <tr class="backup-total-row" data-backup-dataset="active-total">
-                <td><strong>Total active operational records</strong></td>
-                <td data-backup-field="records"><strong>—</strong></td>
-                <td data-backup-field="photos-linked"><strong>—</strong></td>
-                <td data-backup-field="photos-available"><strong>—</strong></td>
-                <td data-backup-field="record-export"><strong>—</strong></td>
-                <td data-backup-field="date-range"><strong>Loading…</strong></td>
-              </tr>
-              <tr class="backup-archive-row" data-backup-dataset="deleted_record_archive">
-                <td><strong>Deleted-record archive</strong></td>
-                <td data-backup-field="records"><strong>—</strong></td>
-                <td data-backup-field="photos-linked"><strong>—</strong></td>
-                <td data-backup-field="photos-available"><strong>—</strong></td>
-                <td data-backup-field="record-export">—</td>
-                <td data-backup-field="date-range">Loading…</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+        <div class="admin-card-body standalone">
+          <p id="backupScopeNote" class="form-ledger-note backup-summary-note" role="status" aria-live="polite">
+            Loading the current read-only Mawimbi summary from Supabase. No backup is being created.
+          </p>
 
-      <section class="backup-export-card" aria-labelledby="backupExportHeading">
-        <div class="backup-export-row">
-          <div>
-            <h2 id="backupExportHeading">Export backup ZIP</h2>
-            <p>The later export will contain the displayed Mawimbi records, currently available linked photographs, a manifest and a missing-photograph list.</p>
+          <div class="form-ledger-metric-strip backup-summary-metrics" aria-label="Backup totals">
+            <article class="form-ledger-metric">
+              <span>Active records</span>
+              <strong id="backupActiveRecordCount">—</strong>
+              <small>Current operational rows</small>
+            </article>
+            <article class="form-ledger-metric">
+              <span>Deleted archive</span>
+              <strong id="backupDeletedRecordCount">—</strong>
+              <small>Retained deleted rows</small>
+            </article>
+            <article class="form-ledger-metric">
+              <span>Total records</span>
+              <strong id="backupTotalRecordCount">—</strong>
+              <small>Active plus deleted</small>
+            </article>
+            <article class="form-ledger-metric">
+              <span>Photos linked</span>
+              <strong id="backupLinkedPhotoCount">—</strong>
+              <small>Referenced by records</small>
+            </article>
+            <article class="form-ledger-metric">
+              <span>Photos available</span>
+              <strong id="backupAvailablePhotoCount">—</strong>
+              <small>Available for export</small>
+            </article>
+            <article class="form-ledger-metric">
+              <span>Record export</span>
+              <strong id="backupRecordExportSize">—</strong>
+              <small>Approximate data only</small>
+            </article>
           </div>
-          <div class="backup-export-actions">
-            <button type="button" disabled aria-describedby="backupExportStatus">Export backup ZIP</button>
-            <p id="backupExportStatus" class="backup-export-status">Summary loading. Export backend not connected.</p>
-          </div>
+
+          <section class="admin-subsection backup-dataset-section" aria-labelledby="backupDatasetHeading">
+            <div class="section-head compact">
+              <div>
+                <h3 id="backupDatasetHeading">Dataset detail</h3>
+                <p class="field-hint">Photographs linked and photographs available are shown separately.</p>
+              </div>
+            </div>
+
+            <div class="responsive-table-wrap">
+              <table class="management-table admin-data-table backup-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Mawimbi dataset</th>
+                    <th scope="col">Records</th>
+                    <th scope="col">Photos linked</th>
+                    <th scope="col">Photos available</th>
+                    <th scope="col">Approx. record export</th>
+                    <th scope="col">Current date range</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr data-backup-dataset="intake">
+                    <td>Intake records</td>
+                    <td data-backup-field="records">—</td>
+                    <td data-backup-field="photos-linked">—</td>
+                    <td data-backup-field="photos-available">—</td>
+                    <td data-backup-field="record-export">—</td>
+                    <td data-backup-field="date-range">Loading…</td>
+                  </tr>
+                  <tr data-backup-dataset="site_water_samples">
+                    <td>Site water samples</td>
+                    <td data-backup-field="records">—</td>
+                    <td data-backup-field="photos-linked">—</td>
+                    <td data-backup-field="photos-available">—</td>
+                    <td data-backup-field="record-export">—</td>
+                    <td data-backup-field="date-range">Loading…</td>
+                  </tr>
+                  <tr data-backup-dataset="stock_records">
+                    <td>Stock records</td>
+                    <td data-backup-field="records">—</td>
+                    <td data-backup-field="photos-linked">—</td>
+                    <td data-backup-field="photos-available">—</td>
+                    <td data-backup-field="record-export">—</td>
+                    <td data-backup-field="date-range">Loading…</td>
+                  </tr>
+                  <tr data-backup-dataset="process_records">
+                    <td>Process records</td>
+                    <td data-backup-field="records">—</td>
+                    <td data-backup-field="photos-linked">—</td>
+                    <td data-backup-field="photos-available">—</td>
+                    <td data-backup-field="record-export">—</td>
+                    <td data-backup-field="date-range">Loading…</td>
+                  </tr>
+                  <tr class="backup-total-row" data-backup-dataset="active-total">
+                    <td><strong>Total active operational records</strong></td>
+                    <td data-backup-field="records"><strong>—</strong></td>
+                    <td data-backup-field="photos-linked"><strong>—</strong></td>
+                    <td data-backup-field="photos-available"><strong>—</strong></td>
+                    <td data-backup-field="record-export"><strong>—</strong></td>
+                    <td data-backup-field="date-range"><strong>Loading…</strong></td>
+                  </tr>
+                  <tr class="backup-archive-row" data-backup-dataset="deleted_record_archive">
+                    <td>Deleted-record archive</td>
+                    <td data-backup-field="records">—</td>
+                    <td data-backup-field="photos-linked">—</td>
+                    <td data-backup-field="photos-available">—</td>
+                    <td data-backup-field="record-export">—</td>
+                    <td data-backup-field="date-range">Loading…</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="admin-subsection backup-export-section" aria-labelledby="backupExportHeading">
+            <div class="section-head compact backup-export-head">
+              <div>
+                <h3 id="backupExportHeading">Export backup ZIP</h3>
+                <p class="field-hint">The later export will contain the displayed Mawimbi records, available linked photographs, a manifest and a missing-photograph list.</p>
+              </div>
+              <div class="backup-export-actions">
+                <button type="button" disabled aria-describedby="backupExportStatus">Export backup ZIP</button>
+                <p id="backupExportStatus" class="admin-status backup-export-status">Summary loading. Export backend not connected.</p>
+              </div>
+            </div>
+          </section>
         </div>
       </section>
     </section>
   </main>
+
+  <script type="module" src="./assets/js/admin_backups_summary.js?v=2"></script>
 </body>
 </html>
