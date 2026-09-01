@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Dryer Table Records - Seaweed Harvest</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Seaweed Harvest">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./favicon.ico" sizes="any">
+  <link rel="icon" href="./assets/images/seaweed-harvest-icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
+  <script type="module" src="./assets/js/pwa_bootstrap.js"></script>
+</head>
+<body class="admin-console-page form-record-ledgers-page dryer-table-records-page" data-auth-pending>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div><p class="eyebrow">Seaweed aggregation</p><h1>Records</h1></div>
+      <div class="header-actions admin-header-controls">
+        <nav class="app-nav" aria-label="Main navigation">
+          <a href="./dryer_table.html">Dryer Table</a>
+          <a href="./home.html">Home</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell admin-shell admin-layout">
+    <aside id="dryerTableRecordsSidebar" class="admin-sidebar" aria-label="Application menu"></aside>
+    <section class="admin-content">
+      <section class="panel admin-page-section form-ledger-panel">
+        <div class="today-records-heading form-ledger-heading">
+          <div class="today-heading-title">
+            <div>
+              <h2>Dryer Table Records</h2>
+              <p class="field-hint">Logged-in summary of dryer table bay cycles and observations.</p>
+            </div>
+            <button id="reloadDryerRecords" class="icon-button refresh-records-button" type="button" aria-label="Refresh dryer table records" title="Refresh">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.2 6.5L3 16"></path><path d="M3 21v-5h5"></path><path d="M3 12A9 9 0 0 1 18.2 5.5L21 8"></path><path d="M21 3v5h-5"></path></svg>
+            </button>
+          </div>
+          <nav id="dryerRecordTabs" class="today-record-tabs form-ledger-category-tabs" role="tablist" aria-label="Dryer table record category">
+            <button id="dryerAllTab" type="button" role="tab" aria-selected="true" aria-controls="dryerAllPanel" data-dryer-tab="all">All Records</button>
+            <button id="dryerObservationsTab" type="button" role="tab" aria-selected="false" aria-controls="dryerObservationsPanel" data-dryer-tab="observations">Observations</button>
+            <button id="dryerPaymentsTab" type="button" role="tab" aria-selected="false" aria-controls="dryerPaymentsPanel" data-dryer-tab="payments">Payment Register</button>
+          </nav>
+        </div>
+
+        <section id="dryerAllPanel" class="admin-card-body standalone dryer-record-panel" role="tabpanel" aria-labelledby="dryerAllTab">
+          <div class="admin-toolbar admin-filter-grid ledger-filter-grid">
+            <label>
+              Table
+              <select id="dryerTableFilter"><option value="">All tables</option></select>
+            </label>
+            <label>
+              From
+              <input id="dryerFromDate" type="date">
+            </label>
+            <label>
+              To
+              <input id="dryerToDate" type="date">
+            </label>
+            <label>
+              Status
+              <select id="dryerStatusFilter">
+                <option value="">All statuses</option>
+                <option value="drying">Drying</option>
+                <option value="complete">Complete</option>
+                <option value="needs_review">Needs review</option>
+              </select>
+            </label>
+            <label>
+              Group by
+              <select id="dryerGroupBy">
+                <option value="table" selected>Table</option>
+                <option value="load_date">Load date</option>
+              </select>
+            </label>
+            <div class="ledger-filter-buttons">
+              <button id="applyDryerFilters" type="button">Apply filters</button>
+              <button id="clearDryerFilters" type="button">Clear</button>
+            </div>
+          </div>
+
+          <div id="dryerSummaryMetrics" class="button-row compact-actions" aria-label="Filtered dryer table totals">
+            <span class="status-pill">Wet loaded: —</span>
+            <span class="status-pill">Dry unloaded: —</span>
+            <span class="status-pill">Currently drying: —</span>
+            <span class="status-pill">Completed cycles: —</span>
+          </div>
+
+          <div class="responsive-table-wrap">
+            <table class="management-table admin-data-table dryer-records-table">
+              <thead>
+                <tr>
+                  <th>Table</th>
+                  <th>Bay</th>
+                  <th>Status</th>
+                  <th>Loaded</th>
+                  <th>Wet kg</th>
+                  <th>Unloaded</th>
+                  <th>Dry kg</th>
+                  <th>Weight loss</th>
+                  <th>Drying time</th>
+                  <th>Photos</th>
+                </tr>
+              </thead>
+              <tbody id="dryerRecordRows">
+                <tr><td colspan="10" class="empty-state">Loading dryer table records...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p id="dryerRecordsStatus" class="admin-status" aria-live="polite"></p>
+        </section>
+
+        <section id="dryerObservationsPanel" class="admin-card-body standalone dryer-record-panel" role="tabpanel" aria-labelledby="dryerObservationsTab" hidden>
+          <div class="admin-toolbar admin-filter-grid ledger-filter-grid">
+            <label>
+              Table
+              <select id="dryerObservationTableFilter"><option value="">All tables</option></select>
+            </label>
+            <label>
+              From
+              <input id="dryerObservationFromDate" type="date">
+            </label>
+            <label>
+              To
+              <input id="dryerObservationToDate" type="date">
+            </label>
+            <div class="ledger-filter-buttons">
+              <button id="applyDryerObservationFilters" type="button">Apply filters</button>
+              <button id="clearDryerObservationFilters" type="button">Clear</button>
+            </div>
+          </div>
+          <div class="responsive-table-wrap">
+            <table class="management-table admin-data-table dryer-observations-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Table</th>
+                  <th>General observations</th>
+                  <th>Working well</th>
+                  <th>Not working</th>
+                </tr>
+              </thead>
+              <tbody id="dryerObservationRows">
+                <tr><td colspan="5" class="empty-state">Loading observations...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p id="dryerObservationsStatus" class="admin-status" aria-live="polite"></p>
+        </section>
+
+        <section id="dryerPaymentsPanel" class="admin-card-body standalone dryer-record-panel" role="tabpanel" aria-labelledby="dryerPaymentsTab" hidden>
+          <div class="section-head compact">
+            <div>
+              <h3>Payment Register</h3>
+              <p class="field-hint">Reserved for Research Assistant payment calculations and paid/unpaid tracking.</p>
+            </div>
+          </div>
+          <p class="empty-state">Payment calculations will be added after the Research Assistant contract rules are supplied and agreed. No payment logic is active in this version.</p>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
+  <script type="module" src="./assets/js/dryer_table_records.js?v=1"></script>
+</body>
+</html>
