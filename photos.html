@@ -7,6 +7,16 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Photos - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
+  <style>
+    .cosme-photo-source-tabs {
+      margin: 0 0 14px;
+    }
+
+    .photo-library-thumbnail .photo-thumbnail-context {
+      display: block;
+      margin-top: 4px;
+    }
+  </style>
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -35,17 +45,25 @@
     <section class="admin-content">
       <section class="panel admin-page-section photo-library-panel">
         <div class="section-head compact">
-          <h2>Photos</h2>
+          <div>
+            <h2>Photos</h2>
+            <p id="photoLibraryDescription" class="field-hint">Photographs linked to operational records.</p>
+          </div>
           <div class="button-row compact-actions">
             <button id="togglePhotoGallery" type="button" aria-pressed="false">Show thumbnails</button>
             <span id="photoLibraryCount" class="status-pill">0 photos</span>
           </div>
         </div>
 
+        <nav id="photoSourceTabs" class="ledger-view-tabs record-period-tabs cosme-photo-source-tabs" aria-label="COSME photo source" role="tablist" hidden>
+          <button id="photoDryerTab" type="button" role="tab" data-photo-source-tab="dryer_table" aria-selected="true">Dryer Table</button>
+          <button id="photoReefTab" type="button" role="tab" data-photo-source-tab="reef_nursery" aria-selected="false">Reef Nursery</button>
+        </nav>
+
         <div class="admin-toolbar photo-library-filters">
           <label>From<input id="photoFrom" type="date"></label>
           <label>To<input id="photoTo" type="date"></label>
-          <label>
+          <label id="photoSourceField">
             Record type
             <select id="photoSource">
               <option value="">All records</option>
@@ -54,8 +72,8 @@
               <option value="reef_nursery">Reef Nursery</option>
             </select>
           </label>
-          <label>Community<select id="photoCommunity"><option value="">All communities</option></select></label>
-          <label>
+          <label id="photoCommunityField"><span id="photoCommunityLabel">Community</span><select id="photoCommunity"><option value="">All communities</option></select></label>
+          <label id="photoGradeField">
             Grade
             <select id="photoGrade">
               <option value="">All grades</option>
@@ -74,7 +92,7 @@
           <button id="photoNext" type="button">Next</button>
         </div>
 
-        <div class="responsive-table-wrap">
+        <div id="photoTableWrap" class="responsive-table-wrap">
           <table class="management-table admin-data-table photo-library-table">
             <thead>
               <tr>
@@ -82,10 +100,10 @@
                 <th><button type="button" data-photo-sort="taken_at">Date and time</button></th>
                 <th><button type="button" data-photo-sort="source_label">Record type</button></th>
                 <th>Reference</th>
-                <th><button type="button" data-photo-sort="community_name">Community</button></th>
+                <th id="photoCommunityHeading"><button type="button" data-photo-sort="community_name">Community</button></th>
                 <th><button type="button" data-photo-sort="recorder_name">Recorded by</button></th>
-                <th>Seaweed type</th>
-                <th><button type="button" data-photo-sort="grade_code">Grade</button></th>
+                <th id="photoSeaweedHeading">Seaweed type</th>
+                <th id="photoGradeHeading"><button type="button" data-photo-sort="grade_code">Grade</button></th>
               </tr>
             </thead>
             <tbody id="photoLibraryRows"></tbody>
@@ -99,6 +117,6 @@
   </main>
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
-  <script type="module" src="./assets/js/photos_page.js?v=2"></script>
+  <script type="module" src="./assets/js/photos_page.js?v=3"></script>
 </body>
 </html>
