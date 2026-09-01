@@ -1,7 +1,10 @@
 import {
   authClient,
-  requireAuthenticatedAccount
+  requireAuthenticatedAccount,
+  routeForProfile,
+  setupAccountControls
 } from "./auth_client.js?v=25";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=14";
 
 const ACTIVE_DATASET_KEYS = Object.freeze([
   "intake",
@@ -28,19 +31,32 @@ async function init() {
     const allowed = access.profile?.account_status === "active"
       && (access.profile?.app_role === "system_admin"
         || access.profile?.is_protected_owner === true);
-    if (!allowed) throw new Error("Backup administrator access is required.");
+    if (!allowed) {
+      window.location.replace("./access_pending.html");
+      return;
+    }
+
+    const dashboardHref = routeForProfile(access.profile);
+    const sidebar = populateAppSidebar(els.backupSidebar, {
+      profile: access.profile,
+      dashboardHref
+    });
+    setupAccountControls(access.profile);
+    setupAppNavigation({ profile: access.profile, sidebar, dashboardHref });
+    document.body.removeAttribute("data-auth-pending");
 
     const { data, error } = await authClient.rpc("ag_backup_dashboard");
     if (error) throw error;
     renderSummary(data || {});
   } catch (error) {
+    document.body.removeAttribute("data-auth-pending");
     renderError(error);
   }
 }
 
 function cacheElements() {
   [
-    "backupConnectionStatus",
+    "backupSidebar",
     "backupSummaryPanel",
     "backupSummaryStatus",
     "backupScopeNote",
@@ -63,8 +79,7 @@ function cacheElements() {
 
 function setLoadingState() {
   els.backupSummaryPanel?.setAttribute("aria-busy", "true");
-  setPill(els.backupConnectionStatus, "Loading", true);
-  setPill(els.backupSummaryStatus, "Loading live data", true, "backup-preview-pill");
+  setPill(els.backupSummaryStatus, "Loading", true);
   if (els.backupScopeNote) {
     delete els.backupScopeNote.dataset.status;
     els.backupScopeNote.textContent = "Loading the current read-only Mawimbi summary from Supabase. No backup is being created.";
@@ -102,8 +117,7 @@ function renderSummary(data) {
     latest_at: latestValue(activeRows)
   });
 
-  setPill(els.backupConnectionStatus, "Supabase", false);
-  setPill(els.backupSummaryStatus, "Live read-only", false, "backup-preview-pill");
+  setPill(els.backupSummaryStatus, "Live read-only", false);
   if (els.backupScopeNote) {
     delete els.backupScopeNote.dataset.status;
     els.backupScopeNote.textContent = data.generated_at
@@ -128,8 +142,7 @@ function renderDatasetRow(key, row, options = {}) {
 }
 
 function renderError(error) {
-  setPill(els.backupConnectionStatus, "Unavailable", true);
-  setPill(els.backupSummaryStatus, "Load failed", true, "backup-preview-pill");
+  setPill(els.backupSummaryStatus, "Unavailable", true);
   if (els.backupScopeNote) {
     els.backupScopeNote.dataset.status = "error";
     els.backupScopeNote.textContent = `The live read-only summary could not be loaded. ${error?.message || "Unknown error."} No data was changed.`;
