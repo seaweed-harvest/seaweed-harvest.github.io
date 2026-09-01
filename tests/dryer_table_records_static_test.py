@@ -15,6 +15,10 @@ class DryerTableRecordsStaticTest(unittest.TestCase):
             ROOT
             / "supabase/migrations/20260901103000_authenticated_dryer_table_records.sql"
         ).read_text(encoding="utf-8")
+        self.scope_migration = (
+            ROOT
+            / "supabase/migrations/20260901110500_dryer_table_records_rpc_scope.sql"
+        ).read_text(encoding="utf-8")
 
     def test_page_uses_shared_record_ledger_shell_and_three_tabs(self):
         self.assertIn("form-record-ledgers-page", self.page)
@@ -131,6 +135,13 @@ class DryerTableRecordsStaticTest(unittest.TestCase):
             r"alter\s+table\s+public\.seaweed_drying_",
         ):
             self.assertNotRegex(self.migration.lower(), mutating_pattern)
+
+    def test_dryer_project_authenticated_role_is_not_needed_for_bridge(self):
+        self.assertIn(
+            "revoke execute on function public.list_authenticated_seaweed_drying_ledger(text, integer) from authenticated",
+            self.scope_migration.lower(),
+        )
+        self.assertIn("separate seaweed harvest account project", self.scope_migration.lower())
 
     def test_public_dryer_form_assets_are_not_replaced_by_ledger(self):
         dryer_page = (ROOT / "dryer_table.html").read_text(encoding="utf-8")
