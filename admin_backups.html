@@ -35,6 +35,11 @@
       color: var(--danger);
     }
 
+    .backup-summary-note[data-status="success"] {
+      border-left-color: var(--success, var(--accent));
+      background: rgba(22, 101, 52, 0.08);
+    }
+
     .backup-summary-metrics {
       margin-top: 12px;
     }
@@ -70,20 +75,43 @@
     }
 
     .backup-export-actions {
-      min-width: 230px;
+      min-width: 250px;
       display: grid;
       justify-items: end;
-      gap: 5px;
+      gap: 7px;
     }
 
     .backup-export-actions button {
-      min-width: 190px;
+      min-width: 210px;
+    }
+
+    .backup-export-progress {
+      width: min(310px, 100%);
+      height: 10px;
+      accent-color: var(--accent);
+    }
+
+    .backup-download-link {
+      font-size: 0.9rem;
+      font-weight: 700;
     }
 
     .backup-export-status {
-      max-width: 310px;
+      max-width: 330px;
       margin: 0;
       text-align: right;
+    }
+
+    .backup-export-status[data-status="success"] {
+      color: var(--success, var(--accent));
+    }
+
+    .backup-export-status[data-status="warning"] {
+      color: var(--warn, #a16207);
+    }
+
+    .backup-export-status[data-status="error"] {
+      color: var(--danger);
     }
 
     @media (max-width: 760px) {
@@ -98,9 +126,11 @@
         justify-items: stretch;
       }
 
-      .backup-export-actions button {
+      .backup-export-actions button,
+      .backup-export-progress {
         width: 100%;
         min-width: 0;
+        max-width: none;
       }
 
       .backup-export-status {
@@ -130,7 +160,7 @@
         <div class="today-records-heading form-ledger-heading">
           <div>
             <h2 id="backupSummaryHeading">Mawimbi backup summary</h2>
-            <p class="field-hint">Current records and linked photographs intended for the Mawimbi backup.</p>
+            <p class="field-hint">Current records and linked photograph references used for a new Mawimbi backup.</p>
           </div>
           <span id="backupSummaryStatus" class="status-pill status-muted" aria-live="polite">Loading</span>
         </div>
@@ -247,15 +277,17 @@
             </div>
           </section>
 
-          <section class="admin-subsection backup-export-section" aria-labelledby="backupExportHeading">
+          <section id="backupExportSection" class="admin-subsection backup-export-section" aria-labelledby="backupExportHeading">
             <div class="section-head compact backup-export-head">
               <div>
                 <h3 id="backupExportHeading">Export backup ZIP</h3>
-                <p class="field-hint">The later export will contain the displayed Mawimbi records, available linked photographs, a manifest and a missing-photograph list.</p>
+                <p class="field-hint">Creates one verified server-side ZIP containing the displayed Mawimbi records, available linked photographs, a manifest, checksums and a missing-photograph list. Operational records are not changed.</p>
               </div>
               <div class="backup-export-actions">
-                <button type="button" disabled aria-describedby="backupExportStatus">Export backup ZIP</button>
-                <p id="backupExportStatus" class="admin-status backup-export-status">Summary loading. Export backend not connected.</p>
+                <button id="backupExportButton" type="button" disabled aria-describedby="backupExportStatus">Export backup ZIP</button>
+                <progress id="backupExportProgress" class="backup-export-progress" max="100" value="0" hidden aria-label="Backup progress"></progress>
+                <a id="backupDownloadLink" class="backup-download-link" href="#" hidden>Download verified ZIP</a>
+                <p id="backupExportStatus" class="admin-status backup-export-status" role="status" aria-live="polite">Loading current Mawimbi summary.</p>
               </div>
             </div>
           </section>
@@ -264,6 +296,6 @@
     </section>
   </main>
 
-  <script type="module" src="./assets/js/admin_backups_summary.js?v=2"></script>
+  <script type="module" src="./assets/js/admin_backups_summary.js?v=3"></script>
 </body>
 </html>
