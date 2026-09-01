@@ -60,9 +60,12 @@ function setupPackingActionBridge(actionSelector) {
   if (observed.has(actionSelector)) return;
   observed.add(actionSelector);
 
+  const entryTabs = document.getElementById("packingEntryTabs");
   const clearButton = document.getElementById("clearPackingRecord");
   const status = document.getElementById("packingRecordStatus");
   const retestLabel = actionSelector.querySelector("#packingRetestActionLabel");
+
+  entryTabs?.addEventListener("click", syncEntryTabBeforeHandlers, true);
 
   const syncColumns = () => {
     actionSelector.style.setProperty(
@@ -99,6 +102,17 @@ function setupPackingActionBridge(actionSelector) {
       characterData: true
     });
   }
+}
+
+function syncEntryTabBeforeHandlers(event) {
+  const button = event.target?.closest?.("[data-packing-entry-tab]");
+  if (!button) return;
+  const selected = button.dataset.packingEntryTab;
+  button.parentElement?.querySelectorAll("[data-packing-entry-tab]").forEach((tab) => {
+    const active = tab.dataset.packingEntryTab === selected;
+    tab.setAttribute("aria-selected", String(active));
+    tab.tabIndex = active ? 0 : -1;
+  });
 }
 
 function syncVisibleActionFromLegacy() {

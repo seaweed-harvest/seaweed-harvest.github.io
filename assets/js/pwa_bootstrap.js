@@ -118,7 +118,7 @@ if (window.location.pathname.endsWith("/admin_users.html")) {
 if (window.location.pathname.endsWith("/stabilization_packing.html")) {
   Promise.all([
     import("./stabilization_stock_removal.js?v=1"),
-    import("./stabilization_stock_runtime_bridge.js?v=2")
+    import("./stabilization_stock_runtime_bridge.js?v=3")
   ]).catch((error) => {
     console.warn("BioStim stock-removal controls could not be loaded.", error);
   });
@@ -128,7 +128,7 @@ if (window.location.pathname.endsWith("/records.html")) {
   Promise.all([
     import("./stabilization_stock_ledger.js?v=1"),
     import("./stabilization_stock_lookup.js?v=1"),
-    import("./stabilization_stock_runtime_bridge.js?v=2")
+    import("./stabilization_stock_runtime_bridge.js?v=3")
   ]).catch((error) => {
     console.warn("BioStim stock records extensions could not be loaded.", error);
   });
