@@ -25,6 +25,9 @@ document.addEventListener("change", (event) => {
 });
 
 window.addEventListener("pagehide", () => {
+  // auth_client keeps the selector disabled while the organisation RPC is
+  // succeeding and reloads only after that RPC resolves. A failed change
+  // re-enables the selector, so it must not be broadcast to other tabs.
   if (!pendingOrganisationSelect?.disabled || !pendingOrganisationId) return;
   try {
     localStorage.setItem(organisationContextEventKey, JSON.stringify({
@@ -109,6 +112,25 @@ if (window.location.pathname.endsWith("/reef_nursery.html")) {
 if (window.location.pathname.endsWith("/admin_users.html")) {
   import("./tide_activation_admin.js?v=1").catch((error) => {
     console.warn("Tide activation-link controls could not be loaded.", error);
+  });
+}
+
+if (window.location.pathname.endsWith("/stabilization_packing.html")) {
+  Promise.all([
+    import("./stabilization_stock_removal.js?v=1"),
+    import("./stabilization_stock_runtime_bridge.js?v=2")
+  ]).catch((error) => {
+    console.warn("BioStim stock-removal controls could not be loaded.", error);
+  });
+}
+
+if (window.location.pathname.endsWith("/records.html")) {
+  Promise.all([
+    import("./stabilization_stock_ledger.js?v=1"),
+    import("./stabilization_stock_lookup.js?v=1"),
+    import("./stabilization_stock_runtime_bridge.js?v=2")
+  ]).catch((error) => {
+    console.warn("BioStim stock records extensions could not be loaded.", error);
   });
 }
 
