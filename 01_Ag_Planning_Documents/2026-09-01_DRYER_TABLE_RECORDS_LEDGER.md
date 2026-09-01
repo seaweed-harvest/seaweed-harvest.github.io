@@ -173,7 +173,7 @@ Completed:
 - Actual navigation patch inspected: exactly one added menu entry.
 - Actual changed-path list inspected: only the seven planned files above; public/offline dryer form assets are absent from the diff.
 
-Added but not yet executed in a live owner browser session:
+Tests present on the branch:
 - `tests/dryer_table_records_static_test.py`
 - `tests/dryer_table_records_ui_probe.py`
 
