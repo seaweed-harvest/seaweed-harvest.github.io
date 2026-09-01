@@ -1,33 +1,33 @@
-import functools
-import http.server
 import pathlib
-import tempfile
-import threading
+import shutil
 
-from selenium import webdriver
-from selenium.webdriver.support.ui import WebDriverWait
+from playwright.sync_api import sync_playwright
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
-class QuietHandler(http.server.SimpleHTTPRequestHandler):
-    def log_message(self, format, *args):
-        pass
+def extract_exported_function(source, name):
+    marker = f"export function {name}("
+    start = source.index(marker)
+    brace_start = source.index("{", start)
+    depth = 0
+    for index in range(brace_start, len(source)):
+        character = source[index]
+        if character == "{":
+            depth += 1
+        elif character == "}":
+            depth -= 1
+            if depth == 0:
+                return source[start:index + 1].replace("export function", "function", 1)
+    raise AssertionError(f"Could not extract {name}")
 
 
 def main():
-    fixture_path = None
-    with tempfile.NamedTemporaryFile(
-        mode="w",
-        suffix=".html",
-        prefix="dryer-shed-probe-",
-        dir=ROOT,
-        delete=False,
-        encoding="utf-8",
-    ) as fixture:
-        fixture.write(
-            """<!doctype html>
+    bootstrap = (ROOT / "assets/js/dryer_table_bootstrap.js").read_text(encoding="utf-8")
+    helper = extract_exported_function(bootstrap, "setupDryerShedConfiguration")
+
+    html = """<!doctype html>
 <html>
 <body data-language="en">
   <form id="dryingForm">
@@ -47,120 +47,66 @@ def main():
   </form>
 </body>
 </html>"""
-        )
-        fixture_path = pathlib.Path(fixture.name)
 
-    handler = functools.partial(QuietHandler, directory=str(ROOT))
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
+    chromium_path = (
+        shutil.which("chromium")
+        or shutil.which("google-chrome")
+        or shutil.which("chromium-browser")
+    )
 
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless=new")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--window-size=1200,800")
-    driver = webdriver.Chrome(options=options)
-    wait = WebDriverWait(driver, 10)
+    with sync_playwright() as playwright:
+        launch_options = {"headless": True, "args": ["--no-sandbox"]}
+        if chromium_path:
+            launch_options["executable_path"] = chromium_path
+        browser = playwright.chromium.launch(**launch_options)
+        page = browser.new_page()
+        try:
+            page.set_content(html)
+            page.add_script_tag(content=f"{helper}\nsetupDryerShedConfiguration();")
 
-    try:
-        base_url = f"http://127.0.0.1:{server.server_port}"
-        driver.get(f"{base_url}/{fixture_path.name}")
-        import_error = driver.execute_async_script(
-            """
-            const done = arguments[0];
-            import('/assets/js/dryer_table_bootstrap.js?dryer-shed-probe=1')
-              .then((module) => {
-                module.setupDryerShedConfiguration();
-                done('');
-              })
-              .catch((error) => done(String(error && (error.stack || error.message) || error)));
-            """
-        )
-        assert not import_error, import_error
-
-        driver.execute_script(
-            """
-            const location = document.getElementById('dryerLocation');
-            location.value = 'bati-dryer-shed';
-            location.dispatchEvent(new Event('change', { bubbles: true }));
-            """
-        )
-        wait.until(
-            lambda current: current.execute_script(
-                "return document.getElementById('dryingConfiguration').disabled"
+            page.select_option("#dryerLocation", "bati-dryer-shed")
+            assert page.eval_on_selector("#dryingConfiguration", "el => el.disabled")
+            assert page.input_value("#dryingConfiguration") == "no_configuration"
+            assert page.eval_on_selector(
+                '#dryingConfiguration option[value="no_configuration"]',
+                "el => !el.hidden && el.textContent === 'No configuration'",
             )
-        )
-        assert driver.execute_script(
-            "return document.getElementById('dryingConfiguration').value"
-        ) == "no_configuration"
-        assert driver.execute_script(
-            "return document.querySelector('#dryingConfiguration option[value=\"no_configuration\"]').textContent"
-        ) == "No configuration"
-        assert not driver.execute_script(
-            "return document.querySelector('#dryingConfiguration option[value=\"no_configuration\"]').hidden"
-        )
 
-        driver.execute_script(
-            """
-            const location = document.getElementById('dryerLocation');
-            location.value = 'bati-table-1';
-            location.dispatchEvent(new Event('change', { bubbles: true }));
-            """
-        )
-        wait.until(
-            lambda current: not current.execute_script(
-                "return document.getElementById('dryingConfiguration').disabled"
+            page.select_option("#dryerLocation", "bati-table-1")
+            assert not page.eval_on_selector("#dryingConfiguration", "el => el.disabled")
+            assert page.input_value("#dryingConfiguration") == ""
+            assert page.eval_on_selector(
+                '#dryingConfiguration option[value="no_configuration"]',
+                "el => el.hidden",
             )
-        )
-        assert driver.execute_script(
-            "return document.getElementById('dryingConfiguration').value"
-        ) == ""
-        assert driver.execute_script(
-            "return document.querySelector('#dryingConfiguration option[value=\"no_configuration\"]').hidden"
-        )
 
-        driver.execute_script(
-            "document.getElementById('dryerLocation').value = 'bati-dryer-shed';"
-        )
-        wait.until(
-            lambda current: current.execute_script(
-                "return document.getElementById('dryingConfiguration').value === 'no_configuration'"
+            page.evaluate("document.getElementById('dryerLocation').value = 'bati-dryer-shed'")
+            page.wait_for_function(
+                "document.getElementById('dryingConfiguration').value === 'no_configuration'"
             )
-        )
-        assert driver.execute_script(
-            "return document.getElementById('dryingConfiguration').disabled"
-        )
+            assert page.eval_on_selector("#dryingConfiguration", "el => el.disabled")
 
-        driver.execute_script("document.getElementById('dryingForm').reset();")
-        wait.until(
-            lambda current: current.execute_script(
-                "return !document.getElementById('dryingConfiguration').disabled"
+            page.evaluate("document.getElementById('dryingForm').reset()")
+            page.wait_for_function(
+                "!document.getElementById('dryingConfiguration').disabled"
                 " && document.getElementById('dryingConfiguration').value === ''"
             )
-        )
 
-        driver.execute_script(
-            """
-            document.body.dataset.language = 'sw';
-            document.getElementById('dryerLocation').value = 'bati-dryer-shed';
-            document.dispatchEvent(new CustomEvent('seaweed-drying-language-change'));
-            """
-        )
-        wait.until(
-            lambda current: current.execute_script(
-                "return document.querySelector('#dryingConfiguration option[value=\"no_configuration\"]').textContent"
-            ) == "Hakuna mpangilio"
-        )
+            page.evaluate(
+                """
+                document.body.dataset.language = 'sw';
+                document.getElementById('dryerLocation').value = 'bati-dryer-shed';
+                document.dispatchEvent(new CustomEvent('seaweed-drying-language-change'));
+                """
+            )
+            page.wait_for_function(
+                "document.querySelector('#dryingConfiguration option[value=\"no_configuration\"]')"
+                ".textContent === 'Hakuna mpangilio'"
+            )
 
-        print("dryer_table Dryer Shed configuration interaction: ok")
-    finally:
-        driver.quit()
-        server.shutdown()
-        server.server_close()
-        thread.join(timeout=5)
-        if fixture_path:
-            fixture_path.unlink(missing_ok=True)
+            print("dryer_table Dryer Shed configuration interaction: ok")
+        finally:
+            browser.close()
 
 
 if __name__ == "__main__":
