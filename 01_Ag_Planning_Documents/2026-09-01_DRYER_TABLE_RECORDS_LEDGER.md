@@ -173,11 +173,11 @@ Completed:
 - Actual navigation patch inspected: exactly one added menu entry.
 - Actual changed-path list inspected: only the seven planned files above; public/offline dryer form assets are absent from the diff.
 
-Tests present on the branch:
+Tests present on the branch and queued for direct local execution because the draft PR has no attached automatic CI run:
 - `tests/dryer_table_records_static_test.py`
 - `tests/dryer_table_records_ui_probe.py`
 
-The repository has no automatic CI run attached to this draft PR. A true positive cross-project permission test requires a genuine authorised owner session. No privileged temporary owner account was created in production solely to satisfy the test. The live owner-session check remains a required pre-merge/deployment verification item.
+A true positive cross-project permission test requires a genuine authorised owner session. No privileged temporary owner account was created in production solely to satisfy the test. The live owner-session check remains a required pre-merge/deployment verification item.
 
 ## Rollback plan
 
