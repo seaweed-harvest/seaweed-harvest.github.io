@@ -98,6 +98,22 @@ class DryerTableRecordsStaticTest(unittest.TestCase):
         self.assertIn("Currently drying:", self.script)
         self.assertIn("Completed cycles:", self.script)
 
+    def test_missing_unload_values_render_as_missing_not_zero(self):
+        self.assertIn("function optionalNumber(value)", self.script)
+        self.assertIn('value === null || value === undefined || value === ""', self.script)
+        self.assertRegex(
+            self.script,
+            r"function formatOptionalKg\(value\)[\s\S]*?number === null[\s\S]*?[\"']-[\"']",
+        )
+        self.assertRegex(
+            self.script,
+            r"function formatWeightLoss\(value\)[\s\S]*?number === null \? [\"']-[\"']",
+        )
+        self.assertRegex(
+            self.script,
+            r"function formatDryingMinutes\(value\)[\s\S]*?if \(number === null\) return [\"']-[\"']",
+        )
+
     def test_backend_is_read_only_and_validates_account_project_token(self):
         self.assertIn("create or replace function public.list_authenticated_seaweed_drying_ledger", self.migration.lower())
         self.assertIn("ag_my_profile", self.migration)
