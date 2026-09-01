@@ -1,6 +1,8 @@
 import { currentAccessToken, requireAggregatorAccess, setupAccountControls } from "./auth_client.js?v=25";
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
 import { DRYING_FORM_CONFIG } from "./dryer_table_config.js?v=2";
+import { fetchDryerEventPhotos } from "./dryer_photo_client.js?v=1";
+import { openPhotoUrlPreview } from "./photo_viewer.js?v=2";
 
 const RPC_NAME = "list_authenticated_seaweed_drying_ledger";
 const KENYA_TIME_ZONE = "Africa/Nairobi";
@@ -10,7 +12,8 @@ const state = {
   bayRows: [],
   observations: [],
   activeTab: "all",
-  expandedGroups: new Set()
+  expandedGroups: new Set(),
+  photoRequestSequence: 0
 };
 
 const els = {};
@@ -105,7 +108,7 @@ function bindEvents() {
     state.expandedGroups.clear();
     renderAllRecords();
   });
-  els.dryerRecordRows?.addEventListener("click", handleGroupToggle);
+  els.dryerRecordRows?.addEventListener("click", handleRecordTableClick);
   els.applyDryerObservationFilters?.addEventListener("click", renderObservations);
   els.clearDryerObservationFilters?.addEventListener("click", () => {
     els.dryerObservationTableFilter.value = "";
@@ -342,11 +345,18 @@ function groupHeaderRow(group, expanded) {
   const dry = sumNumbers(group.rows, "unloading_weight_kg");
   const drying = group.rows.filter((row) => row.status === "drying").length;
   const complete = group.rows.filter((row) => row.status === "complete").length;
+  const photoCount = groupedPhotoCount(group.rows);
+  const submissionId = group.mode === "event"
+    ? group.rows.find((row) => row.submission_id)?.submission_id
+    : null;
+  const photoSummary = photoCount > 0 && submissionId
+    ? `<button class="photo-count-button dryer-event-photo-button" type="button" data-dryer-photo-submission="${escapeAttribute(submissionId)}" data-dryer-photo-title="${escapeAttribute(group.label)}" aria-label="View ${escapeAttribute(formatPhotoCount(photoCount))} for ${escapeAttribute(group.label)}">${escapeHtml(formatPhotoCount(photoCount))}</button>`
+    : escapeHtml(formatPhotoCount(photoCount));
   const toggleLabel = `${expanded ? "Collapse" : "Expand"} ${group.label}`;
   return `<tr class="table-total-row dryer-group-header" data-dryer-group-header>
     <th colspan="10" scope="rowgroup">
       <button class="icon-button" type="button" data-dryer-group-toggle data-dryer-group-key="${escapeAttribute(group.storageKey)}" aria-expanded="${expanded ? "true" : "false"}" aria-label="${escapeAttribute(toggleLabel)}" title="${escapeAttribute(toggleLabel)}"><span data-dryer-group-marker aria-hidden="true">${expanded ? "▾" : "▸"}</span></button>
-      <strong>${escapeHtml(group.label)}</strong> — ${escapeHtml(formatInteger(group.rows.length))} bays · ${escapeHtml(formatKg(wet))} kg loaded · ${escapeHtml(formatKg(dry))} kg unloaded · ${escapeHtml(formatInteger(drying))} drying · ${escapeHtml(formatInteger(complete))} complete
+      <strong>${escapeHtml(group.label)}</strong> — ${escapeHtml(formatInteger(group.rows.length))} bays · ${escapeHtml(formatKg(wet))} kg loaded · ${escapeHtml(formatKg(dry))} kg unloaded · ${escapeHtml(formatInteger(drying))} drying · ${escapeHtml(formatInteger(complete))} complete · ${photoSummary}
     </th>
   </tr>`;
 }
@@ -362,8 +372,115 @@ function bayRowMarkup(row, groupKey, expanded) {
     <td>${escapeHtml(formatOptionalKg(row.unloading_weight_kg))}</td>
     <td>${escapeHtml(formatWeightLoss(row.weight_loss_pct))}</td>
     <td>${escapeHtml(formatDryingMinutes(row.drying_minutes))}</td>
-    <td>${escapeHtml(formatInteger(row.photo_count))}</td>
+    <td>${bayPhotoMarkup(row)}</td>
   </tr>`;
+}
+
+function bayPhotoMarkup(row) {
+  const loading = nonNegativeInteger(row.loading_photo_count);
+  const unloading = nonNegativeInteger(row.unloading_photo_count);
+  const total = loading + unloading;
+  if (!total || !row.submission_id || row.bay_number == null) return "-";
+
+  const parts = [];
+  if (loading) parts.push(`${formatInteger(loading)} loading`);
+  if (unloading) parts.push(`${formatInteger(unloading)} unloading`);
+  const label = parts.join(" · ");
+  const title = `${row.table_location || "Dryer table"} — Bay ${row.bay_number}`;
+  return `<button class="photo-count-button dryer-bay-photo-button" type="button" data-dryer-photo-submission="${escapeAttribute(row.submission_id)}" data-dryer-photo-bay="${escapeAttribute(row.bay_number)}" data-dryer-photo-title="${escapeAttribute(title)}" aria-label="View ${escapeAttribute(label)} photos for Bay ${escapeAttribute(row.bay_number)}">${escapeHtml(label)}</button>`;
+}
+
+function groupedPhotoCount(rows) {
+  const events = new Map();
+  rows.forEach((row) => {
+    const eventKey = String(
+      row.submission_id
+      || row.receipt_number
+      || `${row.table_location || "unknown"}:${row.recorded_at || "unknown"}`
+    );
+    if (!events.has(eventKey)) {
+      events.set(eventKey, {
+        table: 0,
+        bays: 0,
+        seenBays: new Set()
+      });
+    }
+    const event = events.get(eventKey);
+    event.table = Math.max(event.table, nonNegativeInteger(row.table_photo_count));
+    const bayKey = String(row.bay_number ?? "unknown");
+    if (!event.seenBays.has(bayKey)) {
+      const phaseTotal = nonNegativeInteger(row.loading_photo_count)
+        + nonNegativeInteger(row.unloading_photo_count);
+      event.bays += phaseTotal || nonNegativeInteger(row.photo_count);
+      event.seenBays.add(bayKey);
+    }
+  });
+  return [...events.values()].reduce(
+    (sum, event) => sum + event.table + event.bays,
+    0
+  );
+}
+
+function formatPhotoCount(value) {
+  const count = nonNegativeInteger(value);
+  return `${formatInteger(count)} ${count === 1 ? "photo" : "photos"}`;
+}
+
+function handleRecordTableClick(event) {
+  const photoButton = event.target.closest("[data-dryer-photo-submission]");
+  if (photoButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    void openDryerPhotoButton(photoButton);
+    return;
+  }
+  handleGroupToggle(event);
+}
+
+async function openDryerPhotoButton(button) {
+  const requestSequence = ++state.photoRequestSequence;
+  const submissionId = button.dataset.dryerPhotoSubmission;
+  const bayNumber = button.dataset.dryerPhotoBay || null;
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Loading...";
+  setStatus(els.dryerRecordsStatus, "Loading dryer photos...");
+
+  try {
+    const data = await fetchDryerEventPhotos(submissionId, bayNumber);
+    if (requestSequence !== state.photoRequestSequence) return;
+    const photos = Array.isArray(data?.photos) ? data.photos : [];
+    if (!photos.length) {
+      setStatus(els.dryerRecordsStatus, "No photos are available for this selection.");
+      return;
+    }
+    const eventTitle = String(
+      button.dataset.dryerPhotoTitle
+      || data?.event?.table_location
+      || "Dryer Table Photos"
+    );
+    openPhotoUrlPreview(
+      photos.map((photo, index) => ({
+        url: photo.signed_url,
+        caption: photo.photo_context || "Dryer photo",
+        alt: `${eventTitle} — ${photo.photo_context || `Photo ${index + 1}`}`
+      })),
+      eventTitle
+    );
+    setStatus(
+      els.dryerRecordsStatus,
+      `${formatPhotoCount(photos.length)} opened for review.`
+    );
+  } catch (error) {
+    setStatus(
+      els.dryerRecordsStatus,
+      error?.message || "Dryer photos could not be loaded.",
+      "error"
+    );
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
 }
 
 function handleGroupToggle(event) {
@@ -515,6 +632,11 @@ function optionalNumber(value) {
   if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+function nonNegativeInteger(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? Math.round(number) : 0;
 }
 
 function formatOptionalKg(value) {
