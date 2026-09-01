@@ -44,7 +44,7 @@ async function initializeDryerTablePage() {
   }
 }
 
-function setupDryerShedConfiguration() {
+export function setupDryerShedConfiguration() {
   const locationSelect = document.getElementById("dryerLocation");
   const configurationSelect = document.getElementById("dryingConfiguration");
   const form = document.getElementById("dryingForm");
