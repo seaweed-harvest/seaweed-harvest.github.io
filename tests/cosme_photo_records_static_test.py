@@ -35,6 +35,10 @@ class CosmePhotoRecordsStaticTest(unittest.TestCase):
         self.edge_function = (
             ROOT / "supabase/functions/dryer-record-photos/index.ts"
         ).read_text(encoding="utf-8")
+        self.plan = (
+            ROOT
+            / "01_Ag_Planning_Documents/2026-09-01_COSME_PHOTO_RECORDS.md"
+        ).read_text(encoding="utf-8")
 
     def test_dryer_event_header_has_direct_photo_action(self):
         self.assertIn("groupedPhotoCount(group.rows)", self.records_script)
@@ -115,9 +119,7 @@ class CosmePhotoRecordsStaticTest(unittest.TestCase):
 
     def test_edge_function_validates_foreign_owner_token_before_signing(self):
         source = self.edge_function
-        self.assertIn("verify_jwt=false", (
-            ROOT / "01_Ag_Planning_Documents/2026-09-01_COSME_PHOTO_RECORDS.md"
-        ).read_text(encoding="utf-8"))
+        self.assertIn("gateway JWT verification disabled", self.plan)
         self.assertIn("ag_my_profile", source)
         self.assertIn('profile.account_status === "active"', source)
         self.assertIn("profile.is_protected_owner === true", source)
