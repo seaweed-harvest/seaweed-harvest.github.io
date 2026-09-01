@@ -7,6 +7,111 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Dryer Table Records - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
+  <style>
+    .dryer-payment-selection-panel {
+      margin: 14px 0;
+      padding: 14px;
+      border: 1px solid var(--border, #c9dedb);
+      border-radius: 12px;
+      background: var(--surface-soft, #f4fbfa);
+    }
+
+    .dryer-payment-selection-grid,
+    .dryer-payment-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      align-items: start;
+    }
+
+    .dryer-payment-selection-grid label,
+    .dryer-payment-detail-grid label,
+    .dryer-advance-grid label {
+      min-width: 0;
+    }
+
+    .dryer-payment-selection-value {
+      display: block;
+      margin-top: 4px;
+      font-weight: 700;
+    }
+
+    .dryer-payment-reference,
+    .dryer-payment-table .field-hint,
+    .dryer-payment-ledger-table .field-hint {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .dryer-payment-amount-input {
+      width: 110px;
+      max-width: 100%;
+    }
+
+    .dryer-payment-table select {
+      min-width: 120px;
+    }
+
+    .dryer-payment-disclosure {
+      margin: 0 6px 0 0;
+      padding: 2px 5px;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .dryer-payment-detail-row td {
+      background: var(--surface-soft, #f7fbfa);
+    }
+
+    .dryer-payment-detail-grid {
+      grid-template-columns: 1.2fr 1fr 1fr;
+      padding: 8px 2px;
+    }
+
+    .dryer-payment-detail-grid ul,
+    .dryer-payment-detail-grid p {
+      margin: 6px 0 0;
+    }
+
+    .dryer-payment-detail-grid textarea {
+      width: 100%;
+      min-width: 180px;
+      resize: vertical;
+    }
+
+    .dryer-advance-grid {
+      grid-template-columns: minmax(180px, 1.1fr) repeat(3, minmax(130px, .8fr)) minmax(180px, 1.2fr) auto;
+      margin-bottom: 14px;
+    }
+
+    .dryer-payment-table td,
+    .dryer-payment-ledger-table td {
+      vertical-align: top;
+    }
+
+    .dryer-payment-table .status-pill + .status-pill {
+      margin-top: 4px;
+    }
+
+    .dryer-payment-table td:last-child button {
+      margin-top: 6px;
+    }
+
+    @media (max-width: 980px) {
+      .dryer-payment-selection-grid,
+      .dryer-payment-detail-grid,
+      .dryer-advance-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .dryer-payment-selection-panel .button-row {
+        justify-content: flex-start;
+      }
+    }
+  </style>
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -38,7 +143,7 @@
           <div class="today-heading-title">
             <div>
               <h2>Dryer Table Records</h2>
-              <p class="field-hint">Logged-in summary of dryer table bay cycles and observations.</p>
+              <p class="field-hint">Logged-in summary of dryer table bay cycles, observations and Research Assistant payments.</p>
             </div>
             <button id="reloadDryerRecords" class="icon-button refresh-records-button" type="button" aria-label="Refresh dryer table records" title="Refresh">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.2 6.5L3 16"></path><path d="M3 21v-5h5"></path><path d="M3 12A9 9 0 0 1 18.2 5.5L21 8"></path><path d="M21 3v5h-5"></path></svg>
@@ -47,7 +152,7 @@
           <nav id="dryerRecordTabs" class="today-record-tabs form-ledger-category-tabs" role="tablist" aria-label="Dryer table record category">
             <button id="dryerAllTab" type="button" role="tab" aria-selected="true" aria-controls="dryerAllPanel" data-dryer-tab="all">All Records</button>
             <button id="dryerObservationsTab" type="button" role="tab" aria-selected="false" aria-controls="dryerObservationsPanel" data-dryer-tab="observations">Observations</button>
-            <button id="dryerPaymentsTab" type="button" role="tab" aria-selected="false" aria-controls="dryerPaymentsPanel" data-dryer-tab="payments">Payment Register</button>
+            <button id="dryerPaymentsTab" type="button" role="tab" aria-selected="false" aria-controls="dryerPaymentsPanel" data-dryer-tab="payments">Payments</button>
           </nav>
         </div>
 
@@ -158,13 +263,129 @@
         </section>
 
         <section id="dryerPaymentsPanel" class="admin-card-body standalone dryer-record-panel" role="tabpanel" aria-labelledby="dryerPaymentsTab" hidden>
-          <div class="section-head compact">
-            <div>
-              <h3>Payment Register</h3>
-              <p class="field-hint">Reserved for Research Assistant payment calculations and paid/unpaid tracking.</p>
-            </div>
+          <div id="dryerPaymentSummaryMetrics" class="button-row compact-actions" aria-label="Research Assistant payment summary">
+            <span class="status-pill">Needs review: —</span>
+            <span class="status-pill">Approved unpaid: —</span>
+            <span class="status-pill">Phone/data credit: —</span>
+            <span class="status-pill">Current amount due: —</span>
           </div>
-          <p class="empty-state">Payment calculations will be added after the Research Assistant contract rules are supplied and agreed. No payment logic is active in this version.</p>
+
+          <nav id="dryerPaymentTabs" class="ledger-view-tabs record-period-tabs" aria-label="Payment workspace" role="tablist">
+            <button id="dryerPaymentActivityTab" type="button" role="tab" data-dryer-payment-tab="activity" aria-selected="true" aria-controls="dryerPaymentActivityPanel">Activity Days</button>
+            <button id="dryerPaymentLedgerTab" type="button" role="tab" data-dryer-payment-tab="ledger" aria-selected="false" aria-controls="dryerPaymentLedgerPanel">Payment Ledger</button>
+          </nav>
+
+          <section id="dryerPaymentActivityPanel" role="tabpanel" aria-labelledby="dryerPaymentActivityTab">
+            <div id="dryerPaymentSelectionPanel" class="dryer-payment-selection-panel" hidden>
+              <div class="section-head compact">
+                <div>
+                  <h3>Selected payment</h3>
+                  <span id="dryerPaymentSelectedCount" class="status-pill">0 days selected</span>
+                </div>
+                <div class="button-row compact-actions">
+                  <button id="dryerClearPaymentSelection" type="button">Clear selection</button>
+                  <button id="dryerRecordSelectedPayment" type="button">Record payment</button>
+                </div>
+              </div>
+              <div class="dryer-payment-selection-grid">
+                <div><span class="field-hint">Work compensation</span><span id="dryerPaymentSelectedWork" class="dryer-payment-selection-value">KES 0</span></div>
+                <div><span class="field-hint">Phone/data allowances</span><span id="dryerPaymentSelectedPhone" class="dryer-payment-selection-value">KES 0</span></div>
+                <div><span class="field-hint">Advance credit applied</span><span id="dryerPaymentSelectedCredit" class="dryer-payment-selection-value">− KES 0</span></div>
+                <div><span class="field-hint">Transfer now</span><span id="dryerPaymentSelectedTransfer" class="dryer-payment-selection-value">KES 0</span></div>
+                <label>
+                  Payment date
+                  <input id="dryerPaymentDate" type="date">
+                </label>
+                <label>
+                  Payment reference
+                  <input id="dryerPaymentReference" type="text" maxlength="300" placeholder="Optional M-Pesa or bank reference">
+                </label>
+                <label>
+                  Payment note
+                  <input id="dryerPaymentNote" type="text" maxlength="2000" placeholder="Optional">
+                </label>
+              </div>
+            </div>
+
+            <div class="responsive-table-wrap">
+              <table class="management-table admin-data-table dryer-payment-table">
+                <thead>
+                  <tr>
+                    <th class="selection-cell">Select</th>
+                    <th>Date</th>
+                    <th>Research Assistant</th>
+                    <th>Activity</th>
+                    <th>Status</th>
+                    <th>Work amount</th>
+                    <th>Phone/data</th>
+                    <th>Approved total</th>
+                    <th>Payment</th>
+                  </tr>
+                </thead>
+                <tbody id="dryerActivityDayRows">
+                  <tr><td colspan="9" class="empty-state">Open Payments to load activity days.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p id="dryerPaymentActivityStatus" class="admin-status" aria-live="polite"></p>
+          </section>
+
+          <section id="dryerPaymentLedgerPanel" role="tabpanel" aria-labelledby="dryerPaymentLedgerTab" hidden>
+            <div class="section-head compact">
+              <div>
+                <h3>Payments &amp; advances</h3>
+                <p class="field-hint">Record actual transfers. Phone/data advances become credit and do not reduce work compensation.</p>
+              </div>
+            </div>
+
+            <form id="dryerAdvanceForm" class="admin-toolbar admin-filter-grid dryer-advance-grid">
+              <label>
+                Research Assistant
+                <select id="dryerAdvanceAssistant" required><option value="">Loading...</option></select>
+              </label>
+              <label>
+                Advance date
+                <input id="dryerAdvanceDate" type="date" required>
+              </label>
+              <label>
+                Phone/data advance
+                <input id="dryerAdvanceAmount" type="number" min="1" max="10000000" step="1" placeholder="KES" required>
+              </label>
+              <label>
+                Reference
+                <input id="dryerAdvanceReference" type="text" maxlength="300" placeholder="Optional">
+              </label>
+              <label>
+                Note
+                <input id="dryerAdvanceNote" type="text" maxlength="2000" placeholder="Optional">
+              </label>
+              <div class="ledger-filter-buttons">
+                <button type="submit">Record advance</button>
+              </div>
+            </form>
+            <p id="dryerAdvanceStatus" class="admin-status" aria-live="polite"></p>
+
+            <div class="responsive-table-wrap">
+              <table class="management-table admin-data-table dryer-payment-ledger-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Research Assistant</th>
+                    <th>Type</th>
+                    <th>Amount transferred</th>
+                    <th>Applied to</th>
+                    <th>Phone credit</th>
+                    <th>Reference</th>
+                    <th>Recorded by</th>
+                  </tr>
+                </thead>
+                <tbody id="dryerPaymentLedgerRows">
+                  <tr><td colspan="8" class="empty-state">No payment transactions loaded.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p id="dryerPaymentLedgerStatus" class="admin-status" aria-live="polite"></p>
+          </section>
         </section>
       </section>
     </section>
@@ -172,5 +393,6 @@
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
   <script type="module" src="./assets/js/dryer_table_records.js?v=2"></script>
+  <script type="module" src="./assets/js/dryer_table_payments.js?v=1"></script>
 </body>
 </html>
