@@ -93,14 +93,37 @@ class DryerTableRecordsStaticTest(unittest.TestCase):
             "dryerGroupBy",
         ):
             self.assertIn(f'id="{control}"', self.page)
-        self.assertIn('option value="table" selected', self.page)
-        self.assertIn('option value="load_date"', self.page)
+        self.assertIn('option value="event" selected>Drying event</option>', self.page)
+        self.assertIn('option value="table">Table</option>', self.page)
+        self.assertIn('option value="load_date">Load date</option>', self.page)
         for status in ("drying", "complete", "needs_review"):
             self.assertIn(status, self.script)
         self.assertIn("Wet loaded:", self.script)
         self.assertIn("Dry unloaded:", self.script)
         self.assertIn("Currently drying:", self.script)
         self.assertIn("Completed cycles:", self.script)
+
+    def test_drying_event_group_is_submission_based_and_collapsible(self):
+        self.assertIn('if (mode === "event")', self.script)
+        self.assertIn("row.submission_id", self.script)
+        self.assertIn('storageKey: `${mode}:${key}`', self.script)
+        self.assertIn("data-dryer-group-toggle", self.script)
+        self.assertIn("data-dryer-group-header", self.script)
+        self.assertIn("data-dryer-group-row", self.script)
+        self.assertIn('aria-expanded="${expanded ? "true" : "false"}"', self.script)
+        self.assertIn('expanded ? "▾" : "▸"', self.script)
+        self.assertIn("state.expandedGroups", self.script)
+        self.assertIn("row.hidden = !expanded", self.script)
+        self.assertIn('els.dryerGroupBy.value = "event"', self.script)
+
+    def test_event_label_uses_table_and_loading_time(self):
+        self.assertIn('const loadedAt = earliestTimestamp(rows, "loading_at")', self.script)
+        self.assertIn('return `${table} — ${formatDateTime(eventAt)}`', self.script)
+        self.assertIn('if (mode === "event") {', self.script)
+        self.assertRegex(
+            self.script,
+            r'if \(mode === "event"\)[\s\S]*?Number\(first\.bay_number \|\| 0\) - Number\(second\.bay_number \|\| 0\)',
+        )
 
     def test_missing_unload_values_render_as_missing_not_zero(self):
         self.assertIn("function optionalNumber(value)", self.script)
