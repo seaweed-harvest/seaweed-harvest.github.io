@@ -127,7 +127,7 @@ No write, delete, payment, payout, form-submission, offline-store, service-worke
 
 4. Added an owner-only `Dryer Table Records` link to the shared Records menu, additionally gated by COSME, `form_dryer_table` and `can_view_data`.
 
-5. Added deterministic static coverage and a signed-out browser guard probe.
+5. Added deterministic static coverage and a signed-out browser guard probe. Static coverage explicitly checks that missing unload weight/loss/duration values render as missing rather than zero.
 
 6. Left `dryer_table.html`, `dryer_table_form.js`, `dryer_table_bootstrap.js`, dryer local/offline storage, service worker and existing public dryer RPCs unchanged.
 
@@ -169,7 +169,7 @@ Completed:
 - `anon` still has no direct SELECT privilege on `seaweed_drying_bay_records` or `seaweed_drying_submissions`.
 - Missing-token and invalid-token calls to the new RPC are rejected with SQLSTATE `42501`.
 - JavaScript syntax check passed for the new ledger script.
-- A null-display regression was identified during verification and fixed so unfinished bays render `-` rather than fabricated `0 kg`, `0.0%` or `0m` unload values.
+- A null-display regression was identified during verification and fixed so unfinished bays render `-` rather than fabricated `0 kg`, `0.0%` or `0m` unload values. Static coverage now guards this behaviour.
 - Actual navigation patch inspected: exactly one added menu entry.
 - Actual changed-path list inspected: only the seven planned files above; public/offline dryer form assets are absent from the diff.
 
