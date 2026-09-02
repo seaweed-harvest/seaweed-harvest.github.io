@@ -4,7 +4,7 @@ import {
   routeForProfile,
   setupAccountControls
 } from "./auth_client.js?v=25";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=14";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
 
 const ACTIVE_DATASET_KEYS = Object.freeze([
   "intake",
@@ -41,7 +41,8 @@ async function init() {
 
     const allowed = access.profile?.account_status === "active"
       && (access.profile?.app_role === "system_admin"
-        || access.profile?.is_protected_owner === true);
+        || access.profile?.is_protected_owner === true
+        || access.profile?.can_export_backups === true);
     if (!allowed) {
       window.location.replace("./access_pending.html");
       return;
