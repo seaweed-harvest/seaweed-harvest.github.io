@@ -308,7 +308,7 @@ function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
 
   const tools = permittedLinks(profile, [
     { label: "Dataset Dashboard", href: "./dataset_dashboard.html", permission: "can_view_dashboard", capability: "form_intake_collection", className: "app-nav-desktop-only" },
-    ...(isProtectedOwner(profile)
+    ...(canAccessBackups(profile)
       ? [{ label: "Backups", href: "./admin_backups.html", className: "app-nav-desktop-only" }]
       : []),
     { label: "Finance Review", href: "./admin_finance.html", permission: "can_view_finance", capability: "form_intake_collection", className: "app-nav-desktop-only" },
@@ -439,6 +439,10 @@ function activeAggregatorCode(profile) {
 
 function hasOrganisationCapability(profile, capability) {
   return Boolean(profile?.organisation_capabilities?.[capability]);
+}
+
+function canAccessBackups(profile) {
+  return isProtectedOwner(profile) || hasPermission(profile, "can_export_backups");
 }
 
 function isProtectedOwner(profile) {

@@ -22,6 +22,7 @@ const permissionDefinitions = [
   ["can_view_finance", "View financial data", "View prices, receipts and financial summaries."],
   ["can_manage_pricing", "Manage pricing", "Add, change or deactivate prices used for collection values and receipts."],
   ["can_export_data", "Export data", "Download data from the system for use outside it."],
+  ["can_export_backups", "Export backups", "Create and download the verified Mawimbi backup ZIP. Only the protected owner or a system administrator can grant this permission."],
   ["can_manage_settings", "Manage forms", "Control form entry access, sharing and collection form settings."],
   ["can_manage_users", "Invite and edit users", "View user emails and manage non-admin accounts."],
   ["can_manage_organisation_permissions", "Manage organisation permissions", "Choose which forms, records and tools are available to organisations you administer. Requires access to at least two organisations."],
@@ -563,6 +564,7 @@ async function inviteUser(event) {
   }
   setStatus(els.inviteStatus, usesEmailInvite ? "Sending invite..." : "Creating phone account...");
   try {
+    const permissions = readPermissions("invite");
     const result = await invokeAdminUsers({
       action: "invite",
       email: els.inviteEmail.value.trim(),
@@ -574,10 +576,13 @@ async function inviteUser(event) {
       farmer_id: nullableText(els.inviteFarmerId.value),
       aggregator_ids: aggregatorIds,
       organisation_form_access: readUserFormAccess("invite"),
-      permissions: readPermissions("invite"),
+      permissions,
       dashboard_widgets: readDashboardWidgets("invite"),
       daily_summary_aggregator_ids: readDailySummaryAggregatorIds("invite")
     });
+    if (permissions.can_export_backups) {
+      await setBackupExportPermission(result.user_id, true);
+    }
     els.inviteUserForm.reset();
     els.inviteRole.value = "company_admin";
     configureInviteContactMode();
@@ -611,6 +616,7 @@ async function saveUser(event) {
   }
   setStatus(els.editUserMessage, "Saving...");
   try {
+    const permissions = readPermissions("edit");
     await invokeAdminUsers({
       action: "update",
       user_id: els.editUserId.value,
@@ -621,10 +627,14 @@ async function saveUser(event) {
       farmer_id: nullableText(els.editFarmerId.value),
       aggregator_ids: aggregatorIds,
       organisation_form_access: readUserFormAccess("edit"),
-      permissions: readPermissions("edit"),
+      permissions,
       dashboard_widgets: readDashboardWidgets("edit"),
       daily_summary_aggregator_ids: readDailySummaryAggregatorIds("edit")
     });
+    if (canManageBackupExportPermission()
+        && Boolean(state.editingUser?.can_export_backups) !== permissions.can_export_backups) {
+      await setBackupExportPermission(els.editUserId.value, permissions.can_export_backups);
+    }
     setStatus(els.editUserMessage, "Saved.");
     state.editingUser = null;
     els.userEditorPanel.hidden = true;
@@ -1359,7 +1369,23 @@ function writePermissions(prefix, values) {
   updateOrganisationPermissionEligibility(prefix);
 }
 
+function canManageBackupExportPermission() {
+  return state.actor?.is_protected_owner === true
+    || state.actor?.app_role === "system_admin";
+}
+
+async function setBackupExportPermission(userId, enabled) {
+  if (!canManageBackupExportPermission()) return;
+  const { data, error } = await authClient.rpc("ag_admin_set_backup_export_permission", {
+    p_user_id: userId,
+    p_enabled: Boolean(enabled)
+  });
+  if (error) throw error;
+  return data || {};
+}
+
 function actorCanChangePermission(key) {
+  if (key === "can_export_backups") return canManageBackupExportPermission();
   return state.actor?.is_protected_owner
     || state.actor?.app_role === "system_admin"
     || Boolean(state.actor?.[key]);
