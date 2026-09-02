@@ -14,6 +14,7 @@ A signed-out visitor opening `reef_nursery.html` currently receives the generic 
 - Base branch: `main`
 - Exact base commit: `5a14afb4eac41169f23f7577d023b618157c8676`
 - Implementation branch: `fix/reef-nursery-public-navigation-20260902`
+- Draft pull request: `#34`
 - Coding authority: direct owner request in ChatGPT on 2 September 2026
 - Merge/deployment authority: not yet granted; stop at draft pull request
 
@@ -33,7 +34,7 @@ The change is small, but it touches `assets/js/app_navigation.js`, which is expl
    - hide the Records menu/group when it has no valid links.
 3. Preserve navigation behaviour for signed-in users and every other public page.
 
-## Predicted changed paths
+## Changed paths
 
 - `assets/js/app_navigation.js`
 - `tests/reef_nursery_public_navigation_static_test.py`
@@ -55,6 +56,20 @@ The change is small, but it touches `assets/js/app_navigation.js`, which is expl
 - Run the relevant existing shared mobile-navigation contract assertions against the modified source.
 - Run a lightweight behaviour probe covering anonymous Reef Nursery, anonymous Collection and signed-in COSME contexts.
 - Inspect the actual pull-request diff and GitHub checks before requesting merge approval.
+
+## Implementation evidence
+
+- `node --check assets/js/app_navigation.js`: passed.
+- `python3 -m unittest tests/reef_nursery_public_navigation_static_test.py`: 5 tests passed.
+- Relevant assertions from `MobileAppNavigationStaticTest.test_primary_navigation_and_drawer_contract`: passed against the modified file.
+- Runtime link-builder probe:
+  - signed-out Reef Nursery Forms: `Reef Nursery` only;
+  - signed-out Reef Nursery Records: no links;
+  - signed-out Collection: existing `Intake` and `Today's Intake` links retained;
+  - signed-in COSME: existing Reef/Dryer/Photo/Reef-record links retained according to capability.
+- Actual pull-request diff: 3 changed files; application code change is 19 additions and 9 deletions.
+- GitHub reported no commit statuses and no pull-request workflow runs for the branch head.
+- Actual diff inspection found no authentication, permission, database, form-submission, offline-data or deployment change.
 
 ## Rollback plan
 
