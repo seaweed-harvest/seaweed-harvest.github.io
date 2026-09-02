@@ -16,8 +16,8 @@ export function setupAppNavigation(options = {}) {
   if (!header || !actions || header.dataset.appNavigationReady === "true") return null;
 
   const dashboardHref = options.dashboardHref || dashboardRoute(profile);
-  const forms = formLinks(profile);
-  const records = recordLinks(profile);
+  const forms = formLinks(profile, currentFile);
+  const records = recordLinks(profile, currentFile);
 
   header.classList.add("unified-app-header");
   const primary = document.createElement("nav");
@@ -260,6 +260,7 @@ function createNavIcon(name) {
 function quickMenu(icon, label, links, currentFile, key) {
   const details = document.createElement("details");
   details.className = `mobile-primary-menu mobile-primary-menu-${key}`;
+  details.hidden = links.length === 0;
   const summary = primaryButton("summary", icon, label);
   if (links.some((link) => linkMatchesCurrentRoute(link, currentFile))) {
     summary.setAttribute("aria-current", "page");
@@ -291,8 +292,8 @@ function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
     drawer.append(navigationLink({ label: "Community Map", href: "./admin_map.html" }, currentFile));
   }
 
-  drawer.append(drawerGroup("Forms", formLinks(profile), currentFile, true));
-  drawer.append(drawerGroup("Records", recordLinks(profile), currentFile));
+  drawer.append(drawerGroup("Forms", formLinks(profile, currentFile), currentFile, true));
+  drawer.append(drawerGroup("Records", recordLinks(profile, currentFile), currentFile));
 
   const registry = permittedLinks(profile, [
     { label: "Organisations", href: "./admin_aggregators.html", permission: "can_access_admin" },
@@ -333,6 +334,7 @@ function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
 function drawerGroup(label, links, currentFile, defaultOpen = false) {
   const details = document.createElement("details");
   details.className = "admin-menu-group";
+  details.hidden = links.length === 0;
   const key = label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
   details.dataset.menuGroup = key;
   const summary = document.createElement("summary");
@@ -375,10 +377,11 @@ function navigationLink(link, currentFile) {
   return anchor;
 }
 
-function formLinks(profile) {
+function formLinks(profile, currentFile = "") {
+  const anonymousReefNursery = isAnonymousReefNurseryPage(profile, currentFile);
   const links = [
     { label: "Site Water Samples", href: "./site_water_sample.html", permission: "can_submit_collection", capability: "form_site_water_samples" },
-    { label: "Intake", href: "./collection.html", capability: "form_intake_collection", publicFallback: true },
+    { label: "Intake", href: "./collection.html", capability: "form_intake_collection", publicFallback: !anonymousReefNursery },
     { label: "Stock", href: "./stabilization_packing.html", permission: "can_submit_collection", capability: "form_stock_record" },
     { label: "Process", href: "./process_record.html", permission: "can_submit_collection", capability: "form_process_record" }
   ];
@@ -388,15 +391,18 @@ function formLinks(profile) {
     requiredAggregator: "SANDBOX",
     capability: "form_green_space"
   });
-  if (hasPermission(profile, "can_access_reef_nursery")) {
+  if (anonymousReefNursery) {
+    links.push({ label: "Reef Nursery", href: "./reef_nursery.html", publicFallback: true });
+  } else if (hasPermission(profile, "can_access_reef_nursery")) {
     links.push({ label: "Reef Nursery", href: "./reef_nursery.html", requiredAggregator: "COSME", capability: "form_reef_nursery" });
     links.push({ label: "Dryer Table", href: "./dryer_table.html", requiredAggregator: "COSME", capability: "form_dryer_table" });
   }
   return links.filter((link) => hasLinkAccess(profile, link));
 }
 
-function recordLinks(profile) {
-  const links = (!profile || hasOrganisationCapability(profile, "form_intake_collection")) ? [{
+function recordLinks(profile, currentFile = "") {
+  const links = (!isAnonymousReefNurseryPage(profile, currentFile)
+    && (!profile || hasOrganisationCapability(profile, "form_intake_collection"))) ? [{
     label: "Today's Intake",
     href: hasPermission(profile, "can_view_data")
       ? "./records.html?view=today&category=intake"
@@ -426,6 +432,10 @@ function hasLinkAccess(profile, link) {
     || (link.capability && hasOrganisationCapability(profile, link.capability))
     || (link.capabilityAny || []).some((capability) => hasOrganisationCapability(profile, capability));
   return permitted && correctAggregator && capabilityAllowed;
+}
+
+function isAnonymousReefNurseryPage(profile, currentFile) {
+  return !profile && currentFile === "reef_nursery.html";
 }
 
 function hasPermission(profile, permission) {
