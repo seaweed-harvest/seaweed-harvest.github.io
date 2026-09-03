@@ -35,87 +35,16 @@ async function initializeDryerTablePage() {
       returnPage: "dryer_table.html"
     });
 
+    const shedLocations = await import("./dryer_table_shed_locations.js?v=1");
     await import("./dryer_table_open_edit.js?v=3");
     await import("./dryer_table_form.js?v=2");
+    shedLocations.setupDryerShedLocations();
     await import("./dryer_table_ra_name.js?v=2");
-    setupDryerShedConfiguration();
   } catch (error) {
     showAccessError(error.message || "The Dryer Table form is not available.");
   } finally {
     document.body.removeAttribute("data-auth-pending");
   }
-}
-
-export function setupDryerShedConfiguration() {
-  const locationSelect = document.getElementById("dryerLocation");
-  const configurationSelect = document.getElementById("dryingConfiguration");
-  const form = document.getElementById("dryingForm");
-  if (!locationSelect || !configurationSelect) return;
-
-  let noConfigurationOption = configurationSelect.querySelector('option[value="no_configuration"]');
-  if (!noConfigurationOption) {
-    noConfigurationOption = document.createElement("option");
-    noConfigurationOption.value = "no_configuration";
-    configurationSelect.append(noConfigurationOption);
-  }
-
-  const valueDescriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value");
-  const nativeGet = valueDescriptor?.get;
-  const nativeSet = valueDescriptor?.set;
-
-  const sync = () => {
-    const dryerShedSelected = locationSelect.value === "bati-dryer-shed";
-    noConfigurationOption.textContent = document.body.dataset.language === "sw"
-      ? "Hakuna mpangilio"
-      : "No configuration";
-    noConfigurationOption.hidden = !dryerShedSelected;
-    configurationSelect.disabled = dryerShedSelected;
-
-    if (dryerShedSelected) {
-      if (nativeSet) nativeSet.call(configurationSelect, "no_configuration");
-      else configurationSelect.value = "no_configuration";
-    } else if (configurationSelect.value === "no_configuration") {
-      if (nativeSet) nativeSet.call(configurationSelect, "");
-      else configurationSelect.value = "";
-    }
-
-    const field = configurationSelect.closest(".required-field");
-    field?.classList.toggle(
-      "is-filled",
-      dryerShedSelected || Boolean(String(configurationSelect.value || "").trim())
-    );
-  };
-
-  if (nativeGet && nativeSet) {
-    Object.defineProperty(locationSelect, "value", {
-      configurable: true,
-      get() {
-        return nativeGet.call(locationSelect);
-      },
-      set(value) {
-        nativeSet.call(locationSelect, value);
-        queueMicrotask(sync);
-      }
-    });
-
-    Object.defineProperty(configurationSelect, "value", {
-      configurable: true,
-      get() {
-        return nativeGet.call(configurationSelect);
-      },
-      set(value) {
-        const nextValue = nativeGet.call(locationSelect) === "bati-dryer-shed"
-          ? "no_configuration"
-          : value;
-        nativeSet.call(configurationSelect, nextValue);
-      }
-    });
-  }
-
-  locationSelect.addEventListener("change", sync);
-  form?.addEventListener("reset", () => queueMicrotask(sync));
-  document.addEventListener("seaweed-drying-language-change", sync);
-  sync();
 }
 
 async function optionalSignedInProfile() {

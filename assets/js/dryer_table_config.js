@@ -17,7 +17,7 @@ export const DRYING_FORM_CONFIG = Object.freeze({
   enumeratorStorageKey: "seaweed_drying_enumerator_v1",
   languageStorageKey: "seaweed_drying_language",
   source: "seaweed_harvest_cosme",
-  clientVersion: "2026-07-26.1",
+  clientVersion: "2026-09-03.1",
   maxPhotoBytes: 8 * 1024 * 1024,
   photoTargetBytes: 850 * 1024,
   maxPhotoDimension: 1600,
@@ -51,11 +51,34 @@ export const DRYING_FORM_CONFIG = Object.freeze({
       bayCount: 8
     },
     {
+      value: "bati-dryer-shed-t1",
+      label: "Dryer Shed - T1",
+      stationUid: "ST-0102",
+      bayCount: 1,
+      noConfiguration: true
+    },
+    {
+      value: "bati-dryer-shed-t2",
+      label: "Dryer Shed - T2",
+      stationUid: "ST-0102",
+      bayCount: 1,
+      noConfiguration: true
+    },
+    {
+      value: "bati-dryer-shed-t3",
+      label: "Dryer Shed - T3",
+      stationUid: "ST-0102",
+      bayCount: 1,
+      noConfiguration: true
+    },
+    {
       value: "bati-dryer-shed",
       label: "Dryer Shed",
       translationKey: "location.dryerShed",
       stationUid: "ST-0102",
-      bayCount: 1
+      bayCount: 1,
+      noConfiguration: true,
+      legacy: true
     },
     {
       value: "shangani-table-1",
