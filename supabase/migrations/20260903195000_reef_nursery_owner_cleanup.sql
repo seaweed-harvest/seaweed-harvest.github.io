@@ -154,7 +154,7 @@ begin
 end;
 $$;
 
-revoke all on function public.ag_reef_records_workspace_delete(text, uuid) from public;
+revoke all on function public.ag_reef_records_workspace_delete(text, uuid) from public, anon;
 grant execute on function public.ag_reef_records_workspace_delete(text, uuid) to authenticated;
 
 comment on function public.ag_reef_records_workspace_delete(text, uuid)
