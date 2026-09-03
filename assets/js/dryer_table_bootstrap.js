@@ -37,6 +37,7 @@ async function initializeDryerTablePage() {
 
     await import("./dryer_table_open_edit.js?v=3");
     await import("./dryer_table_form.js?v=2");
+    await import("./dryer_table_ra_name.js?v=1");
     setupDryerShedConfiguration();
   } catch (error) {
     showAccessError(error.message || "The Dryer Table form is not available.");

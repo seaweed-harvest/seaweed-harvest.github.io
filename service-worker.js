@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v125";
+const CACHE_VERSION = "seaweed-harvest-collection-v126";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -78,6 +78,7 @@ const APP_SHELL = [
   "./assets/js/reef_review_matrix_collaboration.js",
   "./assets/js/dryer_table_bootstrap.js",
   "./assets/js/dryer_table_open_edit.js",
+  "./assets/js/dryer_table_ra_name.js",
   "./assets/js/dryer_table_config.js",
   "./assets/js/dryer_table_form.js",
   "./assets/js/dryer_table_language.js",
