@@ -2,8 +2,10 @@ import pathlib
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+HTML = (ROOT / "reef_nursery.html").read_text(encoding="utf-8")
 BOOT = (ROOT / "assets/js/reef_nursery_boot.js").read_text(encoding="utf-8")
 DOM_GUARD = (ROOT / "assets/js/reef_nursery_training_dom_guard.js").read_text(encoding="utf-8")
+RPC_GUARD = (ROOT / "assets/js/reef_nursery_training_rpc_guard.js").read_text(encoding="utf-8")
 ENTRY_BRIDGE = (ROOT / "assets/js/reef_nursery_training_entry_bridge.js").read_text(encoding="utf-8")
 SERVICE_WORKER = (ROOT / "service-worker.js").read_text(encoding="utf-8")
 MIGRATION = (
@@ -56,6 +58,12 @@ class ReefNurseryTrainingEntryContractTest(unittest.TestCase):
         save_body = ENTRY_BRIDGE[save_start:submit_start]
         self.assertNotIn("showValidationError", save_body)
 
+    def test_legacy_authenticated_save_also_uses_draft_rpc(self):
+        self.assertIn('save: "ag_reef_training_workspace_save"', RPC_GUARD)
+        self.assertIn("workspaceSaveArgs(args)", RPC_GUARD)
+        self.assertIn("saveUsesDraftRpc: true", RPC_GUARD)
+        self.assertNotIn('ag_save_reef_nursery_draft_v3: "workspace-submit-or-update"', RPC_GUARD)
+
     def test_submit_still_requires_completion_fields(self):
         for message in (
             "Training date is required before submission.",
@@ -88,11 +96,15 @@ class ReefNurseryTrainingEntryContractTest(unittest.TestCase):
         self.assertIn("created_at + interval '168 hours'", MIGRATION)
         self.assertIn("not exists (", MIGRATION)
 
-    def test_boot_and_cache_are_advanced(self):
-        self.assertIn('reef_nursery_training_dom_guard.js?v=6', BOOT)
-        self.assertIn('reef_nursery_training_entry_bridge.js?v=1', BOOT)
+    def test_html_boot_and_cache_are_explicitly_advanced(self):
+        self.assertIn('reef_nursery_training_entry_bridge.js?v=2', HTML)
+        self.assertIn('reef_nursery_boot.js?v=4', HTML)
+        self.assertIn('reef_nursery_training_rpc_guard.js?v=4', BOOT)
+        self.assertIn('reef_nursery_training_dom_guard.js?v=7', BOOT)
+        self.assertIn('reef_nursery_training_entry_bridge.js?v=2', BOOT)
+        self.assertIn('reef_nursery_training_public.js?v=4', BOOT)
         self.assertIn('"./assets/js/reef_nursery_training_entry_bridge.js"', SERVICE_WORKER)
-        self.assertIn("seaweed-harvest-collection-v132", SERVICE_WORKER)
+        self.assertIn("seaweed-harvest-collection-v133", SERVICE_WORKER)
 
     def test_migration_does_not_rewrite_operational_records(self):
         lowered = MIGRATION.lower()
