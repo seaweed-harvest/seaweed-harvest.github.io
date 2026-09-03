@@ -55,9 +55,9 @@ class ReefNurserySimpleSaveContractTest(unittest.TestCase):
         self.assertIn("WORKSPACE_RPCS.update", RPC_GUARD)
         self.assertIn("WORKSPACE_RPCS.submit", RPC_GUARD)
 
-    def test_cache_is_advanced_for_the_simplification(self):
-        self.assertIn("seaweed-harvest-collection-v130", SERVICE_WORKER)
-        self.assertIn('reef_nursery_training_dom_guard.js?v=4', BOOT)
+    def test_cache_is_advanced_for_the_option_contract(self):
+        self.assertIn("seaweed-harvest-collection-v131", SERVICE_WORKER)
+        self.assertIn('reef_nursery_training_dom_guard.js?v=5', BOOT)
         self.assertIn('reef_nursery_training_rpc_guard.js?v=3', BOOT)
 
 
