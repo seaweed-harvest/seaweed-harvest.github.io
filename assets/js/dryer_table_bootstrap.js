@@ -35,7 +35,7 @@ async function initializeDryerTablePage() {
       returnPage: "dryer_table.html"
     });
 
-    await import("./dryer_table_open_edit.js?v=1");
+    await import("./dryer_table_open_edit.js?v=2");
     await import("./dryer_table_form.js?v=2");
     setupDryerShedConfiguration();
   } catch (error) {
