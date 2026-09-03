@@ -21,8 +21,9 @@ function normalizeRecordActions() {
   if (!recordsList) return;
   const label = editRecordLabel();
   recordsList.querySelectorAll("button[data-edit-receipt]").forEach((button) => {
-    button.textContent = label;
-    button.title = label;
+    // Avoid retriggering the MutationObserver when the label is already correct.
+    if (button.textContent !== label) button.textContent = label;
+    if (button.title !== label) button.title = label;
   });
 }
 
