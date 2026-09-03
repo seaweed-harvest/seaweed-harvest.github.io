@@ -4,11 +4,14 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 BOOT = (ROOT / "assets/js/reef_nursery_boot.js").read_text(encoding="utf-8")
 DOM_GUARD = (ROOT / "assets/js/reef_nursery_training_dom_guard.js").read_text(encoding="utf-8")
-RPC_GUARD = (ROOT / "assets/js/reef_nursery_training_rpc_guard.js").read_text(encoding="utf-8")
+ENTRY_BRIDGE = (ROOT / "assets/js/reef_nursery_training_entry_bridge.js").read_text(encoding="utf-8")
 SERVICE_WORKER = (ROOT / "service-worker.js").read_text(encoding="utf-8")
+MIGRATION = (
+    ROOT / "supabase/migrations/20260903183000_reef_training_public_photos.sql"
+).read_text(encoding="utf-8")
 
 
-class ReefNurserySimpleSaveContractTest(unittest.TestCase):
+class ReefNurseryTrainingEntryContractTest(unittest.TestCase):
     def test_heavy_current_state_wrapper_is_not_loaded(self):
         self.assertNotIn("reef_nursery_current_state", BOOT)
         self.assertNotIn('"./assets/js/reef_nursery_current_state.js"', SERVICE_WORKER)
@@ -35,30 +38,68 @@ class ReefNurserySimpleSaveContractTest(unittest.TestCase):
         self.assertEqual(positions, sorted(positions))
         self.assertIn('option.hidden = value !== current', DOM_GUARD)
 
-    def test_actions_use_existing_form_handlers(self):
+    def test_all_action_rows_are_save_submit_clear(self):
         for label in ("Save", "Submit and start new", "Clear"):
             self.assertIn(f'"{label}"', DOM_GUARD)
-        self.assertIn("form.requestSubmit()", DOM_GUARD)
-        self.assertIn("document.getElementById(config.saveId)?.click()", DOM_GUARD)
-        self.assertIn("document.getElementById(config.clearId)?.click()", DOM_GUARD)
-        self.assertNotIn("ag_reef_seaweed_workspace_save", DOM_GUARD)
-        self.assertNotIn("ag_reef_inspection_workspace_save", DOM_GUARD)
+        self.assertIn("row.insertBefore(save, submit)", DOM_GUARD)
+        self.assertIn("row.insertBefore(submit, clear)", DOM_GUARD)
+        self.assertIn("consistentActionOrder: true", DOM_GUARD)
 
-    def test_save_does_not_navigate_away(self):
-        self.assertNotIn("window.location.assign", DOM_GUARD)
-        self.assertIn("savePreservesTabAndScroll: true", DOM_GUARD)
-        self.assertIn("window.scrollTo", DOM_GUARD)
+    def test_save_allows_missing_times_and_stays_in_place(self):
+        self.assertIn('rpc("ag_reef_training_workspace_save"', ENTRY_BRIDGE)
+        self.assertIn("saveAllowsIncompleteTimes: true", ENTRY_BRIDGE)
+        self.assertIn("history.replaceState", ENTRY_BRIDGE)
+        self.assertIn("savePreservesPlace: true", ENTRY_BRIDGE)
+        self.assertNotIn("window.location.assign", ENTRY_BRIDGE)
+        save_start = ENTRY_BRIDGE.index("async function saveTrainingInPlace")
+        submit_start = ENTRY_BRIDGE.index("async function submitTrainingAndStartNew")
+        save_body = ENTRY_BRIDGE[save_start:submit_start]
+        self.assertNotIn("showValidationError", save_body)
 
-    def test_authenticated_training_save_commits_not_drafts(self):
-        self.assertNotIn('save: "ag_reef_training_workspace_save"', RPC_GUARD)
-        self.assertIn("workspace-submit-or-update", RPC_GUARD)
-        self.assertIn("WORKSPACE_RPCS.update", RPC_GUARD)
-        self.assertIn("WORKSPACE_RPCS.submit", RPC_GUARD)
+    def test_submit_still_requires_completion_fields(self):
+        for message in (
+            "Training date is required before submission.",
+            "Start time is required before submission.",
+            "Finish time is required before submission.",
+            "Select at least one type of session before submission.",
+            "Add at least one participant before submission.",
+        ):
+            self.assertIn(message, ENTRY_BRIDGE)
 
-    def test_cache_is_advanced_for_the_option_contract(self):
-        self.assertIn("seaweed-harvest-collection-v131", SERVICE_WORKER)
-        self.assertIn('reef_nursery_training_dom_guard.js?v=5', BOOT)
-        self.assertIn('reef_nursery_training_rpc_guard.js?v=3', BOOT)
+    def test_training_photos_work_for_public_and_authenticated_entry(self):
+        self.assertIn('PHOTO_BUCKET = "reef-nursery-photos"', ENTRY_BRIDGE)
+        self.assertIn("ag_reef_training_workspace_attach_photo", ENTRY_BRIDGE)
+        self.assertIn("ag_reef_training_workspace_photos", ENTRY_BRIDGE)
+        self.assertIn("publicAndAuthenticatedPhotos: true", ENTRY_BRIDGE)
+        self.assertNotIn("Sign in again before uploading Training photos", ENTRY_BRIDGE)
+        for policy in (
+            'create policy "reef nursery workspace photo insert"',
+            'create policy "reef nursery workspace photo read"',
+            'create policy "reef nursery workspace photo cleanup"',
+        ):
+            self.assertIn(policy, MIGRATION)
+        self.assertGreaterEqual(MIGRATION.count("to anon, authenticated"), 5)
+        self.assertNotIn("update storage.buckets", MIGRATION.lower())
+
+    def test_photo_boundary_remains_private_and_bounded(self):
+        self.assertIn("p_byte_size not between 1 and 1048576", MIGRATION)
+        self.assertIn("Only 8 Training photos can be attached.", MIGRATION)
+        self.assertIn("lower(storage.extension(name)) = 'jpg'", MIGRATION)
+        self.assertIn("created_at + interval '168 hours'", MIGRATION)
+        self.assertIn("not exists (", MIGRATION)
+
+    def test_boot_and_cache_are_advanced(self):
+        self.assertIn('reef_nursery_training_dom_guard.js?v=6', BOOT)
+        self.assertIn('reef_nursery_training_entry_bridge.js?v=1', BOOT)
+        self.assertIn('"./assets/js/reef_nursery_training_entry_bridge.js"', SERVICE_WORKER)
+        self.assertIn("seaweed-harvest-collection-v132", SERVICE_WORKER)
+
+    def test_migration_does_not_rewrite_operational_records(self):
+        lowered = MIGRATION.lower()
+        self.assertNotIn("delete from public.ag_reef", lowered)
+        self.assertNotIn("truncate ", lowered)
+        self.assertNotIn("drop table", lowered)
+        self.assertNotIn("update public.ag_reef_nursery_sessions", lowered)
 
 
 if __name__ == "__main__":

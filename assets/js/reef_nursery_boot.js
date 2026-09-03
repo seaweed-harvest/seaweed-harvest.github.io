@@ -1,7 +1,8 @@
 await import("./reef_nursery_training_rpc_guard.js?v=3");
-await import("./reef_nursery_training_dom_guard.js?v=5");
+await import("./reef_nursery_training_dom_guard.js?v=6");
 await import("./reef_nursery_training_optional_participants.js?v=1");
 await import("./reef_nursery_training_public.js?v=3");
+await import("./reef_nursery_training_entry_bridge.js?v=1");
 
 export const REEF_CANONICAL_ROUTE_PARAMETERS = Object.freeze([
   "tab",
