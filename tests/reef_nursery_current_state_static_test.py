@@ -104,7 +104,7 @@ class ReefNurseryTrainingEntryContractTest(unittest.TestCase):
         self.assertIn('reef_nursery_training_entry_bridge.js?v=2', BOOT)
         self.assertIn('reef_nursery_training_public.js?v=4', BOOT)
         self.assertIn('"./assets/js/reef_nursery_training_entry_bridge.js"', SERVICE_WORKER)
-        self.assertIn("seaweed-harvest-collection-v133", SERVICE_WORKER)
+        self.assertIn("seaweed-harvest-collection-v134", SERVICE_WORKER)
 
     def test_migration_does_not_rewrite_operational_records(self):
         lowered = MIGRATION.lower()
