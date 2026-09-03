@@ -203,7 +203,8 @@ function markDirtyFromAction(target, event) {
   if (!target.closest(
     "#addReefParticipant, [data-remove-participant], [data-clear-competency], "
     + "[data-set-competency-participant], [data-remove-photo], "
-    + "[data-reef-bridge-remove-photo]"
+    + "[data-reef-bridge-remove-photo], #reefTakePhoto, #reefChoosePhotos, "
+    + "#reefSeaweedTakePhoto, #reefSeaweedChoosePhoto"
   )) return;
   const type = formTypeForElement(target);
   if (type) dirty.set(type, true);
