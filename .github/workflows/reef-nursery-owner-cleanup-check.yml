@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - feature/reef-nursery-owner-cleanup-20260903
+      - fix/reef-delete-modal-hang-20260903
   pull_request:
     paths:
       - "assets/js/reef_nursery_boot.js"
       - "assets/js/reef_nursery_cleanup.js"
+      - "assets/js/reef_nursery_delete_hotfix.js"
       - "service-worker.js"
       - "supabase/migrations/20260903195000_reef_nursery_owner_cleanup.sql"
       - "supabase/migrations/20260903195100_reef_nursery_owner_delete_revoke_anon.sql"
@@ -32,6 +34,7 @@ jobs:
         run: |
           node --check assets/js/reef_nursery_boot.js
           node --check assets/js/reef_nursery_cleanup.js
+          node --check assets/js/reef_nursery_delete_hotfix.js
           node --check service-worker.js
       - name: Focused cleanup contract
         run: python -m unittest tests.reef_nursery_owner_cleanup_static_test
