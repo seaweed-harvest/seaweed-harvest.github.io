@@ -5,7 +5,7 @@ const recordsTable = recordsList?.closest("table");
 const refreshRecords = document.getElementById("refreshRecords");
 
 let raNames = new Map();
-let loading = false;
+let loadPromise = null;
 
 function raNameHeading() {
   return document.body.dataset.language === "sw" ? "Jina la RA" : "RA name";
@@ -20,7 +20,8 @@ function ensureRaNameHeading() {
     heading.dataset.raNameHeading = "";
     row.append(heading);
   }
-  heading.textContent = raNameHeading();
+  const label = raNameHeading();
+  if (heading.textContent !== label) heading.textContent = label;
 }
 
 function renderRaNames() {
@@ -35,14 +36,14 @@ function renderRaNames() {
       cell.dataset.raNameCell = "";
       row.append(cell);
     }
-    cell.textContent = raNames.get(edit.dataset.editReceipt) || "-";
+    const name = raNames.get(edit.dataset.editReceipt) || "-";
+    if (cell.textContent !== name) cell.textContent = name;
   });
 }
 
 async function loadRaNames() {
-  if (loading) return;
-  loading = true;
-  try {
+  if (loadPromise) return loadPromise;
+  loadPromise = (async () => {
     const response = await fetch(`${CONFIG.supabaseUrl}/rest/v1/rpc/${encodeURIComponent(CONFIG.listRecordsRpc)}`, {
       method: "POST",
       headers: {
@@ -61,21 +62,25 @@ async function loadRaNames() {
       String(record.enumerator_name || "").trim()
     ]));
     renderRaNames();
-  } catch {
-    // Previous records remain usable if the optional RA-name enhancement cannot load.
-  } finally {
-    loading = false;
-  }
+  })()
+    .catch(() => {
+      // Previous records remain usable if the optional RA-name enhancement cannot load.
+    })
+    .finally(() => {
+      loadPromise = null;
+    });
+  return loadPromise;
 }
 
 if (recordsList) {
+  // Watch only rows added directly to the table body. Rendering RA cells inside
+  // those rows must not trigger this observer again.
   new MutationObserver(renderRaNames).observe(recordsList, {
-    childList: true,
-    subtree: true
+    childList: true
   });
 }
 refreshRecords?.addEventListener("click", () => queueMicrotask(loadRaNames));
 document.addEventListener("seaweed-drying-language-change", renderRaNames);
 
 renderRaNames();
-loadRaNames();
+void loadRaNames();
