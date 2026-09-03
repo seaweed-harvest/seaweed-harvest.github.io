@@ -4,9 +4,12 @@ on:
   push:
     branches:
       - fix/reef-training-save-and-photos-20260903
+      - fix/reef-training-save-cache-bust-20260903
   pull_request:
     paths:
+      - "reef_nursery.html"
       - "assets/js/reef_nursery_boot.js"
+      - "assets/js/reef_nursery_training_rpc_guard.js"
       - "assets/js/reef_nursery_training_dom_guard.js"
       - "assets/js/reef_nursery_training_entry_bridge.js"
       - "service-worker.js"
@@ -31,6 +34,7 @@ jobs:
       - name: JavaScript syntax
         run: |
           node --check assets/js/reef_nursery_boot.js
+          node --check assets/js/reef_nursery_training_rpc_guard.js
           node --check assets/js/reef_nursery_training_dom_guard.js
           node --check assets/js/reef_nursery_training_entry_bridge.js
           node --check service-worker.js
