@@ -10,6 +10,7 @@ on:
       - "assets/js/reef_nursery_cleanup.js"
       - "service-worker.js"
       - "supabase/migrations/20260903195000_reef_nursery_owner_cleanup.sql"
+      - "supabase/migrations/20260903195100_reef_nursery_owner_delete_revoke_anon.sql"
       - "tests/reef_nursery_owner_cleanup_static_test.py"
       - ".github/workflows/reef-nursery-owner-cleanup-check.yml"
 
