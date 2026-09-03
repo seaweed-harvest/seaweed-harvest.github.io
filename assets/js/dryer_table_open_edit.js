@@ -3,6 +3,7 @@ const OPEN_EDIT_SENTINEL = "open-edit";
 const recordsRaId = document.getElementById("recordsRaId");
 const recordsAccess = recordsRaId?.closest(".records-access");
 const recordsList = document.getElementById("recordsList");
+const refreshRecords = document.getElementById("refreshRecords");
 
 if (recordsRaId) {
   // Keep the existing form contract satisfied while removing RA / ID as an edit gate.
@@ -21,18 +22,18 @@ function normalizeRecordActions() {
   if (!recordsList) return;
   const label = editRecordLabel();
   recordsList.querySelectorAll("button[data-edit-receipt]").forEach((button) => {
-    // Avoid retriggering the MutationObserver when the label is already correct.
     if (button.textContent !== label) button.textContent = label;
     if (button.title !== label) button.title = label;
   });
 }
 
-if (recordsList) {
-  new MutationObserver(normalizeRecordActions).observe(recordsList, {
-    childList: true,
-    subtree: true
+function scheduleRecordActionLabels() {
+  // Use a short, finite set of checks instead of observing every table mutation.
+  [0, 250, 750, 1500, 3000].forEach((delay) => {
+    window.setTimeout(normalizeRecordActions, delay);
   });
 }
 
-document.addEventListener("seaweed-drying-language-change", normalizeRecordActions);
-normalizeRecordActions();
+refreshRecords?.addEventListener("click", scheduleRecordActionLabels);
+document.addEventListener("seaweed-drying-language-change", scheduleRecordActionLabels);
+scheduleRecordActionLabels();
