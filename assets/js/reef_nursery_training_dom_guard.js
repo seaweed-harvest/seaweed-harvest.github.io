@@ -75,16 +75,12 @@ function syncDomContracts() {
 
   if (!reviewMode) lockTrainingPhotos();
 
+  // Save is a first-class current-state action for both Public and authenticated
+  // Reef entry. Review mode remains submission-only.
   const saveButton = document.getElementById("saveReefNursery");
   if (saveButton && !reviewMode) {
-    const editing = Boolean(currentTrainingRecordId());
-    const hideSaveButton = !editing;
-    if (saveButton.hidden !== hideSaveButton) {
-      saveButton.hidden = hideSaveButton;
-    }
-    if (editing && saveButton.textContent !== "Save changes") {
-      saveButton.textContent = "Save changes";
-    }
+    if (saveButton.hidden) saveButton.hidden = false;
+    if (saveButton.textContent !== "Save") saveButton.textContent = "Save";
   }
 }
 
@@ -162,10 +158,6 @@ function participantRowHasValue(row) {
     .some((control) => String(control.value || "").trim());
 }
 
-function currentTrainingRecordId() {
-  return new URLSearchParams(window.location.search).get("record");
-}
-
 function isReviewMode() {
   const parameters = new URLSearchParams(window.location.search);
   return Boolean(parameters.get("share") && parameters.get("org"));
@@ -176,5 +168,6 @@ export const REEF_TRAINING_DOM_GUARD_CONTRACT = Object.freeze({
   originalParticipantTabBehaviour: true,
   duplicateSignInRemoved: true,
   publicSidebarHidden: true,
-  trainingPhotoStorageBoundaryPreserved: true
+  trainingPhotoStorageBoundaryPreserved: true,
+  saveCurrentStateAvailable: true
 });
