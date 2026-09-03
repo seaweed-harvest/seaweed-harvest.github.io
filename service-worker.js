@@ -77,6 +77,7 @@ const APP_SHELL = [
   "./assets/js/reef_nursery_records_unified.js",
   "./assets/js/reef_review_matrix_collaboration.js",
   "./assets/js/dryer_table_bootstrap.js",
+  "./assets/js/dryer_table_open_edit.js",
   "./assets/js/dryer_table_config.js",
   "./assets/js/dryer_table_form.js",
   "./assets/js/dryer_table_language.js",
