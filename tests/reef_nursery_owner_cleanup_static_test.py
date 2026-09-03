@@ -3,6 +3,9 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CLEANUP = (ROOT / "assets/js/reef_nursery_cleanup.js").read_text(encoding="utf-8")
+DELETE_HOTFIX = (
+    ROOT / "assets/js/reef_nursery_delete_hotfix.js"
+).read_text(encoding="utf-8")
 BOOT = (ROOT / "assets/js/reef_nursery_boot.js").read_text(encoding="utf-8")
 SERVICE_WORKER = (ROOT / "service-worker.js").read_text(encoding="utf-8")
 MIGRATION = (
@@ -59,6 +62,18 @@ class ReefNurseryOwnerCleanupStaticTest(unittest.TestCase):
         self.assertIn('textContent = `Delete ${target.number}?`', CLEANUP)
         self.assertIn("ag_reef_records_workspace_delete", CLEANUP)
 
+    def test_delete_hotfix_avoids_modal_hang(self):
+        self.assertIn("event.stopImmediatePropagation()", DELETE_HOTFIX)
+        self.assertIn("window.confirm(", DELETE_HOTFIX)
+        self.assertIn("withTimeout(", DELETE_HOTFIX)
+        self.assertIn("openFreshRecordsList", DELETE_HOTFIX)
+        self.assertIn("nativeConfirmation: true", DELETE_HOTFIX)
+        self.assertIn("preventsLegacyDeleteHandler: true", DELETE_HOTFIX)
+        self.assertLess(
+            BOOT.index('import("./reef_nursery_delete_hotfix.js?v=1")'),
+            BOOT.index('import("./reef_nursery_cleanup.js?v=1")'),
+        )
+
     def test_clear_is_replaced_with_new_record(self):
         for button_id in (
             "newReefNursery",
@@ -84,8 +99,10 @@ class ReefNurseryOwnerCleanupStaticTest(unittest.TestCase):
 
     def test_cleanup_runtime_is_registered_and_cached(self):
         self.assertIn('import("./reef_nursery_cleanup.js?v=1")', BOOT)
+        self.assertIn('import("./reef_nursery_delete_hotfix.js?v=1")', BOOT)
         self.assertIn('"./assets/js/reef_nursery_cleanup.js"', SERVICE_WORKER)
-        self.assertIn("seaweed-harvest-collection-v134", SERVICE_WORKER)
+        self.assertIn('"./assets/js/reef_nursery_delete_hotfix.js"', SERVICE_WORKER)
+        self.assertIn("seaweed-harvest-collection-v135", SERVICE_WORKER)
 
     def test_contract_is_explicit(self):
         for token in (
