@@ -23,3 +23,5 @@ if (!reviewMode) {
     import("./reef_nursery_inspection.js?v=2")
   ]);
 }
+
+await import("./reef_nursery_cleanup.js?v=1");

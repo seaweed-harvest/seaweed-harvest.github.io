@@ -1,0 +1,37 @@
+name: Reef Nursery owner cleanup check
+
+on:
+  push:
+    branches:
+      - feature/reef-nursery-owner-cleanup-20260903
+  pull_request:
+    paths:
+      - "assets/js/reef_nursery_boot.js"
+      - "assets/js/reef_nursery_cleanup.js"
+      - "service-worker.js"
+      - "supabase/migrations/20260903195000_reef_nursery_owner_cleanup.sql"
+      - "supabase/migrations/20260903195100_reef_nursery_owner_delete_revoke_anon.sql"
+      - "tests/reef_nursery_owner_cleanup_static_test.py"
+      - ".github/workflows/reef-nursery-owner-cleanup-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: JavaScript syntax
+        run: |
+          node --check assets/js/reef_nursery_boot.js
+          node --check assets/js/reef_nursery_cleanup.js
+          node --check service-worker.js
+      - name: Focused cleanup contract
+        run: python -m unittest tests.reef_nursery_owner_cleanup_static_test
