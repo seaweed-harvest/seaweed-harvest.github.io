@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v133";
+const CACHE_VERSION = "seaweed-harvest-collection-v134";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -72,6 +72,7 @@ const APP_SHELL = [
   "./assets/js/reef_nursery_training_optional_participants.js",
   "./assets/js/reef_nursery_training_public.js",
   "./assets/js/reef_nursery_training_entry_bridge.js",
+  "./assets/js/reef_nursery_cleanup.js",
   "./assets/js/reef_nursery_seaweed.js",
   "./assets/js/reef_nursery_seaweed_math.js",
   "./assets/js/reef_nursery_inspection.js",
