@@ -285,6 +285,7 @@ async function submitTrainingAndStartNew() {
     }
 
     const number = saved?.record_number || recordNumber();
+    setBusy(false);
     document.getElementById("clearReefNursery")?.click();
     queueMicrotask(() => setStatus(`${number} submitted. A new Training record is ready.`, "success"));
   } catch (error) {
@@ -450,7 +451,10 @@ async function uploadPendingPhotos(sessionId) {
 
   while (state.pendingPhotos.length) {
     const file = state.pendingPhotos[0];
-    const order = state.existingPhotos.length + 1;
+    const order = Math.max(
+      0,
+      ...state.existingPhotos.map((photo) => Number(photo.photo_order) || 0)
+    ) + 1;
     setPhotoStatus(`Compressing photo ${order}…`);
     const blob = await compressPhoto(file);
     const path = `${sessionId}/${String(order).padStart(2, "0")}-${createUuid()}.jpg`;
