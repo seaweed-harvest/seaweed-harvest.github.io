@@ -64,10 +64,10 @@ class ReefNurseryOwnerCleanupStaticTest(unittest.TestCase):
 
     def test_delete_hotfix_avoids_modal_hang(self):
         self.assertIn("event.stopImmediatePropagation()", DELETE_HOTFIX)
-        self.assertIn("closeDeleteDialog();", DELETE_HOTFIX)
+        self.assertIn("window.confirm(", DELETE_HOTFIX)
         self.assertIn("withTimeout(", DELETE_HOTFIX)
         self.assertIn("openFreshRecordsList", DELETE_HOTFIX)
-        self.assertIn("closesDialogBeforeRequest: true", DELETE_HOTFIX)
+        self.assertIn("nativeConfirmation: true", DELETE_HOTFIX)
         self.assertIn("preventsLegacyDeleteHandler: true", DELETE_HOTFIX)
         self.assertLess(
             BOOT.index('import("./reef_nursery_delete_hotfix.js?v=1")'),
