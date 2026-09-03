@@ -1,0 +1,38 @@
+name: Reef Training entry check
+
+on:
+  push:
+    branches:
+      - fix/reef-training-save-and-photos-20260903
+  pull_request:
+    paths:
+      - "assets/js/reef_nursery_boot.js"
+      - "assets/js/reef_nursery_training_dom_guard.js"
+      - "assets/js/reef_nursery_training_entry_bridge.js"
+      - "service-worker.js"
+      - "supabase/migrations/20260903183000_reef_training_public_photos.sql"
+      - "tests/reef_nursery_current_state_static_test.py"
+      - ".github/workflows/reef-training-entry-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: JavaScript syntax
+        run: |
+          node --check assets/js/reef_nursery_boot.js
+          node --check assets/js/reef_nursery_training_dom_guard.js
+          node --check assets/js/reef_nursery_training_entry_bridge.js
+          node --check service-worker.js
+      - name: Focused contract
+        run: python -m unittest tests.reef_nursery_current_state_static_test
