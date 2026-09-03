@@ -8,6 +8,9 @@ SERVICE_WORKER = (ROOT / "service-worker.js").read_text(encoding="utf-8")
 MIGRATION = (
     ROOT / "supabase/migrations/20260903195000_reef_nursery_owner_cleanup.sql"
 ).read_text(encoding="utf-8")
+REVOKE_MIGRATION = (
+    ROOT / "supabase/migrations/20260903195100_reef_nursery_owner_delete_revoke_anon.sql"
+).read_text(encoding="utf-8")
 
 
 class ReefNurseryOwnerCleanupStaticTest(unittest.TestCase):
@@ -42,6 +45,11 @@ class ReefNurseryOwnerCleanupStaticTest(unittest.TestCase):
         self.assertNotIn(
             "grant execute on function public.ag_reef_records_workspace_delete(text, uuid) to anon",
             MIGRATION.lower(),
+        )
+        self.assertIn("from public, anon", MIGRATION.lower())
+        self.assertIn(
+            "revoke execute on function public.ag_reef_records_workspace_delete(text, uuid) from anon",
+            REVOKE_MIGRATION.lower(),
         )
 
     def test_owner_delete_buttons_cover_only_active_record_types(self):
