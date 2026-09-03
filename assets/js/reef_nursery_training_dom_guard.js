@@ -1,5 +1,3 @@
-const TRAINING_PHOTO_MESSAGE =
-  "Training photo upload is unavailable in the shared Public/authenticated Training workspace. The Photos tab and existing private Storage boundary remain unchanged.";
 const PARTICIPANT_REFERENCE_MAX_LENGTH = 100;
 const ACTION_TIMEOUT_MS = 20000;
 
@@ -42,10 +40,7 @@ const FORM_ACTIONS = Object.freeze({
     formId: "reefNurseryForm",
     saveId: "saveReefNursery",
     submitId: "submitReefNursery",
-    clearId: "clearReefNursery",
-    statusId: "reefNurseryStatus",
-    recordNumberId: "reefRecordNumber",
-    recordParam: "record"
+    clearId: "clearReefNursery"
   },
   seaweed: {
     formId: "reefSeaweedForm",
@@ -81,7 +76,7 @@ if (document.readyState === "loading") {
 function initialiseDomGuards() {
   document.addEventListener("keydown", protectParticipantKeyboardContract, true);
   document.addEventListener("click", handleDocumentClick, true);
-  document.addEventListener("change", handleDocumentChange, true);
+  document.addEventListener("change", scheduleDomSync, true);
   document.addEventListener("submit", handleDocumentSubmit, true);
 
   const observer = new MutationObserver(scheduleDomSync);
@@ -89,7 +84,7 @@ function initialiseDomGuards() {
     subtree: true,
     childList: true,
     attributes: true,
-    attributeFilter: ["hidden", "disabled", "maxlength", "aria-selected"]
+    attributeFilter: ["hidden", "maxlength", "aria-selected"]
   });
   scheduleDomSync();
 }
@@ -115,34 +110,7 @@ function syncDomContracts() {
   syncLocationSelect(document.getElementById("reefInspectionLocation"), false);
   syncActionButtons();
   syncLocationDisplayText();
-
-  const reviewMode = isReviewMode();
-  const accessGate = document.getElementById("reefAccessGate");
-  const deniedMode = Boolean(accessGate && !accessGate.hidden);
-  const publicNotice = document.getElementById("reefPublicNotice");
-  const publicMode = Boolean(publicNotice && !publicNotice.hidden && !reviewMode && !deniedMode);
-  const toolbarSignIn = document.getElementById("reefSignInAction");
-  const hideToolbarSignIn = !publicMode;
-  if (toolbarSignIn && toolbarSignIn.hidden !== hideToolbarSignIn) {
-    toolbarSignIn.hidden = hideToolbarSignIn;
-  }
-  document.querySelectorAll(".mobile-profile-link").forEach((fallback) => {
-    if (!fallback.hidden) fallback.hidden = true;
-  });
-
-  if (publicMode) {
-    const publicSidebar = document.getElementById("reefNurserySidebar");
-    const publicLayout = publicSidebar?.closest(".admin-layout");
-    if (publicSidebar && !publicSidebar.hidden) publicSidebar.hidden = true;
-    if (publicLayout && !publicLayout.classList.contains("admin-sidebar-unpinned")) {
-      publicLayout.classList.add("admin-sidebar-unpinned");
-    }
-    document.querySelectorAll(".admin-sidebar-reveal, .mobile-menu-toggle").forEach((control) => {
-      if (!control.hidden) control.hidden = true;
-    });
-  }
-
-  if (!reviewMode) lockTrainingPhotos();
+  syncPublicShell();
 }
 
 function syncLocationSelect(select, includeLegacyTraining) {
@@ -205,6 +173,7 @@ function syncActionButtons() {
     const save = document.getElementById(config.saveId);
     const submit = document.getElementById(config.submitId);
     const clear = document.getElementById(config.clearId);
+    const row = save?.closest(".standard-form-actions") || submit?.closest(".standard-form-actions");
 
     if (save) {
       if (save.hidden) save.hidden = false;
@@ -212,13 +181,15 @@ function syncActionButtons() {
     }
     if (submit) {
       if (submit.hidden) submit.hidden = false;
-      if (submit.textContent !== "Submit and start new") {
-        submit.textContent = "Submit and start new";
-      }
+      if (submit.textContent !== "Submit and start new") submit.textContent = "Submit and start new";
     }
     if (clear) {
       if (clear.hidden) clear.hidden = false;
       if (clear.textContent !== "Clear") clear.textContent = "Clear";
+    }
+    if (row && save && submit && clear) {
+      if (save.nextElementSibling !== submit) row.insertBefore(save, submit);
+      if (submit.nextElementSibling !== clear) row.insertBefore(submit, clear);
     }
   });
 }
@@ -231,18 +202,41 @@ function syncLocationDisplayText() {
   });
 }
 
+function syncPublicShell() {
+  const reviewMode = isReviewMode();
+  const accessGate = document.getElementById("reefAccessGate");
+  const deniedMode = Boolean(accessGate && !accessGate.hidden);
+  const publicNotice = document.getElementById("reefPublicNotice");
+  const publicMode = Boolean(publicNotice && !publicNotice.hidden && !reviewMode && !deniedMode);
+  const toolbarSignIn = document.getElementById("reefSignInAction");
+  const hideToolbarSignIn = !publicMode;
+  if (toolbarSignIn && toolbarSignIn.hidden !== hideToolbarSignIn) toolbarSignIn.hidden = hideToolbarSignIn;
+  document.querySelectorAll(".mobile-profile-link").forEach((fallback) => {
+    if (!fallback.hidden) fallback.hidden = true;
+  });
+  if (!publicMode) return;
+
+  const publicSidebar = document.getElementById("reefNurserySidebar");
+  const publicLayout = publicSidebar?.closest(".admin-layout");
+  if (publicSidebar && !publicSidebar.hidden) publicSidebar.hidden = true;
+  if (publicLayout && !publicLayout.classList.contains("admin-sidebar-unpinned")) {
+    publicLayout.classList.add("admin-sidebar-unpinned");
+  }
+  document.querySelectorAll(".admin-sidebar-reveal, .mobile-menu-toggle").forEach((control) => {
+    if (!control.hidden) control.hidden = true;
+  });
+}
+
 function handleDocumentClick(event) {
-  if (protectTrainingPhotoAction(event)) return;
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return;
-
-  const saveEntry = Object.entries(FORM_ACTIONS)
-    .find(([, config]) => target.closest(`#${config.saveId}`));
-  if (!saveEntry || (isReviewMode() && saveEntry[0] === "training")) return;
+  const saveEntry = Object.entries(FORM_ACTIONS).find(([, config]) => target.closest(`#${config.saveId}`));
+  if (!saveEntry) return;
 
   const [type, config] = saveEntry;
+  if (type === "training" || (isReviewMode() && type === "training")) return;
   if (pendingStartNew?.type !== type) beginStayOnRecord(type);
-  if (type === "training" || currentRecordId(type)) return;
+  if (currentRecordId(type)) return;
 
   event.preventDefault();
   event.stopImmediatePropagation();
@@ -257,16 +251,10 @@ function handleDocumentClick(event) {
   });
 }
 
-function handleDocumentChange(event) {
-  protectTrainingPhotoInput(event);
-  scheduleDomSync();
-}
-
 function handleDocumentSubmit(event) {
   const form = event.target instanceof HTMLFormElement ? event.target : null;
   if (!form) return;
-  const entry = Object.entries(FORM_ACTIONS)
-    .find(([, config]) => config.formId === form.id);
+  const entry = Object.entries(FORM_ACTIONS).find(([, config]) => config.formId === form.id);
   if (!entry || entry[0] === "training") return;
 
   const [type, config] = entry;
@@ -294,9 +282,7 @@ function beginStayOnRecord(type) {
   const status = document.getElementById(config.statusId);
   const baselineText = String(status?.textContent || "");
   const baselineKind = String(status?.dataset.status || "");
-  const selectedTab = document.querySelector(
-    '#reefNurseryTabs [data-reef-tab][aria-selected="true"]'
-  )?.dataset.reefTab || "";
+  const selectedTab = document.querySelector('#reefNurseryTabs [data-reef-tab][aria-selected="true"]')?.dataset.reefTab || "";
   const scrollLeft = window.scrollX;
   const scrollTop = window.scrollY;
   let sawBusy = false;
@@ -309,11 +295,7 @@ function beginStayOnRecord(type) {
     const busy = actionButtons(type).some((button) => button.disabled);
     if (busy) sawBusy = true;
     const changed = sawBusy || text !== baselineText || kind !== baselineKind;
-
-    if (changed && !busy && kind === "error") {
-      stopStayWatcher();
-      return;
-    }
+    if (changed && !busy && kind === "error") return stopStayWatcher();
     if (changed && !busy && /\b(submitted|saved|updated|loaded)\b/i.test(text)) {
       stopStayWatcher();
       if (currentStatus) {
@@ -341,7 +323,6 @@ function beginStartNew(type) {
     startedAt: Date.now(),
     timer: null
   };
-
   pendingStartNew.timer = window.setInterval(() => {
     const current = pendingStartNew;
     if (!current || current.type !== type) return;
@@ -350,14 +331,8 @@ function beginStartNew(type) {
     const kind = String(currentStatus?.dataset.status || "");
     const busy = actionButtons(type).some((button) => button.disabled);
     if (busy) current.sawBusy = true;
-    const changed = current.sawBusy
-      || text !== current.baselineText
-      || kind !== current.baselineKind;
-
-    if (changed && !busy && kind === "error") {
-      stopPendingStartNew();
-      return;
-    }
+    const changed = current.sawBusy || text !== current.baselineText || kind !== current.baselineKind;
+    if (changed && !busy && kind === "error") return stopPendingStartNew();
     if (changed && !busy && /\b(submitted|saved)\b/i.test(text)) {
       stopPendingStartNew();
       document.getElementById(config.clearId)?.click();
@@ -379,20 +354,12 @@ function stopPendingStartNew() {
 
 function actionButtons(type) {
   const config = FORM_ACTIONS[type];
-  return [config.saveId, config.submitId]
-    .map((id) => document.getElementById(id))
-    .filter(Boolean);
+  return [config.saveId, config.submitId].map((id) => document.getElementById(id)).filter(Boolean);
 }
 
 function restorePlace(tabName, left, top) {
-  if (tabName) {
-    document.querySelector(
-      `#reefNurseryTabs [data-reef-tab="${selectorEscape(tabName)}"]`
-    )?.click();
-  }
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => window.scrollTo({ left, top, behavior: "auto" }));
-  });
+  if (tabName) document.querySelector(`#reefNurseryTabs [data-reef-tab="${selectorEscape(tabName)}"]`)?.click();
+  requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo({ left, top, behavior: "auto" })));
 }
 
 function currentRecordId(type) {
@@ -400,46 +367,12 @@ function currentRecordId(type) {
 }
 
 function formLabel(type) {
-  if (type === "training") return "Training record";
-  if (type === "seaweed") return "Seaweed Record";
-  return "Raft and Mooring Inspection";
-}
-
-function lockTrainingPhotos() {
-  for (const id of ["reefTakePhoto", "reefChoosePhotos", "reefCameraPhoto", "reefGalleryPhotos"]) {
-    const control = document.getElementById(id);
-    if (control && !control.disabled) control.disabled = true;
-  }
-  const status = document.getElementById("reefPhotoStatus");
-  if (status && status.textContent !== TRAINING_PHOTO_MESSAGE) {
-    status.textContent = TRAINING_PHOTO_MESSAGE;
-    delete status.dataset.status;
-  }
-}
-
-function protectTrainingPhotoAction(event) {
-  if (isReviewMode()) return false;
-  const target = event.target instanceof Element ? event.target : null;
-  if (!target?.closest("#reefTakePhoto, #reefChoosePhotos")) return false;
-  event.preventDefault();
-  event.stopImmediatePropagation();
-  lockTrainingPhotos();
-  return true;
-}
-
-function protectTrainingPhotoInput(event) {
-  if (isReviewMode()) return;
-  if (!["reefCameraPhoto", "reefGalleryPhotos"].includes(event.target?.id)) return;
-  event.preventDefault();
-  event.stopImmediatePropagation();
-  event.target.value = "";
-  lockTrainingPhotos();
+  return type === "seaweed" ? "Seaweed Record" : "Raft and Mooring Inspection";
 }
 
 function protectParticipantKeyboardContract(event) {
   const target = event.target instanceof Element ? event.target : null;
   if (!target?.matches("[data-participant-field]")) return;
-
   if (event.key === "Enter" && !event.shiftKey && target.tagName !== "SELECT") {
     const row = target.closest("tr");
     const rows = [...document.querySelectorAll("#reefParticipantRows tr")];
@@ -449,28 +382,16 @@ function protectParticipantKeyboardContract(event) {
     }
     return;
   }
-
-  if (
-    event.key !== "Tab"
-    || event.shiftKey
-    || event.ctrlKey
-    || event.altKey
-    || event.metaKey
-    || !target.matches('[data-participant-field="gender"]')
-  ) return;
-
+  if (event.key !== "Tab" || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey
+      || !target.matches('[data-participant-field="gender"]')) return;
   const row = target.closest("tr");
   const rows = [...document.querySelectorAll("#reefParticipantRows tr")];
   if (!row || row !== rows.at(-1) || !participantRowHasValue(row)) return;
-
   event.preventDefault();
   event.stopImmediatePropagation();
   document.getElementById("addReefParticipant")?.click();
-  requestAnimationFrame(() => {
-    document.querySelector("#reefParticipantRows tr:last-child")
-      ?.querySelector('[data-participant-field="name"]')
-      ?.focus();
-  });
+  requestAnimationFrame(() => document.querySelector("#reefParticipantRows tr:last-child")
+    ?.querySelector('[data-participant-field="name"]')?.focus());
 }
 
 function participantRowHasValue(row) {
@@ -493,9 +414,8 @@ export const REEF_TRAINING_DOM_GUARD_CONTRACT = Object.freeze({
   originalParticipantTabBehaviour: true,
   duplicateSignInRemoved: true,
   publicSidebarHidden: true,
-  trainingPhotoStorageBoundaryPreserved: true,
   sharedLocationOptions: true,
   genderNoEntryDefault: true,
-  saveUsesExistingCreateUpdateHandlers: true,
-  savePreservesTabAndScroll: true
+  consistentActionOrder: true,
+  trainingPhotosNotBlocked: true
 });
