@@ -6,6 +6,7 @@ export { calculateSelectedPayment } from "./dryer_payment_math.js?v=1";
 
 const PAYMENT_WORKSPACE_RPC = "list_authenticated_seaweed_drying_payment_workspace";
 const SAVE_DECISION_RPC = "save_authenticated_seaweed_drying_activity_day_decision";
+const UNAPPROVE_DECISION_RPC = "unapprove_authenticated_seaweed_drying_activity_day_decision";
 const RECORD_ADVANCE_RPC = "record_authenticated_seaweed_drying_phone_advance";
 const RECORD_PAYMENT_RPC = "record_authenticated_seaweed_drying_activity_payment";
 const KENYA_TIME_ZONE = "Africa/Nairobi";
@@ -420,7 +421,7 @@ class DryerPaymentsController {
       : `Reference ${formatKes(day.reference_amount_kes)}`;
     const workReadonly = day.qualifies || paid ? " readonly" : "";
     const controlsDisabled = paid ? " disabled" : "";
-    const buttonLabel = day.decision_id ? "Update" : "Approve";
+    const buttonLabel = day.decision_id && day.approval_active !== false ? "Update" : "Approve";
 
     return `<tr data-payment-day-row data-assistant-key="${escapeAttribute(
       day.assistant_key
@@ -483,6 +484,9 @@ class DryerPaymentsController {
           : `<button type="button" data-save-payment-day>${escapeHtml(
               buttonLabel
             )}</button>`
+      }${canUnapproveDay(day)
+        ? `<button type="button" data-unapprove-payment-day aria-label="Unapprove ${escapeAttribute(formatDateKey(day.activity_date))}">Unapprove</button>`
+        : ""
       }</td>
     </tr>`;
   }
@@ -534,7 +538,10 @@ class DryerPaymentsController {
                   )}</textarea>`
             }
           </label>
-          <div>${approvalMeta}<br>${paidMeta}${
+          <div>${day.approval_active === false && day.decision_id
+            ? '<span class="field-hint">Approval withdrawn. Review and approve again before payment.</span>'
+            : ""
+          }${approvalMeta}<br>${paidMeta}${
             day.source_changed_since_payment
               ? '<br><span class="status-pill status-muted">Source records changed after payment</span>'
               : ""
@@ -552,6 +559,7 @@ class DryerPaymentsController {
     }
     if (
       day.payment_status === "approved_unpaid"
+      && day.approval_active !== false
       && day.source_changed_since_approval !== true
     ) {
       return '<span class="status-pill">Approved / unpaid</span>';
@@ -573,6 +581,11 @@ class DryerPaymentsController {
     const toggle = event.target.closest("[data-payment-day-toggle]");
     if (toggle) {
       this.toggleActivityDay(toggle);
+      return;
+    }
+    const unapprove = event.target.closest("[data-unapprove-payment-day]");
+    if (unapprove) {
+      await this.unapproveActivityDay(unapprove);
       return;
     }
     const save = event.target.closest("[data-save-payment-day]");
@@ -640,6 +653,7 @@ class DryerPaymentsController {
   }
 
   async saveActivityDay(button) {
+    if (this.state.unapproving) return;
     const row = button.closest("[data-payment-day-row]");
     const detail = row?.nextElementSibling;
     if (!row) return;
@@ -714,6 +728,40 @@ class DryerPaymentsController {
     }
   }
 
+  async unapproveActivityDay(button) {
+    if (button.disabled || this.state.loading || this.state.unapproving) return;
+    const row = button.closest("[data-payment-day-row]");
+    const day = this.dayByDecisionId(row?.dataset.decisionId);
+    if (!canUnapproveDay(day)) return;
+    if (!window.confirm(
+      `Unapprove ${formatDateKey(day.activity_date)} for ${day.assistant_name || "this Research Assistant"}?\n\n`
+      + "This returns the day to Needs review. It must be approved again before payment. No recorded payment will be changed."
+    )) return;
+
+    this.state.unapproving = true;
+    button.disabled = true;
+    try {
+      await callPaymentRpc(UNAPPROVE_DECISION_RPC, {
+        p_decision_id: day.decision_id,
+        p_expected_approved_at: day.approved_at
+      });
+      // Clear local eligibility immediately, even if the subsequent refresh fails.
+      day.approval_active = false;
+      day.payment_status = "needs_review";
+      this.state.selectedDecisionIds.delete(String(day.decision_id));
+      this.renderSummary();
+      this.renderActivityDays();
+      setStatus(this.els.dryerPaymentActivityStatus,
+        `${formatDateKey(day.activity_date)} unapproved. Review and approve again before payment.`);
+      await this.loadWorkspace();
+    } catch (error) {
+      setStatus(this.els.dryerPaymentActivityStatus, error?.message || String(error), "error");
+    } finally {
+      this.state.unapproving = false;
+      button.disabled = false;
+    }
+  }
+
   selectedDays() {
     return this.state.activityDays.filter(
       (day) => (
@@ -766,6 +814,7 @@ class DryerPaymentsController {
   }
 
   async recordSelectedPayment() {
+    if (this.state.unapproving) return;
     const days = this.selectedDays();
     if (!days.length) return;
     const paymentDate = this.els.dryerPaymentDate.value;
@@ -1021,8 +1070,14 @@ function isSelectableDay(day) {
   return Boolean(
     day?.decision_id
     && day?.payment_status === "approved_unpaid"
+    && day?.approval_active !== false
     && day?.source_changed_since_approval !== true
   );
+}
+
+function canUnapproveDay(day) {
+  return Boolean(day?.decision_id && day?.approved_at
+    && day?.approval_active !== false && day?.payment_status !== "paid" && !day?.payment_id);
 }
 
 function dayKey(day) {
