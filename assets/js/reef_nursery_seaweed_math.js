@@ -1,5 +1,5 @@
 if (typeof document !== "undefined") {
-  void import("./reef_nursery_records_unified.js?v=1");
+  void import("./reef_nursery_records_unified.js?v=2");
 }
 
 export function calculateWeightPerLine(totalWeight, lineCount) {

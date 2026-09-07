@@ -173,3 +173,116 @@
     align-items: stretch;
   }
 }
+
+/* Training and combined reports share the normal page shell and photo viewer. */
+#reefReportEdit[hidden],
+.reef-report-thumbnail [hidden] {
+  display: none;
+}
+
+.reef-legacy-record-detail .reef-competency-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .35rem;
+  overflow-wrap: anywhere;
+}
+
+.reef-legacy-record-detail .reef-competency-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: .12rem .48rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: .82rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.reef-legacy-record-detail .reef-competency-pill.is-independent {
+  background: #e6f3e9;
+  border-color: #c3dfca;
+  color: #285a35;
+}
+
+.reef-legacy-record-detail .reef-competency-pill.is-supervision {
+  background: #fff3cf;
+  border-color: #ead899;
+  color: #6e5616;
+}
+
+.reef-legacy-record-detail .reef-competency-pill.is-needs-support {
+  background: #fae8e6;
+  border-color: #e9c4bf;
+  color: #7b3933;
+}
+
+.reef-legacy-record-detail .reef-competency-pill.is-not-assessed {
+  background: #eef1f0;
+  border-color: #d5dcda;
+  color: #59635f;
+}
+
+.reef-report-photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 160px));
+  gap: .75rem;
+}
+
+.reef-report-thumbnail {
+  display: grid;
+  min-width: 0;
+  gap: .35rem;
+  padding: .35rem;
+  border: 1px solid var(--reef-border);
+  border-radius: 9px;
+  background: #fff;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.reef-report-thumbnail-image {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--reef-soft);
+}
+
+.reef-report-thumbnail img {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.reef-report-thumbnail [data-thumbnail-status] {
+  padding: .5rem;
+  font-size: .76rem;
+}
+
+.reef-report-thumbnail-caption {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .76rem;
+}
+
+.reef-report-thumbnail:hover,
+.reef-report-thumbnail:focus-visible {
+  outline: 2px solid var(--reef-muted);
+  outline-offset: 2px;
+}
+
+.reef-legacy-record-detail strong {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 560px) {
+  .reef-report-photos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

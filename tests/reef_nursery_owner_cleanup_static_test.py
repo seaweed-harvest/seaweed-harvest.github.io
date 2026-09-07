@@ -102,7 +102,7 @@ class ReefNurseryOwnerCleanupStaticTest(unittest.TestCase):
         self.assertIn('import("./reef_nursery_delete_hotfix.js?v=1")', BOOT)
         self.assertIn('"./assets/js/reef_nursery_cleanup.js"', SERVICE_WORKER)
         self.assertIn('"./assets/js/reef_nursery_delete_hotfix.js"', SERVICE_WORKER)
-        self.assertIn("seaweed-harvest-collection-v135", SERVICE_WORKER)
+        self.assertIn("seaweed-harvest-collection-v136", SERVICE_WORKER)
 
     def test_contract_is_explicit(self):
         for token in (

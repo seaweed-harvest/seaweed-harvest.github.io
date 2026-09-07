@@ -1,4 +1,9 @@
 import { authClient } from "./auth_client.js?v=25";
+import { openPhotoPreview, signedPhotoUrl } from "./photo_viewer.js?v=1";
+import {
+  isCombinedReefRecord, formatSessionTime, competencyBadge,
+  reportPhotosMarkup, loadReportThumbnails
+} from "./reef_nursery_report_enhancements.js?v=2";
 
 const PAGE_SIZE = 50;
 const PHOTO_BUCKET = "reef-nursery-photos";
@@ -6,7 +11,7 @@ const TYPE_LABELS = Object.freeze({
   training: "Training",
   seaweed: "Seaweed",
   inspection: "Inspection",
-  legacy: "Legacy Reef record"
+  legacy: "Combined Reef record"
 });
 const LOCATION_LABELS = Object.freeze({
   mkwiro: "Mkwiro",
@@ -40,7 +45,7 @@ const state = {
   rows: [],
   loading: false,
   panel: null,
-  photoObjectUrl: null
+  detailSequence: 0
 };
 const els = {};
 
@@ -80,7 +85,7 @@ async function init() {
 }
 
 function injectStylesheet() {
-  const href = new URL("../css/reef_nursery_wp04.css?v=1", import.meta.url).href;
+  const href = new URL("../css/reef_nursery_wp04.css?v=2", import.meta.url).href;
   if (document.querySelector(`link[href="${href}"]`)) return;
   const link = document.createElement("link");
   link.rel = "stylesheet";
@@ -115,7 +120,7 @@ function replaceLegacyRecordsSurface() {
           <option value="training">Training</option>
           <option value="seaweed">Seaweed</option>
           <option value="inspection">Inspection</option>
-          <option value="legacy">Legacy Reef records</option>
+          <option value="legacy">Combined Reef records</option>
         </select>
       </label>
       <label>Search
@@ -150,10 +155,13 @@ function replaceLegacyRecordsSurface() {
     <article id="reefLegacyRecordDetail" class="reef-legacy-record-detail" hidden>
       <div class="reef-panel-heading">
         <div>
-          <p class="eyebrow">Read-only compatibility view</p>
-          <h3 id="reefLegacyRecordTitle">Legacy Reef record</h3>
+          <p id="reefReportKind" class="eyebrow">Reef record report</p>
+          <h3 id="reefLegacyRecordTitle">Reef record</h3>
         </div>
-        <button id="reefLegacyRecordClose" class="secondary-action" type="button">Close</button>
+        <div class="reef-unified-heading-actions">
+          <a id="reefReportEdit" class="secondary-action" hidden>Edit Training record</a>
+          <button id="reefLegacyRecordClose" class="secondary-action" type="button">Close</button>
+        </div>
       </div>
       <p id="reefLegacyRecordStatus" class="reef-status" aria-live="polite"></p>
       <div id="reefLegacyRecordContent"></div>
@@ -167,7 +175,7 @@ function cacheElements() {
     "reefUnifiedRecordsSearchButton", "reefUnifiedRecordsStatus", "reefUnifiedRecordsBody",
     "reefUnifiedRecordsPrevious", "reefUnifiedRecordsPage", "reefUnifiedRecordsNext",
     "reefLegacyRecordDetail", "reefLegacyRecordTitle", "reefLegacyRecordClose",
-    "reefLegacyRecordStatus", "reefLegacyRecordContent"
+    "reefLegacyRecordStatus", "reefLegacyRecordContent", "reefReportKind", "reefReportEdit"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 }
 
@@ -195,15 +203,17 @@ function bindEvents() {
   els.reefUnifiedRecordsNext.addEventListener("click", () => changePage(1));
   els.reefLegacyRecordClose.addEventListener("click", closeLegacyDetail);
   els.reefLegacyRecordContent.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-open-legacy-photo]");
-    if (button) void openLegacyPhoto(button.dataset.openLegacyPhoto, button.dataset.photoName || "Legacy Reef photo");
+    const button = event.target.closest("[data-reef-report-photo]");
+    if (button) void openPhotoPreview(
+      [button.dataset.reefReportPhoto], PHOTO_BUCKET, button.dataset.photoName || "Reef record photo"
+    );
   });
 }
 
 function configureAccess(context) {
   const authenticated = state.accessMode === "authenticated";
   els.reefUnifiedRecordsAccessHelp.textContent = authenticated
-    ? "Signed-in COSME Reef access shows the complete live history for Training, Seaweed, Inspection and readable legacy Reef records."
+    ? "Signed-in COSME Reef access shows the complete live history for Training, Seaweed, Inspection and combined Reef records."
     : "Records created during the last 7 days are openly listed and editable. Older records require an authorised COSME Reef account.";
   els.reefUnifiedManageAccounts.hidden = !state.canManageUsers;
   els.reefUnifiedAccountNote.hidden = !authenticated;
@@ -291,7 +301,8 @@ function renderRows() {
 }
 
 function formatSummary(record) {
-  if (record.summary) return record.summary;
+  if (record.summary) return record.record_type === "training" && record.record_status === "draft"
+    ? `Draft · ${record.summary}` : record.summary;
   if (record.record_type === "training" && record.record_status) return formatRecordStatus(record.record_status);
   return "";
 }
@@ -311,12 +322,11 @@ function changePage(direction) {
 
 async function openRecord(recordType, recordId) {
   if (!recordId) return;
-  if (recordType === "legacy") {
+  if (recordType === "legacy" || recordType === "training") {
     await openLegacyDetail(recordId);
     return;
   }
   const routes = {
-    training: `./reef_nursery.html?record=${encodeURIComponent(recordId)}`,
     seaweed: `./reef_nursery.html?tab=seaweed&seaweed_record=${encodeURIComponent(recordId)}`,
     inspection: `./reef_nursery.html?tab=inspection&inspection_record=${encodeURIComponent(recordId)}`
   };
@@ -324,14 +334,19 @@ async function openRecord(recordType, recordId) {
 }
 
 async function openLegacyDetail(sessionId) {
-  closeLegacyPhoto();
+  const sequence = ++state.detailSequence;
   els.reefLegacyRecordDetail.hidden = false;
-  els.reefLegacyRecordTitle.textContent = "Legacy Reef record";
+  els.reefLegacyRecordTitle.textContent = "Reef record";
+  els.reefReportKind.textContent = "Reef record report";
+  els.reefReportEdit.hidden = true;
+  els.reefReportEdit.removeAttribute("href");
   els.reefLegacyRecordContent.replaceChildren();
-  setLegacyStatus("Loading legacy Reef record…");
+  setLegacyStatus("Loading Reef record…");
   try {
     const data = await rpc("ag_reef_records_workspace_legacy_detail", { p_session_id: sessionId });
+    if (sequence !== state.detailSequence) return;
     renderLegacyDetail(data);
+    // Retain existing saved report URLs; the route name is not a record type.
     history.replaceState(
       {},
       "",
@@ -340,16 +355,24 @@ async function openLegacyDetail(sessionId) {
     setLegacyStatus("");
     els.reefLegacyRecordDetail.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
+    if (sequence !== state.detailSequence) return;
     if (shouldRequireLogin(error)) {
       routeToLoginForLegacy(sessionId);
       return;
     }
-    setLegacyStatus(error.message || "The legacy Reef record could not be opened.", "error");
+    setLegacyStatus(error.message || "The Reef record could not be opened.", "error");
   }
 }
 
 function renderLegacyDetail(data) {
-  els.reefLegacyRecordTitle.textContent = `${data.record_number || "Legacy Reef record"} — read-only`;
+  const combined = isCombinedReefRecord(data);
+  els.reefReportKind.textContent = combined ? "Combined Reef record — read-only" : "Training report";
+  els.reefLegacyRecordTitle.textContent = `${data.record_number || "Reef record"} — ${formatRecordStatus(data.record_status)}`;
+  els.reefReportEdit.hidden = combined || data.read_only !== false || !data.session_id;
+  els.reefReportEdit.textContent = data.record_status === "draft" ? "Continue draft" : "Edit Training record";
+  if (!els.reefReportEdit.hidden) {
+    els.reefReportEdit.href = `./reef_nursery.html?record=${encodeURIComponent(data.session_id)}`;
+  }
   const participants = Array.isArray(data.participants) ? data.participants : [];
   const training = Array.isArray(data.training_delivered) ? data.training_delivered : [];
   const competencies = Array.isArray(data.practical_competencies) ? data.practical_competencies : [];
@@ -358,14 +381,19 @@ function renderLegacyDetail(data) {
 
   els.reefLegacyRecordContent.innerHTML = `
     <section class="reef-legacy-summary-grid">
-      ${summaryItem("Record", data.record_number)}
-      ${summaryItem("Date", formatDate(data.training_date))}
+      ${summaryItem("Session date", formatDate(data.training_date))}
+      ${summaryItem("Start time", formatSessionTime(data.start_time))}
+      ${summaryItem("End time", formatSessionTime(data.finish_time))}
       ${summaryItem("Location", LOCATION_LABELS[data.location] || data.location)}
       ${summaryItem("Trainer / recorder", data.trainer_name || data.recorded_by_name)}
       ${summaryItem("Session", formatSessionTypes(data.session_types, data.other_session_type))}
-      ${summaryItem("Public deadline", formatDateTime(data.public_edit_until))}
     </section>
-    <p class="reef-legacy-read-only-note"><strong>Compatibility view:</strong> this historical session-bound record is readable but is not converted into a new record type or anonymously deletable.</p>
+    <section class="reef-legacy-summary-grid reef-report-audit" aria-label="Record history">
+      ${summaryItem("Record created (Kenya time)", formatDateTime(data.created_at))}
+      ${summaryItem("Last saved (Kenya time)", formatDateTime(data.updated_at))}
+      ${summaryItem("Submitted (Kenya time)", data.record_status === "draft" ? "Not submitted — draft" : (data.submitted_at ? formatDateTime(data.submitted_at) : "Time not recorded"))}
+    </section>
+    ${combined ? '<p class="reef-legacy-read-only-note">This record includes session-linked Seaweed or Inspection details. It is preserved together and shown read-only.</p>' : ""}
     ${legacyTextSection("Session notes", [
       ["Supporting staff", data.supporting_staff],
       ["Weather and sea conditions", data.weather_sea_conditions],
@@ -377,14 +405,9 @@ function renderLegacyDetail(data) {
     ${data.legacy_general_seaweed ? legacySeaweed("General Seaweed record", [data.legacy_general_seaweed]) : ""}
     ${raftSeaweed.length ? legacySeaweed("Per-raft Seaweed records", raftSeaweed) : ""}
     ${data.legacy_inspection ? legacyInspection(data.legacy_inspection) : ""}
-    ${photos.length ? legacyPhotos(photos) : ""}
-    <div id="reefLegacyPhotoViewer" class="reef-legacy-photo-viewer" hidden>
-      <button class="reef-text-action" type="button" data-close-legacy-photo>Close photo</button>
-      <img id="reefLegacyPhotoImage" alt="Legacy Reef record photo">
-      <p id="reefLegacyPhotoCaption" class="reef-help"></p>
-    </div>`;
+    ${reportPhotosMarkup(photos)}`;
 
-  els.reefLegacyRecordContent.querySelector("[data-close-legacy-photo]")?.addEventListener("click", closeLegacyPhoto);
+  void loadReportThumbnails(els.reefLegacyRecordContent, (path) => signedPhotoUrl(PHOTO_BUCKET, path));
 }
 
 function summaryItem(label, value) {
@@ -416,8 +439,8 @@ function legacyTraining(sections) {
 function legacyCompetencies(items) {
   return `<section class="reef-legacy-section"><h4>Competency assessments</h4><div class="reef-legacy-list">${items.map((item) => `
     <article><strong>${escapeHtml(item.activity_label || item.activity_id || "Activity")}</strong>
-      <span>Group: ${escapeHtml(item.group_level || "Not assessed")}</span>
-      ${(Array.isArray(item.participant_overrides) ? item.participant_overrides : []).map((override) => `<span>${escapeHtml(override.participant_name || `Participant ${override.participant_order}`)}: ${escapeHtml(override.competency_level)}</span>`).join("")}
+      <span class="reef-competency-line">Group: ${competencyBadge(item.group_level)}</span>
+      ${(Array.isArray(item.participant_overrides) ? item.participant_overrides : []).map((override) => `<span class="reef-competency-line">${escapeHtml(override.participant_name || `Participant ${override.participant_order}`)}: ${competencyBadge(override.competency_level)}</span>`).join("")}
     </article>`).join("")}</div></section>`;
 }
 
@@ -440,47 +463,15 @@ function legacyInspection(inspection) {
   </section>`;
 }
 
-function legacyPhotos(photos) {
-  return `<section class="reef-legacy-section"><h4>Photos</h4><div class="reef-legacy-photo-list">${photos.map((photo) => `
-    <button class="secondary-action" type="button" data-open-legacy-photo="${escapeHtml(photo.storage_path)}" data-photo-name="${escapeHtml(photo.original_name || `Photo ${photo.photo_order}`)}">Open ${escapeHtml(photo.original_name || `Photo ${photo.photo_order}`)}</button>`).join("")}</div></section>`;
-}
-
 function legacyValue(label, value) {
   if (value === null || value === undefined || String(value).trim() === "") return "";
   return `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`;
 }
 
-async function openLegacyPhoto(path, name) {
-  if (!path) return;
-  setLegacyStatus("Loading photo…");
-  try {
-    const { data, error } = await authClient.storage.from(PHOTO_BUCKET).download(path);
-    if (error) throw error;
-    closeLegacyPhoto();
-    state.photoObjectUrl = URL.createObjectURL(data);
-    const viewer = document.getElementById("reefLegacyPhotoViewer");
-    const image = document.getElementById("reefLegacyPhotoImage");
-    const caption = document.getElementById("reefLegacyPhotoCaption");
-    if (image) image.src = state.photoObjectUrl;
-    if (caption) caption.textContent = name;
-    if (viewer) viewer.hidden = false;
-    setLegacyStatus("");
-  } catch (error) {
-    setLegacyStatus(error.message || "The legacy Reef photo could not be opened.", "error");
-  }
-}
-
-function closeLegacyPhoto() {
-  if (state.photoObjectUrl) URL.revokeObjectURL(state.photoObjectUrl);
-  state.photoObjectUrl = null;
-  const viewer = document.getElementById("reefLegacyPhotoViewer");
-  const image = document.getElementById("reefLegacyPhotoImage");
-  if (image) image.removeAttribute("src");
-  if (viewer) viewer.hidden = true;
-}
-
 function closeLegacyDetail() {
-  closeLegacyPhoto();
+  state.detailSequence += 1;
+  els.reefReportEdit.hidden = true;
+  els.reefReportEdit.removeAttribute("href");
   els.reefLegacyRecordDetail.hidden = true;
   els.reefLegacyRecordContent.replaceChildren();
   history.replaceState({}, "", "./reef_nursery.html?tab=records");
