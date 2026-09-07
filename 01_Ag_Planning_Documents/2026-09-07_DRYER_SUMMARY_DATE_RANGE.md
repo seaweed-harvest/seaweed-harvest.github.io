@@ -5,27 +5,26 @@ Owner request (7 September 2026): show the loading-to-unloading date range in ea
 - Repository: `seaweed-harvest/seaweed-harvest.github.io`.
 - Base: `main` at `5430ad4688fc03c3c516b73dc47276144e2bcfea`.
 - Branch: `feature/dryer-record-summary-date-range-20260907`.
-- Scope: presentation-only, low-risk Lane A candidate; manual owner-directed request, not a Supabase suggestion dispatch.
-- The active ledger and its tests exist in this repository but are absent from `bosunjm-cloud/Seaweed_Harvest` main at `4b89bfec557f974953eda8793ea16f5492845b0d`. Patch the existing implementation here rather than introducing the whole ledger into the other repository.
+- Pull request: #50.
+- Scope: owner-directed presentation change and expressly approved production release.
+- The active ledger and its tests exist here but are absent from `bosunjm-cloud/Seaweed_Harvest` main at `4b89bfec557f974953eda8793ea16f5492845b0d`; this patches the actual implementation without importing unrelated ledger work.
 
-## Acceptance and verification
+## Behaviour
 
-Use the earliest valid loading timestamp and latest valid unloading timestamp in each event, formatted as dates in Africa/Nairobi. Keep the existing timestamp-only heading where no valid loading/unloading range exists. Partial unloading must retain the existing drying/complete counts. Table/load-date grouping, individual row timestamps, weights, photos, sorting and access controls are unchanged.
+Use the earliest valid loading timestamp and latest valid unloading timestamp in each event, formatted as dates in Africa/Nairobi. Keep the existing timestamp-only heading where no valid loading/unloading range exists. Partial unloading retains existing drying/complete counts. Table/load-date grouping, individual row timestamps, weights, photos, sorting and access controls are unchanged.
 
-Changed paths: this note, `assets/js/dryer_table_records.js`, `tests/dryer_summary_date_range_test.py`, and `tests/dryer_summary_date_range_ui_probe.py`. Runtime change is 17 added lines. No new dependency, database mutation, payment change or permission change is required.
+Changed paths: this note, `assets/js/dryer_table_records.js`, `dryer_table_records.html`, `tests/dryer_summary_date_range_test.py`, and `tests/dryer_summary_date_range_ui_probe.py`. Runtime behaviour is 17 added JavaScript lines; the page script query version changes from v3 to v4. No dependency, database, payment, permission, workflow or service-worker changes.
 
-## Verification results
+## Verification
 
-- `node --input-type=module --check < assets/js/dryer_table_records.js`: passed.
-- `python -m unittest discover -s tests -p 'dryer_summary_date_range_test.py' -v`: 12 tests passed. Covers completed, partial, missing, invalid and same-day dates; earliest/latest selection; mixed-offset chronology; Nairobi dates regardless of host timezone; unchanged grouping, ordering, row timestamps, weights and photo summary.
-- `python tests/dryer_summary_date_range_ui_probe.py`: passed in Chromium at 1440px and 390px using synthetic rows and the actual renderer. Verified heading, summary totals, pointer expansion, keyboard collapse and event-photo title/click routing. No browser errors. This is a component browser fixture, not an authenticated live-site test or a full layout audit.
-- The tested runtime file matches committed blob `a575f53989883de14ac624e9550b5b6f98725a13` byte-for-byte. Original materialisation also matched the base blob before editing.
-- Existing static loading-timestamp fallback assertions remain intact. Full repository checks are left to the existing PR workflows; this local environment contains only the scoped files.
+The implementation-stage evidence recorded JavaScript syntax passing, 12 deterministic regression tests passing, and the actual renderer's Chromium component probe passing at 1440px and 390px. Those browser checks use synthetic records; they are not an authenticated live-site session or a full layout audit.
 
-## Release gate
+At release preparation the JavaScript blob remains exactly `a575f53989883de14ac624e9550b5b6f98725a13`, unchanged from that tested implementation. A fresh local smoke check of its date-label functions passed 12 date cases plus table/load-date grouping in each of Australia/Perth, Pacific/Honolulu and UTC. The inspected HTML diff changes only the dryer records script query version.
 
-Implementation and focused verification are complete. Confidence: high; both timestamps already exist in the loaded ledger data.
+The existing service worker uses network-first handling for both navigation and same-origin assets. The new v4 script URL refreshes the browser's script cache on an online page reload without changing shared cache policy, application data or offline storage. Existing path-filtered PR workflows do not cover these dryer files; do not describe the focused checks as full repository CI.
 
-Merge/deployment are not authorised by this implementation request. Keep a draft PR and seek explicit approval before changing main or the live site. An approved release must account for the existing cached page asset. No service-worker or deployment configuration was changed in this preparation.
+## Release authority and rollback
 
-Rollback: revert only this isolated presentation change; no data rollback is needed.
+The owner explicitly approved merge and live deployment in this conversation: "please merge and deploy live". Proceed with an expected-head squash merge and verify the resulting GitHub Pages deployment. Record the merge/deployment outcome on PR #50.
+
+Rollback: revert this isolated presentation and script-version change; no data rollback is needed.
