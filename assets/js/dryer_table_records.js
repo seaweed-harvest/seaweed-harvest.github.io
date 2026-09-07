@@ -298,6 +298,10 @@ function groupLabel(rows, mode, key) {
 
   const table = rows.find((row) => row.table_location)?.table_location || "Unknown table";
   const loadedAt = earliestTimestamp(rows, "loading_at");
+  const unloadedAt = latestTimestamp(rows, "unloading_at");
+  if (loadedAt && unloadedAt && Date.parse(unloadedAt) >= Date.parse(loadedAt)) {
+    return `${table} — ${formatDate(loadedAt)} – ${formatDate(unloadedAt)}`;
+  }
   const eventAt = loadedAt
     || earliestTimestamp(rows, "recorded_at")
     || earliestTimestamp(rows, "unloading_at");
@@ -338,6 +342,19 @@ function earliestTimestamp(rows, field) {
     earliestValue = value;
   });
   return earliestValue;
+}
+
+function latestTimestamp(rows, field) {
+  let latestValue = "";
+  let latestTime = Number.NEGATIVE_INFINITY;
+  rows.forEach((row) => {
+    const value = row?.[field];
+    const time = Date.parse(value || "");
+    if (!Number.isFinite(time) || time <= latestTime) return;
+    latestTime = time;
+    latestValue = value;
+  });
+  return latestValue;
 }
 
 function groupHeaderRow(group, expanded) {
