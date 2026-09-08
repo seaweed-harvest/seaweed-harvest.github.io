@@ -133,8 +133,9 @@ function renderMatrix() {
   const corner = tableCell("th", "Process detail", "mawimbi-row-label");
   corner.scope = "col";
   const headers = links.map((link, index) => stageHeader(link, index, links.length));
-  const alignedInputs = sharedVariableIds(links, "input_setting");
-  const alignedMeasurements = sharedVariableIds(links, "measured");
+  // Keep each stage compact instead of inserting empty slots to align values across stages.
+  const alignedInputs = [];
+  const alignedMeasurements = [];
   els.mawimbiMatrixHead.replaceChildren(corner, ...headers);
   const rows = [
     renderMatrixRow("Number", links, (_, index) => String(index + 1), "mawimbi-number-row"),
@@ -419,9 +420,14 @@ function renderStageRevision(revisionId) {
   els.mawimbiStageTitle.textContent = revision.stage_name;
   els.mawimbiStageRevisionSelect.value = revision.id;
   setForm(els.mawimbiStageForm, revision);
+  const editable = activeFlow()?.status === "draft" && revision.id === current.id;
+  const seedStandardInputs = editable
+    && revision.version_major === 1
+    && revision.version_minor === 0
+    && revision.change_note === "New stage";
   const rows = operationalInputRows(state.workspace.stage_variables
     .filter((item) => item.stage_revision_id === revision.id)
-    .sort((a, b) => a.position - b.position));
+    .sort((a, b) => a.position - b.position), seedStandardInputs);
   els.mawimbiVariableRows.replaceChildren(...rows.map((row) => variableEditorRow(row)));
   if (!rows.length) addVariableRow();
   const equipmentRows = state.workspace.stage_equipment
@@ -429,7 +435,6 @@ function renderStageRevision(revisionId) {
     .sort((a, b) => a.position - b.position);
   els.mawimbiEquipmentRows.replaceChildren(...equipmentRows.map((row) => equipmentEditorRow(row)));
   if (!equipmentRows.length) addEquipmentRow();
-  const editable = activeFlow()?.status === "draft" && revision.id === current.id;
   els.mawimbiStageForm.querySelectorAll("input, textarea, select, button")
     .forEach((control) => { control.disabled = !editable; });
   els.mawimbiStageRevisionSelect.disabled = false;
@@ -442,7 +447,8 @@ function addVariableRow(data = null) {
   els.mawimbiVariableRows.append(variableEditorRow(data));
 }
 
-function operationalInputRows(rows) {
+function operationalInputRows(rows, seedStandardInputs = false) {
+  if (!seedStandardInputs) return rows;
   const remaining = [...rows];
   const standardRows = STANDARD_OPERATIONAL_INPUTS.flatMap(([name, defaultUnit]) => {
     const variable = state.workspace.variables.find((item) => item.name.toLowerCase() === name.toLowerCase());
