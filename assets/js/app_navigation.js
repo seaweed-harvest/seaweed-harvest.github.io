@@ -312,6 +312,9 @@ function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
     ...(canAccessBackups(profile)
       ? [{ label: "Backups", href: "./admin_backups.html", className: "app-nav-desktop-only" }]
       : []),
+    ...(isProtectedOwner(profile)
+      ? [{ label: "Mawimbi Process Flow", href: "./mawimbi_process_flow.html", requiredAggregator: "MAWIMBI", className: "app-nav-desktop-only" }]
+      : []),
     { label: "Finance Review", href: "./admin_finance.html", permission: "can_view_finance", capability: "form_intake_collection", className: "app-nav-desktop-only" },
     { label: "Receipts", href: "./admin_receipts.html", permission: "can_view_data", capability: "form_intake_collection", className: "app-nav-desktop-only" },
     { label: "Notifications", href: "./admin_notifications.html", permission: "can_view_notifications", capability: "tool_notifications", className: "app-nav-desktop-only" },
