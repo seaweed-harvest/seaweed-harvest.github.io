@@ -1,29 +1,103 @@
 .mawimbi-view-picker {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  position: relative;
   color: var(--text-muted);
   font-size: .7rem;
   font-weight: 700;
 }
 
-.mawimbi-view-picker select {
+.mawimbi-view-summary {
   min-height: 34px;
-  padding: 5px 9px;
+  min-width: 220px;
+  padding: 5px 28px 5px 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--panel);
   color: var(--text);
-  font: inherit;
+  cursor: pointer;
+  list-style: none;
+  font-size: .76rem;
+  font-weight: 600;
+  position: relative;
+}
+
+.mawimbi-view-summary::-webkit-details-marker {
+  display: none;
+}
+
+.mawimbi-view-summary::after {
+  content: "▾";
+  position: absolute;
+  right: 9px;
+  color: var(--text-muted);
+}
+
+.mawimbi-view-multiselect[open] .mawimbi-view-summary::after {
+  content: "▴";
+}
+
+.mawimbi-view-summary-value {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.mawimbi-view-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 5px);
+  right: 0;
+  min-width: 230px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 10px 24px rgba(20, 40, 35, .14);
+}
+
+.mawimbi-view-option {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
   font-size: .76rem;
   font-weight: 600;
 }
 
-.mawimbi-notes-row td {
+.mawimbi-view-option:hover {
   background: var(--panel-soft);
 }
 
-.mawimbi-notes-cell {
+.mawimbi-view-option input {
+  margin: 0;
+}
+
+.mawimbi-extra-detail-row td {
+  background: var(--panel-soft);
+}
+
+.mawimbi-extra-detail-cell {
   white-space: pre-wrap;
   line-height: 1.35;
+}
+
+@media (max-width: 760px) {
+  .mawimbi-view-summary {
+    min-width: 185px;
+  }
+
+  .mawimbi-view-menu {
+    left: 0;
+    right: auto;
+  }
 }
