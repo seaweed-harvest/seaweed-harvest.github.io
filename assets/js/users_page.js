@@ -178,6 +178,7 @@ function bindEvents() {
       formAccess
     );
     renderDailySummaryInputs("edit", dailySummaryIds);
+    configurePlatformOnlyEditor(state.editingUser);
   });
   els.editAggregators.addEventListener("change", () => {
     renderUserFormAccess("edit", readUserFormAccess("edit"));
@@ -605,6 +606,10 @@ async function inviteUser(event) {
 
 async function saveUser(event) {
   event.preventDefault();
+  if (state.editingUser?.app_role === "platform_user" && !isPlatformUserConversion()) {
+    setStatus(els.editUserMessage, "A system administrator must select an organisation role before saving organisation access.", "error");
+    return;
+  }
   const aggregatorIds = selectedAggregatorIds("edit");
   if (els.editUserRole.value !== "system_admin" && !aggregatorIds.length) {
     setStatus(els.editUserMessage, "Select at least one organisation.", "error");
@@ -801,8 +806,8 @@ async function handleUserTableClick(event) {
     writePermissions("edit", user);
     renderDashboardInputs("edit", user.app_role, user.dashboard_preferences);
     renderApplicationAccess(user);
-    configurePlatformOnlyEditor(user);
     setStatus(els.editUserMessage, "");
+    configurePlatformOnlyEditor(user);
     els.userEditorPanel.hidden = false;
     els.userEditorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
@@ -810,10 +815,31 @@ async function handleUserTableClick(event) {
   }
 }
 
+// Match the existing admin-users scope rule for an organisation-less account.
+// The protected owner has system_admin role; ordinary organisation admins
+// must not acquire the ability to adopt unrelated platform accounts.
+function canAddOrganisationAccess() {
+  return state.actor?.app_role === "system_admin"
+    && state.actor?.account_status === "active"
+    && state.actor?.can_manage_users === true;
+}
+
+function isPlatformUserConversion(user = state.editingUser) {
+  const role = els.editUserRole.value;
+  return user?.app_role === "platform_user"
+    && canAddOrganisationAccess()
+    && Object.prototype.hasOwnProperty.call(roleLabels, role)
+    && !["platform_user", "system_admin"].includes(role);
+}
+
 function configurePlatformOnlyEditor(user) {
-  const platformOnly = user?.app_role === "platform_user";
+  const fromPlatform = user?.app_role === "platform_user";
+  const platformOnly = fromPlatform && !isPlatformUserConversion(user);
   els.saveUser.hidden = platformOnly;
-  els.editUserRole.disabled = platformOnly;
+  els.editUserRole.disabled = fromPlatform && !canAddOrganisationAccess();
+  // The existing update endpoint accepts organisation roles, not system_admin.
+  const systemOption = els.editUserRole.querySelector('option[value="system_admin"]');
+  if (systemOption) systemOption.disabled = fromPlatform;
   els.editUserStatus.disabled = platformOnly;
   if (platformOnly) {
     els.editUserName.disabled = true;
@@ -822,9 +848,17 @@ function configurePlatformOnlyEditor(user) {
     configureFarmerRoleFields("edit");
   }
   els.editAggregators.closest("fieldset").hidden = platformOnly;
-  els.editFormAccessFieldset.hidden = platformOnly;
+  els.editDailySummaryFieldset.hidden = platformOnly;
+  els.editFormAccessFieldset.hidden = platformOnly || els.editUserRole.value === "system_admin";
   els.editPermissions.closest("fieldset").hidden = platformOnly;
   els.editDashboardPreferences.closest("fieldset").hidden = platformOnly;
+  if (fromPlatform) {
+    setStatus(els.editUserMessage, !canAddOrganisationAccess()
+      ? "Only a system administrator can add organisation access to this application-only account."
+      : platformOnly
+        ? "To add organisation access, choose an organisation role above. Existing application access will be kept."
+        : "Select the organisation and forms, then Save user. Existing application access will be kept.");
+  }
 }
 
 function renderApplicationAccess(user) {
@@ -1223,9 +1257,10 @@ function renderUserFormAccess(prefix, accessMap = undefined) {
         && Object.prototype.hasOwnProperty.call(accessMap, organisationId);
       const storedAccess = hasStoredAccess ? accessMap[organisationId] : undefined;
       const options = availableForms.map(([key, label]) => {
-        const checked = storedAccess === null
-          || storedAccess === undefined
-          || storedAccess?.[key] === true;
+        // A platform account has no inherited organisation-form grant.
+        const fromPlatform = prefix === "edit" && state.editingUser?.app_role === "platform_user";
+        const checked = storedAccess?.[key] === true
+          || (!fromPlatform && (storedAccess === null || storedAccess === undefined));
         return `
           <label class="user-form-access-option">
             <input type="checkbox"
