@@ -8,6 +8,7 @@
   <title>Mawimbi Process Flow - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
   <link rel="stylesheet" href="./assets/css/mawimbi_process_flow.css?v=6">
+  <link rel="stylesheet" href="./assets/css/mawimbi_process_view_options.css?v=1">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -53,7 +54,15 @@
             <span class="is-input">Input / setting</span><span class="is-measured">Measured</span><span class="is-both">Both</span>
           </div>
           <div class="mawimbi-matrix-actions">
-            <button id="mawimbiToggleResources" type="button" aria-expanded="false">Show material &amp; equipment</button>
+            <label class="mawimbi-view-picker">Show
+              <select id="mawimbiViewSelect" aria-label="Process flow details">
+                <option value="standard">Standard</option>
+                <option value="resources">Material &amp; equipment</option>
+                <option value="notes">Notes</option>
+                <option value="all">Material, equipment &amp; notes</option>
+              </select>
+            </label>
+            <button id="mawimbiToggleResources" type="button" hidden aria-hidden="true" tabindex="-1">Show material &amp; equipment</button>
             <button id="mawimbiAddStage" type="button">+ Add stage</button>
           </div>
         </div>
@@ -172,5 +181,6 @@
 
   <script type="module" src="./assets/js/admin_page.js?v=37"></script>
   <script type="module" src="./assets/js/mawimbi_process_flow.js?v=8"></script>
+  <script type="module" src="./assets/js/mawimbi_process_view_options.js?v=1"></script>
 </body>
 </html>
