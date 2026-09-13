@@ -22,6 +22,20 @@ export const DRYER_SHED_TABLES = Object.freeze([
     stationUid: "ST-0102",
     bayCount: 1,
     noConfiguration: true
+  }),
+  Object.freeze({
+    value: "bati-dryer-shed-t4",
+    label: "Dryer Shed - T4",
+    stationUid: "ST-0102",
+    bayCount: 1,
+    noConfiguration: true
+  }),
+  Object.freeze({
+    value: "bati-dryer-shed-t5",
+    label: "Dryer Shed - T5",
+    stationUid: "ST-0102",
+    bayCount: 1,
+    noConfiguration: true
   })
 ]);
 
@@ -211,8 +225,8 @@ function prepareConfigurationOption() {
 }
 
 function localizedLocationLabel(value) {
-  const suffix = value.endsWith("t1") ? "T1" : value.endsWith("t2") ? "T2" : "T3";
-  return `${isSwahili() ? "Banda la Kukaushia" : "Dryer Shed"} - ${suffix}`;
+  const tableNumber = String(value || "").match(/-t(\d+)$/i)?.[1] || "";
+  return `${isSwahili() ? "Banda la Kukaushia" : "Dryer Shed"} - T${tableNumber}`;
 }
 
 function isSwahili() {
