@@ -1,4 +1,5 @@
 import "./dryer_analysis_plotly_v3_compat.js?v=1";
+import "./dryer_weather_live_renderer.js?v=1";
 
 const TABLE_WRAP_SELECTOR = ".responsive-table-wrap, .map-table-wrap";
 
