@@ -9,7 +9,31 @@ import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15
 import { setupFavoriteFormButton } from "./favorite_forms.js?v=3";
 import { callPublicRpc } from "./supabase_client.js";
 
-document.addEventListener("DOMContentLoaded", initializeDryerTablePage);
+document.addEventListener("DOMContentLoaded", () => {
+  installDryerPhotoInputLayoutFix();
+  initializeDryerTablePage();
+});
+
+function installDryerPhotoInputLayoutFix() {
+  if (document.getElementById("dryerPhotoInputLayoutFix")) return;
+  const style = document.createElement("style");
+  style.id = "dryerPhotoInputLayoutFix";
+  style.textContent = `
+    .drying-page .camera-field input[type="file"] {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      inline-size: 100%;
+      max-inline-size: 100%;
+      min-inline-size: 0;
+      box-sizing: border-box;
+      overflow: hidden;
+      justify-self: stretch;
+    }
+  `;
+  document.head.appendChild(style);
+}
 
 async function initializeDryerTablePage() {
   try {
