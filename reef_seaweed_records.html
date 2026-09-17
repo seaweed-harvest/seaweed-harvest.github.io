@@ -26,6 +26,23 @@
     .reef-seaweed-records-toolbar label { min-width: 0; }
     .reef-seaweed-records-toolbar input { width: 100%; }
     .reef-seaweed-records-table td { vertical-align: top; }
+    .reef-record-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .reef-delete-record-button {
+      color: #9f3528;
+      border-color: #dfb0aa;
+      background: #fff;
+    }
+    .reef-delete-record-button:hover {
+      color: #7e251b;
+      border-color: #ca857b;
+      background: #fff7f5;
+    }
     .reef-record-kind {
       display: inline-flex;
       align-items: center;
@@ -168,6 +185,6 @@
     </section>
   </main>
 
-  <script type="module" src="./assets/js/reef_seaweed_records_page.js?v=1"></script>
+  <script type="module" src="./assets/js/reef_seaweed_records_page.js?v=2"></script>
 </body>
 </html>
