@@ -1,0 +1,240 @@
+.dryer-analysis-live-panel {
+  min-width: 0;
+}
+
+.dryer-analysis-live-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.dryer-analysis-live-intro .field-hint {
+  margin: 0;
+}
+
+.dryer-analysis-live-card {
+  margin: 0 0 12px;
+  padding: 0;
+  border: 1px solid var(--border, #c9dedb);
+  border-radius: 12px;
+  background: var(--panel, #fff);
+  overflow: hidden;
+}
+
+.dryer-analysis-live-card details {
+  width: 100%;
+}
+
+.dryer-analysis-live-card summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 13px 15px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text, #173d36);
+  background: var(--panel, #fff);
+}
+
+.dryer-analysis-live-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.dryer-analysis-live-card summary::before {
+  content: "▾";
+  display: inline-block;
+  width: 1rem;
+  margin-right: 6px;
+  color: var(--accent, #0f766e);
+  transition: transform 150ms ease;
+}
+
+.dryer-analysis-live-card details:not([open]) summary::before {
+  transform: rotate(-90deg);
+}
+
+.dryer-analysis-live-card details[open] summary {
+  border-bottom: 1px solid var(--border-soft, #dbe9e6);
+}
+
+.dryer-analysis-live-content {
+  padding: 12px 14px 14px;
+}
+
+.dryer-analysis-live-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.dryer-analysis-live-actions.range-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.dryer-analysis-live-actions button {
+  padding: 6px 10px;
+  font-size: .75rem;
+}
+
+.dryer-analysis-live-actions button.active {
+  background: var(--accent-soft, #e7f4f1);
+  border-color: var(--accent, #0f766e);
+  color: var(--accent, #0f766e);
+}
+
+.dryer-analysis-live-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.dryer-analysis-live-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .75rem;
+}
+
+.dryer-analysis-live-table th,
+.dryer-analysis-live-table td {
+  padding: 7px 6px;
+  border-bottom: 1px solid var(--border-soft, #dbe9e6);
+  text-align: right;
+  vertical-align: middle;
+}
+
+.dryer-analysis-live-table th {
+  color: var(--text-sec, #47635e);
+  background: var(--panel-soft, #f4f9f8);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.dryer-analysis-live-table th:first-child,
+.dryer-analysis-live-table td:first-child {
+  text-align: left;
+}
+
+.dryer-analysis-live-table .analysis-name {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.dryer-analysis-live-table .analysis-small {
+  font-size: .68rem;
+  color: var(--text-muted, #6e827e);
+}
+
+.dryer-analysis-live-hidden {
+  display: none !important;
+}
+
+.dryer-analysis-live-chip {
+  display: inline-block;
+  padding: 2px 7px;
+  margin: 1px 2px;
+  border: 1px solid var(--border-soft, #dbe9e6);
+  border-radius: 999px;
+  background: var(--panel-soft, #f4f9f8);
+  color: var(--text-sec, #47635e);
+  font-size: .68rem;
+  font-weight: 700;
+  cursor: help;
+}
+
+.dryer-analysis-live-heat {
+  font-weight: 700;
+}
+
+.dryer-analysis-live-status {
+  font-size: .78rem;
+  margin-right: 4px;
+}
+
+.dryer-analysis-live-good { color: var(--success, #2d7d46); }
+.dryer-analysis-live-caution { color: var(--warn, #a66c00); }
+.dryer-analysis-live-bad { color: var(--danger, #b33a3a); }
+.dryer-analysis-live-pending { color: #8b6fb5; }
+
+#dryerAnalysisSummaryTable {
+  min-width: 1180px;
+  table-layout: fixed;
+}
+
+#dryerAnalysisRunTable {
+  min-width: 1320px;
+  table-layout: fixed;
+  font-size: .7rem;
+}
+
+#dryerAnalysisRunTable th,
+#dryerAnalysisRunTable td {
+  white-space: nowrap;
+  padding: 7px 4px;
+}
+
+#dryerAnalysisRunTable th {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  padding-right: 13px;
+}
+
+#dryerAnalysisRunTable th::after {
+  content: "↕";
+  position: absolute;
+  right: 3px;
+  opacity: .28;
+  font-size: .62rem;
+}
+
+#dryerAnalysisRunTable th.sort-asc::after {
+  content: "▲";
+  opacity: .75;
+}
+
+#dryerAnalysisRunTable th.sort-desc::after {
+  content: "▼";
+  opacity: .75;
+}
+
+#dryerAnalysisWeatherChart,
+#dryerAnalysisScatter {
+  width: 100%;
+  min-width: 0;
+}
+
+#dryerAnalysisWeatherChart {
+  height: 650px;
+}
+
+#dryerAnalysisScatter {
+  height: 520px;
+}
+
+.dryer-analysis-weather-note {
+  margin: 8px 0 0;
+  font-size: .72rem;
+  line-height: 1.45;
+  color: var(--text-muted, #6e827e);
+}
+
+@media (max-width: 900px) {
+  .dryer-analysis-live-content {
+    padding: 9px;
+  }
+
+  .dryer-analysis-live-intro {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  #dryerAnalysisWeatherChart {
+    height: 700px;
+  }
+
+  #dryerAnalysisScatter {
+    height: 480px;
+  }
+}
