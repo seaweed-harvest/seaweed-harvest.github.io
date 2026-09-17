@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Nursery - Seaweed Records - Seaweed Harvest</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+  <style>
+    .reef-seaweed-records-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .reef-seaweed-records-heading h2 { margin-bottom: 4px; }
+    .reef-seaweed-records-toolbar {
+      display: grid;
+      grid-template-columns: minmax(240px, 1fr) auto auto;
+      gap: 10px;
+      align-items: end;
+      margin-bottom: 14px;
+    }
+    .reef-seaweed-records-toolbar label { min-width: 0; }
+    .reef-seaweed-records-toolbar input { width: 100%; }
+    .reef-seaweed-records-table td { vertical-align: top; }
+    .reef-record-kind {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 2px 8px;
+      border: 1px solid #cfe0dd;
+      border-radius: 999px;
+      background: #f3faf8;
+      color: #245c56;
+      font-size: .78rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .reef-record-kind.is-sample { background: #fff7ed; border-color: #f1cda7; color: #9a4e0b; }
+    .reef-record-kind.is-legacy { background: #f5f5f5; border-color: #d9d9d9; color: #555; }
+    .reef-record-detail {
+      margin-top: 16px;
+      border-top: 1px solid var(--border, #d3e2df);
+      padding-top: 16px;
+    }
+    .reef-record-detail[hidden] { display: none; }
+    .reef-record-detail-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .reef-record-detail-head h3 { margin: 0; }
+    .reef-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .reef-detail-grid > div {
+      border: 1px solid #dce9e7;
+      border-radius: 8px;
+      padding: 10px;
+      background: #fbfefd;
+    }
+    .reef-detail-grid span,
+    .reef-detail-grid strong { display: block; }
+    .reef-detail-grid span {
+      color: #55736f;
+      font-size: .74rem;
+      text-transform: uppercase;
+    }
+    .reef-detail-grid strong { margin-top: 3px; }
+    .reef-detail-section { margin-top: 12px; }
+    .reef-detail-section h4 { margin: 0 0 4px; }
+    .reef-detail-section p { margin: 0; }
+    .reef-sample-detail-table input { min-width: 0; }
+    @media (max-width: 900px) {
+      .reef-seaweed-records-toolbar { grid-template-columns: 1fr; }
+      .reef-detail-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Seaweed Harvest">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./favicon.ico" sizes="any">
+  <link rel="icon" href="./assets/images/seaweed-harvest-icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
+  <script type="module" src="./assets/js/pwa_bootstrap.js"></script>
+</head>
+<body class="admin-console-page form-record-ledgers-page reef-seaweed-records-page" data-auth-pending>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div><p class="eyebrow">Seaweed aggregation</p><h1>Records</h1></div>
+      <div class="header-actions admin-header-controls">
+        <nav class="app-nav" aria-label="Main navigation">
+          <a href="./reef_nursery.html?tab=seaweed">Seaweed Data Collection</a>
+          <a href="./home.html">Home</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell admin-shell admin-layout">
+    <aside id="reefSeaweedRecordsSidebar" class="admin-sidebar" aria-label="Application menu"></aside>
+    <section class="admin-content">
+      <section class="panel admin-page-section form-ledger-panel">
+        <div class="reef-seaweed-records-heading">
+          <div>
+            <h2>Nursery - Seaweed Records</h2>
+            <p class="field-hint">Seaweed site captures and Sample Rope Registers.</p>
+          </div>
+          <button id="reloadReefSeaweedRecords" class="icon-button refresh-records-button" type="button" aria-label="Refresh seaweed records" title="Refresh">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.2 6.5L3 16"></path><path d="M3 21v-5h5"></path><path d="M3 12A9 9 0 0 1 18.2 5.5L21 8"></path><path d="M21 3v5h-5"></path></svg>
+          </button>
+        </div>
+
+        <div class="reef-seaweed-records-toolbar">
+          <label>Search
+            <input id="reefSeaweedRecordsSearch" type="search" placeholder="Record, location, site, species or recorder" autocomplete="off">
+          </label>
+          <button id="searchReefSeaweedRecords" type="button">Search</button>
+          <button id="clearReefSeaweedRecordsSearch" type="button">Clear</button>
+        </div>
+
+        <div class="responsive-table-wrap">
+          <table class="management-table admin-data-table reef-seaweed-records-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Record</th>
+                <th>Date</th>
+                <th>Location / Site</th>
+                <th>Species</th>
+                <th>Details</th>
+                <th>Updated</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="reefSeaweedRecordRows">
+              <tr><td colspan="8" class="empty-state">Loading seaweed records...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="reef-records-pagination">
+          <button id="previousReefSeaweedRecords" type="button">Previous</button>
+          <span id="reefSeaweedRecordsPage">0 records</span>
+          <button id="nextReefSeaweedRecords" type="button">Next</button>
+        </div>
+        <p id="reefSeaweedRecordsStatus" class="admin-status" aria-live="polite"></p>
+
+        <article id="reefSeaweedRecordDetail" class="reef-record-detail" hidden>
+          <div class="reef-record-detail-head">
+            <h3 id="reefSeaweedRecordDetailTitle">Seaweed record</h3>
+            <button id="closeReefSeaweedRecordDetail" type="button">Close</button>
+          </div>
+          <p id="reefSeaweedRecordDetailStatus" class="admin-status" aria-live="polite"></p>
+          <div id="reefSeaweedRecordDetailContent"></div>
+        </article>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="./assets/js/reef_seaweed_records_page.js?v=1"></script>
+</body>
+</html>
