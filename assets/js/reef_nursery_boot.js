@@ -11,7 +11,8 @@ export const REEF_CANONICAL_ROUTE_PARAMETERS = Object.freeze([
   "inspection_record",
   "legacy_record",
   "share",
-  "org"
+  "org",
+  "record_type"
 ]);
 
 const parameters = new URLSearchParams(window.location.search);
@@ -30,3 +31,4 @@ if (!reviewMode) {
 await import("./reef_nursery_workspace_tabs.js?v=20260917a");
 await import("./reef_nursery_delete_hotfix.js?v=1");
 await import("./reef_nursery_cleanup.js?v=1");
+await import("./reef_nursery_site_capture_records_hotfix.js?v=20260917a");

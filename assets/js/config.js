@@ -1,4 +1,5 @@
 import "./site_feedback.js?v=8";
+import "./reef_records_navigation_hotfix.js?v=1";
 
 export const APP_CONFIG = {
   appName: "Seaweed Aggregation",
