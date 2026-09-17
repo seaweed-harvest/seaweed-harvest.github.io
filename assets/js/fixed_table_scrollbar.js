@@ -1,7 +1,3 @@
-import "./dryer_analysis_plotly_v3_compat.js?v=1";
-import "./dryer_weather_live_renderer.js?v=1";
-import "./dryer_weather_visual_parity.js?v=2";
-
 const TABLE_WRAP_SELECTOR = ".responsive-table-wrap, .map-table-wrap";
 
 export function setupFixedTableScrollbar() {
