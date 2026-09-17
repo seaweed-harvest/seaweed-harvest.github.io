@@ -3,6 +3,7 @@ import { DRYING_FORM_CONFIG } from "./dryer_table_config.js?v=2";
 
 const FUNCTION_URL = `${DRYING_FORM_CONFIG.supabaseUrl}/functions/v1/dryer-record-photos`;
 const REQUEST_TIMEOUT_MS = 25_000;
+const LIBRARY_PHASES = new Set(["table", "loading", "unloading"]);
 
 export async function fetchDryerEventPhotos(submissionId, bayNumber = null) {
   const payload = {
@@ -25,12 +26,14 @@ export async function fetchDryerPhotoLibrary({
   limit = 20,
   offset = 0
 } = {}) {
+  const selectedPhase = String(document.getElementById("photoPhase")?.value || "").trim().toLowerCase();
   return callDryerPhotoFunction({
     action: "library",
     start_date: startDate || null,
     end_date: endDate || null,
     location: location || null,
     recorder: recorder || null,
+    phase: LIBRARY_PHASES.has(selectedPhase) ? selectedPhase : null,
     sort_key: sortKey,
     sort_direction: sortDirection,
     limit,
