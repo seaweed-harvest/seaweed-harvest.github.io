@@ -27,7 +27,9 @@ const state = {
   page: 0,
   total: 0,
   rows: [],
-  loading: false
+  loading: false,
+  deleting: false,
+  canDelete: false
 };
 const els = {};
 
@@ -47,6 +49,7 @@ async function init() {
     );
     if (!access) return;
     state.profile = access.profile;
+    state.canDelete = Boolean(state.profile?.is_protected_owner);
     if (!hasOrganisationCapability(state.profile, "form_reef_nursery")) {
       window.location.replace("./access_pending.html");
       return;
@@ -106,6 +109,16 @@ function bindEvents() {
   els.previousReefSeaweedRecords.addEventListener("click", () => changePage(-1));
   els.nextReefSeaweedRecords.addEventListener("click", () => changePage(1));
   els.reefSeaweedRecordRows.addEventListener("click", (event) => {
+    const deleteButton = event.target.closest("[data-delete-reef-seaweed-record]");
+    if (deleteButton) {
+      void deleteRecord(
+        deleteButton.dataset.kind,
+        deleteButton.dataset.key,
+        deleteButton.dataset.number
+      );
+      return;
+    }
+
     const button = event.target.closest("[data-open-reef-seaweed-record]");
     if (!button) return;
     void openRecord(button.dataset.kind, button.dataset.key, button.dataset.number);
@@ -166,7 +179,7 @@ function renderRows() {
           <td data-label="Species">${escapeHtml(record.species || "-")}</td>
           <td data-label="Details">${escapeHtml(details || "-")}</td>
           <td data-label="Updated">${escapeHtml(formatDateTime(record.updated_at))}</td>
-          <td><button type="button" data-open-reef-seaweed-record data-kind="${escapeHtml(record.record_kind)}" data-key="${escapeHtml(record.record_key)}" data-number="${escapeHtml(record.record_number || "")}">Open</button></td>
+          <td>${recordActions(record)}</td>
         </tr>`;
     }).join("");
   }
@@ -176,6 +189,13 @@ function renderRows() {
   els.reefSeaweedRecordsPage.textContent = state.total ? `${start}-${end} of ${state.total}` : "0 records";
   els.previousReefSeaweedRecords.disabled = state.loading || state.page === 0;
   els.nextReefSeaweedRecords.disabled = state.loading || end >= state.total;
+}
+
+function recordActions(record) {
+  const open = `<button type="button" data-open-reef-seaweed-record data-kind="${escapeHtml(record.record_kind)}" data-key="${escapeHtml(record.record_key)}" data-number="${escapeHtml(record.record_number || "")}">Open</button>`;
+  if (!state.canDelete) return `<div class="reef-record-actions">${open}</div>`;
+  const remove = `<button class="reef-delete-record-button" type="button" data-delete-reef-seaweed-record data-kind="${escapeHtml(record.record_kind)}" data-key="${escapeHtml(record.record_key)}" data-number="${escapeHtml(record.record_number || "")}">Delete</button>`;
+  return `<div class="reef-record-actions">${open}${remove}</div>`;
 }
 
 function applySearch() {
@@ -302,6 +322,40 @@ async function openSampleRegister(siteCode) {
         </tbody>
       </table>
     </div>`;
+}
+
+async function deleteRecord(kind, key, recordNumber) {
+  if (!state.canDelete || state.deleting || !kind || !key) return;
+
+  const label = recordNumber || KIND_LABELS[kind] || "this record";
+  const confirmed = window.confirm(
+    `Delete ${label}?\n\nThis record will be removed from active Nursery - Seaweed records. It can be recovered administratively if deleted by mistake.`
+  );
+  if (!confirmed) return;
+
+  state.deleting = true;
+  setStatus(`Deleting ${label}...`);
+  try {
+    const { error } = await authClient.rpc("ag_reef_seaweed_records_page_delete", {
+      p_record_kind: kind,
+      p_record_key: key
+    });
+    if (error) throw error;
+
+    closeDetail();
+    await loadRecords();
+    setStatus(`${label} deleted.`, "success");
+  } catch (error) {
+    const message = error?.message || `${label} could not be deleted.`;
+    if (/already been deleted|not found/i.test(message)) {
+      await loadRecords();
+      setStatus(`${label} is no longer in active records.`, "success");
+    } else {
+      setStatus(message, "error");
+    }
+  } finally {
+    state.deleting = false;
+  }
 }
 
 function closeDetail() {
