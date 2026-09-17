@@ -386,10 +386,10 @@ function weatherBounds(days) {
 
 function weatherTraces(days) {
   const selected = selectedWeather(days);
-  const fmt = days === 7 ? "%{x|%a %d %b %H:%M}" : "%{x|%a %d %b %Y}";
+  const hoverFmt = days === 7 ? "%{x|%a %d %b %H:%M}" : "%{x|%a %d %b %Y}";
   const out = [
-    {x:selected.w.x,y:selected.w.temp,type:"scatter",mode:"lines",name:"Temperature",line:{color:"#e78a55",width:2.7,shape:"spline",smoothing:.28},xaxis:"x",yaxis:"y",hovertemplate:fmt+"<br><b>%{y:.1f} °C</b><extra>Temperature</extra>"},
-    {x:selected.w.x,y:selected.w.hum,type:"scatter",mode:"lines",name:"Humidity",line:{color:"#4ca58f",width:2.5,shape:"spline",smoothing:.28},xaxis:"x",yaxis:"y2",hovertemplate:fmt+"<br><b>%{y:.0f}% RH</b><extra>Humidity</extra>"},
+    {x:selected.w.x,y:selected.w.temp,type:"scatter",mode:"lines",name:"Temperature",line:{color:"#e78a55",width:2.7,shape:"spline",smoothing:.28},xaxis:"x",yaxis:"y",hovertemplate:hoverFmt+"<br><b>%{y:.1f} °C</b><extra>Temperature</extra>"},
+    {x:selected.w.x,y:selected.w.hum,type:"scatter",mode:"lines",name:"Humidity",line:{color:"#4ca58f",width:2.5,shape:"spline",smoothing:.28},xaxis:"x",yaxis:"y2",hovertemplate:hoverFmt+"<br><b>%{y:.0f}% RH</b><extra>Humidity</extra>"},
     {x:D.rain.x,y:D.rain.y,customdata:D.rain.source,type:"bar",name:"Rainfall",marker:{color:"#7da7d4"},opacity:.5,xaxis:"x",yaxis:"y3",hovertemplate:"%{x|%a %d %b}<br><b>%{y:.1f} mm</b><br>%{customdata}<extra>Regional rainfall</extra>"}
   ];
 
