@@ -449,10 +449,10 @@ function weatherLayout(days) {
     paper_bgcolor:"#fff", plot_bgcolor:"#fff", margin:{l:150,r:150,t:40,b:30}, hovermode:"x", dragmode:false, bargap:.18,
     legend:{orientation:"h",x:.055,y:1.025,xanchor:"left",yanchor:"bottom"},
     xaxis:{domain:[.055,.875],anchor:"y",type:"date",range:[start,end],matches:"x2",showticklabels:false,showgrid:false,zeroline:false,fixedrange:true},
-    yaxis:{domain:[.57,.96],anchor:"x",title:"Temperature",side:"left",fixedrange:true,showgrid:true,gridcolor:"rgba(70,90,85,.10)",zeroline:false,ticksuffix:" °C",tickformat:".0f",dtick:1},
-    yaxis2:{overlaying:"y",anchor:"free",position:.90,side:"right",title:"Humidity",fixedrange:true,range:[45,100],showgrid:false,zeroline:false,ticksuffix:" %",tickformat:".0f",dtick:10},
-    yaxis3:{overlaying:"y",anchor:"free",position:.965,side:"right",title:"Rainfall",fixedrange:true,rangemode:"tozero",showgrid:false,zeroline:false,ticksuffix:" mm",tickformat:".0f",dtick:10},
-    yaxis5:{overlaying:"y",anchor:"free",position:.012,side:"left",title:"Low tide",fixedrange:true,range:[0,1.6],visible:state.tideEnabled,showgrid:false,zeroline:false,ticksuffix:" m",tickformat:".1f",dtick:.5,tickfont:{color:"#687ea6"},titlefont:{color:"#687ea6"}},
+    yaxis:{domain:[.57,.96],anchor:"x",title:{text:"Temperature"},side:"left",fixedrange:true,showgrid:true,gridcolor:"rgba(70,90,85,.10)",zeroline:false,ticksuffix:" °C",tickformat:".0f",dtick:1},
+    yaxis2:{overlaying:"y",anchor:"free",position:.90,side:"right",title:{text:"Humidity"},fixedrange:true,range:[45,100],showgrid:false,zeroline:false,ticksuffix:" %",tickformat:".0f",dtick:10},
+    yaxis3:{overlaying:"y",anchor:"free",position:.965,side:"right",title:{text:"Rainfall"},fixedrange:true,rangemode:"tozero",showgrid:false,zeroline:false,ticksuffix:" mm",tickformat:".0f",dtick:10},
+    yaxis5:{overlaying:"y",anchor:"free",position:.012,side:"left",title:{text:"Low tide",font:{color:"#687ea6"}},fixedrange:true,range:[0,1.6],visible:state.tideEnabled,showgrid:false,zeroline:false,ticksuffix:" m",tickformat:".1f",dtick:.5,tickfont:{color:"#687ea6"}},
     xaxis2:{domain:[.055,.875],anchor:"y4",type:"date",range:[start,end],fixedrange:true,tickmode:"array",tickvals:ticks,ticktext:texts,side:"top",ticks:"outside",ticklen:7,showgrid:false,zeroline:false},
     yaxis4:{domain:[.10,.49],anchor:"x2",type:"category",fixedrange:true,categoryorder:"array",categoryarray:[...tables].reverse(),showgrid:false,zeroline:false,tickfont:{size:11}},
     shapes,
@@ -466,8 +466,16 @@ function renderWeather() {
   if (els.weatherMethod) els.weatherMethod.textContent = selected.method;
   if (els.tideButton) els.tideButton.classList.toggle("active", state.tideEnabled);
   if (els.tidePill) els.tidePill.hidden = !state.tideEnabled;
-  window.Plotly.react(els.weather, weatherTraces(state.rangeDays), weatherLayout(state.rangeDays), {
-    responsive:true,displaylogo:false,scrollZoom:false,doubleClick:false,displayModeBar:false
+
+  const data = weatherTraces(state.rangeDays);
+  const layout = weatherLayout(state.rangeDays);
+  const config = { responsive:true,displaylogo:false,scrollZoom:false,doubleClick:false,displayModeBar:false };
+  const draw = els.weather?._fullLayout ? window.Plotly.react : window.Plotly.newPlot;
+  Promise.resolve(draw.call(window.Plotly, els.weather, data, layout, config)).catch((error) => {
+    console.error("Dryer timeline + Weather render failed.", error);
+    if (els.weather) {
+      els.weather.innerHTML = `<p class="admin-status" data-status="error">Unable to render timeline + weather: ${esc(error?.message || String(error))}</p>`;
+    }
   });
 }
 
