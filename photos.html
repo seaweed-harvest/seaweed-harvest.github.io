@@ -12,6 +12,15 @@
       margin: 0 0 14px;
     }
 
+    .dryer-photo-type-filter {
+      display: none;
+    }
+
+    body.cosme-photo-library:has(#photoDryerTab[aria-selected="true"]) .dryer-photo-type-filter {
+      display: grid;
+      gap: 6px;
+    }
+
     .photo-library-thumbnail .photo-thumbnail-context {
       display: block;
       margin-top: 4px;
@@ -70,6 +79,15 @@
               <option value="intake">Intake Collection</option>
               <option value="process">Process Record</option>
               <option value="reef_nursery">Reef Nursery</option>
+            </select>
+          </label>
+          <label id="photoPhaseField" class="dryer-photo-type-filter">
+            Photo type
+            <select id="photoPhase">
+              <option value="">All photos</option>
+              <option value="table">Table overview</option>
+              <option value="loading">Loading</option>
+              <option value="unloading">Unloading</option>
             </select>
           </label>
           <label id="photoCommunityField"><span id="photoCommunityLabel">Community</span><select id="photoCommunity"><option value="">All communities</option></select></label>
