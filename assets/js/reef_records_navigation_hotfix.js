@@ -23,15 +23,14 @@ function patch() {
   });
 
   groups.forEach((group) => {
-    if (!group) return;
-    normalizeRecordsGroup(group);
+    if (group) normalizeRecordsGroup(group);
   });
 }
 
 function normalizeRecordsGroup(group) {
   let anchors = [...group.querySelectorAll(":scope > a")];
-  let dryer = firstByHref(anchors, "dryer_table_records.html");
-  let photos = anchors.find((anchor) => fileName(anchor.href) === "photos.html") || null;
+  const dryer = firstByHref(anchors, "dryer_table_records.html");
+  const photos = anchors.find((anchor) => fileName(anchor.href) === "photos.html") || null;
   let training = anchors.find((anchor) => isTrainingRecordsHref(anchor.href)) || null;
   let seaweed = anchors.find((anchor) => isSeaweedRecordsHref(anchor.href)) || null;
   const legacy = anchors.find((anchor) => anchor.href.includes("reef_nursery_records.html")) || null;
@@ -42,33 +41,59 @@ function normalizeRecordsGroup(group) {
     legacy.remove();
   }
 
-  if (training) {
-    training.textContent = "Nursery - Training";
-    training.href = "./reef_nursery.html?tab=records&record_type=training";
-  }
+  if (training) setLink(training, "Nursery - Training", "./reef_nursery.html?tab=records&record_type=training");
 
   if (!seaweed && training) {
     seaweed = training.cloneNode(true);
     training.after(seaweed);
   }
-  if (seaweed) {
-    seaweed.textContent = "Nursery - Seaweed";
-    seaweed.href = "./reef_seaweed_records.html";
-  }
+  if (seaweed) setLink(seaweed, "Nursery - Seaweed", "./reef_seaweed_records.html");
 
-  if (dryer) {
-    dryer.textContent = "Dryer Table";
-    dryer.href = "./dryer_table_records.html";
-  }
-  if (photos) photos.textContent = "Photos";
+  if (dryer) setLink(dryer, "Dryer Table", "./dryer_table_records.html");
+  if (photos && photos.textContent !== "Photos") photos.textContent = "Photos";
 
   anchors = [...group.querySelectorAll(":scope > a")];
   removeDuplicateMatches(anchors, (anchor) => isTrainingRecordsHref(anchor.href), training);
   removeDuplicateMatches(anchors, (anchor) => isSeaweedRecordsHref(anchor.href), seaweed);
 
-  if (dryer && training) dryer.after(training);
-  if (training && seaweed) training.after(seaweed);
-  if (seaweed && photos) seaweed.after(photos);
+  placeAfter(dryer, training);
+  placeAfter(training, seaweed);
+  placeAfter(seaweed, photos);
+  syncCurrentState([dryer, training, seaweed, photos]);
+}
+
+function setLink(anchor, text, href) {
+  if (anchor.textContent !== text) anchor.textContent = text;
+  const expected = new URL(href, window.location.href).href;
+  if (anchor.href !== expected) anchor.href = href;
+}
+
+function placeAfter(anchor, node) {
+  if (!anchor || !node || anchor.nextElementSibling === node) return;
+  anchor.after(node);
+}
+
+function syncCurrentState(anchors) {
+  anchors.filter(Boolean).forEach((anchor) => {
+    const current = routeMatchesCurrent(anchor.href);
+    if (current) anchor.setAttribute("aria-current", "page");
+    else if (anchor.getAttribute("aria-current") === "page") anchor.removeAttribute("aria-current");
+  });
+}
+
+function routeMatchesCurrent(href) {
+  try {
+    const target = new URL(href, window.location.href);
+    const current = new URL(window.location.href);
+    if (target.pathname !== current.pathname) return false;
+    if (fileName(href) === "reef_nursery.html" && target.searchParams.get("record_type")) {
+      return current.searchParams.get("record_type") === target.searchParams.get("record_type")
+        && current.searchParams.get("tab") === "records";
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function removeDuplicateMatches(anchors, predicate, keep) {
