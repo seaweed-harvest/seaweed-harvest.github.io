@@ -1,0 +1,75 @@
+.dryer-analysis-weather-parity .dryer-analysis-weather-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 0;
+}
+.dryer-analysis-weather-parity .dryer-analysis-weather-subtitle {
+  max-width: 1050px;
+  color: var(--text-muted);
+  font-size: .78rem;
+  line-height: 1.45;
+}
+.dryer-analysis-weather-parity .dryer-analysis-weather-controls {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 0;
+}
+.dryer-analysis-weather-parity .dryer-analysis-weather-controls button {
+  padding: 7px 12px;
+  font-size: .75rem;
+}
+.dryer-analysis-weather-parity .dryer-analysis-weather-controls button.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.dryer-analysis-weather-parity .dryer-analysis-weather-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0 10px;
+}
+.dryer-analysis-weather-parity .dryer-analysis-weather-pill {
+  padding: 5px 9px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--panel-soft);
+  color: var(--text-sec);
+  font-size: .72rem;
+}
+.dryer-analysis-weather-parity .dryer-analysis-chart-wrap {
+  padding: 8px 10px 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  overflow: hidden;
+}
+.dryer-analysis-weather-parity #dryerAnalysisWeatherChart {
+  width: 100%;
+  height: 640px;
+}
+.dryer-analysis-weather-parity .dryer-analysis-note {
+  padding: 8px 6px 4px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .68rem;
+  line-height: 1.45;
+}
+@media (max-width: 900px) {
+  .dryer-analysis-weather-parity .dryer-analysis-weather-header {
+    display: block;
+  }
+  .dryer-analysis-weather-parity .dryer-analysis-weather-controls {
+    margin-top: 10px;
+  }
+  .dryer-analysis-weather-parity #dryerAnalysisWeatherChart {
+    height: 700px;
+    min-width: 0;
+  }
+  .dryer-analysis-weather-parity .dryer-analysis-chart-wrap {
+    overflow-x: hidden;
+  }
+}
