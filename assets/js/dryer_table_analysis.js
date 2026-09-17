@@ -23,7 +23,26 @@ function init() {
   cache();
   if (!els.tabs || !els.tab || !els.panel) return;
   bind();
-  if (new URLSearchParams(location.search).get("tab") === TAB) setTimeout(() => void activate(), 0);
+  if (new URLSearchParams(location.search).get("tab") === TAB) void activateWhenRecordsReady();
+}
+
+async function activateWhenRecordsReady() {
+  if (document.body.hasAttribute("data-auth-pending")) {
+    await new Promise((resolve) => {
+      const observer = new MutationObserver(() => {
+        if (!document.body.hasAttribute("data-auth-pending")) {
+          observer.disconnect();
+          resolve();
+        }
+      });
+      observer.observe(document.body, { attributes: true, attributeFilter: ["data-auth-pending"] });
+      window.setTimeout(() => {
+        observer.disconnect();
+        resolve();
+      }, 10000);
+    });
+  }
+  await activate();
 }
 
 function installShell() {
