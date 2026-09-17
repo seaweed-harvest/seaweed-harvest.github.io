@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v139-reef-records-site-capture";
+const CACHE_VERSION = "seaweed-harvest-collection-v140-reef-seaweed-records";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -12,6 +12,7 @@ const APP_SHELL = [
   "./reef_nursery.html",
   "./reef_nursery_training.html",
   "./reef_nursery_records.html",
+  "./reef_seaweed_records.html",
   "./dryer_table.html",
   "./records.html",
   "./photos.html",
@@ -69,6 +70,7 @@ const APP_SHELL = [
   "./assets/js/reef_nursery_workspace_tabs.js",
   "./assets/js/reef_nursery_site_capture_records_hotfix.js",
   "./assets/js/reef_records_navigation_hotfix.js",
+  "./assets/js/reef_seaweed_records_page.js",
   "./assets/js/reef_nursery_form.js",
   "./assets/js/reef_nursery_records.js",
   "./assets/js/reef_nursery_training_rpc_guard.js",
