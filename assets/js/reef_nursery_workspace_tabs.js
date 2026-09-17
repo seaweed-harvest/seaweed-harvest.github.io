@@ -17,14 +17,14 @@ function selectedTrainingTab(secondaryTabs) {
 
 function visibleTrainingTabs(secondaryTabs) {
   return [...secondaryTabs.querySelectorAll("[data-reef-tab]")]
-    .filter((tab) => TRAINING_TAB_NAMES.has(tab.dataset.reefTab));
+    .filter((tab) => TRAINING_TAB_NAMES.has(tab.dataset.reefTab) && !tab.hidden && !tab.disabled);
 }
 
 function initWorkspaceTabs() {
   const workspace = document.getElementById("reefTrainingWorkspace");
   const secondaryTabs = document.getElementById("reefNurseryTabs");
-  const seaweedTab = document.getElementById("reefSeaweedTab");
-  if (!workspace || !secondaryTabs || !seaweedTab || document.getElementById("reefWorkspaceTabs")) return;
+  const sourceSeaweedTab = document.getElementById("reefSeaweedTab");
+  if (!workspace || !secondaryTabs || !sourceSeaweedTab || document.getElementById("reefWorkspaceTabs")) return;
 
   let lastTrainingTab = selectedTrainingTab(secondaryTabs) || "session";
 
@@ -43,12 +43,19 @@ function initWorkspaceTabs() {
   trainingWorkspaceTab.setAttribute("aria-controls", "reefNurseryTabs");
   trainingWorkspaceTab.textContent = "Nursery Training";
 
-  seaweedTab.textContent = "Seaweed Data Collection";
-  seaweedTab.classList.add("reef-workspace-tab");
-  seaweedTab.removeAttribute("data-reef-training-tab");
+  const seaweedWorkspaceTab = document.createElement("button");
+  seaweedWorkspaceTab.id = "reefSeaweedWorkspaceTab";
+  seaweedWorkspaceTab.className = "standard-tab reef-workspace-tab";
+  seaweedWorkspaceTab.type = "button";
+  seaweedWorkspaceTab.setAttribute("role", "tab");
+  seaweedWorkspaceTab.setAttribute("aria-selected", "false");
+  seaweedWorkspaceTab.setAttribute("aria-controls", "reefSeaweedPanel");
+  seaweedWorkspaceTab.textContent = "Seaweed Data Collection";
+  seaweedWorkspaceTab.tabIndex = -1;
 
-  workspaceTabs.append(trainingWorkspaceTab, seaweedTab);
+  workspaceTabs.append(trainingWorkspaceTab, seaweedWorkspaceTab);
   workspace.insertBefore(workspaceTabs, secondaryTabs);
+  sourceSeaweedTab.classList.add("reef-workspace-source-tab");
 
   const style = document.createElement("style");
   style.id = "reefWorkspaceTabsStyle";
@@ -58,6 +65,9 @@ function initWorkspaceTabs() {
     }
     .reef-workspace-tabs .reef-workspace-tab {
       font-weight: 700;
+    }
+    #reefNurseryTabs .reef-workspace-source-tab {
+      display: none !important;
     }
     #reefNurseryTabs[hidden] {
       display: none !important;
@@ -69,8 +79,8 @@ function initWorkspaceTabs() {
     const seaweedActive = mode === "seaweed";
     trainingWorkspaceTab.setAttribute("aria-selected", String(!seaweedActive));
     trainingWorkspaceTab.tabIndex = seaweedActive ? -1 : 0;
-    seaweedTab.setAttribute("aria-selected", String(seaweedActive));
-    seaweedTab.tabIndex = seaweedActive ? 0 : -1;
+    seaweedWorkspaceTab.setAttribute("aria-selected", String(seaweedActive));
+    seaweedWorkspaceTab.tabIndex = seaweedActive ? 0 : -1;
     secondaryTabs.hidden = seaweedActive;
   }
 
@@ -82,12 +92,22 @@ function initWorkspaceTabs() {
   }
 
   function activateSeaweedWorkspace() {
-    seaweedTab.click();
+    if (sourceSeaweedTab.hidden || sourceSeaweedTab.disabled) return;
+    sourceSeaweedTab.click();
     setWorkspace("seaweed");
   }
 
+  function syncSourceAvailability() {
+    const unavailable = sourceSeaweedTab.hidden || sourceSeaweedTab.disabled;
+    seaweedWorkspaceTab.hidden = unavailable;
+    seaweedWorkspaceTab.disabled = unavailable;
+    if (unavailable && seaweedWorkspaceTab.getAttribute("aria-selected") === "true") {
+      activateTrainingWorkspace();
+    }
+  }
+
   trainingWorkspaceTab.addEventListener("click", activateTrainingWorkspace);
-  seaweedTab.addEventListener("click", () => setWorkspace("seaweed"));
+  seaweedWorkspaceTab.addEventListener("click", activateSeaweedWorkspace);
 
   secondaryTabs.addEventListener("click", (event) => {
     const tab = event.target.closest("[data-reef-tab]");
@@ -116,20 +136,24 @@ function initWorkspaceTabs() {
 
   workspaceTabs.addEventListener("keydown", (event) => {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-    if (!event.target.closest(".reef-workspace-tab")) return;
+    const tabs = [trainingWorkspaceTab, seaweedWorkspaceTab].filter((tab) => !tab.hidden && !tab.disabled);
+    const current = tabs.indexOf(event.target.closest(".reef-workspace-tab"));
+    if (current < 0 || !tabs.length) return;
+
     event.preventDefault();
     event.stopImmediatePropagation();
-    if (event.target === trainingWorkspaceTab) {
-      activateSeaweedWorkspace();
-      seaweedTab.focus();
-    } else {
-      activateTrainingWorkspace();
-      trainingWorkspaceTab.focus();
-    }
+    let next = current;
+    if (event.key === "ArrowLeft") next = (current - 1 + tabs.length) % tabs.length;
+    if (event.key === "ArrowRight") next = (current + 1) % tabs.length;
+    if (event.key === "Home") next = 0;
+    if (event.key === "End") next = tabs.length - 1;
+    tabs[next].focus();
+    tabs[next].click();
   }, true);
 
   const observer = new MutationObserver(() => {
-    if (seaweedTab.getAttribute("aria-selected") === "true") {
+    syncSourceAvailability();
+    if (sourceSeaweedTab.getAttribute("aria-selected") === "true" && !sourceSeaweedTab.hidden) {
       setWorkspace("seaweed");
       return;
     }
@@ -140,12 +164,19 @@ function initWorkspaceTabs() {
     }
   });
 
-  [seaweedTab, ...visibleTrainingTabs(secondaryTabs)].forEach((tab) => {
-    observer.observe(tab, { attributes: true, attributeFilter: ["aria-selected"] });
+  [sourceSeaweedTab, ...visibleTrainingTabs(secondaryTabs)].forEach((tab) => {
+    observer.observe(tab, {
+      attributes: true,
+      attributeFilter: ["aria-selected", "hidden", "disabled"]
+    });
   });
 
-  if (seaweedTab.getAttribute("aria-selected") === "true") setWorkspace("seaweed");
-  else setWorkspace("training");
+  syncSourceAvailability();
+  if (sourceSeaweedTab.getAttribute("aria-selected") === "true" && !sourceSeaweedTab.hidden) {
+    setWorkspace("seaweed");
+  } else {
+    setWorkspace("training");
+  }
 }
 
 if (document.readyState === "loading") {
