@@ -26,3 +26,4 @@ if (!reviewMode) {
 
 await import("./reef_nursery_delete_hotfix.js?v=1");
 await import("./reef_nursery_cleanup.js?v=1");
+await import("./reef_nursery_workspace_tabs.js?v=1");
