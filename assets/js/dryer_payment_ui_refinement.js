@@ -130,6 +130,12 @@ function installStyles() {
     .dryer-pay-detail li {
       margin: 2px 0;
     }
+
+    .dryer-payment-approval-meta {
+      display: block;
+      width: 100%;
+      margin-top: 5px;
+    }
   `;
   document.head.appendChild(style);
 }
@@ -200,6 +206,39 @@ function enhanceWorkAmount(row) {
   }
 }
 
+function enhanceApprovalNote(row) {
+  const detailRow = row.nextElementSibling;
+  if (!detailRow?.hasAttribute("data-payment-day-detail")) return;
+
+  const grid = detailRow.querySelector(".dryer-payment-detail-grid");
+  const noteLabel = grid?.querySelector("label");
+  if (!grid || !noteLabel) return;
+
+  const approvalMeta = [...detailRow.querySelectorAll(".field-hint")].find((node) => {
+    const text = node.textContent.trim();
+    return text.startsWith("Last approved ")
+      || text === "This day has not yet been approved.";
+  });
+  if (!approvalMeta || approvalMeta.parentElement === noteLabel) return;
+
+  const metaHost = approvalMeta.parentElement;
+  approvalMeta.classList.add("dryer-payment-approval-meta");
+  noteLabel.appendChild(approvalMeta);
+
+  while (
+    metaHost?.firstChild?.nodeType === Node.TEXT_NODE
+    && !metaHost.firstChild.textContent.trim()
+  ) {
+    metaHost.firstChild.remove();
+  }
+  if (metaHost?.firstElementChild?.tagName === "BR") {
+    metaHost.firstElementChild.remove();
+  }
+  if (metaHost && !metaHost.textContent.trim() && !metaHost.querySelector(".status-pill")) {
+    metaHost.hidden = true;
+  }
+}
+
 function buildPayDetail(row) {
   const detailRow = row.nextElementSibling;
   if (!detailRow?.hasAttribute("data-payment-day-detail")) return;
@@ -240,6 +279,7 @@ function enhanceRows() {
   const rows = document.querySelectorAll(`#${ROWS_ID} [data-payment-day-row]`);
   rows.forEach((row) => {
     enhanceWorkAmount(row);
+    enhanceApprovalNote(row);
     buildPayDetail(row);
   });
 }
@@ -266,6 +306,7 @@ if (document.readyState === "loading") {
 
 export {
   buildPayDetail,
+  enhanceApprovalNote,
   enhanceWorkAmount,
   parseActivityCounts,
   parseKesAmount
