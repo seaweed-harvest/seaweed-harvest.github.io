@@ -20,7 +20,7 @@ function scheduleParity(delay = 0) {
 function alignedTicks(start, end, stepDays) {
   const ticks = [];
   let cursor = new Date(start);
-  cursor.setUTCHours(0, 0, 0, 0);
+  cursor.setHours(0, 0, 0, 0);
   while (cursor <= end) {
     ticks.push(cursor.toISOString());
     cursor = new Date(cursor.getTime() + stepDays * 86400000);
@@ -31,8 +31,8 @@ function alignedTicks(start, end, stepDays) {
 function tickText(values) {
   return values.map((value) => {
     const date = new Date(value);
-    const weekday = date.toLocaleDateString("en-GB", { weekday: "short", timeZone: "Africa/Nairobi" });
-    const dayMonth = date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: "Africa/Nairobi" });
+    const weekday = date.toLocaleDateString("en-GB", { weekday: "short" });
+    const dayMonth = date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
     return `${weekday}<br><b>${dayMonth}</b>`;
   });
 }
@@ -43,7 +43,7 @@ function verticalGrid(start, end, days) {
   const shapes = [];
 
   let minor = new Date(start);
-  minor.setUTCMinutes(0, 0, 0);
+  minor.setMinutes(0, 0, 0);
   while (minor <= end) {
     shapes.push({
       type: "line",
@@ -72,6 +72,7 @@ function verticalGrid(start, end, days) {
       layer: "below"
     });
   });
+
   return shapes;
 }
 
@@ -93,39 +94,38 @@ function applyParity() {
   const ticks = alignedTicks(start, end, majorDays);
   const labels = tickText(ticks);
   const grid = verticalGrid(start, end, days);
-
   const harvestBands = (upper.layout?.shapes || []).filter((shape) => shape?.type === "rect");
-  const baseline = {
-    type: "line",
-    xref: "paper",
-    yref: "paper",
-    x0: 0,
-    x1: 1,
-    y0: 0,
-    y1: 0,
-    line: { color: "rgba(70,90,85,.30)", width: 1.25 },
-    layer: "above"
+
+  const upperUpdate = {
+    "xaxis.showgrid": false,
+    "xaxis.showline": true,
+    "xaxis.linecolor": "rgba(70,90,85,.30)",
+    "xaxis.linewidth": 1.25,
+    "xaxis.mirror": false,
+    "yaxis.title.text": "",
+    "yaxis2.title.text": "",
+    "yaxis3.title.text": "",
+    "yaxis4.title.text": "",
+    "yaxis.automargin": false,
+    "yaxis2.automargin": false,
+    "yaxis3.automargin": false,
+    "yaxis4.automargin": false,
+    shapes: [...harvestBands, ...grid]
   };
 
-  void window.Plotly.relayout(upper, {
+  const lowerUpdate = {
     "xaxis.showgrid": false,
     "xaxis.showline": false,
-    "yaxis.title": { text: "" },
-    "yaxis2.title": { text: "" },
-    "yaxis3.title": { text: "" },
-    "yaxis4.title": { text: "" },
-    shapes: [...harvestBands, ...grid, baseline]
-  });
-
-  void window.Plotly.relayout(lower, {
-    "xaxis.showgrid": false,
     "xaxis.tickmode": "array",
     "xaxis.tickvals": ticks,
     "xaxis.ticktext": labels,
     "xaxis.ticks": "outside",
     "xaxis.ticklen": 7,
     shapes: grid
-  });
+  };
+
+  void window.Plotly.relayout(upper, upperUpdate);
+  void window.Plotly.relayout(lower, lowerUpdate);
 }
 
 if (/\/dryer_table_records\.html$/.test(window.location.pathname)) {
@@ -136,6 +136,7 @@ if (/\/dryer_table_records\.html$/.test(window.location.pathname)) {
     if (event.target.closest?.("[data-analysis-range], #dryerAnalysisTideToggle, #dryerAnalysisTab, #reloadDryerRecords")) {
       scheduleParity(120);
       window.setTimeout(() => scheduleParity(0), 450);
+      window.setTimeout(() => scheduleParity(0), 900);
     }
   }, true);
 
