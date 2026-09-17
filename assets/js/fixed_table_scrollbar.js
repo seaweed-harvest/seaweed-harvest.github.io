@@ -90,3 +90,9 @@ if (document.readyState === "loading") {
 } else {
   setupFixedTableScrollbar();
 }
+
+if (/\/dryer_table_records\.html$/.test(window.location.pathname)) {
+  import("./dryer_payment_report_tidy.js?v=1").catch((error) => {
+    console.error("Unable to load Dryer payment report layout refinement", error);
+  });
+}
