@@ -4,6 +4,7 @@ import { DRYING_FORM_CONFIG } from "./dryer_table_config.js?v=2";
 const FUNCTION_URL = `${DRYING_FORM_CONFIG.supabaseUrl}/functions/v1/dryer-record-photos`;
 const REQUEST_TIMEOUT_MS = 25_000;
 const LIBRARY_PHASES = new Set(["table", "loading", "unloading"]);
+const MAX_SERVER_LIBRARY_PAGE = 50;
 
 export async function fetchDryerEventPhotos(submissionId, bayNumber = null) {
   const payload = {
@@ -27,7 +28,8 @@ export async function fetchDryerPhotoLibrary({
   offset = 0
 } = {}) {
   const selectedPhase = String(document.getElementById("photoPhase")?.value || "").trim().toLowerCase();
-  return callDryerPhotoFunction({
+  const requestedLimit = Math.max(1, Math.min(60, Number(limit) || 20));
+  const basePayload = {
     action: "library",
     start_date: startDate || null,
     end_date: endDate || null,
@@ -35,10 +37,31 @@ export async function fetchDryerPhotoLibrary({
     recorder: recorder || null,
     phase: LIBRARY_PHASES.has(selectedPhase) ? selectedPhase : null,
     sort_key: sortKey,
-    sort_direction: sortDirection,
-    limit,
+    sort_direction: sortDirection
+  };
+
+  const firstLimit = Math.min(requestedLimit, MAX_SERVER_LIBRARY_PAGE);
+  const first = await callDryerPhotoFunction({
+    ...basePayload,
+    limit: firstLimit,
     offset
   });
+
+  const remaining = requestedLimit - firstLimit;
+  if (remaining <= 0 || !Array.isArray(first?.rows) || first.rows.length < firstLimit) {
+    return first;
+  }
+
+  const second = await callDryerPhotoFunction({
+    ...basePayload,
+    limit: remaining,
+    offset: Number(offset || 0) + firstLimit
+  });
+
+  return {
+    ...first,
+    rows: [...first.rows, ...(Array.isArray(second?.rows) ? second.rows : [])]
+  };
 }
 
 async function callDryerPhotoFunction(payload) {
