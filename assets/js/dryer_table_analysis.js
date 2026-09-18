@@ -234,6 +234,8 @@ async function load() {
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}${await responseDetail(response)}`);
     const data = await response.json();
     state.runs = buildRuns(Array.isArray(data?.bay_rows) ? data.bay_rows : []);
+    window.DRYER_ANALYSIS_RUNS = state.runs.map((run) => ({ ...run }));
+    window.dispatchEvent(new CustomEvent("dryer-analysis-runs-updated", { detail: { runs: window.DRYER_ANALYSIS_RUNS } }));
     render();
     setStatus(`${state.runs.length} drying ${state.runs.length === 1 ? "event" : "events"} analysed from live records · refreshed ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`);
   } finally {
