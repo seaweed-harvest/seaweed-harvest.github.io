@@ -1,0 +1,96 @@
+.dryer-sensor-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.dryer-sensor-run-select {
+  display: grid;
+  gap: 5px;
+  min-width: min(390px, 100%);
+}
+
+.dryer-sensor-run-select label {
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--text-sec, #526a63);
+}
+
+.dryer-sensor-run-select select {
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid var(--border, #c9dedb);
+  border-radius: 8px;
+  background: var(--panel, #fff);
+  color: var(--text, #20332e);
+  font: inherit;
+  font-size: .8rem;
+}
+
+.dryer-sensor-metric-controls {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dryer-sensor-metric-controls button {
+  padding: 7px 11px;
+  font-size: .75rem;
+}
+
+.dryer-sensor-metric-controls button.active {
+  background: var(--accent-soft, #e5f5f2);
+  border-color: var(--accent, #0f766e);
+  color: var(--accent, #0f766e);
+}
+
+#dryerAnalysisSensorStatus {
+  margin: 4px 0 8px;
+}
+
+#dryerAnalysisSensorChart {
+  width: 100%;
+  height: 440px;
+}
+
+.dryer-sensor-summary {
+  margin: 8px 0 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft, #dfeceb);
+  border-radius: 8px;
+  background: var(--surface-soft, #f7fbfa);
+  color: var(--text-sec, #526a63);
+  font-size: .76rem;
+  line-height: 1.45;
+}
+
+.dryer-sensor-table {
+  margin-top: 4px;
+}
+
+.dryer-sensor-mean-row td {
+  font-weight: 700;
+  border-top: 1px solid var(--border, #c9dedb);
+}
+
+.dryer-sensor-weather-row td {
+  background: var(--surface-soft, #f7fbfa);
+}
+
+@media (max-width: 900px) {
+  #dryerAnalysisSensorChart {
+    min-width: 720px;
+    height: 410px;
+  }
+
+  .dryer-sensor-toolbar {
+    align-items: stretch;
+  }
+
+  .dryer-sensor-run-select {
+    min-width: 100%;
+  }
+}
