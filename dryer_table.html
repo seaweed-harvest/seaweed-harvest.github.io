@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title data-i18n="meta.title">Seaweed Drying Record - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/dryer_table.css?v=3">
+  <link rel="stylesheet" href="./assets/css/dryer_table.css?v=5">
   <link rel="stylesheet" href="./assets/css/form_foundation.css?v=2">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -196,6 +196,10 @@
               role="tab" aria-selected="true" aria-controls="loadingPhasePanel" data-capture-phase="loading">
               <span data-i18n="loading.title">Loading</span> <small data-i18n="loading.qualifier">(Wet)</small>
             </button>
+            <button id="reweighPhaseTab" class="capture-phase-tab reweigh-phase-tab" type="button"
+              role="tab" aria-selected="false" aria-controls="reweighPhasePanel" data-capture-phase="reweigh" tabindex="-1">
+              <span data-i18n="reweigh.title">Reweigh</span>
+            </button>
             <button id="unloadingPhaseTab" class="capture-phase-tab unloading-phase-tab" type="button"
               role="tab" aria-selected="false" aria-controls="unloadingPhasePanel" data-capture-phase="unloading" tabindex="-1">
               <span data-i18n="unloading.title">Unloading</span> <small data-i18n="unloading.qualifier">(Dry)</small>
@@ -250,10 +254,57 @@
               </div>
             </section>
 
+            <section id="reweighPhasePanel" class="phase-card reweigh-card batch-capture-card capture-phase-panel"
+              role="tabpanel" aria-labelledby="reweighPhaseTab" hidden>
+              <div class="phase-title">
+                <span class="phase-number">2</span>
+                <h2 id="reweighTitle"><span data-i18n="reweigh.title">Reweigh</span></h2>
+              </div>
+              <div class="phase-fields batch-fields">
+                <label class="required-field datetime-field">
+                  <span data-i18n="common.dateTime">Date / time</span>
+                  <input id="reweighCaptureAt" type="datetime-local" data-draft>
+                </label>
+                <div class="required-field photo-field camera-field phase-photo">
+                  <label for="reweighCapturePhotos"><span><span class="camera-symbol" aria-hidden="true">&#128247;</span> <span data-i18n="capture.reweighPhotos">Reweigh photos - up to 2</span></span></label>
+                  <input id="reweighCapturePhotos" type="file" accept="image/*" capture="environment" multiple>
+                  <span id="reweighCapturePhotoPreview" class="photo-preview"></span>
+                </div>
+                <div class="required-field bay-picker-field">
+                  <div class="bay-picker-heading">
+                    <span data-i18n="capture.selectBays">Select bays</span>
+                    <span class="bay-state-key">
+                      <span class="wet-key"><i></i><span data-i18n="capture.wetSaved">Wet saved</span></span>
+                      <span class="dry-key"><i></i><span data-i18n="capture.drySaved">Dry saved</span></span>
+                    </span>
+                  </div>
+                  <div id="reweighBaySelector" class="batch-bay-selector" aria-label="Select reweigh bays"></div>
+                </div>
+                <label class="required-field">
+                  <span data-i18n="reweigh.weight">Total weight (kg)</span>
+                  <input id="reweighCaptureWeight" type="number" data-draft min="0" max="1000" step="0.01" inputmode="decimal">
+                  <output id="reweighWeightSplit" class="weight-split-preview" aria-live="polite"></output>
+                </label>
+                <label class="required-field phase-weather">
+                  <span data-i18n="common.weather">Weather observation</span>
+                  <select id="reweighCaptureWeather" data-draft>
+                    <option value="" data-i18n="common.select">Select</option>
+                    <option value="sunny" data-i18n="weather.sunny">Sunny</option>
+                    <option value="cloudy" data-i18n="weather.cloudy">Cloudy</option>
+                    <option value="rainy" data-i18n="weather.rainy">Rainy</option>
+                    <option value="mixed" data-i18n="weather.mixed">Mixed</option>
+                  </select>
+                </label>
+              </div>
+              <div class="batch-save-row">
+                <button id="saveReweighCapture" type="button" class="primary-button" data-i18n="capture.saveReweigh">Save Reweigh</button>
+              </div>
+            </section>
+
             <section id="unloadingPhasePanel" class="phase-card unloading-card batch-capture-card capture-phase-panel"
               role="tabpanel" aria-labelledby="unloadingPhaseTab" hidden>
               <div class="phase-title">
-                <span class="phase-number">2</span>
+                <span class="phase-number">3</span>
                 <h2 id="unloadingTitle"><span data-i18n="unloading.title">Unloading</span> <small data-i18n="unloading.qualifier">(Dry)</small></h2>
               </div>
               <div class="phase-fields batch-fields">
