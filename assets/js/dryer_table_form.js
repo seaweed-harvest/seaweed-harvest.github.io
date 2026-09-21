@@ -1,11 +1,11 @@
-import { DRYING_FORM_CONFIG as CONFIG } from "./dryer_table_config.js?v=2";
+import { DRYING_FORM_CONFIG as CONFIG } from "./dryer_table_config.js?v=4";
 import {
   configurationParts,
   getLocale,
   initDryingLanguage,
   t,
   tableLabel
-} from "./dryer_table_language.js?v=2";
+} from "./dryer_table_language.js?v=4";
 
 const $ = (id) => document.getElementById(id);
 
@@ -34,6 +34,16 @@ const els = {
   loadingCapturePhotos: $("loadingCapturePhotos"),
   loadingCapturePhotoPreview: $("loadingCapturePhotoPreview"),
   saveLoadingCapture: $("saveLoadingCapture"),
+  reweighPhaseTab: $("reweighPhaseTab"),
+  reweighPhasePanel: $("reweighPhasePanel"),
+  reweighCaptureWeight: $("reweighCaptureWeight"),
+  reweighWeightSplit: $("reweighWeightSplit"),
+  reweighCaptureAt: $("reweighCaptureAt"),
+  reweighCaptureWeather: $("reweighCaptureWeather"),
+  reweighBaySelector: $("reweighBaySelector"),
+  reweighCapturePhotos: $("reweighCapturePhotos"),
+  reweighCapturePhotoPreview: $("reweighCapturePhotoPreview"),
+  saveReweighCapture: $("saveReweighCapture"),
   unloadingCaptureWeight: $("unloadingCaptureWeight"),
   unloadingWeightSplit: $("unloadingWeightSplit"),
   unloadingCaptureAt: $("unloadingCaptureAt"),
@@ -92,6 +102,7 @@ const els = {
 const draftControls = [...document.querySelectorAll("[data-draft]")];
 const TABLE_PHOTO_LIMIT = 1;
 const PHASE_PHOTO_LIMIT = 2;
+const CAPTURE_PHASES = Object.freeze(["loading", "reweigh", "unloading"]);
 
 let state = freshState();
 let draftTimer = null;
@@ -103,9 +114,11 @@ function freshState() {
     bayCount: 8,
     bays: {},
     activeCapturePhase: "loading",
-    selectedBays: { loading: [], unloading: [] },
-    editingCaptureBays: { loading: [], unloading: [] },
-    files: { table: [], captures: { loading: [], unloading: [] } },
+    selectedBays: { loading: [], reweigh: [], unloading: [] },
+    editingCaptureBays: { loading: [], reweigh: [], unloading: [] },
+    files: { table: [], captures: { loading: [], reweigh: [], unloading: [] } },
+    reweighs: [],
+    pendingReweighId: null,
     submissionId: null,
     uploadToken: null,
     receiptNumber: null,
@@ -177,11 +190,15 @@ function bindEvents() {
   els.capturePhaseTabs.addEventListener("keydown", (event) => {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
-    const phase = ["ArrowRight", "End"].includes(event.key) ? "unloading" : "loading";
-    setActiveCapturePhase(phase, { focus: true });
+    let index = CAPTURE_PHASES.indexOf(state.activeCapturePhase);
+    if (event.key === "Home") index = 0;
+    else if (event.key === "End") index = CAPTURE_PHASES.length - 1;
+    else if (event.key === "ArrowRight") index = Math.min(CAPTURE_PHASES.length - 1, index + 1);
+    else if (event.key === "ArrowLeft") index = Math.max(0, index - 1);
+    setActiveCapturePhase(CAPTURE_PHASES[index], { focus: true });
   });
 
-  ["loading", "unloading"].forEach((phase) => {
+  CAPTURE_PHASES.forEach((phase) => {
     const input = captureElement(phase, "Photos");
     captureElement(phase, "Weight").addEventListener("input", () => renderWeightSplit(phase));
     input.addEventListener("change", () => addSelectedPhotos({ kind: "capture", phase }));
@@ -189,7 +206,11 @@ function bindEvents() {
       const button = event.target.closest("button[data-bay]");
       if (button) toggleCaptureBay(phase, Number(button.dataset.bay));
     });
-    captureElement(phase, "Save").addEventListener("click", () => saveBatchCapture(phase));
+    if (phase === "reweigh") {
+      captureElement(phase, "Save").addEventListener("click", saveReweighCapture);
+    } else {
+      captureElement(phase, "Save").addEventListener("click", () => saveBatchCapture(phase));
+    }
   });
   els.savedCaptureList.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-edit-bays][data-edit-phase]");
@@ -307,6 +328,8 @@ function restoreDraft() {
   state.recordedAt = Number.isFinite(Date.parse(draft.recordedAt || "")) ? draft.recordedAt : null;
   state.recordStatus = draft.recordStatus === "complete" ? "complete" : "in_progress";
   state.savedPhotos = sanitizeSavedPhotos(draft.savedPhotos);
+  state.reweighs = sanitizeReweighs(draft.reweighs);
+  state.pendingReweighId = isUuid(draft.pendingReweighId) ? draft.pendingReweighId : null;
   if (state.receiptNumber && state.submissionId && state.uploadToken) {
     rememberRecordAccess(state.receiptNumber, state.submissionId, state.uploadToken);
   }
@@ -387,11 +410,35 @@ function sanitizeSavedPhotos(value) {
   return { table, bays };
 }
 
+function sanitizeReweighs(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((event) => event && typeof event === "object" && isUuid(event.id))
+    .map((event) => ({
+      id: event.id,
+      reweigh_at: event.reweigh_at || "",
+      weather: ["sunny", "cloudy", "rainy", "mixed"].includes(event.weather) ? event.weather : "",
+      notes: nullableText(event.notes),
+      created_at: event.created_at || "",
+      updated_at: event.updated_at || "",
+      bays: (Array.isArray(event.bays) ? event.bays : [])
+        .map((bay) => ({
+          bay_number: clampInteger(bay?.bay_number, 1, 8, 0),
+          weight_kg: nullableNumber(bay?.weight_kg),
+          photo_count: clampInteger(bay?.photo_count, 0, PHASE_PHOTO_LIMIT, 0)
+        }))
+        .filter((bay) => bay.bay_number > 0 && bay.weight_kg !== null)
+    }))
+    .sort((a, b) => Date.parse(a.reweigh_at || "") - Date.parse(b.reweigh_at || ""));
+}
+
 function updateRequiredFieldStates() {
   document.querySelectorAll(".required-field").forEach((field) => {
     let isFilled;
     if (field.classList.contains("bay-picker-field")) {
-      const phase = field.querySelector("#loadingBaySelector") ? "loading" : "unloading";
+      const phase = field.querySelector("#loadingBaySelector") ? "loading"
+        : field.querySelector("#reweighBaySelector") ? "reweigh"
+          : "unloading";
       isFilled = state.selectedBays[phase].length > 0;
     } else {
       const controls = [...field.querySelectorAll("input, select, textarea")];
@@ -402,6 +449,7 @@ function updateRequiredFieldStates() {
             return state.files.table.length > 0 || state.savedPhotos.table > 0;
           }
           if (control === els.loadingCapturePhotos) return state.files.captures.loading.length > 0;
+          if (control === els.reweighCapturePhotos) return state.files.captures.reweigh.length > 0;
           if (control === els.unloadingCapturePhotos) return state.files.captures.unloading.length > 0;
           return control.files.length > 0;
         }
@@ -417,7 +465,11 @@ function sanitizeSelectedBays(value, bayCount = 8) {
   const clean = (phase) => [...new Set(Array.isArray(value?.[phase]) ? value[phase] : [])]
     .map(Number)
     .filter((bayNumber) => Number.isInteger(bayNumber) && bayNumber >= 1 && bayNumber <= bayCount);
-  return { loading: clean("loading"), unloading: clean("unloading") };
+  return {
+    loading: clean("loading"),
+    reweigh: clean("reweigh"),
+    unloading: clean("unloading")
+  };
 }
 
 function scheduleDraftSave() {
@@ -432,7 +484,7 @@ function saveDraft() {
   });
   const savedAt = new Date().toISOString();
   const draft = {
-    version: 2,
+    version: 3,
     savedAt,
     root,
     bayCount: state.bayCount,
@@ -443,7 +495,9 @@ function saveDraft() {
     receiptNumber: state.receiptNumber,
     recordedAt: state.recordedAt,
     recordStatus: state.recordStatus,
-    savedPhotos: state.savedPhotos
+    savedPhotos: state.savedPhotos,
+    reweighs: state.reweighs,
+    pendingReweighId: state.pendingReweighId
   };
   try {
     localStorage.setItem(CONFIG.draftStorageKey, JSON.stringify(draft));
@@ -456,8 +510,10 @@ function applyLocationSelection(resetCurrentBay) {
   const location = selectedLocation();
   if (location) state.bayCount = location.bayCount;
   if (resetCurrentBay) {
-    state.selectedBays = { loading: [], unloading: [] };
-    state.editingCaptureBays = { loading: [], unloading: [] };
+    state.selectedBays = { loading: [], reweigh: [], unloading: [] };
+    state.editingCaptureBays = { loading: [], reweigh: [], unloading: [] };
+    state.reweighs = [];
+    state.pendingReweighId = null;
   }
   state.selectedBays = sanitizeSelectedBays(state.selectedBays, state.bayCount);
   renderAll();
@@ -495,8 +551,10 @@ function renderAll() {
   renderBaySummary();
   renderCaptureLists();
   renderWeightSplit("loading");
+  renderWeightSplit("reweigh");
   renderWeightSplit("unloading");
   renderCapturePhotoPreview("loading");
+  renderCapturePhotoPreview("reweigh");
   renderCapturePhotoPreview("unloading");
   renderPhotoPreview(els.tablePhotoPreview, state.files.table, state.savedPhotos.table, { kind: "table" });
   renderActiveRecordBanner();
@@ -506,14 +564,14 @@ function renderAll() {
 }
 
 function setActiveCapturePhase(phase, { focus = false } = {}) {
-  if (!["loading", "unloading"].includes(phase)) return;
+  if (!CAPTURE_PHASES.includes(phase)) return;
   state.activeCapturePhase = phase;
   renderCapturePhaseTabs();
   if (focus) els[`${phase}PhaseTab`].focus();
 }
 
 function renderCapturePhaseTabs() {
-  ["loading", "unloading"].forEach((phase) => {
+  CAPTURE_PHASES.forEach((phase) => {
     const active = state.activeCapturePhase === phase;
     const tab = els[`${phase}PhaseTab`];
     const panel = els[`${phase}PhasePanel`];
@@ -534,7 +592,7 @@ function renderActiveRecordBanner() {
 }
 
 function renderBatchBaySelectors() {
-  ["loading", "unloading"].forEach((phase) => {
+  CAPTURE_PHASES.forEach((phase) => {
     const container = captureElement(phase, "BaySelector");
     container.replaceChildren();
     for (let bayNumber = 1; bayNumber <= state.bayCount; bayNumber += 1) {
@@ -661,7 +719,8 @@ function renderCapturePhotoPreview(phase) {
 function renderCaptureLists() {
   els.savedCaptureList.replaceChildren();
   let groupCount = 0;
-  ["loading", "unloading"].forEach((phase) => {
+
+  const appendEndpointRows = (phase) => {
     const groups = new Map();
     activeBayNumbers().forEach((bayNumber) => {
       if (!bayPhaseHasData(bayNumber, phase)) return;
@@ -674,6 +733,7 @@ function renderCaptureLists() {
       if (!groups.has(key)) groups.set(key, { bayNumbers: [], bay });
       groups.get(key).bayNumbers.push(bayNumber);
     });
+
     groups.forEach(({ bayNumbers, bay }) => {
       groupCount += 1;
       const row = document.createElement("div");
@@ -714,13 +774,93 @@ function renderCaptureLists() {
       row.append(content, edit);
       els.savedCaptureList.append(row);
     });
+  };
+
+  appendEndpointRows("loading");
+
+  state.reweighs.forEach((event) => {
+    const bayNumbers = event.bays.map((bay) => bay.bay_number).sort((a, b) => a - b);
+    if (!bayNumbers.length) return;
+    groupCount += 1;
+    const row = document.createElement("div");
+    row.className = "capture-list-row is-reweigh";
+    const content = document.createElement("div");
+    content.className = "capture-list-content";
+    const phaseBadge = document.createElement("span");
+    phaseBadge.className = "capture-phase-badge is-reweigh";
+    phaseBadge.textContent = t("reweigh.title");
+    const bays = document.createElement("strong");
+    bays.textContent = bayNumbers.map((number) => `B${number}`).join(", ");
+    const details = document.createElement("span");
+    const totalWeight = reweighTotalWeight(event);
+    const loss = reweighLossPercent(event);
+    const elapsed = reweighElapsedLabel(event);
+    const weather = event.weather ? t(`weather.${event.weather}`) : "-";
+    const photoCount = event.bays.reduce((total, bay) => total + Number(bay.photo_count || 0), 0);
+    details.textContent = [
+      formatLocalInput(event.reweigh_at),
+      elapsed ? t("capture.elapsedSinceLoading", { elapsed }) : "",
+      totalWeight === null ? "" : t("capture.reweighTotalWeight", { total: displayNumber(totalWeight, 2) }),
+      loss === null ? "" : t("capture.lossSinceLoading", { loss: displayNumber(loss, 1) }),
+      weather,
+      photoCount ? t("capture.photoCount", { count: photoCount }) : ""
+    ].filter(Boolean).join(" · ");
+    content.append(phaseBadge, bays, details);
+    row.append(content);
+    els.savedCaptureList.append(row);
   });
+
+  appendEndpointRows("unloading");
+
   if (!groupCount) {
     const empty = document.createElement("p");
     empty.className = "capture-list-empty";
     empty.textContent = t("capture.empty");
     els.savedCaptureList.append(empty);
   }
+}
+
+function reweighTotalWeight(event) {
+  const weights = event?.bays?.map((bay) => nullableNumber(bay.weight_kg)).filter((value) => value !== null) || [];
+  if (!weights.length) return null;
+  return weights.reduce((total, weight) => total + weight, 0);
+}
+
+function reweighLossPercent(event) {
+  let loadingTotal = 0;
+  let reweighTotal = 0;
+  let matched = 0;
+  (event?.bays || []).forEach((reweighBay) => {
+    const loadingWeight = nullableNumber(ensureBay(reweighBay.bay_number).loading_weight_kg);
+    const currentWeight = nullableNumber(reweighBay.weight_kg);
+    if (loadingWeight === null || loadingWeight <= 0 || currentWeight === null) return;
+    loadingTotal += loadingWeight;
+    reweighTotal += currentWeight;
+    matched += 1;
+  });
+  if (!matched || loadingTotal <= 0) return null;
+  return ((loadingTotal - reweighTotal) / loadingTotal) * 100;
+}
+
+function reweighElapsedLabel(event) {
+  const reweighAt = Date.parse(event?.reweigh_at || "");
+  if (!Number.isFinite(reweighAt)) return "";
+  const loadingTimes = (event?.bays || [])
+    .map((bay) => Date.parse(ensureBay(bay.bay_number).loading_at || ""))
+    .filter(Number.isFinite);
+  if (!loadingTimes.length) return "";
+  const loadingAt = Math.min(...loadingTimes);
+  if (reweighAt < loadingAt) return "";
+  return formatElapsedMinutes(Math.round((reweighAt - loadingAt) / 60_000));
+}
+
+function formatElapsedMinutes(totalMinutes) {
+  if (!Number.isFinite(totalMinutes) || totalMinutes < 0) return "";
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  if (days > 0) return minutes ? `${days}d ${hours}h ${minutes}m` : `${days}d ${hours}h`;
+  return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
 }
 
 function reconstructedTotalWeight(perBayWeight, bayCount) {
@@ -1251,6 +1391,8 @@ function hydrateSavedRecord(record, access) {
   els.notWorking.value = record.not_working || "";
 
   state.bays = {};
+  state.reweighs = sanitizeReweighs(record.reweighs);
+  state.pendingReweighId = null;
   (Array.isArray(record.bays) ? record.bays : []).forEach((bay) => {
     const key = String(bay.bay_number);
     state.bays[key] = {
@@ -1285,8 +1427,10 @@ function formHasMeaningfulData() {
     || Object.keys(state.bays).some((bayNumber) => bayHasData(Number(bayNumber)))
     || state.files.table.length
     || captureCardHasData("loading")
+    || captureCardHasData("reweigh")
     || captureCardHasData("unloading")
     || state.selectedBays.loading.length
+    || state.selectedBays.reweigh.length
     || state.selectedBays.unloading.length
   );
 }
@@ -1421,6 +1565,187 @@ function deleteActiveDryingPhoto() {
   scheduleDraftSave();
 }
 
+async function saveReweighCapture() {
+  if (state.submitting) return;
+  const bayNumbers = [...state.selectedBays.reweigh];
+  const validationMessage = validateReweighCapture(bayNumbers);
+  if (validationMessage) {
+    setStatus(validationMessage, "error");
+    return;
+  }
+
+  const capture = captureCardData("reweigh");
+  const perBayWeight = splitWeightAcrossBays(capture.weight, bayNumbers.length);
+  const reweighId = state.pendingReweighId || createUuid();
+  state.pendingReweighId = reweighId;
+  saveDraft();
+
+  state.submitting = true;
+  setSubmittingUi(true);
+  setStatus(t("capture.savingReweigh"));
+
+  let savedEvent = null;
+  try {
+    const result = await callRpc(CONFIG.saveReweighRpc, {
+      p_payload: {
+        submission_id: state.submissionId,
+        reweigh_id: reweighId,
+        reweigh_at: toIso(capture.at),
+        weather: capture.weather,
+        bays: bayNumbers.map((bayNumber) => ({
+          bay_number: bayNumber,
+          weight_kg: perBayWeight
+        }))
+      },
+      p_upload_token: state.uploadToken
+    });
+
+    savedEvent = {
+      id: result?.id || reweighId,
+      reweigh_at: result?.reweigh_at || toIso(capture.at),
+      weather: result?.weather || capture.weather,
+      notes: null,
+      created_at: "",
+      updated_at: "",
+      bays: bayNumbers.map((bayNumber) => ({
+        bay_number: bayNumber,
+        weight_kg: perBayWeight,
+        photo_count: 0
+      }))
+    };
+    upsertReweighHistory(savedEvent);
+    saveDraft();
+    renderAll();
+
+    const photoResult = await uploadReweighSelectedPhotos(savedEvent.id, bayNumbers);
+    applyReweighPhotoResult(savedEvent.id, photoResult);
+
+    state.pendingReweighId = null;
+    clearCaptureCard("reweigh");
+    saveDraft();
+    renderAll();
+
+    const loss = reweighLossPercent(savedEvent);
+    setStatus(t("capture.reweighSaved", {
+      bays: bayNumbers.map((number) => `B${number}`).join(", "),
+      loss: loss === null ? "-" : displayNumber(loss, 1)
+    }), "success");
+    loadRecords();
+  } catch (error) {
+    const message = simpleErrorMessage(error);
+    if (savedEvent) {
+      setStatus(t("capture.reweighSavedPhotoWarning", { message }), "warning");
+    } else {
+      setStatus(t("capture.reweighSaveFailed", { message }), "error");
+    }
+    saveDraft();
+  } finally {
+    state.submitting = false;
+    setSubmittingUi(false);
+    renderAll();
+  }
+}
+
+function validateReweighCapture(bayNumbers) {
+  const coreMessage = validateCoreRecordFields();
+  if (coreMessage) return coreMessage;
+  if (!state.submissionId || !state.uploadToken || !state.receiptNumber) {
+    return t("capture.reweighSaveLoadingFirst");
+  }
+  if (!bayNumbers.length) return t("capture.selectAtLeastOneBay");
+
+  const capture = captureCardData("reweigh");
+  if (!capture.at || nullableNumber(capture.weight) === null || !capture.weather) {
+    return t("capture.reweighRequired");
+  }
+
+  const reweighAt = new Date(capture.at).getTime();
+  if (!Number.isFinite(reweighAt)) return t("capture.reweighRequired");
+
+  for (const bayNumber of bayNumbers) {
+    const bay = ensureBay(bayNumber);
+    const loadingAt = new Date(bay.loading_at).getTime();
+    const unloadingAt = new Date(bay.unloading_at).getTime();
+    if (!Number.isFinite(loadingAt) || nullableNumber(bay.loading_weight_kg) === null) {
+      return t("capture.reweighBayNotLoaded", { bay: bayNumber });
+    }
+    if (reweighAt < loadingAt) {
+      return t("validation.reweighBeforeLoading", { bay: bayNumber });
+    }
+    if (Number.isFinite(unloadingAt) && reweighAt > unloadingAt) {
+      return t("validation.reweighAfterUnloading", { bay: bayNumber });
+    }
+  }
+  return "";
+}
+
+function upsertReweighHistory(event) {
+  const index = state.reweighs.findIndex((item) => item.id === event.id);
+  if (index >= 0) state.reweighs[index] = event;
+  else state.reweighs.push(event);
+  state.reweighs.sort((a, b) => Date.parse(a.reweigh_at || "") - Date.parse(b.reweigh_at || ""));
+}
+
+async function uploadReweighSelectedPhotos(reweighId, bayNumbers) {
+  const files = state.files.captures.reweigh;
+  if (!files.length) return { count: 0, attached: false, bayPhotos: [] };
+
+  const uploads = [];
+  bayNumbers.forEach((bayNumber) => {
+    files.forEach((file) => uploads.push({ bayNumber, file }));
+  });
+
+  const manifest = { bays: [] };
+  const manifestByBay = new Map();
+  for (let index = 0; index < uploads.length; index += 1) {
+    const upload = uploads[index];
+    setStatus(t("photo.preparing", { current: index + 1, total: uploads.length }));
+    const blob = await preparePhoto(upload.file);
+    if (blob.size > CONFIG.maxPhotoBytes) {
+      throw new Error(`${upload.file.name} is still larger than ${formatBytes(CONFIG.maxPhotoBytes)} after compression.`);
+    }
+    const extension = photoExtension(blob.type);
+    const objectId = createUuid();
+    const objectPath = `${state.submissionId}/reweigh/${reweighId}/bay-${String(upload.bayNumber).padStart(2, "0")}/${objectId}.${extension}`;
+    await uploadObject(objectPath, blob);
+
+    if (!manifestByBay.has(upload.bayNumber)) {
+      const bayManifest = { bay_number: upload.bayNumber, photos: [] };
+      manifestByBay.set(upload.bayNumber, bayManifest);
+      manifest.bays.push(bayManifest);
+    }
+    manifestByBay.get(upload.bayNumber).photos.push(objectPath);
+  }
+
+  setStatus(t("photo.linking"));
+  const attachResult = await callRpc(CONFIG.attachReweighPhotosRpc, {
+    p_submission_id: state.submissionId,
+    p_reweigh_id: reweighId,
+    p_upload_token: state.uploadToken,
+    p_photos: manifest
+  });
+
+  state.files.captures.reweigh = [];
+  els.reweighCapturePhotos.value = "";
+
+  return {
+    count: uploads.length,
+    attached: true,
+    bayPhotos: Array.isArray(attachResult?.bay_photos) ? attachResult.bay_photos : []
+  };
+}
+
+function applyReweighPhotoResult(reweighId, result) {
+  if (!result?.attached) return;
+  const event = state.reweighs.find((item) => item.id === reweighId);
+  if (!event) return;
+  result.bayPhotos.forEach((bayPhoto) => {
+    const bay = event.bays.find((item) => item.bay_number === Number(bayPhoto.bay_number));
+    if (!bay) return;
+    bay.photo_count = clampInteger(bayPhoto.photo_count, 0, PHASE_PHOTO_LIMIT, bay.photo_count || 0);
+  });
+}
+
 async function saveBatchCapture(phase) {
   if (state.submitting) return;
   const bayNumbers = [...state.selectedBays[phase]];
@@ -1514,6 +1839,12 @@ async function submitForm(event) {
   event.preventDefault();
   if (state.submitting) return;
   els.form.classList.add("was-validated");
+
+  if (captureCardHasData("reweigh") || state.selectedBays.reweigh.length) {
+    setActiveCapturePhase("reweigh");
+    setStatus(t("capture.saveReweighBeforeSubmit"), "error");
+    return;
+  }
 
   for (const phase of ["loading", "unloading"]) {
     if (!captureCardHasData(phase) && !state.selectedBays[phase].length) continue;
@@ -1736,10 +2067,15 @@ function applyUploadedPhotoResult(result) {
 }
 
 function totalSavedPhotoCount() {
-  return state.savedPhotos.table + Object.values(state.savedPhotos.bays).reduce(
+  const endpointPhotos = state.savedPhotos.table + Object.values(state.savedPhotos.bays).reduce(
     (total, bay) => total + Number(bay.loading || 0) + Number(bay.unloading || 0),
     0
   );
+  const reweighPhotos = state.reweighs.reduce(
+    (total, event) => total + event.bays.reduce((bayTotal, bay) => bayTotal + Number(bay.photo_count || 0), 0),
+    0
+  );
+  return endpointPhotos + reweighPhotos;
 }
 
 async function preparePhoto(file) {
@@ -1889,6 +2225,7 @@ function setSubmittingUi(isSubmitting) {
   els.submitForm.disabled = isSubmitting;
   els.clearForm.disabled = isSubmitting;
   els.saveLoadingCapture.disabled = isSubmitting;
+  els.saveReweighCapture.disabled = isSubmitting;
   els.saveUnloadingCapture.disabled = isSubmitting;
   els.topNewRecord.disabled = isSubmitting;
   els.newRecord.disabled = isSubmitting;
