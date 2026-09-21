@@ -100,6 +100,106 @@
       margin-top: 6px;
     }
 
+    .dryer-run-summary-row td {
+      padding: 8px 12px 10px;
+      background: #f8fcfb;
+      border-bottom: 1px solid var(--border-soft, #dfeceb);
+    }
+
+    .dryer-run-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px 18px;
+      align-items: start;
+    }
+
+    .dryer-run-summary-item {
+      min-width: 0;
+      line-height: 1.35;
+    }
+
+    .dryer-run-summary-item span {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--text-muted, #688078);
+      font-size: .66rem;
+      font-weight: 700;
+      letter-spacing: .025em;
+      text-transform: uppercase;
+    }
+
+    .dryer-run-summary-item strong {
+      display: block;
+      color: var(--text, #20332e);
+      font-size: .76rem;
+      font-weight: 600;
+      white-space: normal;
+    }
+
+    .dryer-weather-observations {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      min-width: 132px;
+    }
+
+    .dryer-weather-pill,
+    .dryer-weather-missing {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 3px;
+      padding: 3px 6px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      font-size: .68rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .dryer-weather-pill small {
+      font-size: .58rem;
+      font-weight: 700;
+      opacity: .72;
+      text-transform: uppercase;
+    }
+
+    .dryer-weather-sunny {
+      background: #fff5c7;
+      border-color: #eadb85;
+      color: #725b09;
+    }
+
+    .dryer-weather-cloudy {
+      background: #edf2f3;
+      border-color: #cbd7d9;
+      color: #506267;
+    }
+
+    .dryer-weather-rainy {
+      background: #e3f0fb;
+      border-color: #bad5eb;
+      color: #315f7e;
+    }
+
+    .dryer-weather-mixed {
+      background: #f1eaf8;
+      border-color: #d8c7e8;
+      color: #654f78;
+    }
+
+    .dryer-weather-other {
+      background: #f5f7f6;
+      border-color: #dce5e2;
+      color: #596b65;
+    }
+
+    .dryer-weather-missing {
+      background: transparent;
+      border-color: var(--border-soft, #dfeceb);
+      color: var(--text-muted, #688078);
+      font-weight: 500;
+    }
+
     @media (max-width: 980px) {
       .dryer-payment-selection-grid,
       .dryer-payment-detail-grid,
@@ -109,6 +209,10 @@
 
       .dryer-payment-selection-panel .button-row {
         justify-content: flex-start;
+      }
+
+      .dryer-run-summary-grid {
+        grid-template-columns: 1fr 1fr;
       }
     }
   </style>
@@ -213,11 +317,12 @@
                   <th>Dry kg</th>
                   <th>Weight loss</th>
                   <th>Drying time</th>
+                  <th>Weather observation</th>
                   <th>Photos</th>
                 </tr>
               </thead>
               <tbody id="dryerRecordRows">
-                <tr><td colspan="10" class="empty-state">Loading dryer table records...</td></tr>
+                <tr><td colspan="11" class="empty-state">Loading dryer table records...</td></tr>
               </tbody>
             </table>
           </div>
@@ -392,7 +497,7 @@
   </main>
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=2"></script>
-  <script type="module" src="./assets/js/dryer_table_records.js?v=4"></script>
+  <script type="module" src="./assets/js/dryer_table_records.js?v=5"></script>
   <script type="module" src="./assets/js/dryer_table_analysis.js?v=4"></script>
   <script type="module" src="./assets/js/dryer_table_payments.js?v=1"></script>
   <script type="module" src="./assets/js/dryer_payment_ui_refinement.js?v=1"></script>
