@@ -61,7 +61,7 @@ async function initializeDryerTablePage() {
 
     const shedLocations = await import("./dryer_table_shed_locations.js?v=2");
     await import("./dryer_table_open_edit.js?v=3");
-    await import("./dryer_table_form.js?v=2");
+    await import("./dryer_table_form.js?v=4");
     shedLocations.setupDryerShedLocations();
     await import("./dryer_table_ra_name.js?v=2");
   } catch (error) {

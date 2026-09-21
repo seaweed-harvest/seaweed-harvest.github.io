@@ -385,6 +385,7 @@ function groupContextRow(group, expanded) {
   const observation = state.observations.find((row) => row.submission_id === submissionId) || {};
   const fields = [
     ["Configuration", formatDryingConfiguration(first.drying_configuration)],
+    ["Reweighs", Number(first.reweigh_count) > 0 ? String(first.reweigh_count) : ""],
     ["General observation", observation.general_observations],
     ["Working well", observation.working_well],
     ["Not working", observation.not_working]

@@ -1247,7 +1247,7 @@
 
 .capture-phase-tabs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 5px;
   padding: 5px;
   border: 1px solid var(--border);
@@ -1274,6 +1274,12 @@
   color: #17654d;
 }
 
+.reweigh-phase-tab {
+  border-color: #b4bb87;
+  background: #e7ead8;
+  color: #596134;
+}
+
 .unloading-phase-tab {
   border-color: #c8ab92;
   background: #eee4da;
@@ -1287,6 +1293,15 @@
   background: #ccebdc;
   color: #0b553f;
   box-shadow: 0 0 0 3px rgba(24, 130, 102, 0.12);
+}
+
+.reweigh-phase-tab.is-active,
+.reweigh-phase-tab.is-active:hover,
+.reweigh-phase-tab.is-active:focus-visible {
+  border-color: #87934f;
+  background: #cfd5ad;
+  color: #485024;
+  box-shadow: 0 0 0 3px rgba(111, 124, 67, 0.14);
 }
 
 .unloading-phase-tab.is-active,
@@ -1322,6 +1337,11 @@
   background: #e3f4eb;
 }
 
+.reweigh-card {
+  border-color: #aab47c;
+  background: #e8ead9;
+}
+
 .unloading-card {
   border-color: #c4a78f;
   background: #eadfd4;
@@ -1331,8 +1351,22 @@
   background: #168269;
 }
 
+.reweigh-card .phase-number {
+  background: #7b854b;
+}
+
 .unloading-card .phase-number {
   background: #8b5e3c;
+}
+
+.reweigh-card .primary-button {
+  border-color: #68713c;
+  background: #7b854b;
+}
+
+.reweigh-card .primary-button:hover:not(:disabled) {
+  border-color: #596132;
+  background: #69723e;
 }
 
 .unloading-card .primary-button {
@@ -1465,6 +1499,13 @@
   background: #168269;
 }
 
+.reweigh-card .batch-bay-button.is-selected,
+.reweigh-card .batch-bay-button.is-selected:hover:not(:disabled),
+.reweigh-card .batch-bay-button.is-selected:focus-visible {
+  border-color: #68713c;
+  background: #7b854b;
+}
+
 .unloading-card .batch-bay-button.is-selected,
 .unloading-card .batch-bay-button.is-selected:hover:not(:disabled),
 .unloading-card .batch-bay-button.is-selected:focus-visible {
@@ -1523,6 +1564,10 @@
   border-left: 4px solid #65b990;
 }
 
+.capture-list-row.is-reweigh {
+  border-left: 4px solid #8b9653;
+}
+
 .capture-list-row.is-unloading {
   border-left: 4px solid #a66d45;
 }
@@ -1549,6 +1594,11 @@
 .capture-phase-badge.is-loading {
   background: #d6eee2;
   color: #155b46;
+}
+
+.capture-phase-badge.is-reweigh {
+  background: #e2e6ca;
+  color: #535c2d;
 }
 
 .capture-phase-badge.is-unloading {
