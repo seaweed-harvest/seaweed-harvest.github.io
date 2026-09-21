@@ -187,7 +187,7 @@ async function loadRecords() {
     renderObservations();
   } catch (error) {
     const message = error?.message || String(error);
-    els.dryerRecordRows.innerHTML = emptyRow(10, `Unable to load dryer records. ${message}`);
+    els.dryerRecordRows.innerHTML = emptyRow(11, `Unable to load dryer records. ${message}`);
     els.dryerObservationRows.innerHTML = emptyRow(5, `Unable to load observations. ${message}`);
     setStatus(els.dryerRecordsStatus, message, "error");
     setStatus(els.dryerObservationsStatus, message, "error");
@@ -216,7 +216,7 @@ function renderAllRecords() {
   const rows = filteredBayRows();
   renderSummary(rows);
   if (!rows.length) {
-    els.dryerRecordRows.innerHTML = emptyRow(10, "No dryer bay records match these filters.");
+    els.dryerRecordRows.innerHTML = emptyRow(11, "No dryer bay records match these filters.");
     setStatus(els.dryerRecordsStatus, "0 rows");
     return;
   }
@@ -227,6 +227,7 @@ function renderAllRecords() {
   groups.forEach((group) => {
     const expanded = state.expandedGroups.has(group.storageKey);
     html.push(groupHeaderRow(group, expanded));
+    if (group.mode === "event") html.push(groupContextRow(group, expanded));
     group.rows.forEach((row) => html.push(bayRowMarkup(row, group.storageKey, expanded)));
   });
   els.dryerRecordRows.innerHTML = html.join("");
@@ -371,11 +372,56 @@ function groupHeaderRow(group, expanded) {
     : escapeHtml(formatPhotoCount(photoCount));
   const toggleLabel = `${expanded ? "Collapse" : "Expand"} ${group.label}`;
   return `<tr class="table-total-row dryer-group-header" data-dryer-group-header>
-    <th colspan="10" scope="rowgroup">
+    <th colspan="11" scope="rowgroup">
       <button class="icon-button" type="button" data-dryer-group-toggle data-dryer-group-key="${escapeAttribute(group.storageKey)}" aria-expanded="${expanded ? "true" : "false"}" aria-label="${escapeAttribute(toggleLabel)}" title="${escapeAttribute(toggleLabel)}"><span data-dryer-group-marker aria-hidden="true">${expanded ? "▾" : "▸"}</span></button>
       <strong>${escapeHtml(group.label)}</strong> — ${escapeHtml(formatInteger(group.rows.length))} bays · ${escapeHtml(formatKg(wet))} kg loaded · ${escapeHtml(formatKg(dry))} kg unloaded · ${escapeHtml(formatInteger(drying))} drying · ${escapeHtml(formatInteger(complete))} complete · ${photoSummary}
     </th>
   </tr>`;
+}
+
+function groupContextRow(group, expanded) {
+  const first = group.rows[0] || {};
+  const submissionId = group.rows.find((row) => row.submission_id)?.submission_id || "";
+  const observation = state.observations.find((row) => row.submission_id === submissionId) || {};
+  const fields = [
+    ["Configuration", formatDryingConfiguration(first.drying_configuration)],
+    ["General observation", observation.general_observations],
+    ["Working well", observation.working_well],
+    ["Not working", observation.not_working]
+  ].filter(([, value]) => String(value || "").trim());
+
+  const content = fields.length
+    ? fields.map(([label, value]) => `<div class="dryer-run-summary-item"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")
+    : '<div class="dryer-run-summary-item"><span>Run details</span><strong>—</strong></div>';
+
+  return `<tr class="dryer-run-summary-row" data-dryer-group-row="${escapeAttribute(group.storageKey)}"${expanded ? "" : " hidden"}>
+    <td colspan="11"><div class="dryer-run-summary-grid">${content}</div></td>
+  </tr>`;
+}
+
+function formatDryingConfiguration(value) {
+  const labels = {
+    cover_open_back_open: "Cover Up / Back Open",
+    cover_down_back_closed: "Cover Down / Back Closed",
+    cover_down_back_open: "Cover Down / Back Open"
+  };
+  return labels[String(value || "")] || String(value || "").replaceAll("_", " ");
+}
+
+function weatherObservationMarkup(row) {
+  const loading = weatherPill("Load", row.loading_weather);
+  const unloading = weatherPill("Unload", row.unloading_weather);
+  if (!loading && !unloading) return "—";
+  return `<div class="dryer-weather-observations">${loading || '<span class="dryer-weather-missing">Load: —</span>'}${unloading || '<span class="dryer-weather-missing">Unload: —</span>'}</div>`;
+}
+
+function weatherPill(phase, value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return "";
+  const labels = { sunny: "Sunny", cloudy: "Cloudy", rainy: "Rainy", mixed: "Mixed" };
+  const label = labels[raw] || raw.replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const css = ["sunny", "cloudy", "rainy", "mixed"].includes(raw) ? raw : "other";
+  return `<span class="dryer-weather-pill dryer-weather-${css}"><small>${escapeHtml(phase)}</small> ${escapeHtml(label)}</span>`;
 }
 
 function bayRowMarkup(row, groupKey, expanded) {
@@ -389,6 +435,7 @@ function bayRowMarkup(row, groupKey, expanded) {
     <td>${escapeHtml(formatOptionalKg(row.unloading_weight_kg))}</td>
     <td>${escapeHtml(formatWeightLoss(row.weight_loss_pct))}</td>
     <td>${escapeHtml(formatDryingMinutes(row.drying_minutes))}</td>
+    <td>${weatherObservationMarkup(row)}</td>
     <td>${bayPhotoMarkup(row)}</td>
   </tr>`;
 }
