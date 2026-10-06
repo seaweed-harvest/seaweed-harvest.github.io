@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v142-dryer-reweigh";
+const CACHE_VERSION = "seaweed-harvest-collection-v143-reef-public-training-history";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
