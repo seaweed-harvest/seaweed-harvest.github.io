@@ -62,6 +62,7 @@ async function init() {
   injectStylesheet();
   replaceLegacyRecordsSurface();
   cacheElements();
+  resetRecordTypeFilter();
   bindEvents();
 
   try {
@@ -179,6 +180,22 @@ function cacheElements() {
   ].forEach((id) => { els[id] = document.getElementById(id); });
 }
 
+function resetRecordTypeFilter() {
+  state.recordType = "all";
+  state.page = 0;
+  if (els.reefUnifiedRecordsType) els.reefUnifiedRecordsType.value = "all";
+
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has("record_type")) return;
+  params.delete("record_type");
+  const query = params.toString();
+  history.replaceState(
+    {},
+    "",
+    `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`
+  );
+}
+
 function bindEvents() {
   document.querySelector('[data-reef-training-tab="records"]')?.addEventListener("click", () => {
     queueMicrotask(() => { void loadRecords(); });
@@ -214,7 +231,7 @@ function configureAccess(context) {
   const authenticated = state.accessMode === "authenticated";
   els.reefUnifiedRecordsAccessHelp.textContent = authenticated
     ? "Signed-in COSME Reef access shows the complete live history for Training, Seaweed, Inspection and combined Reef records."
-    : "Records created during the last 7 days are openly listed and editable. Older records require an authorised COSME Reef account.";
+    : "Training history remains publicly viewable. Records stay editable for 7 days; older Training records are read-only. Older Seaweed, Inspection and combined records require an authorised COSME Reef account.";
   els.reefUnifiedManageAccounts.hidden = !state.canManageUsers;
   els.reefUnifiedAccountNote.hidden = !authenticated;
   if (state.canManageUsers) {
@@ -275,10 +292,17 @@ function renderRows() {
   } else {
     state.rows.forEach((record) => {
       const row = document.createElement("tr");
-      const access = state.accessMode === "authenticated"
+      const authenticated = state.accessMode === "authenticated";
+      const publicWindowExpired = !authenticated
+        && record.public_edit_until
+        && new Date(record.public_edit_until).getTime() <= Date.now();
+      const publicTrainingHistory = publicWindowExpired && record.record_type === "training";
+      const access = authenticated
         ? '<span class="reef-access-pill is-signed-in">Signed-in history</span>'
-        : `<span class="reef-access-pill">Open until ${escapeHtml(formatDateTime(record.public_edit_until))}</span>`;
-      const readOnly = record.read_only
+        : publicTrainingHistory
+          ? '<span class="reef-access-pill">Public history · view only</span>'
+          : `<span class="reef-access-pill">Open until ${escapeHtml(formatDateTime(record.public_edit_until))}</span>`;
+      const readOnly = record.read_only || publicTrainingHistory
         ? '<span class="reef-unified-read-only">Read-only</span>'
         : "";
       row.innerHTML = `
