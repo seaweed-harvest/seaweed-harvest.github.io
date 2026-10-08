@@ -15,7 +15,8 @@ export const STOCK_REMOVAL_REASONS = Object.freeze([
 const STATUS_LABELS = Object.freeze({
   ready: "Ready",
   missing: "Not found",
-  ambiguous: "Ambiguous number",
+  ambiguous: "Choose physical carton",
+  invalid_selection: "Invalid carton selection",
   inactive: "Already inactive",
   unsupported_volume: "Unsupported legacy unit"
 });
@@ -25,6 +26,7 @@ const state = {
   action: "initial",
   preview: null,
   previewSignature: "",
+  selectedCartons: {},
   actionGroupId: crypto.randomUUID(),
   profile: null
 };
@@ -133,6 +135,9 @@ function installStyles() {
       color: #8a4b13;
       font-weight: 600;
     }
+    .packing-removal-choice { display: block; min-width: 210px; max-width: 340px; }
+    .packing-removal-choice select { width: 100%; margin-top: 4px; }
+    .packing-removal-choice .standard-field-hint { white-space: normal; display: block; }
     .packing-removal-help {
       margin: 0;
       color: var(--text-muted);
@@ -202,7 +207,7 @@ function buildRemovalForm() {
         <span class="standard-field-hint">Maximum 100 cartons in one action.</span>
       </label>
       <button id="previewPackingRemoval" type="button">Preview cartons</button>
-      <p class="packing-removal-help">The preview uses each carton’s latest stored record and checks its current stock status.</p>
+      <p class="packing-removal-help">For duplicate numbers, choose the physical carton by date, volume and recorded-by details. Batch removal selects one carton per number.</p>
     </fieldset>
 
     <fieldset>
@@ -297,7 +302,19 @@ function bindEvents() {
   els.packingRemovalForm.addEventListener("submit", submitRemoval);
   els.clearPackingRemoval.addEventListener("click", clearRemoval);
   [els.packingRemovalSingle, els.packingRemovalFirst, els.packingRemovalLast]
-    .forEach((control) => control.addEventListener("input", invalidatePreview));
+    .forEach((control) => control.addEventListener("input", () => {
+      state.selectedCartons = {};
+      invalidatePreview();
+    }));
+  els.packingRemovalPreviewRows.addEventListener("change", (event) => {
+    const select = event.target.closest("select[data-carton-number]");
+    if (!select) return;
+    const key = select.dataset.cartonNumber;
+    if (select.value) state.selectedCartons[key] = select.value;
+    else delete state.selectedCartons[key];
+    invalidatePreview();
+    void previewRemoval();
+  });
 }
 
 function handleActionChange(event) {
@@ -321,6 +338,7 @@ function syncEntryMode() {
     );
     if (initial) initial.checked = true;
   }
+  state.selectedCartons = {};
   invalidatePreview();
 }
 
@@ -374,7 +392,7 @@ function removalRange() {
 
 function currentSignature() {
   const range = removalRange();
-  return JSON.stringify({ mode: state.entryMode, ...range });
+  return JSON.stringify({ mode: state.entryMode, ...range, selectedCartons: state.selectedCartons });
 }
 
 function invalidatePreview() {
@@ -405,24 +423,27 @@ function reportRangeValidity() {
 async function previewRemoval() {
   if (!reportRangeValidity()) return;
   const range = removalRange();
+  const signature = currentSignature();
   setRemovalStatus("Checking current stock...");
   els.previewPackingRemoval.disabled = true;
   try {
     const { data, error } = await authClient.rpc(
-      "ag_preview_stabilization_stock_removal",
+      "ag_preview_stabilization_stock_removal_with_selection",
       {
         p_first_carton_serial: range.first,
-        p_last_carton_serial: range.last
+        p_last_carton_serial: range.last,
+        p_selected_cartons: state.selectedCartons
       }
     );
     if (error) throw error;
+    if (signature !== currentSignature()) return; // Ignore superseded previews.
     const result = Array.isArray(data) ? data[0] : data;
     state.preview = result || null;
-    state.previewSignature = currentSignature();
+    state.previewSignature = signature;
     renderPreview(result);
     setRemovalStatus(result?.valid
-      ? "Every carton is ready. Confirm the removal details below."
-      : "Resolve the highlighted carton checks before confirming.",
+      ? "Every selected carton is ready. Confirm removal below."
+      : "Choose the physical carton for each duplicate number, or resolve highlighted checks.",
     result?.valid ? "" : "error");
   } catch (error) {
     invalidatePreview();
@@ -430,6 +451,35 @@ async function previewRemoval() {
   } finally {
     els.previewPackingRemoval.disabled = false;
   }
+}
+
+function canonicalCartonNumber(value) {
+  return String(value || "0").replace(/^0+(?=\d)/, "");
+}
+function renderCartonChoice(row) {
+  const candidates = Array.isArray(row.candidates) ? row.candidates : [];
+  const key = canonicalCartonNumber(row.requested_serial);
+  if (Number(row.active_count || 0) < 2 && !(state.selectedCartons[key] && row.status !== "ready")) {
+    return escapeHtml(row.carton_serial || "-");
+  }
+  const selected = state.selectedCartons[key] || "";
+  let html = '<label class="packing-removal-choice">Choose physical carton <select data-carton-number="'
+    + escapeHtml(key) + '" aria-label="Choose physical carton '
+    + escapeHtml(row.requested_serial) + '"><option value="">Select carton…</option>';
+  for (const candidate of candidates) {
+    const label = [formatDate(candidate.first_packed_on),
+      candidate.volume_l == null ? "Volume unknown" : formatNumber(candidate.volume_l) + " L",
+      titleCase(candidate.species), candidate.recorded_by_name || "Recorder unknown",
+      "Record " + String(candidate.carton_instance_id || "").slice(0, 8).toUpperCase(),
+      candidate.status === "inactive" ? "Already removed" : ""
+    ].filter(Boolean).join(" · ");
+    html += '<option value="' + escapeHtml(candidate.carton_instance_id) + '"'
+      + (candidate.status === "inactive" ? " disabled" : "")
+      + (candidate.carton_instance_id === selected ? " selected" : "")
+      + ">" + escapeHtml(label) + "</option>";
+  }
+  return html + '</select><span class="standard-field-hint">'
+    + candidates.length + " physical cartons share this number.</span></label>";
 }
 
 function renderPreview(result) {
@@ -441,7 +491,7 @@ function renderPreview(result) {
     ? rows.map((row) => `
       <tr>
         <td>${escapeHtml(row.requested_serial || "-")}</td>
-        <td>${escapeHtml(row.carton_serial || "-")}</td>
+        <td>${renderCartonChoice(row)}</td>
         <td>${row.volume_l == null ? "-" : `${escapeHtml(formatNumber(row.volume_l))} L`}</td>
         <td>${escapeHtml(titleCase(row.species))}</td>
         <td>${escapeHtml(String(row.test_count ?? 0))}</td>
@@ -473,25 +523,32 @@ async function submitRemoval(event) {
     return;
   }
 
+  const duplicateRows = (state.preview.rows || []).filter((row) => Number(row.physical_count || 0) > 1);
+  if (state.entryMode === "batch" && duplicateRows.length && !window.confirm(
+    `${duplicateRows.length} carton number(s) in this batch have multiple physical records.\n` +
+    "You are removing exactly one selected physical carton for each number. Continue?"
+  )) return;
+
   const range = removalRange();
   els.confirmPackingRemoval.disabled = true;
   els.previewPackingRemoval.disabled = true;
   setRemovalStatus("Recording the stock removal...");
   try {
     const { data, error } = await authClient.rpc(
-      "ag_remove_stabilization_stock",
+      "ag_remove_stabilization_stock_with_selection",
       {
         p_action_group_id: state.actionGroupId,
         p_first_carton_serial: range.first,
         p_last_carton_serial: range.last,
         p_action_date: els.packingRemovalDate.value,
         p_reason_code: els.packingRemovalReason.value,
-        p_note: textOrNull(els.packingRemovalNote.value)
+        p_note: textOrNull(els.packingRemovalNote.value),
+        p_selected_cartons: state.selectedCartons
       }
     );
     if (error) throw error;
     const saved = Array.isArray(data) ? data[0] : data;
-    removeInactiveSuggestions(saved?.cartons);
+    // Another active carton may retain the same printed label.
     const count = Number(saved?.carton_count || 0);
     setRemovalStatus(
       `${count} carton${count === 1 ? "" : "s"} (${formatNumber(saved?.total_litres)} L) removed from active stock.`
@@ -499,6 +556,7 @@ async function submitRemoval(event) {
     state.actionGroupId = crypto.randomUUID();
     state.preview = null;
     state.previewSignature = "";
+    state.selectedCartons = {};
     els.packingRemovalReason.value = "";
     els.packingRemovalNote.value = "";
     els.confirmPackingRemoval.textContent = "Remove from stock";
@@ -514,15 +572,8 @@ async function submitRemoval(event) {
   }
 }
 
-function removeInactiveSuggestions(cartons) {
-  if (!Array.isArray(cartons) || !els.existingCartonSerials) return;
-  const removed = new Set(cartons.map(String));
-  [...els.existingCartonSerials.options].forEach((option) => {
-    if (removed.has(option.value)) option.remove();
-  });
-}
-
 function clearRemoval() {
+  state.selectedCartons = {};
   const recordedBy = els.packingRemovalRecordedBy.value;
   els.packingRemovalForm.reset();
   els.packingRemovalRecordedBy.value = recordedBy;

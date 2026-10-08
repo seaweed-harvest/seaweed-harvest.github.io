@@ -26,6 +26,8 @@ async function init() {
     "packedOn", "packedOnLabel", "packingSpecies",
     "packingRecordedBy", "packingWeight", "packingWeightUnit",
     "packingSalinity", "packingSalinityUnit", "packingPh",
+    "packingBrix", "packingHydrometer", "packingHydrometerScale",
+    "packingRetestTargetField", "packingRetestTarget",
     "packingEc", "packingStabilizerYes", "packingStabilizerNo", "packingStabilizerFields",
     "packingChemical", "packingDose", "packingDoseUnit", "packingDoseDefault", "packingNotes",
     "packingCitricAcidYes", "packingCitricAcidNo", "packingCitricAcidFields",
@@ -50,7 +52,7 @@ async function init() {
     button: els.printPackingWorksheet,
     worksheet: els.packingPrintWorksheet,
     rowCount: 20,
-    columnCount: 12,
+    columnCount: 14,
     prepare: preparePackingWorksheet
   });
 
@@ -85,6 +87,10 @@ async function init() {
   els.packingBatchForm.addEventListener("change", updateBatchState);
   els.cartonSerial.addEventListener("input", () => {
     if (selectedRecordType() === "initial" && !applyingCartonSuggestion) cartonSerialWasEdited = true;
+    hideRetestTarget();
+  });
+  els.cartonSerial.addEventListener("change", () => {
+    if (selectedRecordType() === "retest") refreshRetestTargets();
   });
   els.packingRecordForm.querySelectorAll('[name="packingRecordType"]').forEach((control) => {
     control.addEventListener("change", handleRecordTypeChange);
@@ -147,13 +153,49 @@ async function submitRecord(event) {
   const citricAcidAdded = selectedCitricAcidAdded();
 
   els.savePackingRecord.disabled = true;
-  setStatus("Saving...");
+  setStatus("Checking carton number...");
   try {
+    let allowDuplicate = false;
+    let cartonInstanceId = null;
+    const isRetest = selectedRecordType() === "retest";
+    const enteredSerial = els.cartonSerial.value.trim();
+    if (enteredSerial && (isRetest || cartonSerialWasEdited)) {
+      const { data: matchData, error: matchError } = await authClient.rpc(
+        "ag_stabilization_carton_matches", { p_serial: enteredSerial }
+      );
+      if (matchError) throw matchError;
+      const matched = Number(matchData?.physical_count || 0);
+      if (!isRetest && matched > 0) {
+        allowDuplicate = window.confirm(
+          `Carton ${enteredSerial} already exists (${matched} physical carton${matched === 1 ? "" : "s"}).\n\nSave another separate carton with this same number anyway?`
+        );
+        if (!allowDuplicate) {
+          setStatus("Not saved. You can change the serial, or save another carton with the same number.");
+          return;
+        }
+      }
+      if (isRetest) {
+        if (!matched) throw new Error(`Carton ${enteredSerial} has no existing stock record.`);
+        if (matched > 1) {
+          renderRetestTargets(matchData.cartons);
+          cartonInstanceId = els.packingRetestTarget.value;
+          if (!cartonInstanceId) {
+            setStatus("More than one physical carton shares this number. Select which carton to retest, then Save again.", "error");
+            return;
+          }
+        } else {
+          cartonInstanceId = matchData.cartons?.[0]?.carton_instance_id || null;
+        }
+      }
+    }
+    setStatus("Saving...");
     const { data, error } = await authClient.rpc("ag_submit_stabilization_packing_record_v3", {
       p_submission_id: submissionId,
       p_record: {
         record_type: selectedRecordType(),
-        auto_carton_serial: selectedRecordType() === "initial" && !cartonSerialWasEdited,
+        auto_carton_serial: selectedRecordType() === "initial" && !cartonSerialWasEdited && !allowDuplicate,
+        allow_duplicate_carton: allowDuplicate,
+        carton_instance_id: cartonInstanceId,
         carton_serial: els.cartonSerial.value.trim(),
         packed_on: els.packedOn.value,
         species: els.packingSpecies.value,
@@ -164,6 +206,9 @@ async function submitRecord(event) {
         salinity_unit: els.packingSalinityUnit.value,
         ph_value: numberOrNull(els.packingPh.value),
         electrical_conductivity_ms_cm: numberOrNull(els.packingEc.value),
+        brix_value: numberOrNull(els.packingBrix.value),
+        hydrometer_value: numberOrNull(els.packingHydrometer.value),
+        hydrometer_scale: els.packingHydrometer.value !== "" ? els.packingHydrometerScale.value : null,
         stabilizer_added: stabilizerAdded ?? false,
         chemical_dose_value: stabilizerAdded ? numberOrNull(els.packingDose.value) : null,
         chemical_dose_unit: els.packingDoseUnit.value,
@@ -177,12 +222,13 @@ async function submitRecord(event) {
     const saved = Array.isArray(data) ? data[0] : data;
     const serial = saved?.carton_serial || els.cartonSerial.value.trim();
     const recordType = saved?.record_type || selectedRecordType();
-    const testSequence = Number(saved?.test_sequence || 1);
-    rememberCarton(serial, testSequence);
+    rememberCarton(serial, recordType);
     resetInputs(saved?.next_carton_serial || nextSerialAfter(serial));
     setStatus(recordType === "retest"
-      ? `Retest ${testSequence} for carton ${serial} saved.`
-      : `Carton ${serial} saved. Next carton ${nextCartonSerial} is ready.`);
+      ? `Retest for carton ${serial} saved.`
+      : allowDuplicate
+        ? `Another physical carton numbered ${serial} saved with a separate record.`
+        : `Carton ${serial} saved. Next carton ${nextCartonSerial} is ready.`);
   } catch (error) {
     setStatus(error.message, "error");
   } finally {
@@ -202,8 +248,9 @@ function applyPackingFormContext(value) {
   (context?.recent_cartons || []).forEach((carton) => {
     const option = document.createElement("option");
     option.value = carton.carton_serial;
-    const count = Number(carton.test_count || 1);
-    option.label = count > 1 ? `${count} tests` : "1 test";
+    const physicalCount = Number(carton.physical_count || 1);
+    const recordCount = Number(carton.test_count || 1);
+    option.label = `${physicalCount} carton${physicalCount === 1 ? "" : "s"}, ${recordCount} record${recordCount === 1 ? "" : "s"}`;
     els.existingCartonSerials.append(option);
   });
   setNewCartonMode();
@@ -239,6 +286,7 @@ function updateStabilizerControls() {
 }
 
 function handleRecordTypeChange() {
+  hideRetestTarget();
   if (selectedRecordType() === "retest") {
     els.cartonSerial.value = "";
     cartonSerialWasEdited = true;
@@ -263,14 +311,58 @@ function setNewCartonMode() {
   els.cartonSerialHint.textContent = "Next carton number. You can type over it.";
 }
 
-function rememberCarton(serial, testSequence) {
-  let option = [...els.existingCartonSerials.options].find((item) => item.value === serial);
+function rememberCarton(serial, recordType) {
+  let option = [...els.existingCartonSerials.options].find(
+    (item) => canonicalSerial(item.value) === canonicalSerial(serial)
+  );
   if (!option) {
     option = document.createElement("option");
     option.value = serial;
     els.existingCartonSerials.prepend(option);
   }
-  option.label = testSequence > 1 ? `${testSequence} tests` : "1 test";
+  option.label = recordType === "retest" ? "Retest recorded" : "Carton recorded";
+}
+
+function canonicalSerial(serial) {
+  return String(serial || "").replace(/^0+(?=\d)/, "");
+}
+
+function hideRetestTarget() {
+  els.packingRetestTarget.replaceChildren();
+  els.packingRetestTargetField.hidden = true;
+}
+
+function renderRetestTargets(cartons) {
+  const previous = els.packingRetestTarget.value;
+  els.packingRetestTarget.replaceChildren();
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = "Select physical carton";
+  els.packingRetestTarget.append(empty);
+  (cartons || []).forEach((carton, index) => {
+    const option = document.createElement("option");
+    option.value = carton.carton_instance_id;
+    option.textContent = `Carton ${index + 1} — ${carton.packed_on || "no date"}, ${carton.volume_value || "?"} ${carton.volume_unit || ""} (${carton.recorded_by_name || "unknown recorder"})`;
+    els.packingRetestTarget.append(option);
+  });
+  if ([...els.packingRetestTarget.options].some(option => option.value === previous)) {
+    els.packingRetestTarget.value = previous;
+  }
+  els.packingRetestTargetField.hidden = false;
+}
+
+async function refreshRetestTargets() {
+  const serial = els.cartonSerial.value.trim();
+  if (selectedRecordType() !== "retest" || !/^\d{1,30}$/.test(serial)) return;
+  try {
+    const { data, error } = await authClient.rpc("ag_stabilization_carton_matches", { p_serial: serial });
+    if (error) throw error;
+    if (canonicalSerial(els.cartonSerial.value.trim()) !== canonicalSerial(serial)) return;
+    if (Number(data?.physical_count || 0) > 1) renderRetestTargets(data.cartons);
+    else hideRetestTarget();
+  } catch (error) {
+    setStatus(error.message, "error");
+  }
 }
 
 function nextSerialAfter(serial) {
@@ -333,6 +425,7 @@ function preparePackingWorksheet() {
 }
 
 function resetInputs(nextSerial = nextCartonSerial) {
+  hideRetestTarget();
   const recordedBy = els.packingRecordedBy.value;
   nextCartonSerial = String(nextSerial || nextCartonSerial || "1");
   els.packingRecordForm.reset();
