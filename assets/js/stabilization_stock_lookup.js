@@ -123,6 +123,7 @@ function buildLookup() {
               <th>Entry</th>
               <th>Species</th>
               <th>Volume</th>
+              <th>QC readings</th>
               <th>Stock status</th>
               <th>Latest stock action</th>
               <th>Reason</th>
@@ -131,7 +132,7 @@ function buildLookup() {
             </tr>
           </thead>
           <tbody id="stockContainerLookupRows">
-            <tr><td colspan="10" class="empty-state">Enter a carton number to view its history.</td></tr>
+            <tr><td colspan="11" class="empty-state">Enter a carton number to view its history.</td></tr>
           </tbody>
         </table>
       </div>
@@ -242,7 +243,7 @@ function renderContainerLookup(errorMessage = "") {
   els.stockContainerLookupCount.textContent = `${formatInteger(state.rows.length)} ${state.rows.length === 1 ? "record" : "records"}`;
   if (errorMessage || !state.rows.length) {
     els.stockContainerLookupRows.innerHTML = `
-      <tr><td colspan="10" class="empty-state">${escapeHtml(errorMessage || "No matching container history was found.")}</td></tr>
+      <tr><td colspan="11" class="empty-state">${escapeHtml(errorMessage || "No matching container history was found.")}</td></tr>
     `;
     return;
   }
@@ -268,6 +269,13 @@ function renderContainerLookup(errorMessage = "") {
         <td>${escapeHtml(entry)}</td>
         <td>${escapeHtml(titleCase(row.species))}</td>
         <td>${escapeHtml(measurement(row.weight_value, row.weight_unit))}</td>
+        <td>${escapeHtml([
+          row.brix_value != null ? `Brix: ${formatNumber(row.brix_value)} °Bx` : "",
+          row.hydrometer_value != null
+            ? `Hydrometer: ${formatNumber(row.hydrometer_value)} ${{
+                SG: "SG", Baume: "°Bé", "g/mL": "g/mL", unconfirmed: "(scale unconfirmed)"
+              }[row.hydrometer_scale] || "(scale unconfirmed)"}` : ""
+        ].filter(Boolean).join(" · ") || "-")}</td>
         <td><span class="stock-container-status ${escapeAttribute(row.stock_status || "active")}">${escapeHtml(titleCase(row.stock_status || "active"))}</span></td>
         <td>${escapeHtml(action)}</td>
         <td>${escapeHtml(reason)}</td>
