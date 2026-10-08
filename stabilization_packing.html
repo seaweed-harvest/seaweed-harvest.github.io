@@ -82,6 +82,12 @@
               <span id="cartonSerialHint" class="standard-field-hint">Next carton number. You can type over it.</span>
             </label>
             <datalist id="existingCartonSerials"></datalist>
+            <label id="packingRetestTargetField" hidden>Which physical carton is being retested?
+              <select id="packingRetestTarget">
+                <option value="">Select physical carton</option>
+              </select>
+              <span class="standard-field-hint">Only needed when several cartons share the same printed serial.</span>
+            </label>
             <label><span id="packedOnLabel">Date</span>
               <input id="packedOn" type="date" required>
             </label>
@@ -175,6 +181,23 @@
               </label>
               <label>EC (mS/cm)
                 <input id="packingEc" type="number" min="0" max="500" step="0.01" inputmode="decimal">
+              </label>
+              <label>Brix (°Bx)
+                <input id="packingBrix" type="number" min="0" max="55" step="0.01" inputmode="decimal" placeholder="0–55">
+                <span class="standard-field-hint">Digital refractometer reading. Optional.</span>
+              </label>
+              <label>Hydrometer reading
+                <input id="packingHydrometer" type="number" min="-1000" max="1000" step="any" inputmode="decimal" placeholder="Reading shown">
+                <span class="standard-field-hint">Optional. Record the number displayed by the instrument.</span>
+              </label>
+              <label>Hydrometer scale
+                <select id="packingHydrometerScale">
+                  <option value="unconfirmed" selected>Not yet confirmed</option>
+                  <option value="SG">Specific gravity (SG)</option>
+                  <option value="Baume">Degrees Baumé (°Bé)</option>
+                  <option value="g/mL">Density (g/mL)</option>
+                </select>
+                <span class="standard-field-hint">Choose the scale printed on the hydrometer.</span>
               </label>
             </div>
           </fieldset>
@@ -312,9 +335,9 @@
         <div><span>Recorded by</span><strong id="printPackingRecordedBy"></strong></div>
         <div><span>Chemicals</span><strong id="printPackingChemical">Sodium benzoate; Citric acid</strong></div>
       </div>
-      <table class="ag-print-table ag-print-packing-table" data-pdf-widths="3,7,13,10,7,8,5,6,7,8,9,17">
+      <table class="ag-print-table ag-print-packing-table" data-pdf-widths="3,7,9,8,7,7,5,5,6,7,6,7,9,14">
         <colgroup>
-          <col><col><col><col><col><col><col><col><col><col><col><col>
+          <col><col><col><col><col><col><col><col><col><col><col><col><col><col>
         </colgroup>
         <thead>
           <tr>
@@ -326,13 +349,15 @@
             <th id="printPackingSalinityHeader" scope="col" data-pdf-unit="PSU">Salinity</th>
             <th scope="col">pH</th>
             <th scope="col" data-pdf-unit="mS/cm">EC</th>
+            <th scope="col" data-pdf-unit="°Bx">Brix</th>
+            <th scope="col">Hydrometer (scale)</th>
             <th scope="col">Chemicals Y/N</th>
             <th id="printPackingDoseHeader" scope="col" data-pdf-unit="g/container">Dose</th>
             <th scope="col">Recorded by</th>
             <th scope="col">Notes</th>
           </tr>
         </thead>
-        <tbody data-print-rows="20" data-print-columns="12"></tbody>
+        <tbody data-print-rows="20" data-print-columns="14"></tbody>
       </table>
       <footer class="ag-print-footer">
         <div><span>Entered into system by</span><strong></strong></div>
@@ -342,6 +367,6 @@
     </article>
   </section>
   <script type="module" src="./assets/js/admin_page.js?v=35"></script>
-  <script type="module" src="./assets/js/stabilization_packing_form.js?v=14"></script>
+  <script type="module" src="./assets/js/stabilization_packing_form.js?v=15"></script>
 </body>
 </html>
