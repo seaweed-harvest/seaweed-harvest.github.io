@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v145-hydrometer-sg";
+const CACHE_VERSION = "seaweed-harvest-collection-v146-bulk-vessel-qc";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",

@@ -58,6 +58,9 @@ const COLUMNS = {
     ["salinity_value", "Salinity"],
     ["ph_value", "pH"],
     ["electrical_conductivity_ms_cm", "EC mS/cm"],
+    ["brix_value", "Brix °Bx"],
+    ["hydrometer_value", "Hydrometer SG"],
+    ["qc_source", "QC source"],
     ["recorded_by_name", "Recorded by"],
     ["notes", "Notes"]
   ]
@@ -1901,6 +1904,13 @@ function cellValue(row, field) {
   if (field === "weight_value") return measurement(value, row.weight_unit);
   if (field === "chemical_dose_value") return stockChemicalSummary(row);
   if (field === "salinity_value") return measurement(value, row.salinity_unit);
+  if (field === "hydrometer_value") return measurement(value, row.hydrometer_scale);
+  if (field === "qc_source" && state.category === "stock") {
+    const hasQc = ["salinity_value", "ph_value", "electrical_conductivity_ms_cm", "brix_value", "hydrometer_value"]
+      .some((key) => row[key] !== null && row[key] !== undefined && row[key] !== "");
+    if (!hasQc) return "-";
+    return value === "bulk_vessel" ? "Bulk vessel" : "Not specified";
+  }
   if (field === "tds_value") return measurement(value, row.tds_unit);
   if (field === "has_photo") return value ? "Yes" : "No";
   if (field === "stabilizer_added" || field === "e_coli_sample_taken") {
