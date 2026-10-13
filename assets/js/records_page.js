@@ -1909,7 +1909,7 @@ function cellValue(row, field) {
     const hasQc = ["salinity_value", "ph_value", "electrical_conductivity_ms_cm", "brix_value", "hydrometer_value"]
       .some((key) => row[key] !== null && row[key] !== undefined && row[key] !== "");
     if (!hasQc) return "-";
-    return value === "bulk_vessel" ? "Bulk vessel" : "Individual";
+    return value === "bulk_vessel" ? "Bulk vessel" : "Not specified";
   }
   if (field === "tds_value") return measurement(value, row.tds_unit);
   if (field === "has_photo") return value ? "Yes" : "No";
