@@ -14,8 +14,8 @@ function groupRows(query){
  <td>${esc(g.row)}</td><td>${date(g.original_label_date)}</td>
  <td>${esc(g.first_serial===g.last_serial?g.first_serial:g.first_serial+"–"+g.last_serial)} ${g.source_range_inferred?'<span class="history-tag">(inferred)</span>':""}</td>
  <td>${number(g.volume_l)}</td><td>${number(g.ph)}</td><td>${number(g.ec_ms_cm)}</td>
- <td>${number(g.ppt)}</td><td>${number(g.salt_ppt)}</td>
- <td class="history-muted">Unknown</td><td>${g.recall==="Yes"?'<span class="history-tag">Recall flagged</span>':g.recall==="unknown"?"Not recorded":"—"}</td></tr>`).join(""):`<tr><td colspan="10" class="history-empty">No historical QC group covers this container number. A QC group match is not evidence that the physical container was still in stock.</td></tr>`;
+ <td>${number(g.ppt)}</td><td>${number(g.salt_ppt)}</td><td>${number(g.salt_percent)}</td>
+ <td class="history-muted">Unknown</td><td>${g.recall==="Yes"?'<span class="history-tag">Recall flagged</span>':g.recall==="unknown"?"Not recorded":"—"}</td></tr>`).join(""):`<tr><td colspan="11" class="history-empty">No historical QC group covers this container number. A QC group match is not evidence that the physical container was still in stock.</td></tr>`;
 }
 function render(data){
  groups=Array.isArray(data.groups)?data.groups:[];
@@ -28,11 +28,12 @@ function render(data){
  el("historyDisposalRows").innerHTML=disposals.length?disposals.map(d=>`<tr>
  <td>${esc(d.row)}</td><td>${date(d.original_label_date)}</td><td class="history-muted">Unknown</td>
  <td>${number(d.volume_l)}</td><td>${number(d.ph)}</td><td>${number(d.ec_ms_cm)}</td>
- <td>${number(d.ppt)}</td><td>${number(d.salt_ppt)}</td><td>Unknown</td><td>No</td></tr>`).join(""):`<tr><td colspan="10">No historical unidentified disposals for this organisation.</td></tr>`;
+ <td>${number(d.ppt)}</td><td>${number(d.salt_ppt)}</td><td>${number(d.salt_percent)}</td><td>Unknown</td><td>No</td></tr>`).join(""):`<tr><td colspan="11">No historical unidentified disposals for this organisation.</td></tr>`;
 }
 async function init(){
  const access=await requireOrganisationCapability("form_stock_record","can_submit_collection","historical_stock.html");
  if(!access)return;
+ document.body.removeAttribute("data-auth-pending");
  el("historySerialFilter").addEventListener("input",event=>groupRows(event.target.value));
  el("historyClearFilter").addEventListener("click",()=>{el("historySerialFilter").value="";groupRows("");});
  try{
@@ -41,8 +42,8 @@ async function init(){
   render(Array.isArray(data)?(data[0]||{}):(data||{}));
   el("historyLoadStatus").textContent="Historical evidence loaded";
  }catch(e){el("historyLoadStatus").textContent="Unable to load historical stock: "+String(e.message||e);
-  el("historyGroupRows").innerHTML='<tr><td colspan="10">Unable to load</td></tr>';
-  el("historyDisposalRows").innerHTML='<tr><td colspan="10">Unable to load</td></tr>';
+  el("historyGroupRows").innerHTML='<tr><td colspan="11">Unable to load</td></tr>';
+  el("historyDisposalRows").innerHTML='<tr><td colspan="11">Unable to load</td></tr>';
  }
 }
 document.addEventListener("DOMContentLoaded",init);
