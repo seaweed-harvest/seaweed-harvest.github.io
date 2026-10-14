@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v147-cosme-public-records";
+const CACHE_VERSION = "seaweed-harvest-collection-v148-reef-rope-dates";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",

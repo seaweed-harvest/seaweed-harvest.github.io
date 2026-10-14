@@ -1,0 +1,36 @@
+name: Reef Sample Rope measurement dates
+
+on:
+  pull_request:
+    paths:
+      - "assets/js/reef_nursery_site_capture.js"
+      - "assets/js/reef_nursery_boot.js"
+      - "service-worker.js"
+      - "supabase/migrations/20261014201500_reef_sample_rope_measurement_dates.sql"
+      - "tests/reef_sample_rope_shared_dates_test.mjs"
+      - ".github/workflows/reef-sample-rope-dates-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: JavaScript syntax
+        run: |
+          node --check assets/js/reef_nursery_site_capture.js
+          node --check assets/js/reef_nursery_boot.js
+          node --check service-worker.js
+      - name: Sample Rope date behavior
+        run: node tests/reef_sample_rope_shared_dates_test.mjs
+      - name: Public nursery and PWA regressions
+        run: |
+          python -m unittest tests.reef_nursery_current_state_static_test tests.mobile_app_navigation_static_test tests.reef_nursery_owner_cleanup_static_test

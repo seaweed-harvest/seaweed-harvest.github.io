@@ -7,6 +7,12 @@ const MAX_STORED_PHOTO_BYTES = 1024 * 1024;
 const MAX_PHOTO_DIMENSION = 1600;
 const LAST_PEOPLE_KEY = "reef-site-capture-last-people-v1";
 const SAMPLE_ROPE_NUMBERS = Object.freeze([1, 2, 5, 6, 9, 10]);
+const SAMPLE_MEASUREMENT_DATES = Object.freeze([
+  { date: "date_seeded", weight: "initial_weight_kg", label: "Initial seeding" },
+  { date: "week_2_date", weight: "week_2_kg", label: "Week 2" },
+  { date: "week_4_date", weight: "week_4_kg", label: "Week 4" },
+  { date: "week_6_date", weight: "week_6_kg", label: "Week 6" }
+]);
 
 const CONDITION_ROWS = Object.freeze([
   ["healthy_colour", "Healthy colour"],
@@ -37,6 +43,7 @@ const state = {
   sampleRegisterSiteCode: null,
   sampleRegisterDirty: false,
   sampleRegisterLoading: false,
+  sampleDateEdits: new Set(),
   currentLocation: "",
   saving: false
 };
@@ -200,23 +207,33 @@ function renderForm(form) {
               <span id="reefSampleRopeStatus" class="reef-help" aria-live="polite"></span>
             </div>
           </div>
+          <p class="reef-sample-date-help">Choose one date above each measurement column for all ropes measured that day. Previously saved rope-specific dates are preserved unless you change that column's date.</p>
           <div class="reef-sample-rope-table-wrap">
             <table class="reef-sample-rope-table">
               <thead>
                 <tr>
                   <th rowspan="2">Sample Rope</th>
                   <th rowspan="2">Species</th>
-                  <th rowspan="2">Date Seeded</th>
                   <th rowspan="2">Rope Weight (kg)</th>
                   <th rowspan="2">Initial Weight<br>(seeded rope) (kg)</th>
                   <th colspan="3">Current Weight (kg)</th>
-                  <th rowspan="2"></th>
+                  <th rowspan="2">Actions</th>
                 </tr>
                 <tr><th>Wk2</th><th>Wk4</th><th>Wk6</th></tr>
+                <tr class="reef-sample-dates-row">
+                  <th scope="row">DATE</th>
+                  <td aria-label="Species has no date">—</td>
+                  <td aria-label="Rope weight measured with initial seeding">—</td>
+                  ${SAMPLE_MEASUREMENT_DATES.map(({ date, label }) => `
+                    <td><input data-sample-date="${date}" type="date" aria-label="${label} date for measured ropes" title="${label} recording date"></td>
+                  `).join("")}
+                  <td>—</td>
+                </tr>
               </thead>
               <tbody>${SAMPLE_ROPE_NUMBERS.map(sampleRopeRowMarkup).join("")}</tbody>
             </table>
           </div>
+          <p id="reefSampleDateWarning" class="reef-sample-date-warning" aria-live="polite" hidden></p>
         </section>
 
         <details id="reefSiteCaptureHealthEnvironment" class="reef-health-environment">
@@ -550,10 +567,20 @@ async function handleSampleRopeClick(event) {
 function collectSampleRopeRows() {
   return [...els.reefSampleRopePanel.querySelectorAll("[data-sample-rope-row]")].map((row) => {
     const value = (field) => row.querySelector(`[data-rope-field="${field}"]`)?.value || "";
+    const dates = Object.fromEntries(SAMPLE_MEASUREMENT_DATES.map(({ date, weight }) => {
+      const shared = els.reefSampleRopePanel.querySelector(`[data-sample-date="${date}"]`)?.value || "";
+      const original = row.dataset[date] || "";
+      // Never overwrite a previously saved cycle just because its dates differ
+      // from those of other ropes. A header edit applies to measured ropes only.
+      const measured = Boolean(value(weight)) || (date === "date_seeded"
+        && Boolean(value("species") || value("rope_weight_kg"))) || Boolean(original);
+      const selected = state.sampleDateEdits.has(date) && measured ? shared : original;
+      return [date, selected || null];
+    }));
     return {
       rope_number: Number(row.dataset.ropeNumber),
       species: value("species") || null,
-      date_seeded: value("date_seeded") || null,
+      ...dates,
       rope_weight_kg: value("rope_weight_kg") || null,
       initial_weight_kg: value("initial_weight_kg") || null,
       week_2_kg: value("week_2_kg") || null,
@@ -568,17 +595,37 @@ function applySampleRegister(register) {
   els.reefSampleRopePanel.querySelectorAll("[data-sample-rope-row]").forEach((row) => {
     const ropeNumber = Number(row.dataset.ropeNumber);
     const data = rows.get(ropeNumber) || {};
-    for (const field of ["species", "date_seeded", "rope_weight_kg", "initial_weight_kg", "week_2_kg", "week_4_kg", "week_6_kg"]) {
+    for (const field of ["species", "rope_weight_kg", "initial_weight_kg", "week_2_kg", "week_4_kg", "week_6_kg"]) {
       const control = row.querySelector(`[data-rope-field="${field}"]`);
       if (control) control.value = data[field] ?? "";
     }
+    for (const { date } of SAMPLE_MEASUREMENT_DATES) row.dataset[date] = data[date] || "";
     row.dataset.cycleNumber = data.cycle_number ?? "";
     row.dataset.historyCount = data.history_count ?? 0;
   });
+  // Shared controls display a date only where existing measurements agree.
+  // Mixed legacy dates remain on their individual saved cycles.
+  const mixed = [];
+  for (const { date, label } of SAMPLE_MEASUREMENT_DATES) {
+    const dates = new Set([...rows.values()].map((row) => row?.[date]).filter(Boolean));
+    const control = els.reefSampleRopePanel.querySelector(`[data-sample-date="${date}"]`);
+    if (control) control.value = dates.size === 1 ? [...dates][0] : "";
+    if (dates.size > 1) mixed.push(label);
+  }
+  const warning = document.getElementById("reefSampleDateWarning");
+  if (warning) {
+    warning.textContent = mixed.length
+      ? `Different saved dates for ${mixed.join(", ")}. These dates remain unchanged unless you enter a new shared date above.`
+      : "";
+    warning.hidden = !mixed.length;
+  }
+  state.sampleDateEdits.clear();
 }
 
 function markSampleRegisterDirty(event) {
-  if (!event.target.closest("[data-sample-rope-row]")) return;
+  const dateControl = event.target.closest("[data-sample-date]");
+  if (dateControl) state.sampleDateEdits.add(dateControl.dataset.sampleDate);
+  else if (!event.target.closest("[data-sample-rope-row]")) return;
   state.sampleRegisterDirty = true;
   setSampleStatus("Unsaved changes");
 }
@@ -992,7 +1039,6 @@ function sampleRopeRowMarkup(ropeNumber) {
     <tr data-sample-rope-row data-rope-number="${ropeNumber}">
       <th scope="row">${label}</th>
       <td><select data-rope-field="species" aria-label="${label} species"><option value="">Select</option><option value="spinosum">Spinosum</option><option value="cottonii">Cottonii</option></select></td>
-      <td><input data-rope-field="date_seeded" type="date" aria-label="${label} date seeded"></td>
       <td><input data-rope-field="rope_weight_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} rope weight kg"></td>
       <td><input data-rope-field="initial_weight_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} initial seeded weight kg"></td>
       <td><input data-rope-field="week_2_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} week 2 weight kg"></td>
@@ -1029,7 +1075,11 @@ function productionStyles() {
     .reef-sample-rope-table thead th { background: #f1f7f6; color: #365f5b; text-align: center; font-weight: 700; }
     .reef-sample-rope-table tbody th { white-space: nowrap; text-align: left; font-weight: 600; color: #355f5b; }
     .reef-sample-rope-table input, .reef-sample-rope-table select { width: 100%; min-width: 92px; box-sizing: border-box; padding: 0.4rem 0.45rem !important; min-height: 32px; font-size: 0.82rem; }
-    .reef-sample-rope-table input[type="date"] { min-width: 132px; }
+    .reef-sample-dates-row th, .reef-sample-dates-row td { background: #edf7f5; }
+    .reef-sample-dates-row input[type="date"] { width: 100%; min-width: 128px; min-height: 36px; font-weight: 600; }
+    .reef-sample-date-help { margin: 0.3rem 0 0.7rem; color: #4c736f; font-size: 0.81rem; }
+    .reef-sample-date-warning { margin: 0.55rem 0; color: #915900; font-size: 0.85rem; }
+    .reef-sample-date-warning[hidden] { display: none; }
     .sample-rope-start-new { white-space: nowrap; }
     .reef-health-environment { margin: 1rem 0; border: 1px solid #cfe1de; border-radius: 9px; background: #fbfefd; overflow: hidden; }
     .reef-health-environment > summary { cursor: pointer; list-style: none; padding: 0.8rem 0.95rem; font-weight: 700; color: #285f5a; background: #f2f8f7; user-select: none; }
