@@ -1,7 +1,6 @@
 import {
   authClient,
-  hasOrganisationCapability,
-  requireAggregatorAccess,
+  currentProfile,
   setupAccountControls
 } from "./auth_client.js?v=25";
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
@@ -42,35 +41,28 @@ if (document.readyState === "loading") {
 async function init() {
   cacheElements();
   try {
-    const access = await requireAggregatorAccess(
-      "COSME",
-      "can_access_reef_nursery",
-      "reef_seaweed_records.html"
-    );
-    if (!access) return;
-    state.profile = access.profile;
-    state.canDelete = Boolean(state.profile?.is_protected_owner);
-    if (!hasOrganisationCapability(state.profile, "form_reef_nursery")) {
-      window.location.replace("./access_pending.html");
-      return;
+    // The Reef workspace resolves COSME scope for public visitors without
+    // granting any ability to edit or delete records.
+    const { data: context, error } = await authClient.rpc("ag_reef_training_workspace_context");
+    if (error) throw error;
+    if (!context?.allowed) throw new Error(context?.reason || "Nursery records are unavailable.");
+    if (context.access_mode === "authenticated") {
+      state.profile = await currentProfile();
+      state.canDelete = Boolean(state.profile?.is_protected_owner);
     }
-
+    const dashboardHref = state.profile ? "./home.html" : "./reef_nursery.html";
     const sidebar = populateAppSidebar(els.reefSeaweedRecordsSidebar, {
-      profile: state.profile,
-      dashboardHref: "./home.html",
-      currentFile: "reef_seaweed_records.html"
+      profile: state.profile, dashboardHref, currentFile: "reef_seaweed_records.html"
     });
-    setupAccountControls(state.profile);
-    setupAppNavigation({
-      profile: state.profile,
-      sidebar,
-      dashboardHref: "./home.html"
-    });
+    if (state.profile) setupAccountControls(state.profile);
+    setupAppNavigation({ profile: state.profile, sidebar, dashboardHref });
     bindEvents();
     document.body.removeAttribute("data-auth-pending");
     await loadRecords();
   } catch (error) {
-    window.location.replace(`./login.html?return=${encodeURIComponent("reef_seaweed_records.html")}&error=${encodeURIComponent(error.message || "Sign in required")}`);
+    // Never silently redirect a public visitor to a sign-in screen.
+    document.body.removeAttribute("data-auth-pending");
+    setStatus(error.message || "Nursery records could not be opened.", "error");
   }
 }
 
@@ -132,7 +124,10 @@ async function loadRecords() {
   setLoading(true);
   setStatus("Loading seaweed records...");
   try {
-    const { data, error } = await authClient.rpc("ag_reef_seaweed_records_page", {
+    const listRpc = state.profile
+      ? "ag_reef_seaweed_records_page"
+      : "ag_public_cosme_reef_seaweed_records_page";
+    const { data, error } = await authClient.rpc(listRpc, {
       p_search: state.search || null,
       p_limit: PAGE_SIZE,
       p_offset: state.page * PAGE_SIZE
@@ -216,7 +211,23 @@ function changePage(direction) {
 async function openRecord(kind, key, recordNumber) {
   if (!kind || !key) return;
   if (kind === "legacy_seaweed") {
-    window.location.assign(`./reef_nursery.html?tab=seaweed&seaweed_record=${encodeURIComponent(key)}`);
+    if (state.profile) {
+      window.location.assign(`./reef_nursery.html?tab=seaweed&seaweed_record=${encodeURIComponent(key)}`);
+      return;
+    }
+    // Old Seaweed submissions are listed publicly but the original editor
+    // remains protected. Show their public summary without opening the editor.
+    const record = state.rows.find((row) => row.record_kind === kind && row.record_key === key);
+    els.reefSeaweedRecordDetail.hidden = false;
+    els.reefSeaweedRecordDetailTitle.textContent = recordNumber || "Legacy Seaweed record";
+    els.reefSeaweedRecordDetailContent.innerHTML = [
+      detailItem("Date", formatDate(record?.record_date)),
+      detailItem("Location", LOCATION_LABELS[record?.location] || humanize(record?.location)),
+      detailItem("Species", record?.species),
+      detailItem("Recorded by", record?.recorded_by_name),
+      detailItem("Summary", record?.summary)
+    ].join("");
+    setDetailStatus("Public history · read only");
     return;
   }
 
@@ -235,7 +246,8 @@ async function openRecord(kind, key, recordNumber) {
 }
 
 async function openSiteCapture(captureId) {
-  const { data, error } = await authClient.rpc("ag_reef_site_capture_record_detail", {
+  const { data, error } = await authClient.rpc(
+    state.profile ? "ag_reef_site_capture_record_detail" : "ag_public_cosme_reef_site_capture_detail", {
     p_capture_id: captureId
   });
   if (error) throw error;
