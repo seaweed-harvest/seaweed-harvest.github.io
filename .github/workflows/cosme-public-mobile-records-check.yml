@@ -1,0 +1,36 @@
+name: COSME public mobile records check
+
+on:
+  pull_request:
+    paths:
+      - "assets/js/app_navigation.js"
+      - "assets/js/photos_page_v4.js"
+      - "assets/js/reef_nursery_records_unified.js"
+      - "assets/js/reef_seaweed_records_page.js"
+      - "service-worker.js"
+      - "tests/reef_nursery_public_navigation_static_test.py"
+      - ".github/workflows/cosme-public-mobile-records-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: JavaScript syntax
+        run: |
+          node --check assets/js/app_navigation.js
+          node --check assets/js/photos_page_v4.js
+          node --check assets/js/reef_nursery_records_unified.js
+          node --check assets/js/reef_seaweed_records_page.js
+          node --check service-worker.js
+      - name: Navigation contracts
+        run: python -m unittest tests.reef_nursery_public_navigation_static_test tests.mobile_app_navigation_static_test
