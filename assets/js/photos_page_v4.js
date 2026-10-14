@@ -1,6 +1,6 @@
 import {
   authClient,
-  requireAdminAccess,
+  currentProfile,
   setupAccountControls
 } from "./auth_client.js?v=25";
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
@@ -41,28 +41,37 @@ async function init() {
   if (els.photoPageSize) els.photoPageSize.value = String(state.pageSize);
 
   try {
-    const access = await requireAdminAccess("can_view_data");
-    if (!access) return;
-    state.profile = access.profile;
+    // Keep authorised users on their existing organisation-specific library.
+    // Everyone else can still view COSME Reef photos without signing in.
+    const { data: sessionData, error: sessionError } = await authClient.auth.getSession();
+    if (sessionError) throw sessionError;
+    if (sessionData?.session?.user) {
+      const profile = await currentProfile();
+      const permitted = profile?.account_status === "active"
+        && (profile.app_role === "system_admin"
+          || (profile.can_access_admin && profile.can_view_data));
+      if (permitted) state.profile = profile;
+    }
   } catch (error) {
-    window.location.replace(`./login.html?error=${encodeURIComponent(error.message)}`);
-    return;
+    // A stale session must not make the public photo catalogue inaccessible.
+    state.profile = null;
   }
 
+  const dashboardHref = state.profile ? "./home.html" : "./reef_nursery.html";
   const sidebar = populateAppSidebar(els.photoSidebar, {
-    profile: state.profile,
-    dashboardHref: "./home.html"
+    profile: state.profile, dashboardHref, currentFile: "photos.html"
   });
-  setupAccountControls(state.profile);
-  setupAppNavigation({ profile: state.profile, sidebar, dashboardHref: "./home.html" });
+  if (state.profile) setupAccountControls(state.profile);
+  setupAppNavigation({ profile: state.profile, sidebar, dashboardHref });
   setupPhotoViewer(document);
   document.body.removeAttribute("data-auth-pending");
   setDateDefaults();
   bindEvents();
 
-  state.availableSources = cosmePhotoSources(state.profile);
-  state.cosmeMode = activeAggregatorCode(state.profile) === "COSME"
-    && state.availableSources.length > 0;
+  state.availableSources = state.profile ? cosmePhotoSources(state.profile) : ["reef_nursery"];
+  state.cosmeMode = !state.profile || (
+    activeAggregatorCode(state.profile) === "COSME" && state.availableSources.length > 0
+  );
 
   if (state.cosmeMode) configureCosmeMode();
   else await loadCommunities();
@@ -185,7 +194,9 @@ function bindEvents() {
 
 function configureCosmeMode() {
   document.body.classList.add("cosme-photo-library");
-  els.photoLibraryDescription.textContent = "COSME Dryer Table and Reef Nursery photographic records.";
+  els.photoLibraryDescription.textContent = state.profile
+    ? "COSME Dryer Table and Reef Nursery photographic records."
+    : "Public COSME Reef Nursery photographs · view only.";
   els.photoSourceTabs.hidden = false;
   els.photoSourceField.hidden = true;
   els.photoGradeField.hidden = true;
@@ -340,7 +351,10 @@ async function loadCosmePhotos() {
     });
   }
 
-  const { data, error } = await authClient.rpc("ag_cosme_reef_photo_library", {
+  const reefPhotoRpc = state.profile
+    ? "ag_cosme_reef_photo_library"
+    : "ag_public_cosme_reef_photo_library";
+  const { data, error } = await authClient.rpc(reefPhotoRpc, {
     p_start_date: els.photoFrom.value || null,
     p_end_date: els.photoTo.value || null,
     p_location: els.photoCommunity.value || null,
