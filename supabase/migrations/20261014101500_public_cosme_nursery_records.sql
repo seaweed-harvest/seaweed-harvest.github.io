@@ -258,7 +258,7 @@ declare
     when lower(coalesce(p_sort_direction, '')) = 'asc' then 'asc'
     else 'desc'
   end;
-  v_limit integer := least(greatest(coalesce(p_page_limit, 20), 1), 50);
+  v_limit integer := least(greatest(coalesce(p_page_limit, 20), 1), 60);
   v_offset integer := greatest(coalesce(p_page_offset, 0), 0);
   v_result jsonb;
 begin
