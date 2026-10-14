@@ -23,7 +23,7 @@ if (!reviewMode) {
   await Promise.all([
     legacySeaweedRecordRequested
       ? import("./reef_nursery_seaweed.js?v=1")
-      : import("./reef_nursery_site_capture.js?v=20260917a"),
+      : import("./reef_nursery_site_capture.js?v=20261014b"),
     import("./reef_nursery_inspection.js?v=2")
   ]);
 }
