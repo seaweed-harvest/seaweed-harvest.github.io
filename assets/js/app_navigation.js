@@ -381,7 +381,8 @@ function navigationLink(link, currentFile) {
 }
 
 function formLinks(profile, currentFile = "") {
-  const anonymousReefNursery = isAnonymousReefNurseryPage(profile, currentFile);
+  const anonymousReefNursery = isAnonymousReefNurseryPage(profile, currentFile)
+    || isAnonymousCosmeRecordsPage(profile, currentFile);
   const links = [
     { label: "Site Water Samples", href: "./site_water_sample.html", permission: "can_submit_collection", capability: "form_site_water_samples" },
     { label: "Intake", href: "./collection.html", capability: "form_intake_collection", publicFallback: !anonymousReefNursery },
@@ -404,7 +405,13 @@ function formLinks(profile, currentFile = "") {
 }
 
 function recordLinks(profile, currentFile = "") {
-  const links = (!isAnonymousReefNurseryPage(profile, currentFile)
+  const publicCosme = isAnonymousCosmeRecordsPage(profile, currentFile)
+    || isAnonymousReefNurseryPage(profile, currentFile);
+  const signedInCosme = activeAggregatorCode(profile) === "COSME"
+    && hasPermission(profile, "can_access_reef_nursery")
+    && hasOrganisationCapability(profile, "form_reef_nursery");
+  const cosmeRecords = publicCosme || signedInCosme;
+  const links = (!publicCosme
     && (!profile || hasOrganisationCapability(profile, "form_intake_collection"))) ? [{
     label: "Today's Intake",
     href: hasPermission(profile, "can_view_data")
@@ -412,13 +419,21 @@ function recordLinks(profile, currentFile = "") {
       : "./today.html",
     capability: "form_intake_collection"
   }] : [];
+  const nurseryRecordAccess = publicCosme
+    ? { publicFallback: true }
+    : { permission: "can_access_reef_nursery", requiredAggregator: "COSME", capability: "form_reef_nursery" };
   return links.concat(permittedLinks(profile, [
     { label: "Ledger Transcriptions", href: "./historical_records.html", permission: "can_view_data", requiredAggregator: "SANDBOX" },
     { label: "Record Ledgers", href: "./records.html", permission: "can_view_data", capabilityAny: ["form_site_water_samples", "form_intake_collection", "form_stock_record", "form_process_record"], className: "app-nav-desktop-only" },
     ...(isProtectedOwner(profile) ? [{ label: "Dryer Table Records", href: "./dryer_table_records.html", permission: "can_view_data", requiredAggregator: "COSME", capability: "form_dryer_table" }] : []),
-    { label: "Photos", href: "./photos.html", permission: "can_view_data", capabilityAny: ["form_intake_collection", "form_process_record", "form_reef_nursery"], className: "app-nav-desktop-only" },
-    { label: "Deleted Records", href: "./deleted_records.html", permission: "can_view_data", capabilityAny: ["form_site_water_samples", "form_intake_collection", "form_stock_record", "form_process_record"], className: "app-nav-desktop-only" },
-    { label: "Reef Nursery Records", href: "./reef_nursery_records.html", permission: "can_access_reef_nursery", requiredAggregator: "COSME", capability: "form_reef_nursery", className: "app-nav-desktop-only" }
+    ...(cosmeRecords ? [
+      { label: "Nursery - Training", href: "./reef_nursery.html?tab=records&record_type=training", ...nurseryRecordAccess },
+      { label: "Nursery - Seaweed", href: "./reef_seaweed_records.html", ...nurseryRecordAccess },
+      { label: "Photos", href: "./photos.html", ...nurseryRecordAccess }
+    ] : [
+      { label: "Photos", href: "./photos.html", permission: "can_view_data", capabilityAny: ["form_intake_collection", "form_process_record", "form_reef_nursery"], className: "app-nav-desktop-only" }
+    ]),
+    { label: "Deleted Records", href: "./deleted_records.html", permission: "can_view_data", capabilityAny: ["form_site_water_samples", "form_intake_collection", "form_stock_record", "form_process_record"], className: "app-nav-desktop-only" }
   ]));
 }
 
@@ -439,6 +454,10 @@ function hasLinkAccess(profile, link) {
 
 function isAnonymousReefNurseryPage(profile, currentFile) {
   return !profile && currentFile === "reef_nursery.html";
+}
+ 
+function isAnonymousCosmeRecordsPage(profile, currentFile) {
+  return !profile && ["reef_seaweed_records.html", "photos.html"].includes(currentFile);
 }
 
 function hasPermission(profile, permission) {

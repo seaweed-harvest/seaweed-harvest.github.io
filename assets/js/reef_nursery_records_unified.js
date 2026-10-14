@@ -181,12 +181,14 @@ function cacheElements() {
 }
 
 function resetRecordTypeFilter() {
+  // Keep the standard Previous Records default at All, but honour the dedicated
+  // public Nursery - Training deep link instead of silently dropping its filter.
   state.recordType = "all";
   state.page = 0;
-  if (els.reefUnifiedRecordsType) els.reefUnifiedRecordsType.value = "all";
-
   const params = new URLSearchParams(window.location.search);
-  if (!params.has("record_type")) return;
+  if (params.get("record_type") === "training") state.recordType = "training";
+  if (els.reefUnifiedRecordsType) els.reefUnifiedRecordsType.value = state.recordType;
+  if (!params.has("record_type") || params.get("record_type") === "training") return;
   params.delete("record_type");
   const query = params.toString();
   history.replaceState(
