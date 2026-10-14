@@ -543,6 +543,13 @@ function sourceLabel() {
 }
 
 function setDateDefaults() {
+  // Public COSME browsing defaults to the complete historic photo library.
+  // Existing signed-in organisation views retain their rolling-month default.
+  if (!state.profile) {
+    els.photoFrom.value = "";
+    els.photoTo.value = "";
+    return;
+  }
   const today = kenyaDate();
   const start = new Date(`${today}T12:00:00Z`);
   start.setUTCDate(start.getUTCDate() - 29);
