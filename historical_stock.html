@@ -67,21 +67,20 @@
         <span id="historyFilterStatus" class="history-muted"></span>
       </div>
       <div class="history-table-wrap"><table class="history-table">
-        <thead><tr><th>Excel row</th><th>Original label date</th><th>Container range</th><th>Excel volume (L)</th><th>pH</th><th>EC (mS/cm)</th><th>Excel ppt</th><th>Excel salt ppt</th><th>Refiltered / QC on</th><th>Flag</th></tr></thead>
-        <tbody id="historyGroupRows"><tr><td colspan="10">Loading...</td></tr></tbody>
+        <thead><tr><th>Excel row</th><th>Original label date</th><th>Container range</th><th>Excel volume (L)</th><th>pH</th><th>EC (mS/cm)</th><th>Excel ppt</th><th>Excel salt ppt</th><th>Excel % salt</th><th>Refiltered / QC on</th><th>Flag</th></tr></thead>
+        <tbody id="historyGroupRows"><tr><td colspan="11">Loading...</td></tr></tbody>
       </table></div>
     </section>
     <section class="history-section" aria-labelledby="removedTitle">
       <h3 id="removedTitle">Historical discarded stock — date-only identification</h3>
       <p class="history-alert"><strong>414 L reported discarded for smell / mould.</strong> The dates below came from original container labels, not disposal dates. Physical carton numbers are unconfirmed; therefore these rows do not deactivate particular numbered containers or reduce their balance. The discarded-stock QC is not assigned to retained stock.</p>
       <div class="history-table-wrap"><table class="history-table">
-        <thead><tr><th>Excel row</th><th>Original label date</th><th>Carton serial</th><th>Discarded (L)</th><th>pH</th><th>EC (mS/cm)</th><th>Excel ppt</th><th>Salt ppt</th><th>Disposal date</th><th>Inventory deduction</th></tr></thead>
-        <tbody id="historyDisposalRows"><tr><td colspan="10">Loading...</td></tr></tbody>
+        <thead><tr><th>Excel row</th><th>Original label date</th><th>Carton serial</th><th>Discarded (L)</th><th>pH</th><th>EC (mS/cm)</th><th>Excel ppt</th><th>Salt ppt</th><th>Excel % salt</th><th>Disposal date</th><th>Inventory deduction</th></tr></thead>
+        <tbody id="historyDisposalRows"><tr><td colspan="11">Loading...</td></tr></tbody>
       </table></div>
     </section>
     <p class="history-muted">Source: Seaweed Biostimulant Daily Stock Log-2.xlsx. Four source serial ranges were converted to Excel dates and are flagged as inferred. Container 82 is not present in the current numbered database. Volume discrepancies remain unreconciled.</p>
   </main>
-  <script type="module" src="./assets/js/admin_page.js?v=41"></script>
-  <script type="module" src="./assets/js/historical_stock_page.js?v=1"></script>
+  <script type="module" src="./assets/js/historical_stock_page.js?v=2"></script>
 </body>
 </html>
