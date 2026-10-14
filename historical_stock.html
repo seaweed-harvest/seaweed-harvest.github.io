@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Historical Stock Refiltering - Seaweed Harvest</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+  <link rel="icon" href="./favicon.ico" sizes="any">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <script type="module" src="./assets/js/pwa_bootstrap.js"></script>
+  <style>
+    .history-page {max-width: 1150px; margin: 1.5rem auto; padding: 0 1rem 3rem}
+    .history-head {display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem}
+    .history-head h2 {margin:0}
+    .history-note {background:#ecfdf5; border:1px solid #a7f3d0; border-radius:0.7rem; padding:1rem 1.25rem; margin:1.1rem 0}
+    .history-alert {background:#fff7ed; border:1px solid #fdba74; border-radius:0.7rem; padding:1rem 1.25rem; margin:1rem 0}
+    .history-metrics {display:flex; flex-wrap:wrap; gap:0.6rem; margin:1rem 0}
+    .history-metric {border:1px solid #d1d5db; border-radius:0.6rem; padding:0.8rem 1rem; min-width:9rem; background:white}
+    .history-metric strong {display:block; font-size:1.4rem}
+    .history-metric span {font-size:0.85rem;color:#475569}
+    .history-section {margin:2rem 0}
+    .history-section h3 {margin-bottom:0.5rem}
+    .history-nav {display:flex;gap:1rem;flex-wrap:wrap}
+    .history-table-wrap {max-width:100%; overflow-x:auto; border:1px solid #e5e7eb; border-radius:0.5rem}
+    .history-table {border-collapse:collapse; width:100%; min-width:920px; font-size:0.9rem}
+    .history-table th,.history-table td {padding:0.55rem 0.65rem; border-bottom:1px solid #e5e7eb; text-align:left; white-space:nowrap}
+    .history-table th {background:#f1f5f9; position:sticky;top:0}
+    .history-table tr:nth-child(even) td {background:#f8fafc}
+    .history-tag {font-weight:600;color:#9a3412}
+    .history-muted {color:#64748b}
+    .history-filter {display:flex;gap:0.6rem;align-items:end; flex-wrap:wrap; margin:1rem 0}
+    .history-filter label {display:grid;gap:0.4rem}
+    .history-filter input {padding:0.6rem;border:1px solid #94a3b8;border-radius:0.4rem;max-width:14rem}
+    .history-empty {padding:1.5rem}
+    @media (max-width:600px) {.history-page{padding:0 0.65rem 2rem}.history-head h2{font-size:1.25rem}}
+  </style>
+</head>
+<body class="admin-console-page" data-auth-pending>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div><p class="eyebrow">Seaweed Harvest · BioStim</p><h1>Historical stock</h1></div>
+      <nav class="history-nav" aria-label="Stock navigation">
+        <a href="./stabilization_packing.html">Stock record</a>
+        <a href="./records.html">Records ledger</a>
+      </nav>
+    </div>
+  </header>
+  <main class="history-page">
+    <div class="history-head"><h2>Refiltering QC &amp; unidentified disposals</h2><span id="historyLoadStatus" role="status">Loading historical stock...</span></div>
+    <p class="history-note">Excel-sourced historical information: <strong>original label dates</strong> are shown below. The actual refiltering, QC sampling and disposal dates were not supplied and are deliberately recorded as unknown. No new cartons or automatic stock-balance reductions were created by this import.</p>
+    <div class="history-metrics" aria-label="Historical reconciliation totals">
+      <div class="history-metric"><strong id="historyGroupCount">—</strong><span>QC groups</span></div>
+      <div class="history-metric"><strong id="historyDisposalCount">—</strong><span>Discarded jerricans</span></div>
+      <div class="history-metric"><strong id="historyDiscardedLitres">—</strong><span>Discarded litres (historical)</span></div>
+      <div class="history-metric"><strong id="historyCorrectionCount">—</strong><span>Corrected original dates</span></div>
+    </div>
+    <section class="history-section" aria-labelledby="refilterTitle">
+      <h3 id="refilterTitle">Historical refiltering QC</h3>
+      <p>These readings were measured in the mixed vessel after spoiled stock was set aside. They are historical group observations, <strong>not 540 independent tests or confirmation that every numbered container survived</strong>. Both salinity-related Excel columns are retained pending instrument verification.</p>
+      <div class="history-filter">
+        <label>Find a numbered container
+          <input id="historySerialFilter" type="search" inputmode="numeric" placeholder="e.g. 00096" autocomplete="off">
+        </label>
+        <button id="historyClearFilter" type="button">Show all</button>
+        <span id="historyFilterStatus" class="history-muted"></span>
+      </div>
+      <div class="history-table-wrap"><table class="history-table">
+        <thead><tr><th>Excel row</th><th>Original label date</th><th>Container range</th><th>Excel volume (L)</th><th>pH</th><th>EC (mS/cm)</th><th>Excel ppt</th><th>Excel salt ppt</th><th>Refiltered / QC on</th><th>Flag</th></tr></thead>
+        <tbody id="historyGroupRows"><tr><td colspan="10">Loading...</td></tr></tbody>
+      </table></div>
+    </section>
+    <section class="history-section" aria-labelledby="removedTitle">
+      <h3 id="removedTitle">Historical discarded stock — date-only identification</h3>
+      <p class="history-alert"><strong>414 L reported discarded for smell / mould.</strong> The dates below came from original container labels, not disposal dates. Physical carton numbers are unconfirmed; therefore these rows do not deactivate particular numbered containers or reduce their balance. The discarded-stock QC is not assigned to retained stock.</p>
+      <div class="history-table-wrap"><table class="history-table">
+        <thead><tr><th>Excel row</th><th>Original label date</th><th>Carton serial</th><th>Discarded (L)</th><th>pH</th><th>EC (mS/cm)</th><th>Excel ppt</th><th>Salt ppt</th><th>Disposal date</th><th>Inventory deduction</th></tr></thead>
+        <tbody id="historyDisposalRows"><tr><td colspan="10">Loading...</td></tr></tbody>
+      </table></div>
+    </section>
+    <p class="history-muted">Source: Seaweed Biostimulant Daily Stock Log-2.xlsx. Four source serial ranges were converted to Excel dates and are flagged as inferred. Container 82 is not present in the current numbered database. Volume discrepancies remain unreconciled.</p>
+  </main>
+  <script type="module" src="./assets/js/admin_page.js?v=41"></script>
+  <script type="module" src="./assets/js/historical_stock_page.js?v=1"></script>
+</body>
+</html>
