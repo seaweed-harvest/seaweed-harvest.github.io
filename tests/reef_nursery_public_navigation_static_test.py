@@ -21,7 +21,7 @@ class ReefNurseryPublicNavigationStaticTest(unittest.TestCase):
         source = NAVIGATION.read_text(encoding="utf-8")
         self.assertIn('return !profile && currentFile === "reef_nursery.html";', source)
         self.assertIn("publicFallback: !anonymousReefNursery", source)
-        self.assertIn("!isAnonymousReefNurseryPage(profile, currentFile)", source)
+        self.assertIn("const publicCosme = isAnonymousCosmeRecordsPage(profile, currentFile)", source)
 
     def test_anonymous_reef_page_keeps_its_own_form_link(self):
         source = NAVIGATION.read_text(encoding="utf-8")
@@ -83,7 +83,9 @@ class ReefNurseryPublicNavigationStaticTest(unittest.TestCase):
               anonymousCollectionForms: labels(formLinks(null, "collection.html")),
               anonymousCollectionRecords: labels(recordLinks(null, "collection.html")),
               signedInCosmeForms: labels(formLinks(cosme, "reef_nursery.html")),
-              signedInCosmeRecords: labels(recordLinks(cosme, "reef_nursery.html"))
+              signedInCosmeRecords: labels(recordLinks(cosme, "reef_nursery.html")),
+              anonymousSeaweedRecords: labels(recordLinks(null, "reef_seaweed_records.html")),
+              anonymousPhotosRecords: labels(recordLinks(null, "photos.html"))
             }));
             """
         )
@@ -95,11 +97,13 @@ class ReefNurseryPublicNavigationStaticTest(unittest.TestCase):
         )
         data = json.loads(result.stdout)
         self.assertEqual(data["anonymousReefForms"], ["Reef Nursery"])
-        self.assertEqual(data["anonymousReefRecords"], [])
+        self.assertEqual(data["anonymousReefRecords"], ["Nursery - Training", "Nursery - Seaweed", "Photos"])
         self.assertEqual(data["anonymousCollectionForms"], ["Intake"])
         self.assertEqual(data["anonymousCollectionRecords"], ["Today's Intake"])
         self.assertEqual(data["signedInCosmeForms"], ["Reef Nursery", "Dryer Table"])
-        self.assertEqual(data["signedInCosmeRecords"], ["Photos", "Reef Nursery Records"])
+        self.assertEqual(data["signedInCosmeRecords"], ["Nursery - Training", "Nursery - Seaweed", "Photos"])
+        self.assertEqual(data["anonymousSeaweedRecords"], data["anonymousReefRecords"])
+        self.assertEqual(data["anonymousPhotosRecords"], data["anonymousReefRecords"])
 
 
 if __name__ == "__main__":
