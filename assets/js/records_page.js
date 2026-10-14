@@ -60,7 +60,6 @@ const COLUMNS = {
     ["electrical_conductivity_ms_cm", "EC mS/cm"],
     ["brix_value", "Brix °Bx"],
     ["hydrometer_value", "Hydrometer SG"],
-    ["qc_source", "QC source"],
     ["recorded_by_name", "Recorded by"],
     ["notes", "Notes"]
   ]
@@ -767,15 +766,23 @@ async function loadCommunityReport() {
 }
 
 async function ledgerRpc(range, communityId, search, page) {
-  const { data, error } = await authClient.rpc("ag_form_record_ledger", {
-    p_record_type: state.category,
-    p_start_date: range.start,
-    p_end_date: range.end,
-    p_community_id: communityId,
-    p_search: search,
-    p_page_limit: PAGE_SIZE,
-    p_page_offset: page * PAGE_SIZE
-  });
+  const { data, error } = state.category === "stock"
+    ? await authClient.rpc("ag_stock_ledger_with_unnumbered_disposals", {
+        p_start_date: range.start,
+        p_end_date: range.end,
+        p_search: search,
+        p_page_limit: PAGE_SIZE,
+        p_page_offset: page * PAGE_SIZE
+      })
+    : await authClient.rpc("ag_form_record_ledger", {
+        p_record_type: state.category,
+        p_start_date: range.start,
+        p_end_date: range.end,
+        p_community_id: communityId,
+        p_search: search,
+        p_page_limit: PAGE_SIZE,
+        p_page_offset: page * PAGE_SIZE
+      });
   if (error) throw error;
   const result = Array.isArray(data) ? data[0] : data;
   return {
@@ -1362,7 +1369,7 @@ function recordRowsHtml(rows, options = {}) {
       dirty ? "today-row-dirty" : ""
     ].filter(Boolean).join(" ");
     const selection = options.managed
-      ? `<td class="selection-cell"><input type="checkbox" data-form-ledger-select="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(recordReference(row))}"${state.selectedFormRecordIds.has(id) ? " checked" : ""}${editing ? " disabled" : ""}></td>`
+      ? (id ? `<td class="selection-cell"><input type="checkbox" data-form-ledger-select="${escapeAttribute(id)}" aria-label="Select ${escapeAttribute(recordReference(row))}"${state.selectedFormRecordIds.has(id) ? " checked" : ""}${editing ? " disabled" : ""}></td>` : '<td class="selection-cell"></td>')
       : "";
     return `
       <tr data-form-ledger-row="${escapeAttribute(id)}" class="${classes}">
@@ -1895,7 +1902,7 @@ function cellValue(row, field) {
   if (field === "species") return titleCase(value);
   if (field === "tide_stage") return value ? titleCase(value) : "-";
   if (field === "record_type") {
-    const label = value === "retest" ? "Retest" : "New";
+    const label = value === "retest" ? "Retest" : (value === "removal" ? "Removed" : "New");
     return row.test_sequence ? `${label} ${row.test_sequence}` : label;
   }
   if (field === "community_name_snapshot") {
