@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v149-mawimbi-historical-stock";
+const CACHE_VERSION = "seaweed-harvest-collection-v150-unified-stock-retests";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -8,7 +8,6 @@ const APP_SHELL = [
   "./my_details.html",
   "./process_record.html",
   "./stabilization_packing.html",
-  "./historical_stock.html",
   "./site_water_sample.html",
   "./reef_nursery.html",
   "./reef_nursery_training.html",
@@ -51,7 +50,6 @@ const APP_SHELL = [
   "./assets/images/dryer/dryer-bay-reference.svg",
   "./assets/images/dryer/dryer-cover-reference.svg",
   "./assets/js/pwa_bootstrap.js",
-  "./assets/js/historical_stock_page.js",
   "./assets/js/auth_client.js",
   "./assets/js/vendor/supabase-js.esm.js",
   "./assets/js/login_page.js",
