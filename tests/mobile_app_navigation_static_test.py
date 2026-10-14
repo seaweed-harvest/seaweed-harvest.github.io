@@ -75,7 +75,7 @@ class MobileAppNavigationStaticTest(unittest.TestCase):
 
     def test_navigation_is_available_offline(self):
         worker = (ROOT / "service-worker.js").read_text(encoding="utf-8")
-        self.assertRegex(worker, r'CACHE_VERSION = "seaweed-harvest-collection-v\d+"')
+        self.assertRegex(worker, r'CACHE_VERSION = "seaweed-harvest-collection-v\d+(?:-[^"]+)?"')
         self.assertIn('"./assets/js/app_navigation.js"', worker)
 
     def test_native_network_indicator_is_offline_only(self):
