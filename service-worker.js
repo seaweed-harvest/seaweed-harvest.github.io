@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v146-bulk-vessel-qc";
+const CACHE_VERSION = "seaweed-harvest-collection-v147-cosme-public-records";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -95,8 +95,10 @@ const APP_SHELL = [
   "./assets/js/dryer_table_language.js",
   "./assets/js/records_page.js",
   "./assets/js/photos_page.js",
+  "./assets/js/photos_page_v4.js",
   "./assets/js/deleted_records_page.js",
   "./assets/js/photo_viewer.js",
+  "./assets/js/photo_viewer_v3.js",
   "./assets/js/farmer_card.js",
   "./assets/js/dataset_dashboard_page.js",
   "./assets/js/historical_records_page.js",
