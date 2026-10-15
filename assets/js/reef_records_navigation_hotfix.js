@@ -14,6 +14,7 @@ function patch() {
   document.querySelectorAll([
     'a[href*="dryer_table_records.html"]',
     'a[href*="reef_nursery_records.html"]',
+    'a[href*="reef_nursery.html?tab=records"]',
     'a[href*="record_type=training"]',
     'a[href*="record_type=seaweed"]',
     'a[href*="reef_seaweed_records.html"]',
@@ -41,7 +42,7 @@ function normalizeRecordsGroup(group) {
     legacy.remove();
   }
 
-  if (training) setLink(training, "Nursery - Training", "./reef_nursery.html?tab=records&record_type=training");
+  if (training) setLink(training, "Nursery - Training", "./reef_nursery.html?tab=records");
 
   if (!seaweed && training) {
     seaweed = training.cloneNode(true);
@@ -86,9 +87,8 @@ function routeMatchesCurrent(href) {
     const target = new URL(href, window.location.href);
     const current = new URL(window.location.href);
     if (target.pathname !== current.pathname) return false;
-    if (fileName(href) === "reef_nursery.html" && target.searchParams.get("record_type")) {
-      return current.searchParams.get("record_type") === target.searchParams.get("record_type")
-        && current.searchParams.get("tab") === "records";
+    if (fileName(href) === "reef_nursery.html" && target.searchParams.get("tab") === "records") {
+      return current.searchParams.get("tab") === "records";
     }
     return true;
   } catch {
@@ -108,7 +108,7 @@ function firstByHref(anchors, token) {
 
 function isTrainingRecordsHref(href) {
   return href.includes("reef_nursery_records.html")
-    || (href.includes("reef_nursery.html") && href.includes("record_type=training"));
+    || (href.includes("reef_nursery.html") && href.includes("tab=records"));
 }
 
 function isSeaweedRecordsHref(href) {
