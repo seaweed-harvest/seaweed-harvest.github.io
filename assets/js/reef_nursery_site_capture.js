@@ -258,7 +258,7 @@ function renderForm(form) {
                       <input id="reefSampleVisitOtherTeam" type="text" maxlength="160">
                     </label>
                   </div>
-                  <small class="reef-help">Each weight column has its own date and optional time. Dates can be backfilled independently; unchanged weeks keep their previous details.</small>
+                  <small class="reef-help">R+S = Rope + Seaweed weight. Each weight column has its own date and optional time; unchanged weeks keep their previous details.</small>
                 </th></tr>
                 <tr>
                   <th>Sample Rope</th>
@@ -1151,6 +1151,7 @@ function syncVisitOtherTeam() {
 function sampleStageHeaderMarkup(stage, label) {
   return `<th class="reef-stage-date-header" data-stage-header="${stage}">
     ${label}
+    <small class="reef-rope-rs-label" title="Rope + Seaweed">R+S</small>
     <label>Date <input data-stage-date="${stage}" type="date" aria-label="${label} date"></label>
     <label>Time (optional) <input data-stage-time="${stage}" type="time" aria-label="${label} optional time"></label>
     <small class="reef-stage-mixed" data-stage-mixed="${stage}" hidden></small>
@@ -1192,6 +1193,7 @@ function productionStyles() {
     .reef-site-mode-tabs .standard-tab { font-weight: 700; }
     .reef-sample-visit-header { text-align: left !important; }
     .reef-stage-date-header { min-width:155px; vertical-align:top; }
+    .reef-rope-rs-label { display:block; font-size:0.72rem; font-weight:700; color:#386862; margin-top:0.2rem; }
     .reef-stage-date-header label { display:block; text-align:left; font-size:0.68rem; font-weight:500; margin-top:0.35rem; }
     .reef-stage-date-header input { display:block; width:100%; min-width:122px; margin-top:0.12rem; }
     .reef-stage-mixed { display:block; font-size:0.65rem; margin-top:0.15rem; color:#956a31; font-weight:500; }
