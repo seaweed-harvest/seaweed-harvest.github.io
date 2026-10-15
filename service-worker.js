@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v152-reef-stage-dates-records";
+const CACHE_VERSION = "seaweed-harvest-collection-v153-mkwiro-raft-labels";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -69,6 +69,7 @@ const APP_SHELL = [
   "./assets/js/reef_nursery_boot.js",
   "./assets/js/reef_nursery_site_capture.js",
   "./assets/js/reef_nursery_site_capture_math.js",
+  "./assets/js/reef_mkwiro_raft_labels.js",
   "./assets/js/reef_nursery_workspace_tabs.js",
   "./assets/js/reef_nursery_site_capture_records_hotfix.js",
   "./assets/js/reef_records_navigation_hotfix.js",
