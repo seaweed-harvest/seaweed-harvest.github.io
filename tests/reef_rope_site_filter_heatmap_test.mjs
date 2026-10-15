@@ -134,3 +134,4 @@ await second.refresh();
 assert.deepEqual([...second.state.selectedSites],["MK-R2"]);
 assert(!persistedControls.reefSampleRopeDataBody.innerHTML.includes("Shore Farm 2"));
 console.log("Multi-site dropdown filtering, persistence, and per-row low-to-high R+S heatmap passed.");
+await import("./reef_sample_rope_stage_photos_test.mjs");
