@@ -96,9 +96,22 @@
     .reef-detail-section h4 { margin: 0 0 4px; }
     .reef-detail-section p { margin: 0; }
     .reef-sample-detail-table input { min-width: 0; }
-    .reef-pair-shortcuts { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0 0 16px; }
-    .reef-pair-shortcuts > strong { font-size:.86rem; color:#3e6762; margin-right:4px; }
-    .reef-pair-shortcuts button { font-size:.84rem; padding:.4rem .7rem; }
+    .reef-pair-shortcuts { display:flex; flex-direction:column; gap:8px; margin:0 0 16px; }
+    .reef-pair-shortcuts > strong { font-size:.86rem; color:#3e6762; }
+    .reef-pair-shortcuts > small { color:#56746c; }
+    .reef-site-select-groups { display:flex; flex-wrap:wrap; gap:10px; }
+    .reef-site-select-groups fieldset { margin:0; border:1px solid #d3e4df; border-radius:8px; padding:7px 10px; display:flex; gap:12px; flex-wrap:wrap; }
+    .reef-site-select-groups legend { font-size:.76rem; font-weight:700; color:#3a6861; padding:0 4px; }
+    .reef-site-select-groups label { display:flex; align-items:center; gap:5px; font-size:.83rem; cursor:pointer; }
+    .reef-site-select-groups input, [data-select-reef-record] { accent-color:#247c72; cursor:pointer; }
+    .reef-seaweed-records-table tr:has(input[data-select-reef-record]:checked) { background:#edf8f4; }
+    .reef-selected-records-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,500px),1fr)); gap:16px; align-items:start; }
+    .reef-selected-record-card { min-width:0; padding:12px; border:1px solid #d0e1df; border-radius:10px; background:#fff; }
+    .reef-selected-record-card-heading { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; }
+    .reef-selected-record-card-heading h4 { margin:0; color:#23544e; font-size:1rem; }
+    .reef-selected-record-card-heading button { flex-shrink:0; }
+    .reef-selected-record-card .reef-sample-comparison-card { border:0; padding:0; }
+    .reef-selected-record-card .reef-detail-grid { grid-template-columns: repeat(auto-fit,minmax(145px,1fr)); }
     .reef-pair-description { margin:0 0 14px; }
     .reef-sample-pair-grid { display:grid; grid-template-columns: minmax(0,1fr); gap:16px; }
     .reef-sample-pair-grid.is-paired { grid-template-columns: repeat(2,minmax(0,1fr)); }
@@ -164,17 +177,30 @@
           <button id="clearReefSeaweedRecordsSearch" type="button">Clear</button>
         </div>
 
-        <div id="reefSeaweedPairShortcuts" class="reef-pair-shortcuts" aria-label="Compare related Mkwiro monitoring sites">
-          <strong>View raft + shore farm:</strong>
-          <button type="button" data-open-reef-pair="MK-R2">Raft A + Farm A</button>
-          <button type="button" data-open-reef-pair="MK-R3">Raft B + Farm B</button>
-          <button type="button" data-open-reef-pair="MK-R1">Raft C + Farm C</button>
+        <div id="reefSeaweedPairShortcuts" class="reef-pair-shortcuts" aria-label="Select Mkwiro raft and shore farm records">
+          <strong>Mkwiro sites — select one or more:</strong>
+          <div class="reef-site-select-groups">
+            <fieldset><legend>Group A</legend>
+              <label><input type="checkbox" data-select-reef-site="MK-R2" data-site-label="MK-R2 (Cascadia Prototype) | Raft A">Raft A</label>
+              <label><input type="checkbox" data-select-reef-site="MK-SF2/R2" data-site-label="MK-SF2/R2 (Shore Farm 2) | Farm A">Farm A</label>
+            </fieldset>
+            <fieldset><legend>Group B</legend>
+              <label><input type="checkbox" data-select-reef-site="MK-R3" data-site-label="MK-R3 (LM / PIK Raft) | Raft B">Raft B</label>
+              <label><input type="checkbox" data-select-reef-site="MK-SF3/R3" data-site-label="MK-SF3/R3 (Shore Farm 3) | Farm B">Farm B</label>
+            </fieldset>
+            <fieldset><legend>Group C</legend>
+              <label><input type="checkbox" data-select-reef-site="MK-R1" data-site-label="MK-R1 (Rectangular Raft) | Raft C">Raft C</label>
+              <label><input type="checkbox" data-select-reef-site="MK-SF1/R1" data-site-label="MK-SF1/R1 (Shore Farm 1) | Farm C">Farm C</label>
+            </fieldset>
+          </div>
+          <small>Tick any records below or sites above. Select several to compare; untick to hide.</small>
         </div>
 
         <div class="responsive-table-wrap">
           <table class="management-table admin-data-table reef-seaweed-records-table">
             <thead>
               <tr>
+                <th scope="col">Show</th>
                 <th>Type</th>
                 <th>Record</th>
                 <th>Date</th>
@@ -186,7 +212,7 @@
               </tr>
             </thead>
             <tbody id="reefSeaweedRecordRows">
-              <tr><td colspan="8" class="empty-state">Loading seaweed records...</td></tr>
+              <tr><td colspan="9" class="empty-state">Loading seaweed records...</td></tr>
             </tbody>
           </table>
         </div>
@@ -200,8 +226,8 @@
 
         <article id="reefSeaweedRecordDetail" class="reef-record-detail" hidden>
           <div class="reef-record-detail-head">
-            <h3 id="reefSeaweedRecordDetailTitle">Seaweed record</h3>
-            <button id="closeReefSeaweedRecordDetail" type="button">Close</button>
+            <h3 id="reefSeaweedRecordDetailTitle">Selected records</h3>
+            <button id="closeReefSeaweedRecordDetail" type="button">Clear selection</button>
           </div>
           <p id="reefSeaweedRecordDetailStatus" class="admin-status" aria-live="polite"></p>
           <div id="reefSeaweedRecordDetailContent"></div>
@@ -210,6 +236,6 @@
     </section>
   </main>
 
-  <script type="module" src="./assets/js/reef_seaweed_records_page.js?v=5"></script>
+  <script type="module" src="./assets/js/reef_seaweed_records_page.js?v=6"></script>
 </body>
 </html>
