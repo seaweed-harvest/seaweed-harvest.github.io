@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v154-reef-yellow-farm-labels";
+const CACHE_VERSION = "seaweed-harvest-collection-v155-paired-reef-records";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
