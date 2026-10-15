@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v156-selectable-records-rs";
+const CACHE_VERSION = "seaweed-harvest-collection-v157-rope-flat-grid";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -74,6 +74,7 @@ const APP_SHELL = [
   "./assets/js/reef_nursery_site_capture_records_hotfix.js",
   "./assets/js/reef_records_navigation_hotfix.js",
   "./assets/js/reef_seaweed_records_page.js",
+  "./assets/js/reef_sample_rope_data_table.js",
   "./assets/js/reef_nursery_form.js",
   "./assets/js/reef_nursery_records.js",
   "./assets/js/reef_nursery_training_rpc_guard.js",

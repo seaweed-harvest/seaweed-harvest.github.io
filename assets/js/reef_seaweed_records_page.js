@@ -6,6 +6,7 @@ import {
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
 
 import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=3";
+import { initializeSampleRopeDataTable } from "./reef_sample_rope_data_table.js?v=1";
 
 const PAGE_SIZE = 50;
 const LOCATION_LABELS = Object.freeze({
@@ -31,7 +32,8 @@ const state = {
   loading: false,
   deleting: false,
   canDelete: false,
-  selectedRecords: new Map()
+  selectedRecords: new Map(),
+  ropeGrid: null
 };
 const els = {};
 
@@ -60,6 +62,9 @@ async function init() {
     if (state.profile) setupAccountControls(state.profile);
     setupAppNavigation({ profile: state.profile, sidebar, dashboardHref });
     bindEvents();
+    state.ropeGrid = initializeSampleRopeDataTable({ authClient, root: els.reefSampleRopeDataTabPanel });
+    const flatTabRequested = window.location.hash === "#sample-rope-data";
+    selectRecordsTab(flatTabRequested ? "data" : "records");
     document.body.removeAttribute("data-auth-pending");
     await loadRecords();
   } catch (error) {
@@ -74,7 +79,10 @@ function cacheElements() {
     "reefSeaweedRecordsSidebar",
     "reloadReefSeaweedRecords",
     "reefSeaweedRecordsSearch",
-    "reefSeaweedPairShortcuts",
+    "reefRecordsListTab",
+    "reefSampleRopeDataTab",
+    "reefRecordsListPanel",
+    "reefSampleRopeDataTabPanel",
     "searchReefSeaweedRecords",
     "clearReefSeaweedRecordsSearch",
     "reefSeaweedRecordRows",
@@ -119,12 +127,6 @@ function bindEvents() {
     if (!button) return;
     void openRecord(button.dataset.kind, button.dataset.key, button.dataset.number);
   });
-  els.reefSeaweedPairShortcuts.addEventListener("change", (event) => {
-    const checkbox = event.target.closest("[data-select-reef-site]");
-    if (!checkbox) return;
-    toggleSelectedRecord("sample_rope_register", checkbox.dataset.selectReefSite,
-      checkbox.dataset.siteLabel || checkbox.dataset.selectReefSite, checkbox.checked);
-  });
   els.reefSeaweedRecordRows.addEventListener("change", (event) => {
     const checkbox = event.target.closest("[data-select-reef-record]");
     if (!checkbox) return;
@@ -137,6 +139,19 @@ function bindEvents() {
     removeSelectedRecord(remove.dataset.removeReefSelection);
   });
   els.closeReefSeaweedRecordDetail.addEventListener("click", closeDetail);
+  els.reefRecordsListTab.addEventListener("click", () => selectRecordsTab("records"));
+  els.reefSampleRopeDataTab.addEventListener("click", () => selectRecordsTab("data"));
+}
+
+function selectRecordsTab(selected) {
+  const dataTab = selected === "data";
+  els.reefRecordsListPanel.hidden = dataTab;
+  els.reefSampleRopeDataTabPanel.hidden = !dataTab;
+  els.reefRecordsListTab.setAttribute("aria-selected", String(!dataTab));
+  els.reefSampleRopeDataTab.setAttribute("aria-selected", String(dataTab));
+  els.reefRecordsListTab.classList.toggle("is-active", !dataTab);
+  els.reefSampleRopeDataTab.classList.toggle("is-active", dataTab);
+  if (dataTab && state.ropeGrid && !state.ropeGrid.state.loaded) void state.ropeGrid.refresh();
 }
 
 async function loadRecords() {
@@ -387,32 +402,23 @@ function measurementDate(row, stage, dateKey) {
   return row[dateKey] || row.measurement_provenance?.[stage]?.date || null;
 }
 
-function measurementTime(row, stage) {
-  return row.measurement_provenance?.[stage]?.time || null;
+function sampleStageHeading([stage, label]) {
+  return `<th class="reef-register-stage-heading" data-stage="${escapeHtml(stage)}">${escapeHtml(label)}</th>`;
 }
 
-function sampleStageHeading(rows, [stage, label, weightKey, dateKey]) {
-  const measured = rows.filter((row) => row[weightKey] !== null && row[weightKey] !== undefined && row[weightKey] !== "");
-  const dates = [...new Set(measured.map((row) => measurementDate(row, stage, dateKey)).filter(Boolean))];
-  const times = [...new Set(measured.map((row) => measurementTime(row, stage)).filter(Boolean).map((time) => String(time).slice(0, 5)))];
-  const missingDates = measured.some((row) => !measurementDate(row, stage, dateKey));
-  const dateLabel = !dates.length ? "—"
-    : dates.length === 1 ? `${formatDate(dates[0])}${missingDates ? " (some undated)" : ""}`
-    : "Multiple dates";
-  const dateTitle = dates.length > 1 ? ` title="${escapeHtml(dates.map(formatDate).join(", "))}"` : "";
-  const timeLabel = times.length === 1 ? times[0] : times.length > 1 ? "Multiple times" : "";
-  return `<th class="reef-register-stage-heading" data-stage="${escapeHtml(stage)}">
-    <span>${escapeHtml(label)}</span>
-    <small${dateTitle}>Date: ${escapeHtml(dateLabel)}</small>
-    ${timeLabel ? `<small>Time: ${escapeHtml(timeLabel)}</small>` : ""}
-  </th>`;
+function sampleStageDateHeading(rows, [stage, , weightKey, dateKey]) {
+  const measured = rows.filter(row => row[weightKey] !== null && row[weightKey] !== undefined && row[weightKey] !== "");
+  const dates = [...new Set(measured.map(row => measurementDate(row, stage, dateKey)).filter(Boolean))];
+  const missing = measured.some(row => !measurementDate(row, stage, dateKey));
+  const label = !dates.length ? "—" : dates.length > 1 ? "Multiple dates" :
+    `${formatDate(dates[0])}${missing ? " (some undated)" : ""}`;
+  const title = dates.length > 1 ? ` title="${escapeHtml(dates.map(formatDate).join(", "))}"` : "";
+  return `<th class="reef-register-date-cell"${title}>${escapeHtml(label)}</th>`;
 }
 
 function sampleStageCell(row, [stage, , weightKey, dateKey]) {
   const date = measurementDate(row, stage, dateKey);
-  const time = measurementTime(row, stage);
-  const dateTime = [date ? formatDate(date) : "", time ? String(time).slice(0, 5) : ""].filter(Boolean).join(" · ");
-  return `<td${dateTime ? ` title="${escapeHtml(dateTime)}"` : ""}>${escapeHtml(displayNumber(row[weightKey]))}</td>`;
+  return `<td${date ? ` title="${escapeHtml(formatDate(date))}"` : ""}>${escapeHtml(displayNumber(row[weightKey]))}</td>`;
 }
 
 function renderSampleRegisterCard(register, code, kindLabel) {
@@ -425,17 +431,21 @@ function renderSampleRegisterCard(register, code, kindLabel) {
   return `<section class="reef-sample-comparison-card" aria-label="${escapeHtml(name)} Sample Rope Register">
     <div class="reef-sample-comparison-head">
       ${kindLabel ? `<span class="reef-record-kind is-sample">${escapeHtml(kindLabel)}</span>` : ""}
-      <h4>${escapeHtml(name)}</h4>
       <p class="field-hint">${escapeHtml(LOCATION_LABELS[register.location] || humanize(register.location))} · ${escapeHtml(humanize(register.structure_type || ""))}</p>
     </div>
     ${!hasMeasurements ? '<p class="reef-sample-empty-note">No rope measurements recorded yet for this site.</p>' : ""}
     <div class="responsive-table-wrap reef-sample-card-table-wrap">
       <table class="management-table admin-data-table reef-sample-detail-table">
-        <thead><tr>
-          <th>Sample Rope</th><th>Species</th><th>Rope Weight (kg)</th>
-          ${SAMPLE_MEASUREMENT_STAGES.map((stage) => sampleStageHeading(rows, stage)).join("")}
-          <th>Previous cycles</th>
-        </tr></thead>
+        <thead>
+          <tr><th rowspan="2">Sample Rope</th><th rowspan="2">Species</th>
+            <th rowspan="2">Rope Weight (kg)</th>
+            ${SAMPLE_MEASUREMENT_STAGES.map(sampleStageHeading).join("")}
+            <th rowspan="2">Previous cycles</th>
+          </tr>
+          <tr class="reef-register-date-row">
+            ${SAMPLE_MEASUREMENT_STAGES.map(stage => sampleStageDateHeading(rows, stage)).join("")}
+          </tr>
+        </thead>
         <tbody>
           ${rows.length ? rows.map((row) => `<tr>
             <td>Rope ${escapeHtml(row.rope_number)}</td>
