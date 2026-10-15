@@ -79,6 +79,36 @@ export function sortRopeData(rows, key, direction = "asc") {
   });
 }
 
+// Compare only combined Rope + Seaweed weights within the SAME rope row.
+// Rope tare, missing measurements and unvarying rows stay uncoloured.
+export const R_AND_S_WEIGHT_KEYS = Object.freeze([
+  "initial_weight_kg", "week_2_kg", "week_4_kg", "week_6_kg"
+]);
+
+export function rowRelativeWeightColours(row) {
+  const values = R_AND_S_WEIGHT_KEYS.map(key => [key, row[key]])
+    .filter(([, value]) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value)))
+    .map(([key, value]) => [key, Number(value)]);
+  if (values.length < 2) return {};
+  const min = Math.min(...values.map(([, value]) => value));
+  const max = Math.max(...values.map(([, value]) => value));
+  if (min === max) return {};
+  return Object.fromEntries(values.map(([key, value]) => {
+    const fraction = (value - min) / (max - min);
+    const hue = Math.round(fraction * 120); // lower pink → yellow → higher green
+    return [key, {
+      css: `background-color:hsl(${hue} 68% 88%);`,
+      label: fraction === 0 ? "Lowest R+S weight in this row" :
+        fraction === 1 ? "Highest R+S weight in this row" : "Intermediate R+S weight in this row"
+    }];
+  }));
+}
+
+export function filterRopeRowsBySites(rows, selectedSiteCodes) {
+  if (selectedSiteCodes === null) return [...rows]; // default: all sites
+  return rows.filter(row => selectedSiteCodes.has(row.site_code));
+}
+
 const safe = value => String(value ?? "").replace(/[&<>"']/g, chr =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[chr]);
 
@@ -97,12 +127,18 @@ export function initializeSampleRopeDataTable({ authClient, root }) {
     search: get("reefSampleRopeDataSearch"),
     columns: get("reefSampleRopeDataColumns"),
     reset: get("resetReefSampleRopeDataColumns"),
+    siteFilter: get("reefSampleRopeSiteFilter"),
+    siteLabel: get("reefSampleRopeSiteFilterLabel"),
+    siteChoices: get("reefSampleRopeSiteChoices"),
+    sitesAll: get("reefSampleRopeSitesAll"),
+    sitesNone: get("reefSampleRopeSitesNone"),
     head: get("reefSampleRopeDataHead"),
     body: get("reefSampleRopeDataBody"),
     status: get("reefSampleRopeDataStatus")
   };
   const state = {
     rows: [], loaded: false, busy: false, visible: new Set(DEFAULT_ROPE_COLUMNS),
+    availableSites: [], selectedSites: null,
     sortKey: "site", direction: "asc"
   };
 
@@ -112,6 +148,16 @@ export function initializeSampleRopeDataTable({ authClient, root }) {
       state.visible = new Set(saved);
     }
   } catch { /* Storage disabled in some private/public browsers. */ }
+
+  try {
+    const savedSites = window.localStorage?.getItem("reefSampleRopeSiteFilterV1");
+    if (savedSites !== null && savedSites !== undefined) {
+      const codes = JSON.parse(savedSites);
+      if (Array.isArray(codes) && codes.every(code => typeof code === "string")) {
+        state.selectedSites = new Set(codes);
+      }
+    }
+  } catch { /* Restricted browser storage should never block viewing records. */ }
 
   const setStatus = (message, error = false) => {
     els.status.textContent = message;
@@ -124,7 +170,7 @@ export function initializeSampleRopeDataTable({ authClient, root }) {
   const render = () => {
     const columns = ROPE_DATA_COLUMNS.filter(col => state.visible.has(col.key));
     const search = els.search.value.trim().toLowerCase();
-    const data = sortRopeData(state.rows.filter(row =>
+    const data = sortRopeData(filterRopeRowsBySites(state.rows, state.selectedSites).filter(row =>
       !search || [row.site, row.site_code, row.species, row.location, row.structure, row.rope_number]
         .some(value => String(value || "").toLowerCase().includes(search))
     ), state.sortKey, state.direction);
@@ -132,16 +178,53 @@ export function initializeSampleRopeDataTable({ authClient, root }) {
       const selected = state.sortKey === col.key;
       return `<th scope="col" aria-sort="${selected ? (state.direction === "asc" ? "ascending" : "descending") : "none"}">
         <button type="button" data-sort-rope="${safe(col.key)}">${safe(col.label)}${selected ? (state.direction === "asc" ? " ↑" : " ↓") : ""}</button>
+        ${col.key === "site" ? '<button type="button" class="reef-rope-site-header-filter" data-open-rope-sites aria-label="Choose sites" title="Select sites">▾</button>' : ""}
       </th>`;
     }).join("");
-    els.body.innerHTML = data.length ? data.map(row => `<tr>${columns.map(col =>
-      `<td data-label="${safe(col.label)}">${safe(display(row, col))}</td>`
-    ).join("")}</tr>`).join("") :
+    els.body.innerHTML = data.length ? data.map(row => {
+      const colours = rowRelativeWeightColours(row);
+      return `<tr>${columns.map(col => {
+        const colour = colours[col.key];
+        const attrs = colour ? ` class="reef-rope-heat-cell" style="${colour.css}" title="${safe(colour.label)}"` : "";
+        return `<td data-label="${safe(col.label)}"${attrs}>${safe(display(row, col))}</td>`;
+      }).join("")}</tr>`;
+    }).join("") :
       `<tr><td class="empty-state" colspan="${columns.length}">${state.busy ? "Loading rope data…" : "No matching rope measurements."}</td></tr>`;
     if (!state.busy && state.loaded) {
-      setStatus(`${data.length} of ${state.rows.length} saved rope records displayed · ${new Set(state.rows.map(row => row.site_code)).size} sites with measurements`);
+      const selectedCount = state.selectedSites === null ? state.availableSites.length : state.selectedSites.size;
+      setStatus(`${data.length} of ${state.rows.length} saved rope records displayed · ${selectedCount} of ${state.availableSites.length} sites selected`);
     }
   };
+  const persistSites = () => {
+    try {
+      if (state.selectedSites === null) window.localStorage?.removeItem("reefSampleRopeSiteFilterV1");
+      else window.localStorage?.setItem("reefSampleRopeSiteFilterV1", JSON.stringify([...state.selectedSites]));
+    } catch { /* No browser persistence required for filtering. */ }
+  };
+  const updateSiteSummary = () => {
+    const total = state.availableSites.length;
+    const selected = state.selectedSites === null ? total : state.selectedSites.size;
+    els.siteLabel.textContent = !total ? "Sites · All" :
+      state.selectedSites === null ? `Sites · All (${total})` :
+        selected === 0 ? "Sites · None" : `Sites · ${selected} of ${total}`;
+  };
+  const renderSiteChoices = () => {
+    els.siteChoices.innerHTML = state.availableSites.length
+      ? state.availableSites.map(site => {
+        const code = site.site_code;
+        const label = mkwiroRaftDisplayLabel(code, site.site_name)
+          || [code, site.site_name ? `(${site.site_name})` : ""].filter(Boolean).join(" ");
+        const checked = state.selectedSites === null || state.selectedSites.has(code);
+        return `<label><input type="checkbox" data-rope-site="${safe(code)}" ${checked ? "checked" : ""}> <span>${safe(label)}</span></label>`;
+      }).join("")
+      : '<span class="field-hint">No active nursery sites available.</span>';
+    updateSiteSummary();
+  };
+  const setSiteSelection = selected => {
+    state.selectedSites = selected;
+    persistSites(); renderSiteChoices(); render();
+  };
+
   const renderChoices = () => {
     els.columns.innerHTML = ROPE_DATA_COLUMNS.map(col =>
       `<label><input type="checkbox" data-rope-column="${safe(col.key)}" ${state.visible.has(col.key) ? "checked" : ""}> ${safe(col.label)}</label>`
@@ -180,6 +263,16 @@ export function initializeSampleRopeDataTable({ authClient, root }) {
         });
       }
       state.rows = flattenActiveRopeRegisters(registers);
+      state.availableSites = sites.filter(site => site.site_code).sort((a,b) =>
+        String(a.site_code).localeCompare(String(b.site_code), undefined, {numeric:true})
+      );
+      if (state.selectedSites !== null) {
+        const valid = new Set(state.availableSites.map(site => site.site_code));
+        state.selectedSites = new Set([...state.selectedSites].filter(code => valid.has(code)));
+        if (state.selectedSites.size === valid.size) state.selectedSites = null;
+        persistSites();
+      }
+      renderSiteChoices();
       state.loaded = true;
       state.busy = false;
       render();
@@ -194,6 +287,18 @@ export function initializeSampleRopeDataTable({ authClient, root }) {
     }
   };
 
+  els.sitesAll.addEventListener("click", () => setSiteSelection(null));
+  els.sitesNone.addEventListener("click", () => setSiteSelection(new Set()));
+  els.siteChoices.addEventListener("change", event => {
+    const input = event.target.closest("[data-rope-site]");
+    if (!input) return;
+    const valid = state.availableSites.map(site => site.site_code);
+    const checked = state.selectedSites === null ? new Set(valid) : new Set(state.selectedSites);
+    if (input.checked) checked.add(input.dataset.ropeSite);
+    else checked.delete(input.dataset.ropeSite);
+    state.selectedSites = checked.size === valid.length ? null : checked;
+    persistSites(); updateSiteSummary(); render();
+  });
   els.reload.addEventListener("click", refresh);
   els.search.addEventListener("input", render);
   els.columns.addEventListener("change", event => {
@@ -205,6 +310,10 @@ export function initializeSampleRopeDataTable({ authClient, root }) {
     try { window.localStorage?.removeItem("reefSampleRopeVisibleColumnsV1"); } catch { /* no storage */ }
   });
   els.head.addEventListener("click", event => {
+    if (event.target.closest("[data-open-rope-sites]")) {
+      els.siteFilter.open = !els.siteFilter.open;
+      return;
+    }
     const button = event.target.closest("[data-sort-rope]");
     if (!button) return;
     const key = button.dataset.sortRope;
@@ -213,6 +322,6 @@ export function initializeSampleRopeDataTable({ authClient, root }) {
     render();
   });
 
-  renderChoices(); render();
-  return { refresh, state, selectColumn };
+  renderChoices(); renderSiteChoices(); render();
+  return { refresh, state, selectColumn, setSiteSelection };
 }
