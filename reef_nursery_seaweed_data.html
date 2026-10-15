@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Nursery - Seaweed Data - Seaweed Harvest</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+  <link rel="stylesheet" href="./assets/css/reef_nursery_wp02.css?v=1">
+  <link rel="stylesheet" href="./assets/css/reef_nursery_wp03.css?v=1">
+  <link rel="stylesheet" href="./assets/css/reef_nursery.css?v=10">
+  <link rel="stylesheet" href="./assets/css/reef_nursery_wp06.css?v=1">
+  <link rel="stylesheet" href="./assets/css/form_foundation.css?v=2">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./favicon.ico" sizes="any">
+  <script type="module" src="./assets/js/pwa_bootstrap.js"></script>
+</head>
+<body class="admin-console-page reef-nursery-page form-record-page" data-auth-pending>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div><p class="eyebrow">Seaweed aggregation</p><h1>Seaweed Harvest</h1></div>
+      <div class="header-actions admin-header-controls"></div>
+    </div>
+  </header>
+  <main class="app-shell admin-shell admin-layout form-record-layout">
+    <aside id="reefNurserySidebar" class="admin-sidebar form-page-sidebar" aria-label="Application menu">
+      <h2>Forms</h2><a href="./reef_nursery.html">Nursery - Training</a>
+    </aside>
+    <section class="admin-content admin-page-section form-page-content">
+      <section class="panel form-record-panel reef-nursery-panel">
+        <div class="section-head compact form-panel-toolbar">
+          <div>
+            <h2>Nursery - Seaweed Data</h2>
+            <p id="reefAccessStatus" class="reef-access-status" aria-live="polite">Opening form…</p>
+          </div>
+          <div class="form-panel-actions">
+            <a id="reefSignInAction" class="secondary-action reef-sign-in-action" href="./login.html?return=reef_nursery_seaweed_data.html" hidden>Sign in</a>
+          </div>
+        </div>
+        <div id="reefAccessGate" class="reef-share-gate-message reef-access-gate" hidden role="alert"></div>
+        <form id="reefSeaweedForm" class="reef-seaweed-form standard-form standard-form-capture-layout" novalidate>
+          <p id="reefSiteCaptureStatus" class="admin-status" aria-live="polite">Loading Seaweed Data Collection…</p>
+        </form>
+      </section>
+    </section>
+  </main>
+  <script type="module" src="./assets/js/reef_nursery_site_capture.js?v=20261015a"></script>
+</body>
+</html>
