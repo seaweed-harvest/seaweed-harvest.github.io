@@ -38,6 +38,8 @@ const state = {
   sampleRegisterSiteCode: null,
   sampleRegisterDirty: false,
   sampleRegisterLoading: false,
+  sampleSavedRows: new Map(),
+  sampleStageEdits: new Set(),
   currentLocation: "",
   saving: false
 };
@@ -552,7 +554,7 @@ async function saveSampleRopeRegister({ siteCode = null, silent = false } = {}) 
   if (state.sampleRegisterLoading) throw new Error("Wait for the Sample Rope Register to finish loading.");
 
   const rows = collectSampleRopeRows();
-  const visit = validatedSampleVisit();
+  const visit = validatedSampleVisit(rows);
   if (!visit) throw new Error("Complete the Sample Rope recording date, recorder and monitoring team.");
   if (!silent) setSampleStatus("Saving…");
   els.reefSampleRopeSave.disabled = true;
@@ -610,43 +612,80 @@ async function handleSampleRopeClick(event) {
   }
 }
 
+const SAMPLE_STAGES = Object.freeze(["initial", "week_2", "week_4", "week_6"]);
+function sampleStageField(stage) {
+  return stage === "initial" ? "initial_weight_kg" : `${stage}_kg`;
+}
+function sampleStageDateField(stage) {
+  return stage === "initial" ? "date_seeded" : `${stage}_date`;
+}
+function stageControl(stage, kind) {
+  return els.reefSampleRopePanel.querySelector(`[data-stage-${kind}="${stage}"]`);
+}
 function collectSampleRopeRows() {
   return [...els.reefSampleRopePanel.querySelectorAll("[data-sample-rope-row]")].map((row) => {
     const value = (field) => row.querySelector(`[data-rope-field="${field}"]`)?.value || "";
-    return {
+    const old = state.sampleSavedRows.get(Number(row.dataset.ropeNumber)) || {};
+    const newRow = {
       rope_number: Number(row.dataset.ropeNumber),
       species: value("species") || null,
-      date_seeded: value("date_seeded") || null,
+      date_seeded: old.date_seeded || null,
       rope_weight_kg: value("rope_weight_kg") || null,
       initial_weight_kg: value("initial_weight_kg") || null,
       week_2_kg: value("week_2_kg") || null,
       week_4_kg: value("week_4_kg") || null,
       week_6_kg: value("week_6_kg") || null
     };
+    for (const stage of SAMPLE_STAGES) {
+      if (!state.sampleStageEdits.has(stage)) continue;
+      // Assign a header date only to ropes that have a measurement at that
+      // stage. Unmeasured ropes and non-edited historical dates are preserved.
+      if (!newRow[sampleStageField(stage)]) continue;
+      newRow[sampleStageDateField(stage)] = stageControl(stage, "date")?.value || null;
+    }
+    return newRow;
   });
 }
 
 function applySampleRegister(register) {
-  const rows = new Map((Array.isArray(register?.rows) ? register.rows : []).map((row) => [Number(row.rope_number), row]));
+  state.sampleSavedRows = new Map((Array.isArray(register?.rows) ? register.rows : []).map((row) => [Number(row.rope_number), row]));
+  state.sampleStageEdits.clear();
   els.reefSampleRopePanel.querySelectorAll("[data-sample-rope-row]").forEach((row) => {
     const ropeNumber = Number(row.dataset.ropeNumber);
-    const data = rows.get(ropeNumber) || {};
-    for (const field of ["species", "date_seeded", "rope_weight_kg", "initial_weight_kg", "week_2_kg", "week_4_kg", "week_6_kg"]) {
+    const data = state.sampleSavedRows.get(ropeNumber) || {};
+    for (const field of ["species", "rope_weight_kg", "initial_weight_kg", "week_2_kg", "week_4_kg", "week_6_kg"]) {
       const control = row.querySelector(`[data-rope-field="${field}"]`);
       if (control) control.value = data[field] ?? "";
     }
-    for (const stage of ["initial", "week_2", "week_4", "week_6"]) {
+    for (const stage of SAMPLE_STAGES) {
       const meta = data.measurement_provenance?.[stage];
       const label = row.querySelector(`[data-rope-meta="${stage}"]`);
-      if (label) label.textContent = meta ? `${meta.date} · ${meta.recorder} (${meta.team === "other" ? meta.other_team : meta.team})` : "";
+      if (label) label.textContent = meta ? `${meta.date || ""} · ${meta.recorder || ""} (${meta.team === "other" ? meta.other_team : meta.team || ""})` : "";
     }
     row.dataset.cycleNumber = data.cycle_number ?? "";
     row.dataset.historyCount = data.history_count ?? 0;
   });
+  for (const stage of SAMPLE_STAGES) {
+    const measured = [...state.sampleSavedRows.values()].filter(row => row[sampleStageField(stage)] != null);
+    const dates = [...new Set(measured.map(row => row[sampleStageDateField(stage)] || row.measurement_provenance?.[stage]?.date).filter(Boolean))];
+    const times = [...new Set(measured.map(row => row.measurement_provenance?.[stage]?.time || "").filter(Boolean))];
+    const date = stageControl(stage, "date");
+    const time = stageControl(stage, "time");
+    const warning = els.reefSampleRopePanel.querySelector(`[data-stage-mixed="${stage}"]`);
+    if (date) date.value = dates.length === 1 ? dates[0] : "";
+    if (time) time.value = times.length === 1 ? String(times[0]).slice(0,5) : "";
+    if (warning) {
+      warning.textContent = dates.length > 1 ? "Different saved dates; enter a date only to replace them." : "";
+      warning.hidden = dates.length <= 1;
+    }
+  }
 }
 
 function markSampleRegisterDirty(event) {
-  if (!event.target.closest("[data-sample-rope-row]")) return;
+  const field = event.target.closest("[data-stage-date], [data-stage-time]");
+  if (field) {
+    state.sampleStageEdits.add(field.dataset.stageDate || field.dataset.stageTime);
+  } else if (!event.target.closest("[data-sample-rope-row]")) return;
   state.sampleRegisterDirty = true;
   setSampleStatus("Unsaved changes");
 }
@@ -1059,16 +1098,29 @@ function siteLabel(site) {
   return `${site.site_code} (${site.site_name})`;
 }
 
-function validatedSampleVisit() {
-  const date = els.reefSampleVisitDate.value;
+function validatedSampleVisit(rows = collectSampleRopeRows()) {
   const recorder = els.reefSampleVisitRecorder.value.trim();
   const team = els.reefSampleVisitTeam.value;
   const otherTeam = els.reefSampleVisitOtherTeam.value.trim();
-  if (!date || !recorder || !team || (team === "other" && !otherTeam)) {
-    setSampleStatus("Recording date, recorder and monitoring team are required for changed rope measurements.", "error");
+  if (!recorder || !team || (team === "other" && !otherTeam)) {
+    setSampleStatus("Recorder and monitoring team are required to save measurements.", "error");
     return null;
   }
-  return { date, time: els.reefSampleVisitTime.value || null, recorder, team, other_team: team === "other" ? otherTeam : null };
+  const stage_dates = {};
+  for (const stage of SAMPLE_STAGES) {
+    const date = stageControl(stage, "date")?.value || null;
+    const time = stageControl(stage, "time")?.value || null;
+    const edited = state.sampleStageEdits.has(stage);
+    const weightField = sampleStageField(stage);
+    const changedWeight = rows.some(row => String(row[weightField] || "") !== String(state.sampleSavedRows.get(row.rope_number)?.[weightField] || ""));
+    if ((edited || changedWeight) && !date && rows.some(row => row[weightField])) {
+      setSampleStatus(`Enter a date above ${stage === "initial" ? "Initial Weight" : stage.replace("_", " ")} before saving.`, "error");
+      return null;
+    }
+    stage_dates[stage] = { date, time, edited };
+  }
+  const date = SAMPLE_STAGES.map(stage => stage_dates[stage].date).find(Boolean) || kenyaNow().date;
+  return { date, time: null, recorder, team, other_team: team === "other" ? otherTeam : null, stage_dates };
 }
 
 function syncVisitOtherTeam() {
