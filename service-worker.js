@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v159-reef-history-all";
+const CACHE_VERSION = "seaweed-harvest-collection-v160-rope-site-heatmap";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
