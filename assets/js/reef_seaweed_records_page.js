@@ -5,7 +5,7 @@ import {
 } from "./auth_client.js?v=25";
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
 
-import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=1";
+import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=2";
 
 const PAGE_SIZE = 50;
 const LOCATION_LABELS = Object.freeze({
