@@ -44,7 +44,7 @@ assert(markup.includes('id="reefSampleRopeSitesNone"'));
 assert(markup.includes("reef-rope-heat-legend"));
 assert(markup.includes('reef-rope-site-filter-menu'));
 assert(markup.includes("Rope Weight excluded"));
-assert(markup.includes('reef_seaweed_records_page.js?v=8'));
+assert(markup.includes('reef_seaweed_records_page.js?v=9'));
 
 function makeControl() {
   const handlers={};
