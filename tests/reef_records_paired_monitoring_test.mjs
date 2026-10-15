@@ -10,8 +10,7 @@ const { mkwiroRaftDisplayLabel } = await import(
   "data:text/javascript;base64," + Buffer.from(aliases).toString("base64")
 );
 const calls = [];
-const docInputs = ["MK-R2","MK-SF2/R2","MK-R3","MK-SF3/R3","MK-R1","MK-SF1/R1"]
-  .map(site => ({ dataset: { selectReefSite: site }, checked:false }));
+const docInputs = [];
 const content = { innerHTML:"", replaceChildren() {this.innerHTML="";}, addEventListener(){} };
 const detail = { hidden:true };
 const heading = { textContent:"" };
@@ -53,9 +52,9 @@ const state = vm.runInContext("state",context);
 const wait = () => new Promise(resolve=>setImmediate(resolve));
 
 assert(!markup.includes('data-open-reef-pair='), "Fixed paired buttons should be replaced");
-for(const code of ["MK-R2","MK-SF2/R2","MK-R3","MK-SF3/R3","MK-R1","MK-SF1/R1"]) {
-  assert(markup.includes('data-select-reef-site="'+code+'"'),"Independent checkbox for "+code);
-}
+assert(!markup.includes("Group A"), "Fixed Group A/B/C options are removed");
+assert(!markup.includes('data-select-reef-site='), "Only records-list selections remain");
+assert(markup.includes('id="reefSampleRopeDataTab"'), "Sample Rope Data tab exists");
 assert(markup.includes("<th scope=\"col\">Show</th>"));
 assert(markup.includes("Clear selection"));
 assert.match(entry,/reef-rope-rs-label[^>]*>R\+S/);
@@ -69,9 +68,11 @@ assert.equal(state.selectedRecords.size,1);
 assert.deepEqual(calls,[["ag_reef_sample_rope_register","MK-R2"]]);
 assert.match(content.innerHTML,/Raft A/);
 assert.doesNotMatch(content.innerHTML,/Farm A/);
-assert.match(content.innerHTML,/Date: 29 Sept 2026/);
-assert.match(content.innerHTML,/Time: 11:30/);
-assert.equal(docInputs[0].checked,true);
+assert.match(content.innerHTML,/29 Sept 2026/);
+assert.match(content.innerHTML,/reef-register-date-row/);
+assert.equal((content.innerHTML.match(/<h4>MK-R2 \(Cascadia Prototype\) \| Raft A<\/h4>/g) || []).length,1,"No duplicated record heading");
+assert(!content.innerHTML.includes("Time: 11:30"), "Optional recording time not displayed");
+
 
 // Adding Farm A retains Raft A rather than replacing it.
 context.toggleSelectedRecord("sample_rope_register","MK-SF2/R2","Farm A",true);
@@ -81,13 +82,13 @@ assert.deepEqual(calls,[["ag_reef_sample_rope_register","MK-R2"],["ag_reef_sampl
 assert.match(content.innerHTML,/Raft A/);
 assert.match(content.innerHTML,/Farm A/);
 assert.match(content.innerHTML,/No rope measurements recorded yet/);
-assert.equal(docInputs[1].checked,true);
+
 
 // Deselecting the raft retains the farm card and vice versa.
 context.toggleSelectedRecord("sample_rope_register","MK-R2","Raft A",false);
 assert.equal(state.selectedRecords.size,1);
-assert.equal(docInputs[0].checked,false);
-assert.equal(docInputs[1].checked,true);
+
+
 assert.doesNotMatch(content.innerHTML,/Cascadia Prototype/);
 assert.match(content.innerHTML,/Shore Farm 2/);
 
@@ -117,7 +118,7 @@ assert.equal(state.selectedRecords.size,1);
 context.closeDetail();
 assert.equal(state.selectedRecords.size,0);
 assert.equal(detail.hidden,true);
-assert.equal(docInputs[1].checked,false);
+
 
 // Errors on one site must not suppress other selected records.
 context.toggleSelectedRecord("sample_rope_register","MK-R3","Raft B",true);
@@ -127,4 +128,6 @@ assert.match(content.innerHTML,/Site unavailable/);
 assert.match(content.innerHTML,/Rectangular Raft/);
 assert.equal(state.selectedRecords.size,2);
 
-console.log("Independent one/multi record selection, six site checkboxes and R+S labels verified.");
+console.log("Individual/multi record selection, stacked date-row tables and R+S labels verified.");
+
+await import("./reef_rope_data_grid_test.mjs");
