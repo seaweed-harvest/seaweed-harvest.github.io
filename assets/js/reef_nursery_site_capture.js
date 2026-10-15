@@ -240,10 +240,8 @@ function renderForm(form) {
           <div class="reef-sample-rope-table-wrap">
             <table class="reef-sample-rope-table">
               <thead>
-                <tr><th colspan="9" class="reef-sample-visit-header">
+                <tr><th colspan="8" class="reef-sample-visit-header">
                   <div class="reef-sample-visit-fields">
-                    <label>Recording date <input id="reefSampleVisitDate" type="date" required></label>
-                    <label>Time (optional) <input id="reefSampleVisitTime" type="time"></label>
                     <label>Recorder <input id="reefSampleVisitRecorder" type="text" maxlength="160" autocomplete="name" required></label>
                     <label>Monitoring Team
                       <select id="reefSampleVisitTeam" required>
@@ -256,18 +254,18 @@ function renderForm(form) {
                       <input id="reefSampleVisitOtherTeam" type="text" maxlength="160">
                     </label>
                   </div>
-                  <small class="reef-help">These details apply only to measurements changed in this save. Earlier weeks keep their original recorder and date.</small>
+                  <small class="reef-help">Each weight column has its own date and optional time. Dates can be backfilled independently; unchanged weeks keep their previous details.</small>
                 </th></tr>
                 <tr>
-                  <th rowspan="2">Sample Rope</th>
-                  <th rowspan="2">Species</th>
-                  <th rowspan="2">Date Seeded</th>
-                  <th rowspan="2">Rope Weight (kg)</th>
-                  <th rowspan="2">Initial Weight<br>(seeded rope) (kg)</th>
-                  <th colspan="3">Current Weight (kg)</th>
-                  <th rowspan="2"></th>
+                  <th>Sample Rope</th>
+                  <th>Species</th>
+                  <th>Rope Weight (kg)</th>
+                  ${sampleStageHeaderMarkup("initial", "Initial Weight (kg)")}
+                  ${sampleStageHeaderMarkup("week_2", "Wk2 (kg)")}
+                  ${sampleStageHeaderMarkup("week_4", "Wk4 (kg)")}
+                  ${sampleStageHeaderMarkup("week_6", "Wk6 (kg)")}
+                  <th></th>
                 </tr>
-                <tr><th>Wk2</th><th>Wk4</th><th>Wk6</th></tr>
               </thead>
               <tbody>${SAMPLE_ROPE_NUMBERS.map(sampleRopeRowMarkup).join("")}</tbody>
             </table>
@@ -382,7 +380,7 @@ function cacheElements() {
     "reefSiteCaptureRecorder", "reefSiteCaptureTeam", "reefSiteCaptureOtherTeamField", "reefSiteCaptureOtherTeam",
     "reefSiteCaptureLocation", "reefSiteCaptureSite", "reefSiteCaptureWorkspace", "reefSiteCaptureSiteHeading",
     "reefSiteCaptureTab", "reefSampleRopeTab", "reefSiteCapturePanel", "reefSampleRopePanel",
-    "reefSiteCaptureDetails", "reefSiteCaptureActions", "reefSampleVisitDate", "reefSampleVisitTime",
+    "reefSiteCaptureDetails", "reefSiteCaptureActions",
     "reefSampleVisitRecorder", "reefSampleVisitTeam", "reefSampleVisitOtherTeamField", "reefSampleVisitOtherTeam",
     "reefSiteCaptureSpecies", "reefSiteCaptureLines", "reefSiteCaptureSeedWeight", "reefSiteCaptureSeedUnit",
     "reefSiteCaptureSeedPerLine", "reefSiteCaptureHarvestWeight", "reefSiteCaptureHarvestUnit", "reefSiteCaptureHarvestPerLine",
@@ -823,8 +821,6 @@ function initializeNewCapture({ preservePeople = false, useStoredPeople = false 
   const now = kenyaNow();
   els.reefSiteCaptureRecordNumber.textContent = "New record";
   els.reefSiteCaptureDate.value = now.date;
-  els.reefSampleVisitDate.value = now.date;
-  els.reefSampleVisitTime.value = "";
   els.reefSampleVisitRecorder.value = people.recorder || "";
   els.reefSampleVisitTeam.value = people.team || "";
   els.reefSampleVisitOtherTeam.value = people.otherTeam || "";
@@ -1081,13 +1077,21 @@ function syncVisitOtherTeam() {
   els.reefSampleVisitOtherTeam.required = other;
 }
 
+function sampleStageHeaderMarkup(stage, label) {
+  return `<th class="reef-stage-date-header" data-stage-header="${stage}">
+    ${label}
+    <label>Date <input data-stage-date="${stage}" type="date" aria-label="${label} date"></label>
+    <label>Time (optional) <input data-stage-time="${stage}" type="time" aria-label="${label} optional time"></label>
+    <small class="reef-stage-mixed" data-stage-mixed="${stage}" hidden></small>
+  </th>`;
+}
+
 function sampleRopeRowMarkup(ropeNumber) {
   const label = `Rope ${ropeNumber}`;
   return `
     <tr data-sample-rope-row data-rope-number="${ropeNumber}">
       <th scope="row">${label}</th>
       <td><select data-rope-field="species" aria-label="${label} species"><option value="">Select</option><option value="spinosum">Spinosum</option><option value="cottonii">Cottonii</option></select></td>
-      <td><input data-rope-field="date_seeded" type="date" aria-label="${label} date seeded"></td>
       <td><input data-rope-field="rope_weight_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} rope weight kg"></td>
       <td><input data-rope-field="initial_weight_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} initial seeded weight kg"><small data-rope-meta="initial"></small></td>
       <td><input data-rope-field="week_2_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} week 2 weight kg"><small data-rope-meta="week_2"></small></td>
@@ -1116,6 +1120,10 @@ function productionStyles() {
     .reef-site-mode-tabs { margin: 0 0 0.85rem; }
     .reef-site-mode-tabs .standard-tab { font-weight: 700; }
     .reef-sample-visit-header { text-align: left !important; }
+    .reef-stage-date-header { min-width:155px; vertical-align:top; }
+    .reef-stage-date-header label { display:block; text-align:left; font-size:0.68rem; font-weight:500; margin-top:0.35rem; }
+    .reef-stage-date-header input { display:block; width:100%; min-width:122px; margin-top:0.12rem; }
+    .reef-stage-mixed { display:block; font-size:0.65rem; margin-top:0.15rem; color:#956a31; font-weight:500; }
     .reef-sample-visit-fields { display:flex; flex-wrap:wrap; align-items:end; gap:0.65rem; margin-bottom:0.3rem; }
     .reef-sample-visit-fields label { min-width:130px; flex:1 1 150px; text-align:left; font-weight:600; font-size:0.77rem; }
     .reef-sample-visit-fields input, .reef-sample-visit-fields select { display:block; width:100%; box-sizing:border-box; margin-top:0.25rem; }
