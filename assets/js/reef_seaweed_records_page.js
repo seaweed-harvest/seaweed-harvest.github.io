@@ -5,7 +5,7 @@ import {
 } from "./auth_client.js?v=25";
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
 
-import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=2";
+import { mkwiroRaftDisplayLabel, pairedMkwiroSites } from "./reef_mkwiro_raft_labels.js?v=3";
 
 const PAGE_SIZE = 50;
 const LOCATION_LABELS = Object.freeze({
@@ -73,6 +73,7 @@ function cacheElements() {
     "reefSeaweedRecordsSidebar",
     "reloadReefSeaweedRecords",
     "reefSeaweedRecordsSearch",
+    "reefSeaweedPairShortcuts",
     "searchReefSeaweedRecords",
     "clearReefSeaweedRecordsSearch",
     "reefSeaweedRecordRows",
@@ -116,6 +117,11 @@ function bindEvents() {
     const button = event.target.closest("[data-open-reef-seaweed-record]");
     if (!button) return;
     void openRecord(button.dataset.kind, button.dataset.key, button.dataset.number);
+  });
+  els.reefSeaweedPairShortcuts.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-open-reef-pair]");
+    if (!button) return;
+    void openRecord("sample_rope_register", button.dataset.openReefPair, "Mkwiro monitoring pair");
   });
   els.closeReefSeaweedRecordDetail.addEventListener("click", closeDetail);
 }
@@ -292,50 +298,114 @@ async function openSiteCapture(captureId) {
 }
 
 async function openSampleRegister(siteCode) {
-  const { data, error } = await authClient.rpc("ag_reef_sample_rope_register", {
-    p_site_code: siteCode
-  });
-  if (error) throw error;
-  const register = data || {};
-  const rows = Array.isArray(register.rows) ? register.rows : [];
-  els.reefSeaweedRecordDetailTitle.textContent = `${mkwiroRaftDisplayLabel(register.site_code || siteCode, register.site_name) || register.site_code || siteCode} Sample Rope Register`;
+  const pair = pairedMkwiroSites(siteCode);
+  const codes = pair ? [pair.raftCode, pair.farmCode] : [siteCode];
+
+  // Treat related sites as independent, read-only registers. A failed
+  // secondary read must not hide the successfully loaded primary one.
+  const results = await Promise.allSettled(codes.map(async (code) => {
+    const { data, error } = await authClient.rpc("ag_reef_sample_rope_register", {
+      p_site_code: code
+    });
+    if (error) throw error;
+    return data || {};
+  }));
+  if (results.every((result) => result.status === "rejected")) {
+    throw results.find((result) => result.status === "rejected").reason;
+  }
+
+  els.reefSeaweedRecordDetailTitle.textContent = pair
+    ? `Mkwiro · Raft ${pair.group} and Farm ${pair.group}`
+    : `${siteCode} Sample Rope Register`;
+
   els.reefSeaweedRecordDetailContent.innerHTML = `
-    <div class="reef-detail-grid">
-      ${detailItem("Location", LOCATION_LABELS[register.location] || humanize(register.location))}
-      ${detailItem("Site", mkwiroRaftDisplayLabel(register.site_code, register.site_name) || [register.site_code, register.site_name].filter(Boolean).join(" - "))}
-      ${detailItem("Structure", register.structure_type ? humanize(register.structure_type) : "-")}
+    ${pair ? '<p class="field-hint reef-pair-description">Offshore raft and shore farm are shown together. Dates above each measurement column reflect the records for that site.</p>' : ""}
+    <div class="reef-sample-pair-grid${pair ? " is-paired" : ""}">
+      ${codes.map((code, index) => {
+        const result = results[index];
+        if (result.status === "rejected") {
+          return `<section class="reef-sample-comparison-card">
+            <h4>${escapeHtml(code)}</h4>
+            <p class="admin-status" data-status="error">Unable to load this site's register. ${escapeHtml(result.reason?.message || "Please retry.")}</p>
+          </section>`;
+        }
+        return renderSampleRegisterCard(result.value, code, pair ? (index === 0 ? "Offshore raft" : "Shore farm") : null);
+      }).join("")}
+    </div>`;
+}
+
+const SAMPLE_MEASUREMENT_STAGES = Object.freeze([
+  ["initial", "Initial Weight (kg)", "initial_weight_kg", "date_seeded"],
+  ["week_2", "Wk2", "week_2_kg", "week_2_date"],
+  ["week_4", "Wk4", "week_4_kg", "week_4_date"],
+  ["week_6", "Wk6", "week_6_kg", "week_6_date"]
+]);
+
+function measurementDate(row, stage, dateKey) {
+  return row[dateKey] || row.measurement_provenance?.[stage]?.date || null;
+}
+
+function measurementTime(row, stage) {
+  return row.measurement_provenance?.[stage]?.time || null;
+}
+
+function sampleStageHeading(rows, [stage, label, weightKey, dateKey]) {
+  const measured = rows.filter((row) => row[weightKey] !== null && row[weightKey] !== undefined && row[weightKey] !== "");
+  const dates = [...new Set(measured.map((row) => measurementDate(row, stage, dateKey)).filter(Boolean))];
+  const times = [...new Set(measured.map((row) => measurementTime(row, stage)).filter(Boolean).map((time) => String(time).slice(0, 5)))];
+  const missingDates = measured.some((row) => !measurementDate(row, stage, dateKey));
+  const dateLabel = !dates.length ? "—"
+    : dates.length === 1 ? `${formatDate(dates[0])}${missingDates ? " (some undated)" : ""}`
+    : "Multiple dates";
+  const dateTitle = dates.length > 1 ? ` title="${escapeHtml(dates.map(formatDate).join(", "))}"` : "";
+  const timeLabel = times.length === 1 ? times[0] : times.length > 1 ? "Multiple times" : "";
+  return `<th class="reef-register-stage-heading" data-stage="${escapeHtml(stage)}">
+    <span>${escapeHtml(label)}</span>
+    <small${dateTitle}>Date: ${escapeHtml(dateLabel)}</small>
+    ${timeLabel ? `<small>Time: ${escapeHtml(timeLabel)}</small>` : ""}
+  </th>`;
+}
+
+function sampleStageCell(row, [stage, , weightKey, dateKey]) {
+  const date = measurementDate(row, stage, dateKey);
+  const time = measurementTime(row, stage);
+  const dateTime = [date ? formatDate(date) : "", time ? String(time).slice(0, 5) : ""].filter(Boolean).join(" · ");
+  return `<td${dateTime ? ` title="${escapeHtml(dateTime)}"` : ""}>${escapeHtml(displayNumber(row[weightKey]))}</td>`;
+}
+
+function renderSampleRegisterCard(register, code, kindLabel) {
+  const rows = Array.isArray(register.rows) ? register.rows : [];
+  const name = mkwiroRaftDisplayLabel(register.site_code || code, register.site_name)
+    || [register.site_code || code, register.site_name].filter(Boolean).join(" - ");
+  const hasMeasurements = rows.some((row) =>
+    SAMPLE_MEASUREMENT_STAGES.some(([, , field]) => row[field] !== null && row[field] !== undefined && row[field] !== "")
+  );
+  return `<section class="reef-sample-comparison-card" aria-label="${escapeHtml(name)} Sample Rope Register">
+    <div class="reef-sample-comparison-head">
+      ${kindLabel ? `<span class="reef-record-kind is-sample">${escapeHtml(kindLabel)}</span>` : ""}
+      <h4>${escapeHtml(name)}</h4>
+      <p class="field-hint">${escapeHtml(LOCATION_LABELS[register.location] || humanize(register.location))} · ${escapeHtml(humanize(register.structure_type || ""))}</p>
     </div>
-    <div class="responsive-table-wrap">
+    ${!hasMeasurements ? '<p class="reef-sample-empty-note">No rope measurements recorded yet for this site.</p>' : ""}
+    <div class="responsive-table-wrap reef-sample-card-table-wrap">
       <table class="management-table admin-data-table reef-sample-detail-table">
-        <thead>
-          <tr>
-            <th>Sample Rope</th>
-            <th>Species</th>
-            <th>Date Seeded</th>
-            <th>Rope Weight (kg)</th>
-            <th>Initial Weight (kg)</th>
-            <th>Wk2</th>
-            <th>Wk4</th>
-            <th>Wk6</th>
-            <th>Previous cycles</th>
-          </tr>
-        </thead>
+        <thead><tr>
+          <th>Sample Rope</th><th>Species</th><th>Rope Weight (kg)</th>
+          ${SAMPLE_MEASUREMENT_STAGES.map((stage) => sampleStageHeading(rows, stage)).join("")}
+          <th>Previous cycles</th>
+        </tr></thead>
         <tbody>
-          ${rows.map((row) => `
-            <tr>
-              <td>Rope ${escapeHtml(row.rope_number)}</td>
-              <td>${escapeHtml(row.species ? humanize(row.species) : "-")}</td>
-              <td>${escapeHtml(formatDate(row.date_seeded))}</td>
-              <td>${escapeHtml(displayNumber(row.rope_weight_kg))}</td>
-              <td>${escapeHtml(displayNumber(row.initial_weight_kg))}</td>
-              <td>${escapeHtml(displayNumber(row.week_2_kg))}</td>
-              <td>${escapeHtml(displayNumber(row.week_4_kg))}</td>
-              <td>${escapeHtml(displayNumber(row.week_6_kg))}</td>
-              <td>${escapeHtml(String(row.history_count || 0))}</td>
-            </tr>`).join("")}
+          ${rows.length ? rows.map((row) => `<tr>
+            <td>Rope ${escapeHtml(row.rope_number)}</td>
+            <td>${escapeHtml(row.species ? humanize(row.species) : "-")}</td>
+            <td>${escapeHtml(displayNumber(row.rope_weight_kg))}</td>
+            ${SAMPLE_MEASUREMENT_STAGES.map((stage) => sampleStageCell(row, stage)).join("")}
+            <td>${escapeHtml(String(row.history_count || 0))}</td>
+          </tr>`).join("") : '<tr><td colspan="8" class="empty-state">No sample ropes available.</td></tr>'}
         </tbody>
       </table>
-    </div>`;
+    </div>
+  </section>`;
 }
 
 async function deleteRecord(kind, key, recordNumber) {

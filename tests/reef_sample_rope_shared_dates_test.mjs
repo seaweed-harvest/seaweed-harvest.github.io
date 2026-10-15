@@ -174,5 +174,6 @@ assert.equal(mkwiroRaftDisplayLabel("TB-R1", "Prototype"), null);
 assert.match(source, /mkwiroRaftDisplayLabel\(site\.site_code, site\.site_name\)/);
 const recordsSource = fs.readFileSync("assets/js/reef_seaweed_records_page.js", "utf8");
 assert.match(recordsSource, /mkwiroRaftDisplayLabel\(record\.site_code, record\.site_name\)/);
-assert.match(recordsSource, /mkwiroRaftDisplayLabel\(register\.site_code, register\.site_name\)/);
+assert.match(recordsSource, /mkwiroRaftDisplayLabel\(register\.site_code \|\| code, register\.site_name\)/);
 console.log("Mkwiro raft and shore-farm C/A/B labels verified in form and records.");
+await import("./reef_records_paired_monitoring_test.mjs");

@@ -16,3 +16,20 @@ export function mkwiroRaftDisplayLabel(siteCode, siteName = "") {
   const name = String(siteName || "").trim() || item.siteName;
   return `${code} (${name}) | ${item.raftName}`;
 }
+
+const MKWIRO_MONITORING_PAIRS = Object.freeze({
+  "A": Object.freeze({ raftCode: "MK-R2", farmCode: "MK-SF2/R2" }),
+  "B": Object.freeze({ raftCode: "MK-R3", farmCode: "MK-SF3/R3" }),
+  "C": Object.freeze({ raftCode: "MK-R1", farmCode: "MK-SF1/R1" })
+});
+
+// Returns both related sites from either site code; no database keys change.
+export function pairedMkwiroSites(siteCode) {
+  const code = String(siteCode || "").trim().toUpperCase();
+  for (const [group, sites] of Object.entries(MKWIRO_MONITORING_PAIRS)) {
+    if (code === sites.raftCode || code === sites.farmCode) {
+      return { group, raftCode: sites.raftCode, farmCode: sites.farmCode };
+    }
+  }
+  return null;
+}
