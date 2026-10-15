@@ -32,7 +32,7 @@ if (!reviewMode) {
   // The standalone Training entry no longer loads Seaweed math, which used
   // to initialise the read-only unified history as a side effect.
   try {
-    await import("./reef_nursery_records_unified.js?v=4");
+    await import("./reef_nursery_records_unified.js?v=5");
   } catch (error) {
     const placeholder = document.querySelector("#reefRecordsPanel .reef-embedded-records");
     if (placeholder) {
