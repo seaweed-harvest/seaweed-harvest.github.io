@@ -26,7 +26,7 @@ export function setupAppNavigation(options = {}) {
     { label: "Nursery - Seaweed Data", href: "./reef_nursery_seaweed_data.html" }
   ] : formLinks(profile, currentFile);
   const records = publicReefOnly ? [
-    { label: "Nursery - Training", href: "./reef_nursery.html?tab=records&record_type=training" },
+    { label: "Nursery - Training", href: "./reef_nursery.html?tab=records" },
     { label: "Nursery - Seaweed", href: "./reef_seaweed_records.html" }
   ] : recordLinks(profile, currentFile);
 
@@ -440,7 +440,7 @@ function recordLinks(profile, currentFile = "") {
     { label: "Record Ledgers", href: "./records.html", permission: "can_view_data", capabilityAny: ["form_site_water_samples", "form_intake_collection", "form_stock_record", "form_process_record"], className: "app-nav-desktop-only" },
     ...(isProtectedOwner(profile) ? [{ label: "Dryer Table Records", href: "./dryer_table_records.html", permission: "can_view_data", requiredAggregator: "COSME", capability: "form_dryer_table" }] : []),
     ...(cosmeRecords ? [
-      { label: "Nursery - Training", href: "./reef_nursery.html?tab=records&record_type=training", ...nurseryRecordAccess },
+      { label: "Nursery - Training", href: "./reef_nursery.html?tab=records", ...nurseryRecordAccess },
       { label: "Nursery - Seaweed", href: "./reef_seaweed_records.html", ...nurseryRecordAccess },
       { label: "Photos", href: "./photos.html", ...nurseryRecordAccess }
     ] : [
