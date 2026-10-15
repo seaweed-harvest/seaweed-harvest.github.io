@@ -2,95 +2,129 @@ import fs from "node:fs";
 import vm from "node:vm";
 import assert from "node:assert/strict";
 
-const script = fs.readFileSync("assets/js/reef_seaweed_records_page.js", "utf8");
-const html = fs.readFileSync("reef_seaweed_records.html", "utf8");
-const labels = fs.readFileSync("assets/js/reef_mkwiro_raft_labels.js", "utf8");
-const { pairedMkwiroSites, mkwiroRaftDisplayLabel } = await import(
-  "data:text/javascript;base64," + Buffer.from(labels).toString("base64")
+const raw = fs.readFileSync("assets/js/reef_seaweed_records_page.js", "utf8");
+const markup = fs.readFileSync("reef_seaweed_records.html", "utf8");
+const entry = fs.readFileSync("assets/js/reef_nursery_site_capture.js", "utf8");
+const aliases = fs.readFileSync("assets/js/reef_mkwiro_raft_labels.js", "utf8");
+const { mkwiroRaftDisplayLabel } = await import(
+  "data:text/javascript;base64," + Buffer.from(aliases).toString("base64")
 );
-const escapeHtml = (value) => String(value ?? "").replace(/[&<>'"]/g, character =>
-  ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"})[character]);
-const detail = { innerHTML: "" };
-const heading = { textContent: "" };
 const calls = [];
-const data = {
-  "MK-R2": {
-    site_code: "MK-R2", site_name: "Cascadia Prototype", location: "mkwiro", structure_type: "raft",
-    rows: [
-      { rope_number: 1, species: "spinosum", rope_weight_kg: 0.188, initial_weight_kg: 1.56,
-        date_seeded: "2026-09-29", week_2_kg: 2.33, week_2_date: "2026-10-13",
-        measurement_provenance: { week_2: { date: "2026-10-13", time: "11:30" } } },
-      { rope_number: 2, species: "spinosum", rope_weight_kg: 0.188, initial_weight_kg: 1.68,
-        date_seeded: "2026-09-29", week_2_kg: 2.4, week_2_date: "2026-10-13" }
-    ]
-  },
-  "MK-SF2/R2": {
-    site_code: "MK-SF2/R2", site_name: "Shore Farm 2", location: "mkwiro", structure_type: "shore_farm",
-    rows: [{ rope_number: 1, initial_weight_kg: null, week_2_kg: null, week_4_kg: null, week_6_kg: null }]
-  },
-  "MK-R1": { site_code: "MK-R1", site_name: "Rectangular Raft", rows: [] },
-  "MK-SF1/R1": { site_code: "MK-SF1/R1", site_name: "Shore Farm 1", rows: [] },
-  "MK-R3": { site_code: "MK-R3", site_name: "LM / PIK Raft", rows: [] },
-  "MK-SF3/R3": { site_code: "MK-SF3/R3", site_name: "Shore Farm 3", rows: [] }
+const docInputs = ["MK-R2","MK-SF2/R2","MK-R3","MK-SF3/R3","MK-R1","MK-SF1/R1"]
+  .map(site => ({ dataset: { selectReefSite: site }, checked:false }));
+const content = { innerHTML:"", replaceChildren() {this.innerHTML="";}, addEventListener(){} };
+const detail = { hidden:true };
+const heading = { textContent:"" };
+const status = {textContent:"",dataset:{}};
+const sites = {
+  "MK-R2": {site_code:"MK-R2",site_name:"Cascadia Prototype",location:"mkwiro",structure_type:"raft",rows:[
+    {rope_number:1,species:"spinosum",rope_weight_kg:0.188,initial_weight_kg:1.56,date_seeded:"2026-09-29",week_2_kg:2.33,week_2_date:"2026-10-13",measurement_provenance:{week_2:{date:"2026-10-13",time:"11:30"}}}
+  ]},
+  "MK-SF2/R2": {site_code:"MK-SF2/R2",site_name:"Shore Farm 2",location:"mkwiro",structure_type:"shore_farm",rows:[]},
+  "MK-R1": {site_code:"MK-R1",site_name:"Rectangular Raft",location:"mkwiro",structure_type:"raft",rows:[]},
+  "MK-SF1/R1": {site_code:"MK-SF1/R1",site_name:"Shore Farm 1",location:"mkwiro",structure_type:"shore_farm",rows:[]}
 };
 const context = {
-  authClient: { rpc: async (method, args) => {
-    assert.equal(method, "ag_reef_sample_rope_register");
-    calls.push(args.p_site_code);
-    return data[args.p_site_code] ? { data: data[args.p_site_code], error: null } :
-      { data: null, error: new Error("Unknown site") };
-  } },
-  els: { reefSeaweedRecordDetailContent: detail, reefSeaweedRecordDetailTitle: heading },
-  pairedMkwiroSites, mkwiroRaftDisplayLabel,
-  escapeHtml, displayNumber: (x) => x ?? "-", formatDate: (x) => x,
-  humanize: (x) => String(x || ""), LOCATION_LABELS: { mkwiro: "Mkwiro" },
-  Promise, Object, Array, Set, String
+  mkwiroRaftDisplayLabel,
+  authClient:{rpc:async(method,args)=>{
+    calls.push([method,args.p_site_code || args.p_capture_id]);
+    if(method==="ag_reef_sample_rope_register") {
+      if(!sites[args.p_site_code]) return {error:new Error("Site unavailable"),data:null};
+      return {data:sites[args.p_site_code],error:null};
+    }
+    if(method==="ag_public_cosme_reef_site_capture_detail") return {data:{
+      record_number:"Seaweed Site Capture 3",location:"mkwiro",site_code:"MK-R2",
+      site_name:"Cascadia Prototype",species:"spinosum",observed_at:"2026-10-15T09:00:00Z",
+      recorded_by_name:"Recorder B",monitoring_team:"community",health_environment:{}
+    },error:null};
+    throw new Error("Unexpected RPC "+method);
+  }},
+  document:{readyState:"loading",addEventListener(){},querySelectorAll:()=>docInputs},
+  Intl, Date, Set, Map, Promise, Number, String, Object, Array
 };
 vm.createContext(context);
-const start = script.indexOf("async function openSampleRegister(siteCode)");
-const end = script.indexOf("\nasync function deleteRecord(", start);
-assert(start >= 0 && end > start);
-vm.runInContext(script.slice(start, end), context);
+vm.runInContext(raw.replace(/^import[\s\S]*?from "[^"]+";\s*/gm,""),context);
+const els = vm.runInContext("els",context);
+els.reefSeaweedRecordDetail = detail;
+els.reefSeaweedRecordDetailTitle = heading;
+els.reefSeaweedRecordDetailContent = content;
+els.reefSeaweedRecordDetailStatus = status;
+const state = vm.runInContext("state",context);
+const wait = () => new Promise(resolve=>setImmediate(resolve));
 
-assert.deepEqual(pairedMkwiroSites("MK-R2"), { group: "A", raftCode: "MK-R2", farmCode: "MK-SF2/R2" });
-assert.deepEqual(pairedMkwiroSites("MK-SF2/R2"), pairedMkwiroSites("MK-R2"));
-assert.equal(pairedMkwiroSites("MK-R1").group, "C");
-assert.equal(pairedMkwiroSites("MK-R3").group, "B");
-assert.equal(pairedMkwiroSites("MK-SF1/R1").group, "C");
-assert.equal(pairedMkwiroSites("MK-SF3/R3").group, "B");
-assert.equal(pairedMkwiroSites("TB-R1"), null);
+assert(!markup.includes('data-open-reef-pair='), "Fixed paired buttons should be replaced");
+for(const code of ["MK-R2","MK-SF2/R2","MK-R3","MK-SF3/R3","MK-R1","MK-SF1/R1"]) {
+  assert(markup.includes('data-select-reef-site="'+code+'"'),"Independent checkbox for "+code);
+}
+assert(markup.includes("<th scope=\"col\">Show</th>"));
+assert(markup.includes("Clear selection"));
+assert.match(entry,/reef-rope-rs-label[^>]*>R\+S/);
+assert.match(entry,/R\+S = Rope \+ Seaweed weight/);
+assert(!entry.includes("data-rope-meta=\""),"Saved measurement captions should remain hidden");
 
-await context.openSampleRegister("MK-R2");
-assert.deepEqual(calls, ["MK-R2", "MK-SF2/R2"], "Opening Raft A must load Farm A as well");
-assert.match(heading.textContent, /Raft A and Farm A/);
-assert.match(detail.innerHTML, /MK-R2 \(Cascadia Prototype\) \| Raft A/);
-assert.match(detail.innerHTML, /MK-SF2\/R2 \(Shore Farm 2\) \| Farm A/);
-assert.match(detail.innerHTML, /Date: 2026-09-29/);
-assert.match(detail.innerHTML, /data-stage="week_2"[\s\S]*Date: 2026-10-13/);
-assert.match(detail.innerHTML, /Time: 11:30/);
-assert.match(detail.innerHTML, /No rope measurements recorded yet for this site/);
-assert(!detail.innerHTML.includes("<th>Date Seeded</th>"), "Dates must appear above the columns, not in a per-rope date column");
-assert.match(detail.innerHTML, /2\.33/);
-assert(html.includes('data-open-reef-pair="MK-R2"'));
-assert(html.includes('data-open-reef-pair="MK-R3"'));
-assert(html.includes('data-open-reef-pair="MK-R1"'));
+// One checkbox displays only its selected site, even if a related site exists.
+context.toggleSelectedRecord("sample_rope_register","MK-R2","Raft A",true);
+await wait();
+assert.equal(state.selectedRecords.size,1);
+assert.deepEqual(calls,[["ag_reef_sample_rope_register","MK-R2"]]);
+assert.match(content.innerHTML,/Raft A/);
+assert.doesNotMatch(content.innerHTML,/Farm A/);
+assert.match(content.innerHTML,/Date: 29 Sept 2026/);
+assert.match(content.innerHTML,/Time: 11:30/);
+assert.equal(docInputs[0].checked,true);
 
-calls.length = 0;
-await context.openSampleRegister("MK-SF2/R2");
-assert.deepEqual(calls, ["MK-R2", "MK-SF2/R2"], "Opening Farm A must show the same two registers");
+// Adding Farm A retains Raft A rather than replacing it.
+context.toggleSelectedRecord("sample_rope_register","MK-SF2/R2","Farm A",true);
+await wait();
+assert.equal(state.selectedRecords.size,2);
+assert.deepEqual(calls,[["ag_reef_sample_rope_register","MK-R2"],["ag_reef_sample_rope_register","MK-SF2/R2"]]);
+assert.match(content.innerHTML,/Raft A/);
+assert.match(content.innerHTML,/Farm A/);
+assert.match(content.innerHTML,/No rope measurements recorded yet/);
+assert.equal(docInputs[1].checked,true);
 
-const mixed = [
-  { initial_weight_kg: 1, date_seeded: "2026-09-29" },
-  { initial_weight_kg: 2, date_seeded: "2026-10-01" }
-];
-assert.match(context.sampleStageHeading(mixed, ["initial", "Initial Weight (kg)", "initial_weight_kg", "date_seeded"]), /Multiple dates/);
-assert.match(context.sampleStageHeading([], ["week_6", "Wk6", "week_6_kg", "week_6_date"]), /Date: —/);
+// Deselecting the raft retains the farm card and vice versa.
+context.toggleSelectedRecord("sample_rope_register","MK-R2","Raft A",false);
+assert.equal(state.selectedRecords.size,1);
+assert.equal(docInputs[0].checked,false);
+assert.equal(docInputs[1].checked,true);
+assert.doesNotMatch(content.innerHTML,/Cascadia Prototype/);
+assert.match(content.innerHTML,/Shore Farm 2/);
 
-data["MK-SF2/R2"] = null;
-calls.length = 0;
-await context.openSampleRegister("MK-R2");
-assert.match(detail.innerHTML, /Unable to load this site's register/);
-assert.match(detail.innerHTML, /Raft A/);
-assert.deepEqual(calls, ["MK-R2", "MK-SF2/R2"]);
+// Selecting a Site Capture in the records list can coexist with the farm.
+context.toggleSelectedRecord("site_capture","capture-1","Capture 3",true);
+await wait();
+assert.equal(state.selectedRecords.size,2);
+assert.match(content.innerHTML,/Capture 3/);
+assert.match(content.innerHTML,/Farm A/);
+assert(calls.some(([method])=>method==="ag_public_cosme_reef_site_capture_detail"));
 
-console.log("Paired Raft/Farm A/B/C records, per-stage header dates, and empty/error isolation passed.");
+// Existing list row checkbox is tied to the same selection, not a duplicate.
+state.rows=[{record_kind:"sample_rope_register",record_key:"MK-SF2/R2",record_number:"Farm A"}];
+els.reefSeaweedRecordRows={innerHTML:""};
+els.reefSeaweedRecordsPage={textContent:""};
+els.previousReefSeaweedRecords={disabled:false};
+els.nextReefSeaweedRecords={disabled:false};
+context.renderRows();
+assert.match(els.reefSeaweedRecordRows.innerHTML,/data-select-reef-record/);
+assert.match(els.reefSeaweedRecordRows.innerHTML,/checked/);
+assert.equal(state.selectedRecords.size,2);
+
+// Each selected panel has an independent Remove action, plus Clear selection.
+assert.match(content.innerHTML,/data-remove-reef-selection/);
+context.removeSelectedRecord("site_capture:capture-1");
+assert.equal(state.selectedRecords.size,1);
+context.closeDetail();
+assert.equal(state.selectedRecords.size,0);
+assert.equal(detail.hidden,true);
+assert.equal(docInputs[1].checked,false);
+
+// Errors on one site must not suppress other selected records.
+context.toggleSelectedRecord("sample_rope_register","MK-R3","Raft B",true);
+context.toggleSelectedRecord("sample_rope_register","MK-R1","Raft C",true);
+await wait();
+assert.match(content.innerHTML,/Site unavailable/);
+assert.match(content.innerHTML,/Rectangular Raft/);
+assert.equal(state.selectedRecords.size,2);
+
+console.log("Independent one/multi record selection, six site checkboxes and R+S labels verified.");
