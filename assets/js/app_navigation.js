@@ -16,8 +16,16 @@ export function setupAppNavigation(options = {}) {
   if (!header || !actions || header.dataset.appNavigationReady === "true") return null;
 
   const dashboardHref = options.dashboardHref || dashboardRoute(profile);
-  const forms = formLinks(profile, currentFile);
-  const records = recordLinks(profile, currentFile);
+  // Keep signed-out Reef form pages focused on the two public nursery forms.
+  // Existing public COSME record pages and authenticated navigation are unchanged.
+  const publicReefOnly = !profile && (
+    currentFile === "reef_nursery.html" || currentFile === "reef_nursery_seaweed_data.html"
+  );
+  const forms = publicReefOnly ? [
+    { label: "Nursery - Training", href: "./reef_nursery.html" },
+    { label: "Nursery - Seaweed Data", href: "./reef_nursery_seaweed_data.html" }
+  ] : formLinks(profile, currentFile);
+  const records = publicReefOnly ? [] : recordLinks(profile, currentFile);
 
   header.classList.add("unified-app-header");
   const primary = document.createElement("nav");
@@ -396,9 +404,11 @@ function formLinks(profile, currentFile = "") {
     capability: "form_green_space"
   });
   if (anonymousReefNursery) {
-    links.push({ label: "Reef Nursery", href: "./reef_nursery.html", publicFallback: true });
+    links.push({ label: "Nursery - Training", href: "./reef_nursery.html", publicFallback: true });
+    links.push({ label: "Nursery - Seaweed Data", href: "./reef_nursery_seaweed_data.html", publicFallback: true });
   } else if (hasPermission(profile, "can_access_reef_nursery")) {
-    links.push({ label: "Reef Nursery", href: "./reef_nursery.html", requiredAggregator: "COSME", capability: "form_reef_nursery" });
+    links.push({ label: "Nursery - Training", href: "./reef_nursery.html", requiredAggregator: "COSME", capability: "form_reef_nursery" });
+    links.push({ label: "Nursery - Seaweed Data", href: "./reef_nursery_seaweed_data.html", requiredAggregator: "COSME", capability: "form_reef_nursery" });
     links.push({ label: "Dryer Table", href: "./dryer_table.html", requiredAggregator: "COSME", capability: "form_dryer_table" });
   }
   return links.filter((link) => hasLinkAccess(profile, link));
@@ -453,7 +463,7 @@ function hasLinkAccess(profile, link) {
 }
 
 function isAnonymousReefNurseryPage(profile, currentFile) {
-  return !profile && currentFile === "reef_nursery.html";
+  return !profile && ["reef_nursery.html", "reef_nursery_seaweed_data.html"].includes(currentFile);
 }
  
 function isAnonymousCosmeRecordsPage(profile, currentFile) {
