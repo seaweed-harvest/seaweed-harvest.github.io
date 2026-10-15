@@ -258,7 +258,7 @@ function renderForm(form) {
                       <input id="reefSampleVisitOtherTeam" type="text" maxlength="160">
                     </label>
                   </div>
-                  <small class="reef-help">R+S = Rope + Seaweed weight. Each weight column has its own date and optional time; unchanged weeks keep their previous details.</small>
+                  <small class="reef-help">R+S = Rope + Seaweed weight. Each weight column has its own date; unchanged weeks keep their previous details.</small>
                 </th></tr>
                 <tr>
                   <th>Sample Rope</th>
@@ -1153,7 +1153,7 @@ function sampleStageHeaderMarkup(stage, label) {
     ${label}
     <small class="reef-rope-rs-label" title="Rope + Seaweed">R+S</small>
     <label>Date <input data-stage-date="${stage}" type="date" aria-label="${label} date"></label>
-    <label>Time (optional) <input data-stage-time="${stage}" type="time" aria-label="${label} optional time"></label>
+    
     <small class="reef-stage-mixed" data-stage-mixed="${stage}" hidden></small>
   </th>`;
 }
