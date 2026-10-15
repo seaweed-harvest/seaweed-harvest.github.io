@@ -2,6 +2,7 @@ import { authClient, currentProfile, currentSession, setupAccountControls } from
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=20261015b";
 import { formatWeightPerLine } from "./reef_nursery_site_capture_math.js?v=1";
 import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=2";
+import { createSampleStagePhotoController } from "./reef_sample_rope_stage_photos.js?v=1";
 
 const PHOTO_BUCKET = "reef-seaweed-record-photos";
 const MAX_SOURCE_PHOTO_BYTES = 25 * 1024 * 1024;
@@ -42,6 +43,7 @@ const state = {
   sampleSavedRows: new Map(),
   sampleStageEdits: new Set(),
   sampleSavedValues: new Map(),
+  stagePhotos: null,
   currentLocation: "",
   saving: false
 };
@@ -272,6 +274,11 @@ function renderForm(form) {
                 </tr>
               </thead>
               <tbody>${SAMPLE_ROPE_NUMBERS.map(sampleRopeRowMarkup).join("")}</tbody>
+              <tfoot><tr class="reef-sample-photo-footer">
+                <th colspan="3">Stage photos <small>Save to upload</small></th>
+                ${["initial","week_2","week_4","week_6"].map(stagePhotoFooterMarkup).join("")}
+                <td></td>
+              </tr></tfoot>
             </table>
           </div>
         </section>
@@ -421,6 +428,10 @@ function bindEvents() {
   els.reefSampleRopePanel.addEventListener("change", markSampleRegisterDirty);
   els.reefSampleRopePanel.addEventListener("click", handleSampleRopeClick);
   els.reefSampleRopeSave.addEventListener("click", () => void saveSampleRopeRegister());
+  state.stagePhotos = createSampleStagePhotoController({
+    authClient, root:els.reefSampleRopePanel, preparePhoto,
+    onChange:(count,error) => setSampleStatus(error || (count ? `${count} photo(s) queued. Save to upload.` : "Saved data loaded."), error ? "error" : "")
+  });
 
   els.reefSiteCaptureTakePhoto.addEventListener("click", () => {
     els.reefSiteCaptureCameraInput.value = "";
@@ -436,7 +447,7 @@ function bindEvents() {
   els.reefSeaweedForm.addEventListener("submit", submitSiteCapture);
   els.clearReefSiteCapture.addEventListener("click", () => void clearCapture());
   window.addEventListener("beforeunload", (event) => {
-    if (!state.sampleRegisterDirty) return;
+    if (!state.sampleRegisterDirty && !state.stagePhotos?.count()) return;
     event.preventDefault();
     event.returnValue = "";
   });
@@ -487,7 +498,7 @@ async function handleSiteChange() {
 }
 
 async function saveDirtyRegisterBeforeLeaving() {
-  if (!state.sampleRegisterDirty || !state.sampleRegisterSiteCode) return true;
+  if ((!state.sampleRegisterDirty && !state.stagePhotos?.count()) || !state.sampleRegisterSiteCode) return true;
   try {
     await saveSampleRopeRegister({ siteCode: state.sampleRegisterSiteCode, silent: true });
     return true;
@@ -558,6 +569,7 @@ async function saveSampleRopeRegister({ siteCode = null, silent = false } = {}) 
   const rows = collectSampleRopeRows();
   const visit = validatedSampleVisit(rows);
   if (!visit) throw new Error("Complete the Sample Rope recording date, recorder and monitoring team.");
+  const uploadDates = Object.fromEntries(SAMPLE_STAGES.map(stage => [stage, visit.stage_dates[stage]?.date]));
   if (!silent) setSampleStatus("Saving…");
   els.reefSampleRopeSave.disabled = true;
   try {
@@ -570,11 +582,15 @@ async function saveSampleRopeRegister({ siteCode = null, silent = false } = {}) 
       applySampleRegister(register);
       state.sampleRegisterSiteCode = targetSite;
       state.sampleRegisterDirty = false;
-      setSampleStatus("Saved to Supabase.", "success");
+      if (state.stagePhotos?.count()) {
+        setSampleStatus("Weights saved. Uploading stage photos…");
+        const uploaded = await state.stagePhotos.upload({siteCode:targetSite,dates:uploadDates});
+        setSampleStatus(`Saved weights and ${uploaded} photo(s).`, "success");
+      } else setSampleStatus("Saved to Supabase.", "success");
     }
     return register;
   } catch (error) {
-    if (!silent) setSampleStatus(error.message || "Sample Rope Register could not be saved.", "error");
+    setSampleStatus(`Save incomplete: ${error.message || "Please retry."} Any remaining photos are still queued.`, "error");
     throw error;
   } finally {
     els.reefSampleRopeSave.disabled = false;
@@ -1158,6 +1174,17 @@ function sampleStageHeaderMarkup(stage, label) {
   </th>`;
 }
 
+function stagePhotoFooterMarkup(stage) {
+  const labels = { initial:"Initial",week_2:"Week 2",week_4:"Week 4",week_6:"Week 6" };
+  return `<td class="reef-stage-photo-cell">
+    <label class="reef-stage-photo-add">+ Photo
+      <input type="file" data-stage-photo-file="${stage}" accept="image/*" multiple
+        aria-label="Add ${labels[stage]} photos" />
+    </label>
+    <div data-stage-photo-list="${stage}" class="reef-stage-photo-list" aria-live="polite"></div>
+  </td>`;
+}
+
 function sampleRopeRowMarkup(ropeNumber) {
   const label = `Rope ${ropeNumber}`;
   return `
@@ -1194,6 +1221,16 @@ function productionStyles() {
     .reef-sample-visit-header { text-align: left !important; }
     .reef-stage-date-header { min-width:155px; vertical-align:top; }
     .reef-rope-rs-label { display:block; font-size:0.72rem; font-weight:700; color:#386862; margin-top:0.2rem; }
+    .reef-sample-photo-footer th, .reef-sample-photo-footer td { vertical-align:top; background:#f6fbf9; border-top:1px solid #c8e2da; padding:10px 7px; }
+    .reef-sample-photo-footer th small { display:block; color:#65817a; font-weight:400; font-size:.7rem; margin-top:3px; }
+    .reef-stage-photo-add { position:relative; display:inline-flex; align-items:center; justify-content:center; padding:6px 9px; border:1px solid #a6cfc6; border-radius:6px; background:#fff; color:#237166; font-size:.78rem; cursor:pointer; white-space:nowrap; }
+    .reef-stage-photo-add:focus-within { outline:2px solid #40847e; outline-offset:2px; }
+    .reef-stage-photo-add input { position:absolute; width:1px; height:1px; opacity:0; overflow:hidden; }
+    .reef-stage-photo-list { margin-top:8px; font-size:.7rem; overflow-wrap:anywhere; min-height:14px; }
+    .reef-stage-photo-item { display:flex; gap:4px; justify-content:space-between; align-items:start; padding:3px 0; border-bottom:1px solid #e3ece9; }
+    .reef-stage-photo-item span { overflow-wrap:anywhere; min-width:0; }
+    .reef-stage-photo-item button { border:0; background:none; padding:0 3px; font-size:.95rem; color:#936443; cursor:pointer; }
+
     .reef-stage-date-header label { display:block; text-align:left; font-size:0.68rem; font-weight:500; margin-top:0.35rem; }
     .reef-stage-date-header input { display:block; width:100%; min-width:122px; margin-top:0.12rem; }
     .reef-stage-mixed { display:block; font-size:0.65rem; margin-top:0.15rem; color:#956a31; font-weight:500; }
