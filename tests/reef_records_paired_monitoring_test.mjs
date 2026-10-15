@@ -69,7 +69,7 @@ assert.equal(state.selectedRecords.size,1);
 assert.deepEqual(calls,[["ag_reef_sample_rope_register","MK-R2"]]);
 assert.match(content.innerHTML,/Raft A/);
 assert.doesNotMatch(content.innerHTML,/Farm A/);
-assert.match(content.innerHTML,/Date: 29 Sep 2026/);
+assert.match(content.innerHTML,/Date: 29 Sept 2026/);
 assert.match(content.innerHTML,/Time: 11:30/);
 assert.equal(docInputs[0].checked,true);
 
