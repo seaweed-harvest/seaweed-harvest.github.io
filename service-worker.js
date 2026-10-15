@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v150-unified-stock-retests";
+const CACHE_VERSION = "seaweed-harvest-collection-v151-reef-separated-forms";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -10,6 +10,7 @@ const APP_SHELL = [
   "./stabilization_packing.html",
   "./site_water_sample.html",
   "./reef_nursery.html",
+  "./reef_nursery_seaweed_data.html",
   "./reef_nursery_training.html",
   "./reef_nursery_records.html",
   "./reef_seaweed_records.html",
@@ -67,6 +68,7 @@ const APP_SHELL = [
   "./assets/js/site_water_sample_form.js",
   "./assets/js/reef_nursery_boot.js",
   "./assets/js/reef_nursery_site_capture.js",
+  "./assets/js/reef_nursery_site_capture_math.js",
   "./assets/js/reef_nursery_workspace_tabs.js",
   "./assets/js/reef_nursery_site_capture_records_hotfix.js",
   "./assets/js/reef_records_navigation_hotfix.js",
