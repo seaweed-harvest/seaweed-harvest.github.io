@@ -1,7 +1,7 @@
 import { authClient, currentProfile, currentSession, setupAccountControls } from "./auth_client.js?v=25";
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=20261015b";
 import { formatWeightPerLine } from "./reef_nursery_site_capture_math.js?v=1";
-import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=1";
+import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=2";
 
 const PHOTO_BUCKET = "reef-seaweed-record-photos";
 const MAX_SOURCE_PHOTO_BYTES = 25 * 1024 * 1024;
