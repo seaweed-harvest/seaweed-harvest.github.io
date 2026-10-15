@@ -45,16 +45,13 @@ function mkRow(number) {
 }
 const rows = [1,2,5,6,9,10].map(mkRow);
 const dates = Object.fromEntries(stages.map(x => [x,input()]));
-const times = Object.fromEntries(stages.map(x => [x,input()]));
 const mixed = Object.fromEntries(stages.map(x => [x,{hidden:true,textContent:""}]));
 stages.forEach(x => {
   dates[x].dataset.stageDate = x;
-  times[x].dataset.stageTime = x;
 });
 const allInputs = () => [
   ...rows.flatMap(row => Object.values(row.cells)),
   ...Object.values(dates),
-  ...Object.values(times),
   ...Object.values(visit)
 ];
 const panel = {
@@ -70,7 +67,7 @@ const panel = {
      if (sel === ".reef-rope-unsaved") return allInputs().find(x => x.classList.contains("reef-rope-unsaved")) || null;
      return null;
    }
-   return {date:dates,time:times,mixed}[match[1]][match[2]];
+   return {date:dates,mixed}[match[1]]?.[match[2]] || null;
  }
 };
 const visit = {
@@ -116,13 +113,10 @@ assert.equal(first[0].week_2_date,undefined,"Unedited week date is preserved ser
 // Backfill all initial dates and a different week-two date in one save.
 dates.initial.value="2026-08-02";
 dates.week_2.value="2026-08-18";
-times.week_2.value="11:35";
 context.markSampleRegisterDirty({target:dates.initial});
 context.markSampleRegisterDirty({target:dates.week_2});
-context.markSampleRegisterDirty({target:times.week_2});
 assert(dates.initial.classList.contains("reef-rope-unsaved"), "Edited initial date turns yellow");
 assert(dates.week_2.classList.contains("reef-rope-unsaved"), "Edited Week 2 date turns yellow");
-assert(times.week_2.classList.contains("reef-rope-unsaved"), "Edited Week 2 time turns yellow");
 const payload=context.collectSampleRopeRows();
 assert.equal(payload[0].date_seeded,"2026-08-02");
 assert.equal(payload[1].date_seeded,"2026-08-02");
@@ -134,7 +128,8 @@ assert.equal(payload[0].week_4_date,undefined);
 const attrs=context.validatedSampleVisit(payload);
 assert.equal(attrs.stage_dates.initial.date,"2026-08-02");
 assert.equal(attrs.stage_dates.week_2.date,"2026-08-18");
-assert.equal(attrs.stage_dates.week_2.time,"11:35");
+assert.equal(attrs.stage_dates.week_2.time,null, "Optional sample time is no longer entered");
+assert(!source.includes("data-stage-time=\"${stage}\""), "Recording time inputs removed from form");
 assert.equal(attrs.stage_dates.week_4.edited,false);
 assert.equal(attrs.recorder,"Recorder B");
 assert.equal(state.sampleRegisterDirty,true);
