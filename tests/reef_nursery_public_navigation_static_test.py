@@ -26,7 +26,7 @@ class ReefNurseryPublicNavigationStaticTest(unittest.TestCase):
         self.assertIn("publicReefOnly = !profile", source)
         self.assertIn("publicFallback: !anonymousReefNursery", source)
         self.assertIn("const publicCosme = isAnonymousCosmeRecordsPage(profile, currentFile)", source)
-        self.assertIn('label: "Nursery - Training", href: "./reef_nursery.html?tab=records&record_type=training"', source)
+        self.assertIn('label: "Nursery - Training", href: "./reef_nursery.html?tab=records"', source)
         self.assertIn('label: "Nursery - Seaweed", href: "./reef_seaweed_records.html"', source)
 
     def test_anonymous_reef_page_keeps_its_own_form_link(self):
