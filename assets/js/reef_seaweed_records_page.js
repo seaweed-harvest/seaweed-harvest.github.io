@@ -6,6 +6,7 @@ import {
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
 
 import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=3";
+import { initializeSampleRopeDataTable } from "./reef_sample_rope_data_table.js?v=1";
 
 const PAGE_SIZE = 50;
 const LOCATION_LABELS = Object.freeze({
@@ -31,7 +32,8 @@ const state = {
   loading: false,
   deleting: false,
   canDelete: false,
-  selectedRecords: new Map()
+  selectedRecords: new Map(),
+  ropeGrid: null
 };
 const els = {};
 
@@ -60,6 +62,9 @@ async function init() {
     if (state.profile) setupAccountControls(state.profile);
     setupAppNavigation({ profile: state.profile, sidebar, dashboardHref });
     bindEvents();
+    state.ropeGrid = initializeSampleRopeDataTable({ authClient, root: els.reefSampleRopeDataTabPanel });
+    const flatTabRequested = window.location.hash === "#sample-rope-data";
+    selectRecordsTab(flatTabRequested ? "data" : "records");
     document.body.removeAttribute("data-auth-pending");
     await loadRecords();
   } catch (error) {
@@ -74,7 +79,10 @@ function cacheElements() {
     "reefSeaweedRecordsSidebar",
     "reloadReefSeaweedRecords",
     "reefSeaweedRecordsSearch",
-    "reefSeaweedPairShortcuts",
+    "reefRecordsListTab",
+    "reefSampleRopeDataTab",
+    "reefRecordsListPanel",
+    "reefSampleRopeDataTabPanel",
     "searchReefSeaweedRecords",
     "clearReefSeaweedRecordsSearch",
     "reefSeaweedRecordRows",
@@ -119,12 +127,6 @@ function bindEvents() {
     if (!button) return;
     void openRecord(button.dataset.kind, button.dataset.key, button.dataset.number);
   });
-  els.reefSeaweedPairShortcuts.addEventListener("change", (event) => {
-    const checkbox = event.target.closest("[data-select-reef-site]");
-    if (!checkbox) return;
-    toggleSelectedRecord("sample_rope_register", checkbox.dataset.selectReefSite,
-      checkbox.dataset.siteLabel || checkbox.dataset.selectReefSite, checkbox.checked);
-  });
   els.reefSeaweedRecordRows.addEventListener("change", (event) => {
     const checkbox = event.target.closest("[data-select-reef-record]");
     if (!checkbox) return;
@@ -137,6 +139,19 @@ function bindEvents() {
     removeSelectedRecord(remove.dataset.removeReefSelection);
   });
   els.closeReefSeaweedRecordDetail.addEventListener("click", closeDetail);
+  els.reefRecordsListTab.addEventListener("click", () => selectRecordsTab("records"));
+  els.reefSampleRopeDataTab.addEventListener("click", () => selectRecordsTab("data"));
+}
+
+function selectRecordsTab(selected) {
+  const dataTab = selected === "data";
+  els.reefRecordsListPanel.hidden = dataTab;
+  els.reefSampleRopeDataTabPanel.hidden = !dataTab;
+  els.reefRecordsListTab.setAttribute("aria-selected", String(!dataTab));
+  els.reefSampleRopeDataTab.setAttribute("aria-selected", String(dataTab));
+  els.reefRecordsListTab.classList.toggle("is-active", !dataTab);
+  els.reefSampleRopeDataTab.classList.toggle("is-active", dataTab);
+  if (dataTab && state.ropeGrid && !state.ropeGrid.state.loaded) void state.ropeGrid.refresh();
 }
 
 async function loadRecords() {
