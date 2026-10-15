@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v160-rope-site-heatmap";
+const CACHE_VERSION = "seaweed-harvest-collection-v161-stage-photos-initial-colour";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -68,6 +68,7 @@ const APP_SHELL = [
   "./assets/js/site_water_sample_form.js",
   "./assets/js/reef_nursery_boot.js",
   "./assets/js/reef_nursery_site_capture.js",
+  "./assets/js/reef_sample_rope_stage_photos.js",
   "./assets/js/reef_nursery_site_capture_math.js",
   "./assets/js/reef_mkwiro_raft_labels.js",
   "./assets/js/reef_nursery_workspace_tabs.js",

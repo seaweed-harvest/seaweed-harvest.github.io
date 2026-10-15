@@ -31,8 +31,8 @@ const range = calculate({initial_weight_kg: 1, week_2_kg:3,week_4_kg:2,week_6_kg
 assert.equal(range.initial_weight_kg.css,"background-color:hsl(0 68% 88%);");
 assert.equal(range.week_4_kg.css,"background-color:hsl(60 68% 88%);");
 assert.equal(range.week_2_kg.css,"background-color:hsl(120 68% 88%);");
-assert.equal(Object.keys(calculate({initial_weight_kg:2,week_2_kg:2})).length,0,"Equal stage weights are uncoloured");
-assert.equal(Object.keys(calculate({initial_weight_kg:2})).length,0,"Only one stage measurement is uncoloured");
+assert.equal(calculate({initial_weight_kg:2,week_2_kg:2}).initial_weight_kg.css,"background-color:hsl(60 68% 88%);","Equal saved weights use a neutral baseline");
+assert.equal(calculate({initial_weight_kg:2}).initial_weight_kg.css,"background-color:hsl(60 68% 88%);","An Initial-only row must also be coloured");
 assert.equal(Object.keys(calculate({initial_weight_kg:0,week_2_kg:1})).length,2,"Zero is a valid lower measurement");
 assert.equal(Object.keys(calculate({rope_weight_kg:.15,initial_weight_kg:null,week_2_kg:""})).length,0);
 assert.deepEqual(siteFilter([{site_code:"MK-R2"},{site_code:"MK-SF2/R2"}],new Set(["MK-R2"])).map(x=>x.site_code),["MK-R2"]);
@@ -44,7 +44,7 @@ assert(markup.includes('id="reefSampleRopeSitesNone"'));
 assert(markup.includes("reef-rope-heat-legend"));
 assert(markup.includes('reef-rope-site-filter-menu'));
 assert(markup.includes("Rope Weight excluded"));
-assert(markup.includes('reef_seaweed_records_page.js?v=8'));
+assert(markup.includes('reef_seaweed_records_page.js?v=9'));
 
 function makeControl() {
   const handlers={};
@@ -134,3 +134,4 @@ await second.refresh();
 assert.deepEqual([...second.state.selectedSites],["MK-R2"]);
 assert(!persistedControls.reefSampleRopeDataBody.innerHTML.includes("Shore Farm 2"));
 console.log("Multi-site dropdown filtering, persistence, and per-row low-to-high R+S heatmap passed.");
+await import("./reef_sample_rope_stage_photos_test.mjs");
