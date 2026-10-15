@@ -127,6 +127,28 @@
     .reef-register-stage-heading small { display:block; margin-top:5px; font-weight:500; color:#5c736e; font-size:.68rem; line-height:1.2; white-space:normal; }
     .reef-sample-card-table-wrap td { white-space:nowrap; }
     @media (max-width: 1350px) { .reef-sample-pair-grid.is-paired { grid-template-columns:minmax(0,1fr); } }
+    .reef-records-tabs { display:flex; gap:8px; border-bottom:1px solid #d2e3df; margin:0 0 18px; padding-bottom:7px; }
+    .reef-records-tabs button { border:1px solid #d2e3df; background:#fff; color:#386d66; font-weight:700; border-radius:7px; padding:9px 14px; }
+    .reef-records-tabs button.is-active { background:#e8f4f0; border-color:#91c1b7; color:#16564e; }
+    #reefRecordsListPanel[hidden], #reefSampleRopeDataTabPanel[hidden] { display:none; }
+    .reef-selected-records-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:14px; align-items:start; }
+    .reef-selected-record-card { width:100%; box-sizing:border-box; }
+    .reef-selected-record-card .reef-sample-comparison-head h4 { display:none; }
+    .reef-sample-comparison-head { margin-bottom:8px; }
+    .reef-register-date-row th { color:#52766f; font-size:.72rem; font-weight:600; background:#f4f9f7; border-top:0; white-space:normal; }
+    .reef-rope-data-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:end; margin-bottom:12px; }
+    .reef-rope-data-toolbar > label { flex:1 1 280px; }
+    .reef-rope-data-toolbar > label input { display:block; width:100%; }
+    .reef-rope-column-picker { position:relative; border:1px solid #c9e0da; border-radius:8px; padding:8px 11px; }
+    .reef-rope-column-picker summary { cursor:pointer; user-select:none; font-weight:650; }
+    .reef-rope-column-list { display:grid; grid-template-columns:repeat(2,minmax(160px,1fr)); gap:8px 14px; margin:10px 0; }
+    .reef-rope-column-list label { display:flex; align-items:center; gap:6px; font-size:.8rem; }
+    .reef-rope-flat-wrap { max-width:100%; overflow-x:auto; }
+    .reef-rope-flat-table { min-width:900px; font-size:.83rem; }
+    .reef-rope-flat-table th button { padding:4px; background:none; border:0; font:inherit; font-weight:700; color:inherit; cursor:pointer; text-align:left; white-space:nowrap; }
+    .reef-rope-flat-table th[aria-sort="ascending"], .reef-rope-flat-table th[aria-sort="descending"] { background:#e2f4ee; }
+    .reef-rope-flat-table td { white-space:nowrap; }
+    @media (max-width:600px) { .reef-rope-column-list { grid-template-columns:1fr; } }
     @media (max-width: 900px) {
       .reef-seaweed-records-toolbar { grid-template-columns: 1fr; }
       .reef-detail-grid { grid-template-columns: 1fr; }
@@ -169,6 +191,11 @@
           </button>
         </div>
 
+        <div class="reef-records-tabs" role="tablist" aria-label="Seaweed Records sections">
+          <button id="reefRecordsListTab" class="is-active" type="button" role="tab" aria-selected="true" aria-controls="reefRecordsListPanel">Records</button>
+          <button id="reefSampleRopeDataTab" type="button" role="tab" aria-selected="false" aria-controls="reefSampleRopeDataTabPanel">Sample Rope Data</button>
+        </div>
+        <section id="reefRecordsListPanel" role="tabpanel" aria-labelledby="reefRecordsListTab">
         <div class="reef-seaweed-records-toolbar">
           <label>Search
             <input id="reefSeaweedRecordsSearch" type="search" placeholder="Record, location, site, species or recorder" autocomplete="off">
@@ -177,24 +204,7 @@
           <button id="clearReefSeaweedRecordsSearch" type="button">Clear</button>
         </div>
 
-        <div id="reefSeaweedPairShortcuts" class="reef-pair-shortcuts" aria-label="Select Mkwiro raft and shore farm records">
-          <strong>Mkwiro sites — select one or more:</strong>
-          <div class="reef-site-select-groups">
-            <fieldset><legend>Group A</legend>
-              <label><input type="checkbox" data-select-reef-site="MK-R2" data-site-label="MK-R2 (Cascadia Prototype) | Raft A">Raft A</label>
-              <label><input type="checkbox" data-select-reef-site="MK-SF2/R2" data-site-label="MK-SF2/R2 (Shore Farm 2) | Farm A">Farm A</label>
-            </fieldset>
-            <fieldset><legend>Group B</legend>
-              <label><input type="checkbox" data-select-reef-site="MK-R3" data-site-label="MK-R3 (LM / PIK Raft) | Raft B">Raft B</label>
-              <label><input type="checkbox" data-select-reef-site="MK-SF3/R3" data-site-label="MK-SF3/R3 (Shore Farm 3) | Farm B">Farm B</label>
-            </fieldset>
-            <fieldset><legend>Group C</legend>
-              <label><input type="checkbox" data-select-reef-site="MK-R1" data-site-label="MK-R1 (Rectangular Raft) | Raft C">Raft C</label>
-              <label><input type="checkbox" data-select-reef-site="MK-SF1/R1" data-site-label="MK-SF1/R1 (Shore Farm 1) | Farm C">Farm C</label>
-            </fieldset>
-          </div>
-          <small>Tick any records below or sites above. Select several to compare; untick to hide.</small>
-        </div>
+        <p class="field-hint">Tick the records you want to view. You can compare several at once.</p>
 
         <div class="responsive-table-wrap">
           <table class="management-table admin-data-table reef-seaweed-records-table">
@@ -232,10 +242,33 @@
           <p id="reefSeaweedRecordDetailStatus" class="admin-status" aria-live="polite"></p>
           <div id="reefSeaweedRecordDetailContent"></div>
         </article>
+        </section>
+
+        <section id="reefSampleRopeDataTabPanel" role="tabpanel" aria-labelledby="reefSampleRopeDataTab" hidden>
+          <div class="reef-rope-data-toolbar">
+            <label>Search rope data
+              <input id="reefSampleRopeDataSearch" type="search" placeholder="Site, rope number, species or location" autocomplete="off">
+            </label>
+            <details class="reef-rope-column-picker">
+              <summary>Columns</summary>
+              <div id="reefSampleRopeDataColumns" class="reef-rope-column-list" aria-label="Choose columns"></div>
+              <button id="resetReefSampleRopeDataColumns" type="button">Reset to default</button>
+            </details>
+            <button id="reloadReefSampleRopeData" type="button">Refresh data</button>
+          </div>
+          <p id="reefSampleRopeDataStatus" class="admin-status" role="status" aria-live="polite"></p>
+          <div class="responsive-table-wrap reef-rope-flat-wrap">
+            <table class="management-table admin-data-table reef-rope-flat-table">
+              <thead><tr id="reefSampleRopeDataHead"></tr></thead>
+              <tbody id="reefSampleRopeDataBody"><tr><td class="empty-state">Open this tab to load Sample Rope Data.</td></tr></tbody>
+            </table>
+          </div>
+          <p class="field-hint">Showing current saved Sample Rope Register cycles across all active nursery sites. Click a column heading to sort; choose Columns to show or hide fields. No records are changed here.</p>
+        </section>
       </section>
     </section>
   </main>
 
-  <script type="module" src="./assets/js/reef_seaweed_records_page.js?v=6"></script>
+  <script type="module" src="./assets/js/reef_seaweed_records_page.js?v=7"></script>
 </body>
 </html>
