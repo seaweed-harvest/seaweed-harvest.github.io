@@ -11,18 +11,35 @@ const getFunction = name => {
   const end = source.indexOf("\nfunction ", start + 10);
   return source.slice(start, end < 0 ? source.length : end);
 };
-const input = (value = "") => ({value});
+const input = (value = "") => {
+  const classes = new Set();
+  return {
+    value,
+    dataset: {},
+    classList: {
+      contains: x => classes.has(x),
+      remove: x => classes.delete(x),
+      toggle: (x, active) => active ? classes.add(x) : classes.delete(x)
+    },
+    matches: selector => selector === "input, select",
+    closest: function(selector) {
+      if (selector === "[data-stage-date], [data-stage-time]" && (this.dataset.stageDate || this.dataset.stageTime)) return this;
+      if (selector === "[data-sample-rope-row]" && this.isRow) return this;
+      if (selector === ".reef-sample-visit-fields" && this.isVisit) return this;
+      return null;
+    }
+  };
+};
 const stages = ["initial","week_2","week_4","week_6"];
 const fields = ["species","rope_weight_kg","initial_weight_kg","week_2_kg","week_4_kg","week_6_kg"];
 function mkRow(number) {
   const cells = Object.fromEntries(fields.map(x => [x,input()]));
-  const metadata = Object.fromEntries(stages.map(x => [x,{textContent:""}]));
-  return { dataset:{ropeNumber:String(number)}, cells, metadata,
+  Object.values(cells).forEach(x => { x.isRow = true; });
+  return { dataset:{ropeNumber:String(number)}, cells,
     querySelector(selector) {
       const m = selector.match(/data-rope-field="([^"]+)"/);
       if (m) return cells[m[1]] || null;
-      const n = selector.match(/data-rope-meta="([^"]+)"/);
-      return metadata[n?.[1]] || null;
+      return null;
     }
   };
 }
@@ -30,11 +47,29 @@ const rows = [1,2,5,6,9,10].map(mkRow);
 const dates = Object.fromEntries(stages.map(x => [x,input()]));
 const times = Object.fromEntries(stages.map(x => [x,input()]));
 const mixed = Object.fromEntries(stages.map(x => [x,{hidden:true,textContent:""}]));
+stages.forEach(x => {
+  dates[x].dataset.stageDate = x;
+  times[x].dataset.stageTime = x;
+});
+const allInputs = () => [
+  ...rows.flatMap(row => Object.values(row.cells)),
+  ...Object.values(dates),
+  ...Object.values(times),
+  ...Object.values(visit)
+];
 const panel = {
- querySelectorAll(sel) { assert.equal(sel,"[data-sample-rope-row]"); return rows; },
+ querySelectorAll(sel) {
+   if (sel === "[data-sample-rope-row]") return rows;
+   if (sel === "input, select") return allInputs();
+   if (sel === ".reef-rope-unsaved") return allInputs().filter(x => x.classList.contains("reef-rope-unsaved"));
+   throw new Error("Unsupported querySelectorAll "+sel);
+ },
  querySelector(sel) {
    const match = sel.match(/data-stage-(date|time|mixed)="([^"]+)"/);
-   if (!match) return null;
+   if (!match) {
+     if (sel === ".reef-rope-unsaved") return allInputs().find(x => x.classList.contains("reef-rope-unsaved")) || null;
+     return null;
+   }
    return {date:dates,time:times,mixed}[match[1]][match[2]];
  }
 };
@@ -43,8 +78,9 @@ const visit = {
  reefSampleVisitTeam:input("community"),
  reefSampleVisitOtherTeam:input("")
 };
+Object.values(visit).forEach(x => { x.isVisit = true; });
 let status = "";
-const state = {sampleSavedRows:new Map(),sampleStageEdits:new Set(),sampleRegisterDirty:false};
+const state = {sampleSavedRows:new Map(),sampleStageEdits:new Set(),sampleSavedValues:new Map(),sampleRegisterDirty:false};
 const context = {SAMPLE_STAGES:stages,els:{reefSampleRopePanel:panel,...visit},state,
  Number,Map,Set,String,Object,
  setSampleStatus:s=>{status=s;},
@@ -70,8 +106,8 @@ context.applySampleRegister({rows:[
 assert.equal(dates.initial.value,"","Different historical initial dates must not be overwritten");
 assert.equal(mixed.initial.hidden,false);
 assert.equal(dates.week_2.value,"2026-08-17");
-assert.match(rows[0].metadata.initial.textContent,/Recorder A/);
-assert.match(rows[0].metadata.week_2.textContent,/Recorder B/);
+assert(!source.includes('data-rope-meta="'), "Saved recorder/date captions are no longer rendered");
+assert.equal(rows[0].cells.initial_weight_kg.classList.contains("reef-rope-unsaved"),false, "Loaded weights remain clean");
 const first = context.collectSampleRopeRows();
 assert.equal(first[0].date_seeded,"2026-08-01");
 assert.equal(first[1].date_seeded,"2026-08-03");
@@ -81,8 +117,12 @@ assert.equal(first[0].week_2_date,undefined,"Unedited week date is preserved ser
 dates.initial.value="2026-08-02";
 dates.week_2.value="2026-08-18";
 times.week_2.value="11:35";
-context.markSampleRegisterDirty({target:{closest:sel=>sel.startsWith("[data-stage-date]")?{dataset:{stageDate:"initial"}}:null}});
-context.markSampleRegisterDirty({target:{closest:sel=>sel.startsWith("[data-stage-date]")?{dataset:{stageDate:"week_2"}}:null}});
+context.markSampleRegisterDirty({target:dates.initial});
+context.markSampleRegisterDirty({target:dates.week_2});
+context.markSampleRegisterDirty({target:times.week_2});
+assert(dates.initial.classList.contains("reef-rope-unsaved"), "Edited initial date turns yellow");
+assert(dates.week_2.classList.contains("reef-rope-unsaved"), "Edited Week 2 date turns yellow");
+assert(times.week_2.classList.contains("reef-rope-unsaved"), "Edited Week 2 time turns yellow");
 const payload=context.collectSampleRopeRows();
 assert.equal(payload[0].date_seeded,"2026-08-02");
 assert.equal(payload[1].date_seeded,"2026-08-02");
@@ -105,8 +145,16 @@ assert.equal(context.validatedSampleVisit(payload),null);
 assert.match(status,/date above Initial Weight/i);
 context.applySampleRegister({rows:[]});
 assert.equal(dates.initial.value,"");
-assert.equal(rows[0].metadata.initial.textContent,"");
 assert.equal(state.sampleStageEdits.size,0);
+assert(!dates.week_2.classList.contains("reef-rope-unsaved"), "Saved/loaded input is no longer yellow");
+rows[0].cells.initial_weight_kg.value = "1.7";
+context.markSampleRegisterDirty({target:rows[0].cells.initial_weight_kg});
+assert(rows[0].cells.initial_weight_kg.classList.contains("reef-rope-unsaved"), "Edited weight turns yellow");
+assert(state.sampleRegisterDirty, "Edit is unsaved");
+rows[0].cells.initial_weight_kg.value = "";
+context.markSampleRegisterDirty({target:rows[0].cells.initial_weight_kg});
+assert(!rows[0].cells.initial_weight_kg.classList.contains("reef-rope-unsaved"), "Reverted edit clears yellow");
+assert(!state.sampleRegisterDirty, "Reverted edit is no longer unsaved");
 console.log("Independent header dates/time and per-rope historical preservation passed.");
 
 
@@ -119,10 +167,12 @@ assert.equal(mkwiroRaftDisplayLabel("MK-R1", "Rectangular Raft"), "MK-R1 (Rectan
 assert.equal(mkwiroRaftDisplayLabel("MK-R2", "Cascadia Prototype"), "MK-R2 (Cascadia Prototype) | Raft A");
 assert.equal(mkwiroRaftDisplayLabel("MK-R3", "LM / PIK Raft"), "MK-R3 (LM / PIK Raft) | Raft B");
 assert.equal(mkwiroRaftDisplayLabel("MK-R1"), "MK-R1 (Rectangular Raft) | Raft C");
-assert.equal(mkwiroRaftDisplayLabel("MK-SF1/R1", "Shore Farm 1"), null);
+assert.equal(mkwiroRaftDisplayLabel("MK-SF1/R1", "Shore Farm 1"), "MK-SF1/R1 (Shore Farm 1) | Farm C");
+assert.equal(mkwiroRaftDisplayLabel("MK-SF2/R2", "Shore Farm 2"), "MK-SF2/R2 (Shore Farm 2) | Farm A");
+assert.equal(mkwiroRaftDisplayLabel("MK-SF3/R3", "Shore Farm 3"), "MK-SF3/R3 (Shore Farm 3) | Farm B");
 assert.equal(mkwiroRaftDisplayLabel("TB-R1", "Prototype"), null);
 assert.match(source, /mkwiroRaftDisplayLabel\(site\.site_code, site\.site_name\)/);
 const recordsSource = fs.readFileSync("assets/js/reef_seaweed_records_page.js", "utf8");
 assert.match(recordsSource, /mkwiroRaftDisplayLabel\(record\.site_code, record\.site_name\)/);
 assert.match(recordsSource, /mkwiroRaftDisplayLabel\(register\.site_code, register\.site_name\)/);
-console.log("Mkwiro raft C/A/B labels verified in form and records.");
+console.log("Mkwiro raft and shore-farm C/A/B labels verified in form and records.");
