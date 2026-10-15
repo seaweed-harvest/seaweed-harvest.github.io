@@ -29,6 +29,18 @@ if (!reviewMode) {
     ...(legacySeaweedRecordRequested ? [import("./reef_nursery_seaweed.js?v=1")] : []),
     import("./reef_nursery_inspection.js?v=2")
   ]);
+  // The standalone Training entry no longer loads Seaweed math, which used
+  // to initialise the read-only unified history as a side effect.
+  try {
+    await import("./reef_nursery_records_unified.js?v=4");
+  } catch (error) {
+    const placeholder = document.querySelector("#reefRecordsPanel .reef-embedded-records");
+    if (placeholder) {
+      placeholder.textContent = "Previous Records could not load. Please refresh the page.";
+      placeholder.setAttribute("role", "alert");
+    }
+    console.error("Reef Previous Records viewer failed to initialise", error);
+  }
 }
 
 // Do not load the former Training / Seaweed shared-workspace tabs.
