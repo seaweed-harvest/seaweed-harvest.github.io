@@ -5,7 +5,7 @@ import {
 } from "./auth_client.js?v=25";
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
 
-import { mkwiroRaftDisplayLabel, pairedMkwiroSites } from "./reef_mkwiro_raft_labels.js?v=3";
+import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=3";
 
 const PAGE_SIZE = 50;
 const LOCATION_LABELS = Object.freeze({
@@ -30,7 +30,8 @@ const state = {
   rows: [],
   loading: false,
   deleting: false,
-  canDelete: false
+  canDelete: false,
+  selectedRecords: new Map()
 };
 const els = {};
 
@@ -118,10 +119,22 @@ function bindEvents() {
     if (!button) return;
     void openRecord(button.dataset.kind, button.dataset.key, button.dataset.number);
   });
-  els.reefSeaweedPairShortcuts.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-open-reef-pair]");
-    if (!button) return;
-    void openRecord("sample_rope_register", button.dataset.openReefPair, "Mkwiro monitoring pair");
+  els.reefSeaweedPairShortcuts.addEventListener("change", (event) => {
+    const checkbox = event.target.closest("[data-select-reef-site]");
+    if (!checkbox) return;
+    toggleSelectedRecord("sample_rope_register", checkbox.dataset.selectReefSite,
+      checkbox.dataset.siteLabel || checkbox.dataset.selectReefSite, checkbox.checked);
+  });
+  els.reefSeaweedRecordRows.addEventListener("change", (event) => {
+    const checkbox = event.target.closest("[data-select-reef-record]");
+    if (!checkbox) return;
+    toggleSelectedRecord(checkbox.dataset.kind, checkbox.dataset.key,
+      checkbox.dataset.number, checkbox.checked);
+  });
+  els.reefSeaweedRecordDetailContent.addEventListener("click", (event) => {
+    const remove = event.target.closest("[data-remove-reef-selection]");
+    if (!remove) return;
+    removeSelectedRecord(remove.dataset.removeReefSelection);
   });
   els.closeReefSeaweedRecordDetail.addEventListener("click", closeDetail);
 }
@@ -165,7 +178,7 @@ async function loadRecords() {
 
 function renderRows() {
   if (!state.rows.length) {
-    els.reefSeaweedRecordRows.innerHTML = '<tr><td colspan="8" class="empty-state">No matching seaweed records found.</td></tr>';
+    els.reefSeaweedRecordRows.innerHTML = '<tr><td colspan="9" class="empty-state">No matching seaweed records found.</td></tr>';
   } else {
     els.reefSeaweedRecordRows.innerHTML = state.rows.map((record) => {
       const kindClass = record.record_kind === "sample_rope_register"
@@ -175,6 +188,7 @@ function renderRows() {
       const details = [record.summary, record.recorded_by_name].filter(Boolean).join(" · ");
       return `
         <tr>
+          <td data-label="Show"><input type="checkbox" data-select-reef-record data-kind="${escapeHtml(record.record_kind)}" data-key="${escapeHtml(record.record_key)}" data-number="${escapeHtml(record.record_number || "")}" aria-label="Show ${escapeHtml(record.record_number || KIND_LABELS[record.record_kind] || "record")}" ${state.selectedRecords.has(selectionKey(record.record_kind, record.record_key)) ? "checked" : ""}></td>
           <td data-label="Type"><span class="reef-record-kind${kindClass}">${escapeHtml(KIND_LABELS[record.record_kind] || humanize(record.record_kind))}</span></td>
           <td data-label="Record"><strong>${escapeHtml(record.record_number || "-")}</strong></td>
           <td data-label="Date">${escapeHtml(formatDate(record.record_date))}</td>
@@ -204,7 +218,6 @@ function recordActions(record) {
 function applySearch() {
   state.search = els.reefSeaweedRecordsSearch.value.trim();
   state.page = 0;
-  closeDetail();
   void loadRecords();
 }
 
@@ -212,48 +225,106 @@ function changePage(direction) {
   const next = state.page + direction;
   if (next < 0 || next * PAGE_SIZE >= state.total) return;
   state.page = next;
-  closeDetail();
   void loadRecords();
 }
 
-async function openRecord(kind, key, recordNumber) {
-  if (!kind || !key) return;
-  if (kind === "legacy_seaweed") {
-    if (state.profile) {
-      window.location.assign(`./reef_nursery.html?tab=seaweed&seaweed_record=${encodeURIComponent(key)}`);
-      return;
-    }
-    // Old Seaweed submissions are listed publicly but the original editor
-    // remains protected. Show their public summary without opening the editor.
-    const record = state.rows.find((row) => row.record_kind === kind && row.record_key === key);
-    els.reefSeaweedRecordDetail.hidden = false;
-    els.reefSeaweedRecordDetailTitle.textContent = recordNumber || "Legacy Seaweed record";
-    els.reefSeaweedRecordDetailContent.innerHTML = [
-      detailItem("Date", formatDate(record?.record_date)),
-      detailItem("Location", LOCATION_LABELS[record?.location] || humanize(record?.location)),
-      detailItem("Species", record?.species),
-      detailItem("Recorded by", record?.recorded_by_name),
-      detailItem("Summary", record?.summary)
-    ].join("");
-    setDetailStatus("Public history · read only");
-    return;
-  }
-
-  els.reefSeaweedRecordDetail.hidden = false;
-  els.reefSeaweedRecordDetailTitle.textContent = recordNumber || KIND_LABELS[kind] || "Seaweed record";
-  els.reefSeaweedRecordDetailContent.replaceChildren();
-  setDetailStatus("Loading record...");
-  try {
-    if (kind === "site_capture") await openSiteCapture(key);
-    else if (kind === "sample_rope_register") await openSampleRegister(key);
-    setDetailStatus("");
-    els.reefSeaweedRecordDetail.scrollIntoView({ behavior: "smooth", block: "start" });
-  } catch (error) {
-    setDetailStatus(error.message || "That record could not be opened.", "error");
-  }
+function selectionKey(kind, key) {
+  return `${kind}:${key}`;
 }
 
-async function openSiteCapture(captureId) {
+function syncSelectionCheckboxes() {
+  document.querySelectorAll("[data-select-reef-record], [data-select-reef-site]").forEach((input) => {
+    const kind = input.dataset.kind || "sample_rope_register";
+    const key = input.dataset.key || input.dataset.selectReefSite;
+    input.checked = state.selectedRecords.has(selectionKey(kind, key));
+  });
+}
+
+function toggleSelectedRecord(kind, key, recordNumber, selected) {
+  if (!kind || !key) return;
+  if (!["sample_rope_register", "site_capture", "legacy_seaweed"].includes(kind)) return;
+  if (!selected) {
+    removeSelectedRecord(selectionKey(kind, key));
+    return;
+  }
+  const id = selectionKey(kind, key);
+  if (state.selectedRecords.has(id)) {
+    syncSelectionCheckboxes();
+    return;
+  }
+  const item = { id, kind, key, recordNumber: recordNumber || key, status: "loading", html: "" };
+  state.selectedRecords.set(id, item);
+  renderSelectedRecords();
+  syncSelectionCheckboxes();
+  void loadSelectedRecord(item);
+}
+
+function openRecord(kind, key, recordNumber) {
+  toggleSelectedRecord(kind, key, recordNumber, true);
+}
+
+function removeSelectedRecord(id) {
+  state.selectedRecords.delete(id);
+  syncSelectionCheckboxes();
+  renderSelectedRecords();
+}
+
+function renderSelectedRecords() {
+  const selected = [...state.selectedRecords.values()];
+  els.reefSeaweedRecordDetail.hidden = selected.length === 0;
+  if (!selected.length) {
+    els.reefSeaweedRecordDetailContent.replaceChildren();
+    setDetailStatus("");
+    return;
+  }
+  els.reefSeaweedRecordDetailTitle.textContent = `Selected records (${selected.length})`;
+  els.reefSeaweedRecordDetailContent.innerHTML = `
+    <div class="reef-selected-records-grid">
+      ${selected.map((item) => `<section class="reef-selected-record-card" data-selected-id="${escapeHtml(item.id)}">
+        <div class="reef-selected-record-card-heading">
+          <h4>${escapeHtml(item.recordNumber)}</h4>
+          <button type="button" data-remove-reef-selection="${escapeHtml(item.id)}" aria-label="Remove ${escapeHtml(item.recordNumber)} from view">Remove</button>
+        </div>
+        ${item.status === "loading" ? '<p class="field-hint">Loading record…</p>' :
+          item.status === "error" ? `<p class="admin-status" data-status="error">${escapeHtml(item.message || "Could not load record.")}</p>` : item.html}
+      </section>`).join("")}
+    </div>`;
+}
+
+async function loadSelectedRecord(item) {
+  try {
+    let html;
+    if (item.kind === "sample_rope_register") {
+      html = await loadSampleRegisterCard(item.key);
+      item.recordNumber = mkwiroRaftDisplayLabel(item.key) || item.recordNumber;
+    } else if (item.kind === "site_capture") {
+      html = await loadSiteCaptureCard(item.key);
+    } else {
+      // Legacy entries are read-only public summaries, not editable records.
+      const record = state.rows.find((row) => row.record_kind === item.kind && row.record_key === item.key);
+      html = [
+        detailItem("Date", formatDate(record?.record_date)),
+        detailItem("Location", LOCATION_LABELS[record?.location] || humanize(record?.location)),
+        detailItem("Species", record?.species),
+        detailItem("Recorded by", record?.recorded_by_name),
+        detailItem("Summary", record?.summary)
+      ].join("");
+      if (state.profile) {
+        html += `<p><a href="./reef_nursery.html?tab=seaweed&seaweed_record=${encodeURIComponent(item.key)}">Open original record</a></p>`;
+      }
+    }
+    if (state.selectedRecords.get(item.id) !== item) return;
+    item.html = html;
+    item.status = "ready";
+  } catch (error) {
+    if (state.selectedRecords.get(item.id) !== item) return;
+    item.message = error?.message || "Could not load record.";
+    item.status = "error";
+  }
+  renderSelectedRecords();
+}
+
+async function loadSiteCaptureCard(captureId) {
   const { data, error } = await authClient.rpc(
     state.profile ? "ag_reef_site_capture_record_detail" : "ag_public_cosme_reef_site_capture_detail", {
     p_capture_id: captureId
@@ -261,7 +332,7 @@ async function openSiteCapture(captureId) {
   if (error) throw error;
   const record = Array.isArray(data) ? data[0] : data;
   if (!record) throw new Error("Seaweed Site Capture was not found.");
-  els.reefSeaweedRecordDetailTitle.textContent = record.record_number || "Seaweed Site Capture";
+
 
   const health = record.health_environment && typeof record.health_environment === "object"
     ? record.health_environment
@@ -278,7 +349,7 @@ async function openSiteCapture(captureId) {
     .map(([key, value]) => `${humanize(key)}: ${value}`)
     .join("; ");
 
-  els.reefSeaweedRecordDetailContent.innerHTML = `
+  return `
     <div class="reef-detail-grid">
       ${detailItem("Date / time", formatDateTime(record.observed_at))}
       ${detailItem("Location", LOCATION_LABELS[record.location] || humanize(record.location))}
@@ -297,41 +368,12 @@ async function openSiteCapture(captureId) {
     ${record.photo ? detailSection("Photo", record.photo.original_name || "Photo attached") : ""}`;
 }
 
-async function openSampleRegister(siteCode) {
-  const pair = pairedMkwiroSites(siteCode);
-  const codes = pair ? [pair.raftCode, pair.farmCode] : [siteCode];
-
-  // Treat related sites as independent, read-only registers. A failed
-  // secondary read must not hide the successfully loaded primary one.
-  const results = await Promise.allSettled(codes.map(async (code) => {
-    const { data, error } = await authClient.rpc("ag_reef_sample_rope_register", {
-      p_site_code: code
-    });
-    if (error) throw error;
-    return data || {};
-  }));
-  if (results.every((result) => result.status === "rejected")) {
-    throw results.find((result) => result.status === "rejected").reason;
-  }
-
-  els.reefSeaweedRecordDetailTitle.textContent = pair
-    ? `Mkwiro · Raft ${pair.group} and Farm ${pair.group}`
-    : `${siteCode} Sample Rope Register`;
-
-  els.reefSeaweedRecordDetailContent.innerHTML = `
-    ${pair ? '<p class="field-hint reef-pair-description">Offshore raft and shore farm are shown together. Dates above each measurement column reflect the records for that site.</p>' : ""}
-    <div class="reef-sample-pair-grid${pair ? " is-paired" : ""}">
-      ${codes.map((code, index) => {
-        const result = results[index];
-        if (result.status === "rejected") {
-          return `<section class="reef-sample-comparison-card">
-            <h4>${escapeHtml(code)}</h4>
-            <p class="admin-status" data-status="error">Unable to load this site's register. ${escapeHtml(result.reason?.message || "Please retry.")}</p>
-          </section>`;
-        }
-        return renderSampleRegisterCard(result.value, code, pair ? (index === 0 ? "Offshore raft" : "Shore farm") : null);
-      }).join("")}
-    </div>`;
+async function loadSampleRegisterCard(siteCode) {
+  const { data, error } = await authClient.rpc("ag_reef_sample_rope_register", {
+    p_site_code: siteCode
+  });
+  if (error) throw error;
+  return renderSampleRegisterCard(data || {}, siteCode, null);
 }
 
 const SAMPLE_MEASUREMENT_STAGES = Object.freeze([
@@ -426,7 +468,7 @@ async function deleteRecord(kind, key, recordNumber) {
     });
     if (error) throw error;
 
-    closeDetail();
+    if (state.selectedRecords.has(selectionKey(kind, key))) removeSelectedRecord(selectionKey(kind, key));
     await loadRecords();
     setStatus(`${label} deleted.`, "success");
   } catch (error) {
@@ -443,9 +485,9 @@ async function deleteRecord(kind, key, recordNumber) {
 }
 
 function closeDetail() {
-  els.reefSeaweedRecordDetail.hidden = true;
-  els.reefSeaweedRecordDetailContent.replaceChildren();
-  setDetailStatus("");
+  state.selectedRecords.clear();
+  syncSelectionCheckboxes();
+  renderSelectedRecords();
 }
 
 function setLoading(loading) {
