@@ -209,6 +209,18 @@ $$;
           raise exception 'Invalid date/time or edit flag for Sample Rope stage %.', v_stage using errcode='22023';
         end;
       end if;
+      -- If a stage's header has mixed/blank historical values, preserve
+      -- each existing rope's own date and time rather than assigning today's
+      -- fallback to an unchanged stage.
+      if v_stage_date is null then
+        v_stage_date := coalesce(
+          nullif(v_current ->> (case when v_stage = 'initial' then 'date_seeded' else v_stage || '_date' end), '')::date,
+          nullif(v_current -> 'measurement_provenance' -> v_stage ->> 'date', '')::date,
+          v_date);
+      end if;
+      if v_stage_time is null and not v_stage_edited then
+        v_stage_time := nullif(v_current -> 'measurement_provenance' -> v_stage ->> 'time', '')::time;
+      end if;
       v_visit_meta := jsonb_build_object(
         'date', v_stage_date, 'time', v_stage_time,
         'recorder', v_recorder, 'team', v_team, 'other_team', v_other,
