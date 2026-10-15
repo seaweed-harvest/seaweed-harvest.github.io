@@ -298,7 +298,7 @@ async function openSampleRegister(siteCode) {
   if (error) throw error;
   const register = data || {};
   const rows = Array.isArray(register.rows) ? register.rows : [];
-  els.reefSeaweedRecordDetailTitle.textContent = `${register.site_code || siteCode} Sample Rope Register`;
+  els.reefSeaweedRecordDetailTitle.textContent = `${mkwiroRaftDisplayLabel(register.site_code || siteCode, register.site_name) || register.site_code || siteCode} Sample Rope Register`;
   els.reefSeaweedRecordDetailContent.innerHTML = `
     <div class="reef-detail-grid">
       ${detailItem("Location", LOCATION_LABELS[register.location] || humanize(register.location))}
