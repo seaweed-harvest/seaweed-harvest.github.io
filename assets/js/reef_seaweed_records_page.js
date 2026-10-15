@@ -387,32 +387,23 @@ function measurementDate(row, stage, dateKey) {
   return row[dateKey] || row.measurement_provenance?.[stage]?.date || null;
 }
 
-function measurementTime(row, stage) {
-  return row.measurement_provenance?.[stage]?.time || null;
+function sampleStageHeading([stage, label]) {
+  return `<th class="reef-register-stage-heading" data-stage="${escapeHtml(stage)}">${escapeHtml(label)}</th>`;
 }
 
-function sampleStageHeading(rows, [stage, label, weightKey, dateKey]) {
-  const measured = rows.filter((row) => row[weightKey] !== null && row[weightKey] !== undefined && row[weightKey] !== "");
-  const dates = [...new Set(measured.map((row) => measurementDate(row, stage, dateKey)).filter(Boolean))];
-  const times = [...new Set(measured.map((row) => measurementTime(row, stage)).filter(Boolean).map((time) => String(time).slice(0, 5)))];
-  const missingDates = measured.some((row) => !measurementDate(row, stage, dateKey));
-  const dateLabel = !dates.length ? "—"
-    : dates.length === 1 ? `${formatDate(dates[0])}${missingDates ? " (some undated)" : ""}`
-    : "Multiple dates";
-  const dateTitle = dates.length > 1 ? ` title="${escapeHtml(dates.map(formatDate).join(", "))}"` : "";
-  const timeLabel = times.length === 1 ? times[0] : times.length > 1 ? "Multiple times" : "";
-  return `<th class="reef-register-stage-heading" data-stage="${escapeHtml(stage)}">
-    <span>${escapeHtml(label)}</span>
-    <small${dateTitle}>Date: ${escapeHtml(dateLabel)}</small>
-    ${timeLabel ? `<small>Time: ${escapeHtml(timeLabel)}</small>` : ""}
-  </th>`;
+function sampleStageDateHeading(rows, [stage, , weightKey, dateKey]) {
+  const measured = rows.filter(row => row[weightKey] !== null && row[weightKey] !== undefined && row[weightKey] !== "");
+  const dates = [...new Set(measured.map(row => measurementDate(row, stage, dateKey)).filter(Boolean))];
+  const missing = measured.some(row => !measurementDate(row, stage, dateKey));
+  const label = !dates.length ? "—" : dates.length > 1 ? "Multiple dates" :
+    `${formatDate(dates[0])}${missing ? " (some undated)" : ""}`;
+  const title = dates.length > 1 ? ` title="${escapeHtml(dates.map(formatDate).join(", "))}"` : "";
+  return `<th class="reef-register-date-cell"${title}>${escapeHtml(label)}</th>`;
 }
 
 function sampleStageCell(row, [stage, , weightKey, dateKey]) {
   const date = measurementDate(row, stage, dateKey);
-  const time = measurementTime(row, stage);
-  const dateTime = [date ? formatDate(date) : "", time ? String(time).slice(0, 5) : ""].filter(Boolean).join(" · ");
-  return `<td${dateTime ? ` title="${escapeHtml(dateTime)}"` : ""}>${escapeHtml(displayNumber(row[weightKey]))}</td>`;
+  return `<td${date ? ` title="${escapeHtml(formatDate(date))}"` : ""}>${escapeHtml(displayNumber(row[weightKey]))}</td>`;
 }
 
 function renderSampleRegisterCard(register, code, kindLabel) {
@@ -425,17 +416,21 @@ function renderSampleRegisterCard(register, code, kindLabel) {
   return `<section class="reef-sample-comparison-card" aria-label="${escapeHtml(name)} Sample Rope Register">
     <div class="reef-sample-comparison-head">
       ${kindLabel ? `<span class="reef-record-kind is-sample">${escapeHtml(kindLabel)}</span>` : ""}
-      <h4>${escapeHtml(name)}</h4>
       <p class="field-hint">${escapeHtml(LOCATION_LABELS[register.location] || humanize(register.location))} · ${escapeHtml(humanize(register.structure_type || ""))}</p>
     </div>
     ${!hasMeasurements ? '<p class="reef-sample-empty-note">No rope measurements recorded yet for this site.</p>' : ""}
     <div class="responsive-table-wrap reef-sample-card-table-wrap">
       <table class="management-table admin-data-table reef-sample-detail-table">
-        <thead><tr>
-          <th>Sample Rope</th><th>Species</th><th>Rope Weight (kg)</th>
-          ${SAMPLE_MEASUREMENT_STAGES.map((stage) => sampleStageHeading(rows, stage)).join("")}
-          <th>Previous cycles</th>
-        </tr></thead>
+        <thead>
+          <tr><th rowspan="2">Sample Rope</th><th rowspan="2">Species</th>
+            <th rowspan="2">Rope Weight (kg)</th>
+            ${SAMPLE_MEASUREMENT_STAGES.map(sampleStageHeading).join("")}
+            <th rowspan="2">Previous cycles</th>
+          </tr>
+          <tr class="reef-register-date-row">
+            ${SAMPLE_MEASUREMENT_STAGES.map(stage => sampleStageDateHeading(rows, stage)).join("")}
+          </tr>
+        </thead>
         <tbody>
           ${rows.length ? rows.map((row) => `<tr>
             <td>Rope ${escapeHtml(row.rope_number)}</td>
