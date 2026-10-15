@@ -65,3 +65,4 @@ assert(source.includes('ag_reef_sample_rope_register'), "Public read-only regist
 assert(source.includes('Promise.allSettled'), "Partial site failures reported");
 assert(!source.includes("ag_reef_sample_rope_register_save"), "Flat table never writes measurements");
 console.log("All-sites consolidated Sample Rope Data columns, sorting, filtering and read-only acquisition passed.");
+await import("./reef_rope_site_filter_heatmap_test.mjs");

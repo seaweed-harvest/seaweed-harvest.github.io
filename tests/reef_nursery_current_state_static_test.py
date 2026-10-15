@@ -98,7 +98,7 @@ class ReefNurseryTrainingEntryContractTest(unittest.TestCase):
 
     def test_html_boot_and_cache_are_explicitly_advanced(self):
         self.assertIn('reef_nursery_training_entry_bridge.js?v=2', HTML)
-        self.assertIn('reef_nursery_boot.js?v=20261015b', HTML)
+        self.assertIn('reef_nursery_boot.js?v=20261015d', HTML)
         self.assertIn('reef_nursery_training_rpc_guard.js?v=4', BOOT)
         self.assertIn('reef_nursery_training_dom_guard.js?v=7', BOOT)
         self.assertIn('reef_nursery_training_entry_bridge.js?v=2', BOOT)

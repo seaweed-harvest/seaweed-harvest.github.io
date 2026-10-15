@@ -139,6 +139,22 @@
     .reef-rope-data-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:end; margin-bottom:12px; }
     .reef-rope-data-toolbar > label { flex:1 1 280px; }
     .reef-rope-data-toolbar > label input { display:block; width:100%; }
+    .reef-rope-site-filter { position:relative; border:1px solid #c9e0da; border-radius:8px; padding:8px 11px; min-width:110px; }
+    .reef-rope-site-filter summary { cursor:pointer; user-select:none; font-weight:650; }
+    .reef-rope-site-filter-menu { position:absolute; right:0; top:calc(100% + 5px); z-index:25; width:min(420px, calc(100vw - 50px)); max-height:min(420px, 62vh); overflow:auto; padding:12px; background:#fff; border:1px solid #b8d5cd; border-radius:9px; box-shadow:0 8px 22px rgba(17,59,52,.18); }
+    .reef-rope-site-filter-actions { display:flex; gap:8px; margin-bottom:10px; }
+    .reef-rope-site-choices { display:flex; flex-direction:column; gap:9px; }
+    .reef-rope-site-choices label { display:flex; gap:9px; align-items:flex-start; line-height:1.35; font-size:.82rem; cursor:pointer; }
+    .reef-rope-site-choices input { accent-color:#27816f; margin-top:3px; flex-shrink:0; }
+    .reef-rope-site-header-filter { margin-left:5px; border:1px solid #a5d1c2 !important; border-radius:4px; padding:2px 5px !important; }
+    .reef-rope-heat-cell { border-radius:2px; font-weight:600; }
+    .reef-rope-heat-legend { display:flex; align-items:center; flex-wrap:wrap; gap:9px 14px; font-size:.77rem; color:#47645b; margin-top:10px; }
+    .reef-rope-heat-legend span { display:inline-flex; gap:5px; align-items:center; }
+    .reef-rope-heat-legend i { display:inline-block; width:18px; height:13px; border:1px solid #d3d9d6; border-radius:3px; }
+    .reef-rope-heat-legend .reef-heat-low { background:hsl(0 68% 88%); }
+    .reef-rope-heat-legend .reef-heat-middle { background:hsl(60 68% 88%); }
+    .reef-rope-heat-legend .reef-heat-high { background:hsl(120 68% 88%); }
+    .reef-rope-heat-legend small { flex-basis:100%; font-size:.72rem; }
     .reef-rope-column-picker { position:relative; border:1px solid #c9e0da; border-radius:8px; padding:8px 11px; }
     .reef-rope-column-picker summary { cursor:pointer; user-select:none; font-weight:650; }
     .reef-rope-column-list { display:grid; grid-template-columns:repeat(2,minmax(160px,1fr)); gap:8px 14px; margin:10px 0; }
@@ -249,6 +265,18 @@
             <label>Search rope data
               <input id="reefSampleRopeDataSearch" type="search" placeholder="Site, rope number, species or location" autocomplete="off">
             </label>
+            <details id="reefSampleRopeSiteFilter" class="reef-rope-site-filter">
+              <summary id="reefSampleRopeSiteFilterLabel">Sites · All</summary>
+              <div class="reef-rope-site-filter-menu">
+                <div class="reef-rope-site-filter-actions">
+                  <button id="reefSampleRopeSitesAll" type="button">Select all</button>
+                  <button id="reefSampleRopeSitesNone" type="button">Clear</button>
+                </div>
+                <div id="reefSampleRopeSiteChoices" class="reef-rope-site-choices" aria-label="Filter Sample Rope sites">
+                  <span class="field-hint">Sites will appear when data loads.</span>
+                </div>
+              </div>
+            </details>
             <details class="reef-rope-column-picker">
               <summary>Columns</summary>
               <div id="reefSampleRopeDataColumns" class="reef-rope-column-list" aria-label="Choose columns"></div>
@@ -263,12 +291,19 @@
               <tbody id="reefSampleRopeDataBody"><tr><td class="empty-state">Open this tab to load Sample Rope Data.</td></tr></tbody>
             </table>
           </div>
-          <p class="field-hint">Showing current saved Sample Rope Register cycles across all active nursery sites. Click a column heading to sort; choose Columns to show or hide fields. No records are changed here.</p>
+          <p class="field-hint">Click Site ▾ or use Sites to include or exclude individual locations; use Columns to show or hide fields. Click a column heading to sort. No records are changed here.</p>
+          <div class="reef-rope-heat-legend" aria-label="Row-relative R plus S weight colours">
+            <strong>R+S weights within each rope:</strong>
+            <span><i class="reef-heat-low" aria-hidden="true"></i> Lower</span>
+            <span><i class="reef-heat-middle" aria-hidden="true"></i> Middle</span>
+            <span><i class="reef-heat-high" aria-hidden="true"></i> Higher</span>
+            <small>Initial/Wk 2/Wk 4/Wk 6 compared within each row; Rope Weight excluded. Missing or identical values stay uncoloured.</small>
+          </div>
         </section>
       </section>
     </section>
   </main>
 
-  <script type="module" src="./assets/js/reef_seaweed_records_page.js?v=7"></script>
+  <script type="module" src="./assets/js/reef_seaweed_records_page.js?v=8"></script>
 </body>
 </html>
