@@ -140,7 +140,35 @@ begin
           raise exception 'Invalid date/time for Sample Rope stage %.', v_stage using errcode='22023';
         end if;
         if coalesce(v_stage_spec ->> 'time','') <> ''
-          and (v_stage_spec ->> 'time') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]
+          and (v_stage_spec ->> 'time') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' then
+          raise exception 'Invalid optional time for Sample Rope stage %.', v_stage using errcode='22023';
+        end if;
+        begin
+          v_stage_date := nullif(v_stage_spec ->> 'date','')::date;
+          v_stage_time := nullif(v_stage_spec ->> 'time','')::time;
+          v_stage_edited := coalesce((v_stage_spec ->> 'edited')::boolean,false);
+        exception when others then
+          raise exception 'Invalid date/time or edit flag for Sample Rope stage %.', v_stage using errcode='22023';
+        end;
+      end if;
+      -- If a stage's header has mixed/blank historical values, preserve
+      -- each existing rope's own date and time rather than assigning today's
+      -- fallback to an unchanged stage.
+      if v_stage_date is null then
+        v_stage_date := coalesce(
+          nullif(v_current ->> (case when v_stage = 'initial' then 'date_seeded' else v_stage || '_date' end), '')::date,
+          nullif(v_current -> 'measurement_provenance' -> v_stage ->> 'date', '')::date,
+          v_date);
+      end if;
+      if v_stage_time is null and not v_stage_edited then
+        v_stage_time := nullif(v_current -> 'measurement_provenance' -> v_stage ->> 'time', '')::time;
+      end if;
+      v_visit_meta := jsonb_build_object(
+        'date', v_stage_date, 'time', v_stage_time,
+        'recorder', v_recorder, 'team', v_team, 'other_team', v_other,
+        'saved_at', clock_timestamp()
+      );
+      if v_stage = 'initial' then
         if (v_old ->> 'species') is not distinct from (v_current ->> 'species')
           and (v_old ->> 'date_seeded') is not distinct from (v_current ->> 'date_seeded')
           and nullif(v_old ->> 'rope_weight_kg', '')::numeric
@@ -196,77 +224,6 @@ begin
     || jsonb_build_object('saved_at', clock_timestamp());
 end;
 $$;
-
-
- then
-          raise exception 'Invalid optional time for Sample Rope stage %.', v_stage using errcode='22023';
-        end if;
-        begin
-          v_stage_date := nullif(v_stage_spec ->> 'date','')::date;
-          v_stage_time := nullif(v_stage_spec ->> 'time','')::time;
-          v_stage_edited := coalesce((v_stage_spec ->> 'edited')::boolean,false);
-        exception when others then
-          raise exception 'Invalid date/time or edit flag for Sample Rope stage %.', v_stage using errcode='22023';
-        end;
-      end if;
-      -- If a stage's header has mixed/blank historical values, preserve
-      -- each existing rope's own date and time rather than assigning today's
-      -- fallback to an unchanged stage.
-      if v_stage_date is null then
-        v_stage_date := coalesce(
-          nullif(v_current ->> (case when v_stage = 'initial' then 'date_seeded' else v_stage || '_date' end), '')::date,
-          nullif(v_current -> 'measurement_provenance' -> v_stage ->> 'date', '')::date,
-          v_date);
-      end if;
-      if v_stage_time is null and not v_stage_edited then
-        v_stage_time := nullif(v_current -> 'measurement_provenance' -> v_stage ->> 'time', '')::time;
-      end if;
-      v_visit_meta := jsonb_build_object(
-        'date', v_stage_date, 'time', v_stage_time,
-        'recorder', v_recorder, 'team', v_team, 'other_team', v_other,
-        'saved_at', clock_timestamp()
-      );
-      if v_stage = 'initial' then
-        if (v_old ->> 'species') is not distinct from (v_current ->> 'species')
-          and (v_old ->> 'date_seeded') is not distinct from (v_current ->> 'date_seeded')
-          and nullif(v_old ->> 'rope_weight_kg', '')::numeric
-            is not distinct from nullif(v_current ->> 'rope_weight_kg', '')::numeric
-          and nullif(v_old ->> 'initial_weight_kg', '')::numeric
-            is not distinct from nullif(v_current ->> 'initial_weight_kg', '')::numeric
-        then continue; end if;
-        if v_current ->> 'species' is null and v_current ->> 'date_seeded' is null
-          and v_current ->> 'rope_weight_kg' is null and v_current ->> 'initial_weight_kg' is null then
-          v_provenance := v_provenance - 'initial';
-        else
-          v_provenance := jsonb_set(v_provenance, '{initial}', v_visit_meta, true);
-        end if;
-      else
-        if nullif(v_old ->> (v_stage || '_kg'), '')::numeric
-          is not distinct from nullif(v_current ->> (v_stage || '_kg'), '')::numeric then
-          continue;
-        end if;
-        if v_current ->> (v_stage || '_kg') is null then
-          v_provenance := v_provenance - v_stage;
-        else
-          v_provenance := jsonb_set(v_provenance, array[v_stage], v_visit_meta, true);
-        end if;
-      end if;
-      v_change := true;
-    end loop;
-    if v_change then
-      update public.ag_reef_sample_rope_cycles c
-      set measurement_provenance = v_provenance
-      where c.id = (v_current ->> 'id')::uuid;
-    end if;
-  end loop;
-
-  return public.ag_reef_sample_rope_register_internal(v_aggregator_id, v_site_code)
-    || jsonb_build_object('saved_at', clock_timestamp());
-end;
-$$;
-
-
-
 revoke all on function public.ag_reef_sample_rope_register_save_visit(text,jsonb,jsonb) from public,anon,authenticated;
 grant execute on function public.ag_reef_sample_rope_register_save_visit(text,jsonb,jsonb) to anon,authenticated;
 notify pgrst,'reload schema';
