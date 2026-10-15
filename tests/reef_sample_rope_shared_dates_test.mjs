@@ -81,8 +81,8 @@ assert.equal(first[0].week_2_date,undefined,"Unedited week date is preserved ser
 dates.initial.value="2026-08-02";
 dates.week_2.value="2026-08-18";
 times.week_2.value="11:35";
-context.markSampleRegisterDirty({target:{closest:sel=>sel==="[data-stage-date]"?{dataset:{stageDate:"initial"}}:null}});
-context.markSampleRegisterDirty({target:{closest:sel=>sel==="[data-stage-date]"?{dataset:{stageDate:"week_2"}}:null}});
+context.markSampleRegisterDirty({target:{closest:sel=>sel.startsWith("[data-stage-date]")?{dataset:{stageDate:"initial"}}:null}});
+context.markSampleRegisterDirty({target:{closest:sel=>sel.startsWith("[data-stage-date]")?{dataset:{stageDate:"week_2"}}:null}});
 const payload=context.collectSampleRopeRows();
 assert.equal(payload[0].date_seeded,"2026-08-02");
 assert.equal(payload[1].date_seeded,"2026-08-02");
