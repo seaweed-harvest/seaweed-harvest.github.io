@@ -4,6 +4,7 @@ import {
   setupAccountControls
 } from "./auth_client.js?v=25";
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
+import { withMkwiroRaftAlias } from "./reef_mkwiro_raft_aliases.js?v=1";
 
 const PAGE_SIZE = 50;
 const LOCATION_LABELS = Object.freeze({
@@ -274,7 +275,7 @@ async function openSiteCapture(captureId) {
     <div class="reef-detail-grid">
       ${detailItem("Date / time", formatDateTime(record.observed_at))}
       ${detailItem("Location", LOCATION_LABELS[record.location] || humanize(record.location))}
-      ${detailItem("Site", [record.site_code, record.site_name].filter(Boolean).join(" - "))}
+      ${detailItem("Site", withMkwiroRaftAlias(record.site_code, [record.site_code, record.site_name].filter(Boolean).join(" - ")))}
       ${detailItem("Recorder", record.recorded_by_name)}
       ${detailItem("Monitoring team", record.monitoring_team === "other" ? record.monitoring_team_other : humanize(record.monitoring_team))}
       ${detailItem("Species", humanize(record.species))}
@@ -296,11 +297,11 @@ async function openSampleRegister(siteCode) {
   if (error) throw error;
   const register = data || {};
   const rows = Array.isArray(register.rows) ? register.rows : [];
-  els.reefSeaweedRecordDetailTitle.textContent = `${register.site_code || siteCode} Sample Rope Register`;
+  els.reefSeaweedRecordDetailTitle.textContent = withMkwiroRaftAlias(register.site_code || siteCode, `${register.site_code || siteCode} Sample Rope Register`);
   els.reefSeaweedRecordDetailContent.innerHTML = `
     <div class="reef-detail-grid">
       ${detailItem("Location", LOCATION_LABELS[register.location] || humanize(register.location))}
-      ${detailItem("Site", [register.site_code, register.site_name].filter(Boolean).join(" - "))}
+      ${detailItem("Site", withMkwiroRaftAlias(register.site_code, [register.site_code, register.site_name].filter(Boolean).join(" - ")))}
       ${detailItem("Structure", register.structure_type ? humanize(register.structure_type) : "-")}
     </div>
     <div class="responsive-table-wrap">
@@ -402,7 +403,7 @@ function setDetailStatus(message, kind = "") {
 function formatSite(record) {
   if (record.site_code) {
     const prefix = LOCATION_LABELS[record.location] || humanize(record.location);
-    const site = [record.site_code, record.site_name].filter(Boolean).join(" - ");
+    const site = withMkwiroRaftAlias(record.site_code, [record.site_code, record.site_name].filter(Boolean).join(" - "));
     return [prefix, site].filter(Boolean).join(" · ");
   }
   return LOCATION_LABELS[record.location] || humanize(record.location) || "-";
