@@ -302,8 +302,58 @@ function renderSelectedRecords() {
         </div>
         ${item.status === "loading" ? '<p class="field-hint">Loading record…</p>' :
           item.status === "error" ? `<p class="admin-status" data-status="error">${escapeHtml(item.message || "Could not load record.")}</p>` : item.html}
+        ${selected.length === 1 && item.kind === "sample_rope_register" && item.status === "ready"
+          ? (item.photoStatus === "ready" ? item.photoHtml
+            : item.photoStatus === "error" ? `<p class="admin-status" data-status="error">${escapeHtml(item.photoError || "Photos unavailable.")}</p>`
+            : '<p class="field-hint">Loading stage photos…</p>') : ""}
       </section>`).join("")}
     </div>`;
+  // Photos intentionally load only when precisely one register is selected;
+  // comparison views remain compact even when several sites have photos.
+  if (selected.length === 1 && selected[0].kind === "sample_rope_register" &&
+      selected[0].status === "ready" && !selected[0].photoStatus) {
+    void loadSingleRegisterPhotos(selected[0]);
+  }
+}
+
+async function loadSingleRegisterPhotos(item) { 
+  item.photoStatus = "loading";
+  const stageLabels = {initial:"Initial",week_2:"Week 2",week_4:"Week 4",week_6:"Week 6"};
+  try {
+    const {data,error}=await authClient.rpc("ag_reef_sample_rope_stage_photos",{p_site_code:item.key});
+    if(error) throw error;
+    const photos=Array.isArray(data)?data:[];
+    if(!photos.length) {
+      item.photoHtml="";
+    } else {
+      const ready=await Promise.all(photos.map(async photo=>{
+        const result=await authClient.storage.from("reef-seaweed-record-photos")
+          .createSignedUrl(photo.storage_path,3600);
+        if(result.error) throw result.error;
+        return {...photo,url:result.data.signedUrl};
+      }));
+      item.photoHtml=`<section class="reef-rope-photo-gallery">
+        <h5>Stage photos</h5>
+        ${["initial","week_2","week_4","week_6"].map(stage=>{
+          const group=ready.filter(photo=>photo.stage===stage);
+          if(!group.length) return "";
+          return `<div class="reef-rope-photo-stage">
+            <h6>${stageLabels[stage]}</h6>
+            <div class="reef-rope-photo-thumbnails">${group.map(photo=>
+              `<a href="${escapeHtml(photo.url)}" target="_blank" rel="noopener noreferrer">
+                <img loading="lazy" src="${escapeHtml(photo.url)}" alt="${escapeHtml(stageLabels[stage])} Sample Rope photo dated ${escapeHtml(photo.date)}">
+                <small>${escapeHtml(formatDate(photo.date))}</small>
+              </a>`).join("")}</div>
+          </div>`;
+        }).join("")}
+      </section>`;
+    }
+    item.photoStatus="ready";
+  } catch(error){
+    item.photoStatus="error";
+    item.photoError=error.message || "Could not load photo attachments.";
+  }
+  if(state.selectedRecords.get(item.id)===item) renderSelectedRecords();
 }
 
 async function loadSelectedRecord(item) {
