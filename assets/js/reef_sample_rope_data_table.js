@@ -181,6 +181,7 @@ export function initializeSampleRopeDataTable({ authClient, root }) {
       }
       state.rows = flattenActiveRopeRegisters(registers);
       state.loaded = true;
+      state.busy = false;
       render();
       if (failed.length) setStatus(`${state.rows.length} saved rope records loaded; ${failed.length} site(s) couldn't load: ${failed.join(", ")}. Refresh to retry.`, true);
     } catch (error) {
