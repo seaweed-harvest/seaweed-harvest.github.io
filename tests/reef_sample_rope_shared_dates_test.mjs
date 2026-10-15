@@ -176,3 +176,4 @@ const recordsSource = fs.readFileSync("assets/js/reef_seaweed_records_page.js", 
 assert.match(recordsSource, /mkwiroRaftDisplayLabel\(record\.site_code, record\.site_name\)/);
 assert.match(recordsSource, /mkwiroRaftDisplayLabel\(register\.site_code, register\.site_name\)/);
 console.log("Mkwiro raft and shore-farm C/A/B labels verified in form and records.");
+await import("./reef_records_paired_monitoring_test.mjs");
