@@ -7,7 +7,7 @@ import {
 } from "./auth_client.js?v=25";
 import { callPublicRpc } from "./supabase_client.js";
 import { setupFavoriteFormButton } from "./favorite_forms.js?v=3";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=20261015a";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=20261015b";
 
 const PHOTO_BUCKET = "reef-nursery-photos";
 const PHOTO_MAX_COUNT = 8;

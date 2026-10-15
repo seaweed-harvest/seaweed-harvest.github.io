@@ -1,5 +1,5 @@
 import { authClient, currentProfile, currentSession, setupAccountControls } from "./auth_client.js?v=25";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=20261015a";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=20261015b";
 import { formatWeightPerLine } from "./reef_nursery_site_capture_math.js?v=1";
 
 const PHOTO_BUCKET = "reef-seaweed-record-photos";
@@ -38,6 +38,8 @@ const state = {
   sampleRegisterSiteCode: null,
   sampleRegisterDirty: false,
   sampleRegisterLoading: false,
+  sampleSavedRows: new Map(),
+  sampleStageEdits: new Set(),
   currentLocation: "",
   saving: false
 };
@@ -240,10 +242,8 @@ function renderForm(form) {
           <div class="reef-sample-rope-table-wrap">
             <table class="reef-sample-rope-table">
               <thead>
-                <tr><th colspan="9" class="reef-sample-visit-header">
+                <tr><th colspan="8" class="reef-sample-visit-header">
                   <div class="reef-sample-visit-fields">
-                    <label>Recording date <input id="reefSampleVisitDate" type="date" required></label>
-                    <label>Time (optional) <input id="reefSampleVisitTime" type="time"></label>
                     <label>Recorder <input id="reefSampleVisitRecorder" type="text" maxlength="160" autocomplete="name" required></label>
                     <label>Monitoring Team
                       <select id="reefSampleVisitTeam" required>
@@ -256,18 +256,18 @@ function renderForm(form) {
                       <input id="reefSampleVisitOtherTeam" type="text" maxlength="160">
                     </label>
                   </div>
-                  <small class="reef-help">These details apply only to measurements changed in this save. Earlier weeks keep their original recorder and date.</small>
+                  <small class="reef-help">Each weight column has its own date and optional time. Dates can be backfilled independently; unchanged weeks keep their previous details.</small>
                 </th></tr>
                 <tr>
-                  <th rowspan="2">Sample Rope</th>
-                  <th rowspan="2">Species</th>
-                  <th rowspan="2">Date Seeded</th>
-                  <th rowspan="2">Rope Weight (kg)</th>
-                  <th rowspan="2">Initial Weight<br>(seeded rope) (kg)</th>
-                  <th colspan="3">Current Weight (kg)</th>
-                  <th rowspan="2"></th>
+                  <th>Sample Rope</th>
+                  <th>Species</th>
+                  <th>Rope Weight (kg)</th>
+                  ${sampleStageHeaderMarkup("initial", "Initial Weight (kg)")}
+                  ${sampleStageHeaderMarkup("week_2", "Wk2 (kg)")}
+                  ${sampleStageHeaderMarkup("week_4", "Wk4 (kg)")}
+                  ${sampleStageHeaderMarkup("week_6", "Wk6 (kg)")}
+                  <th></th>
                 </tr>
-                <tr><th>Wk2</th><th>Wk4</th><th>Wk6</th></tr>
               </thead>
               <tbody>${SAMPLE_ROPE_NUMBERS.map(sampleRopeRowMarkup).join("")}</tbody>
             </table>
@@ -382,7 +382,7 @@ function cacheElements() {
     "reefSiteCaptureRecorder", "reefSiteCaptureTeam", "reefSiteCaptureOtherTeamField", "reefSiteCaptureOtherTeam",
     "reefSiteCaptureLocation", "reefSiteCaptureSite", "reefSiteCaptureWorkspace", "reefSiteCaptureSiteHeading",
     "reefSiteCaptureTab", "reefSampleRopeTab", "reefSiteCapturePanel", "reefSampleRopePanel",
-    "reefSiteCaptureDetails", "reefSiteCaptureActions", "reefSampleVisitDate", "reefSampleVisitTime",
+    "reefSiteCaptureDetails", "reefSiteCaptureActions",
     "reefSampleVisitRecorder", "reefSampleVisitTeam", "reefSampleVisitOtherTeamField", "reefSampleVisitOtherTeam",
     "reefSiteCaptureSpecies", "reefSiteCaptureLines", "reefSiteCaptureSeedWeight", "reefSiteCaptureSeedUnit",
     "reefSiteCaptureSeedPerLine", "reefSiteCaptureHarvestWeight", "reefSiteCaptureHarvestUnit", "reefSiteCaptureHarvestPerLine",
@@ -554,7 +554,7 @@ async function saveSampleRopeRegister({ siteCode = null, silent = false } = {}) 
   if (state.sampleRegisterLoading) throw new Error("Wait for the Sample Rope Register to finish loading.");
 
   const rows = collectSampleRopeRows();
-  const visit = validatedSampleVisit();
+  const visit = validatedSampleVisit(rows);
   if (!visit) throw new Error("Complete the Sample Rope recording date, recorder and monitoring team.");
   if (!silent) setSampleStatus("Saving…");
   els.reefSampleRopeSave.disabled = true;
@@ -612,43 +612,80 @@ async function handleSampleRopeClick(event) {
   }
 }
 
+const SAMPLE_STAGES = Object.freeze(["initial", "week_2", "week_4", "week_6"]);
+function sampleStageField(stage) {
+  return stage === "initial" ? "initial_weight_kg" : `${stage}_kg`;
+}
+function sampleStageDateField(stage) {
+  return stage === "initial" ? "date_seeded" : `${stage}_date`;
+}
+function stageControl(stage, kind) {
+  return els.reefSampleRopePanel.querySelector(`[data-stage-${kind}="${stage}"]`);
+}
 function collectSampleRopeRows() {
   return [...els.reefSampleRopePanel.querySelectorAll("[data-sample-rope-row]")].map((row) => {
     const value = (field) => row.querySelector(`[data-rope-field="${field}"]`)?.value || "";
-    return {
+    const old = state.sampleSavedRows.get(Number(row.dataset.ropeNumber)) || {};
+    const newRow = {
       rope_number: Number(row.dataset.ropeNumber),
       species: value("species") || null,
-      date_seeded: value("date_seeded") || null,
+      date_seeded: old.date_seeded || null,
       rope_weight_kg: value("rope_weight_kg") || null,
       initial_weight_kg: value("initial_weight_kg") || null,
       week_2_kg: value("week_2_kg") || null,
       week_4_kg: value("week_4_kg") || null,
       week_6_kg: value("week_6_kg") || null
     };
+    for (const stage of SAMPLE_STAGES) {
+      if (!state.sampleStageEdits.has(stage)) continue;
+      // Assign a header date only to ropes that have a measurement at that
+      // stage. Unmeasured ropes and non-edited historical dates are preserved.
+      if (!newRow[sampleStageField(stage)]) continue;
+      newRow[sampleStageDateField(stage)] = stageControl(stage, "date")?.value || null;
+    }
+    return newRow;
   });
 }
 
 function applySampleRegister(register) {
-  const rows = new Map((Array.isArray(register?.rows) ? register.rows : []).map((row) => [Number(row.rope_number), row]));
+  state.sampleSavedRows = new Map((Array.isArray(register?.rows) ? register.rows : []).map((row) => [Number(row.rope_number), row]));
+  state.sampleStageEdits.clear();
   els.reefSampleRopePanel.querySelectorAll("[data-sample-rope-row]").forEach((row) => {
     const ropeNumber = Number(row.dataset.ropeNumber);
-    const data = rows.get(ropeNumber) || {};
-    for (const field of ["species", "date_seeded", "rope_weight_kg", "initial_weight_kg", "week_2_kg", "week_4_kg", "week_6_kg"]) {
+    const data = state.sampleSavedRows.get(ropeNumber) || {};
+    for (const field of ["species", "rope_weight_kg", "initial_weight_kg", "week_2_kg", "week_4_kg", "week_6_kg"]) {
       const control = row.querySelector(`[data-rope-field="${field}"]`);
       if (control) control.value = data[field] ?? "";
     }
-    for (const stage of ["initial", "week_2", "week_4", "week_6"]) {
+    for (const stage of SAMPLE_STAGES) {
       const meta = data.measurement_provenance?.[stage];
       const label = row.querySelector(`[data-rope-meta="${stage}"]`);
-      if (label) label.textContent = meta ? `${meta.date} · ${meta.recorder} (${meta.team === "other" ? meta.other_team : meta.team})` : "";
+      if (label) label.textContent = meta ? `${meta.date || ""} · ${meta.recorder || ""} (${meta.team === "other" ? meta.other_team : meta.team || ""})` : "";
     }
     row.dataset.cycleNumber = data.cycle_number ?? "";
     row.dataset.historyCount = data.history_count ?? 0;
   });
+  for (const stage of SAMPLE_STAGES) {
+    const measured = [...state.sampleSavedRows.values()].filter(row => row[sampleStageField(stage)] != null);
+    const dates = [...new Set(measured.map(row => row[sampleStageDateField(stage)] || row.measurement_provenance?.[stage]?.date).filter(Boolean))];
+    const times = [...new Set(measured.map(row => row.measurement_provenance?.[stage]?.time || "").filter(Boolean))];
+    const date = stageControl(stage, "date");
+    const time = stageControl(stage, "time");
+    const warning = els.reefSampleRopePanel.querySelector(`[data-stage-mixed="${stage}"]`);
+    if (date) date.value = dates.length === 1 ? dates[0] : "";
+    if (time) time.value = times.length === 1 ? String(times[0]).slice(0,5) : "";
+    if (warning) {
+      warning.textContent = dates.length > 1 ? "Different saved dates; enter a date only to replace them." : "";
+      warning.hidden = dates.length <= 1;
+    }
+  }
 }
 
 function markSampleRegisterDirty(event) {
-  if (!event.target.closest("[data-sample-rope-row]")) return;
+  const field = event.target.closest("[data-stage-date], [data-stage-time]");
+  if (field) {
+    state.sampleStageEdits.add(field.dataset.stageDate || field.dataset.stageTime);
+  } else if (!event.target.closest("[data-sample-rope-row]")) return;
   state.sampleRegisterDirty = true;
   setSampleStatus("Unsaved changes");
 }
@@ -823,8 +860,6 @@ function initializeNewCapture({ preservePeople = false, useStoredPeople = false 
   const now = kenyaNow();
   els.reefSiteCaptureRecordNumber.textContent = "New record";
   els.reefSiteCaptureDate.value = now.date;
-  els.reefSampleVisitDate.value = now.date;
-  els.reefSampleVisitTime.value = "";
   els.reefSampleVisitRecorder.value = people.recorder || "";
   els.reefSampleVisitTeam.value = people.team || "";
   els.reefSampleVisitOtherTeam.value = people.otherTeam || "";
@@ -1063,16 +1098,29 @@ function siteLabel(site) {
   return `${site.site_code} (${site.site_name})`;
 }
 
-function validatedSampleVisit() {
-  const date = els.reefSampleVisitDate.value;
+function validatedSampleVisit(rows = collectSampleRopeRows()) {
   const recorder = els.reefSampleVisitRecorder.value.trim();
   const team = els.reefSampleVisitTeam.value;
   const otherTeam = els.reefSampleVisitOtherTeam.value.trim();
-  if (!date || !recorder || !team || (team === "other" && !otherTeam)) {
-    setSampleStatus("Recording date, recorder and monitoring team are required for changed rope measurements.", "error");
+  if (!recorder || !team || (team === "other" && !otherTeam)) {
+    setSampleStatus("Recorder and monitoring team are required to save measurements.", "error");
     return null;
   }
-  return { date, time: els.reefSampleVisitTime.value || null, recorder, team, other_team: team === "other" ? otherTeam : null };
+  const stage_dates = {};
+  for (const stage of SAMPLE_STAGES) {
+    const date = stageControl(stage, "date")?.value || null;
+    const time = stageControl(stage, "time")?.value || null;
+    const edited = state.sampleStageEdits.has(stage);
+    const weightField = sampleStageField(stage);
+    const changedWeight = rows.some(row => String(row[weightField] || "") !== String(state.sampleSavedRows.get(row.rope_number)?.[weightField] || ""));
+    if ((edited || changedWeight) && !date && rows.some(row => row[weightField])) {
+      setSampleStatus(`Enter a date above ${stage === "initial" ? "Initial Weight" : stage.replace("_", " ")} before saving.`, "error");
+      return null;
+    }
+    stage_dates[stage] = { date, time, edited };
+  }
+  const date = SAMPLE_STAGES.map(stage => stage_dates[stage].date).find(Boolean) || kenyaNow().date;
+  return { date, time: null, recorder, team, other_team: team === "other" ? otherTeam : null, stage_dates };
 }
 
 function syncVisitOtherTeam() {
@@ -1081,13 +1129,21 @@ function syncVisitOtherTeam() {
   els.reefSampleVisitOtherTeam.required = other;
 }
 
+function sampleStageHeaderMarkup(stage, label) {
+  return `<th class="reef-stage-date-header" data-stage-header="${stage}">
+    ${label}
+    <label>Date <input data-stage-date="${stage}" type="date" aria-label="${label} date"></label>
+    <label>Time (optional) <input data-stage-time="${stage}" type="time" aria-label="${label} optional time"></label>
+    <small class="reef-stage-mixed" data-stage-mixed="${stage}" hidden></small>
+  </th>`;
+}
+
 function sampleRopeRowMarkup(ropeNumber) {
   const label = `Rope ${ropeNumber}`;
   return `
     <tr data-sample-rope-row data-rope-number="${ropeNumber}">
       <th scope="row">${label}</th>
       <td><select data-rope-field="species" aria-label="${label} species"><option value="">Select</option><option value="spinosum">Spinosum</option><option value="cottonii">Cottonii</option></select></td>
-      <td><input data-rope-field="date_seeded" type="date" aria-label="${label} date seeded"></td>
       <td><input data-rope-field="rope_weight_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} rope weight kg"></td>
       <td><input data-rope-field="initial_weight_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} initial seeded weight kg"><small data-rope-meta="initial"></small></td>
       <td><input data-rope-field="week_2_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} week 2 weight kg"><small data-rope-meta="week_2"></small></td>
@@ -1116,6 +1172,10 @@ function productionStyles() {
     .reef-site-mode-tabs { margin: 0 0 0.85rem; }
     .reef-site-mode-tabs .standard-tab { font-weight: 700; }
     .reef-sample-visit-header { text-align: left !important; }
+    .reef-stage-date-header { min-width:155px; vertical-align:top; }
+    .reef-stage-date-header label { display:block; text-align:left; font-size:0.68rem; font-weight:500; margin-top:0.35rem; }
+    .reef-stage-date-header input { display:block; width:100%; min-width:122px; margin-top:0.12rem; }
+    .reef-stage-mixed { display:block; font-size:0.65rem; margin-top:0.15rem; color:#956a31; font-weight:500; }
     .reef-sample-visit-fields { display:flex; flex-wrap:wrap; align-items:end; gap:0.65rem; margin-bottom:0.3rem; }
     .reef-sample-visit-fields label { min-width:130px; flex:1 1 150px; text-align:left; font-weight:600; font-size:0.77rem; }
     .reef-sample-visit-fields input, .reef-sample-visit-fields select { display:block; width:100%; box-sizing:border-box; margin-top:0.25rem; }
