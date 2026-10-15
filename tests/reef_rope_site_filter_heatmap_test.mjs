@@ -31,8 +31,8 @@ const range = calculate({initial_weight_kg: 1, week_2_kg:3,week_4_kg:2,week_6_kg
 assert.equal(range.initial_weight_kg.css,"background-color:hsl(0 68% 88%);");
 assert.equal(range.week_4_kg.css,"background-color:hsl(60 68% 88%);");
 assert.equal(range.week_2_kg.css,"background-color:hsl(120 68% 88%);");
-assert.equal(Object.keys(calculate({initial_weight_kg:2,week_2_kg:2})).length,0,"Equal stage weights are uncoloured");
-assert.equal(Object.keys(calculate({initial_weight_kg:2})).length,0,"Only one stage measurement is uncoloured");
+assert.equal(calculate({initial_weight_kg:2,week_2_kg:2}).initial_weight_kg.css,"background-color:hsl(60 68% 88%);","Equal saved weights use a neutral baseline");
+assert.equal(calculate({initial_weight_kg:2}).initial_weight_kg.css,"background-color:hsl(60 68% 88%);","An Initial-only row must also be coloured");
 assert.equal(Object.keys(calculate({initial_weight_kg:0,week_2_kg:1})).length,2,"Zero is a valid lower measurement");
 assert.equal(Object.keys(calculate({rope_weight_kg:.15,initial_weight_kg:null,week_2_kg:""})).length,0);
 assert.deepEqual(siteFilter([{site_code:"MK-R2"},{site_code:"MK-SF2/R2"}],new Set(["MK-R2"])).map(x=>x.site_code),["MK-R2"]);
