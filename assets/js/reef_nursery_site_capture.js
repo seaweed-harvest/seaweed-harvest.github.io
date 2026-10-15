@@ -1,7 +1,7 @@
 import { authClient, currentProfile, currentSession, setupAccountControls } from "./auth_client.js?v=25";
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=20261015b";
 import { formatWeightPerLine } from "./reef_nursery_site_capture_math.js?v=1";
-import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=1";
+import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=2";
 
 const PHOTO_BUCKET = "reef-seaweed-record-photos";
 const MAX_SOURCE_PHOTO_BYTES = 25 * 1024 * 1024;
@@ -41,6 +41,7 @@ const state = {
   sampleRegisterLoading: false,
   sampleSavedRows: new Map(),
   sampleStageEdits: new Set(),
+  sampleSavedValues: new Map(),
   currentLocation: "",
   saving: false
 };
@@ -658,11 +659,6 @@ function applySampleRegister(register) {
       const control = row.querySelector(`[data-rope-field="${field}"]`);
       if (control) control.value = data[field] ?? "";
     }
-    for (const stage of SAMPLE_STAGES) {
-      const meta = data.measurement_provenance?.[stage];
-      const label = row.querySelector(`[data-rope-meta="${stage}"]`);
-      if (label) label.textContent = meta ? `${meta.date || ""} · ${meta.recorder || ""} (${meta.team === "other" ? meta.other_team : meta.team || ""})` : "";
-    }
     row.dataset.cycleNumber = data.cycle_number ?? "";
     row.dataset.historyCount = data.history_count ?? 0;
   });
@@ -680,15 +676,36 @@ function applySampleRegister(register) {
       warning.hidden = dates.length <= 1;
     }
   }
+  // Every loaded/successfully saved value is the clean baseline. Highlight
+  // only changes made locally since that point, including column dates/times.
+  state.sampleSavedValues = new Map(
+    [...els.reefSampleRopePanel.querySelectorAll("input, select")]
+      .map(control => [control, String(control.value ?? "")])
+  );
+  els.reefSampleRopePanel.querySelectorAll(".reef-rope-unsaved").forEach(control => {
+    control.classList.remove("reef-rope-unsaved");
+  });
 }
 
 function markSampleRegisterDirty(event) {
-  const field = event.target.closest("[data-stage-date], [data-stage-time]");
+  const control = event.target;
+  if (!control?.matches?.("input, select")) return;
+  const field = control.closest("[data-stage-date], [data-stage-time]");
+  const inRow = control.closest("[data-sample-rope-row]");
+  const inVisit = control.closest(".reef-sample-visit-fields");
+  if (!field && !inRow && !inVisit) return;
+  const saved = state.sampleSavedValues.get(control);
+  const changed = String(control.value ?? "") !== String(saved ?? "");
+  control.classList.toggle("reef-rope-unsaved", changed);
   if (field) {
-    state.sampleStageEdits.add(field.dataset.stageDate || field.dataset.stageTime);
-  } else if (!event.target.closest("[data-sample-rope-row]")) return;
-  state.sampleRegisterDirty = true;
-  setSampleStatus("Unsaved changes");
+    const stage = field.dataset.stageDate || field.dataset.stageTime;
+    const dateChanged = stageControl(stage, "date")?.classList.contains("reef-rope-unsaved");
+    const timeChanged = stageControl(stage, "time")?.classList.contains("reef-rope-unsaved");
+    if (dateChanged || timeChanged) state.sampleStageEdits.add(stage);
+    else state.sampleStageEdits.delete(stage);
+  }
+  state.sampleRegisterDirty = Boolean(els.reefSampleRopePanel.querySelector(".reef-rope-unsaved"));
+  setSampleStatus(state.sampleRegisterDirty ? "Unsaved changes" : "Saved data loaded.");
 }
 
 function setSampleControlsDisabled(disabled) {
@@ -1147,10 +1164,10 @@ function sampleRopeRowMarkup(ropeNumber) {
       <th scope="row">${label}</th>
       <td><select data-rope-field="species" aria-label="${label} species"><option value="">Select</option><option value="spinosum">Spinosum</option><option value="cottonii">Cottonii</option></select></td>
       <td><input data-rope-field="rope_weight_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} rope weight kg"></td>
-      <td><input data-rope-field="initial_weight_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} initial seeded weight kg"><small data-rope-meta="initial"></small></td>
-      <td><input data-rope-field="week_2_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} week 2 weight kg"><small data-rope-meta="week_2"></small></td>
-      <td><input data-rope-field="week_4_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} week 4 weight kg"><small data-rope-meta="week_4"></small></td>
-      <td><input data-rope-field="week_6_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} week 6 weight kg"><small data-rope-meta="week_6"></small></td>
+      <td><input data-rope-field="initial_weight_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} initial seeded weight kg"></td>
+      <td><input data-rope-field="week_2_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} week 2 weight kg"></td>
+      <td><input data-rope-field="week_4_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} week 4 weight kg"></td>
+      <td><input data-rope-field="week_6_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} week 6 weight kg"></td>
       <td><button class="secondary-action sample-rope-start-new" type="button" data-start-new-rope="${ropeNumber}">Start New</button></td>
     </tr>`;
 }
@@ -1181,7 +1198,13 @@ function productionStyles() {
     .reef-sample-visit-fields { display:flex; flex-wrap:wrap; align-items:end; gap:0.65rem; margin-bottom:0.3rem; }
     .reef-sample-visit-fields label { min-width:130px; flex:1 1 150px; text-align:left; font-weight:600; font-size:0.77rem; }
     .reef-sample-visit-fields input, .reef-sample-visit-fields select { display:block; width:100%; box-sizing:border-box; margin-top:0.25rem; }
-    [data-rope-meta] { display:block; white-space:normal; font-size:0.66rem; color:#53746e; max-width:170px; }
+    /* Yellow means edited locally and not yet saved; normal appearance returns after a successful save. */
+    .reef-sample-rope-panel input.reef-rope-unsaved,
+    .reef-sample-rope-panel select.reef-rope-unsaved {
+      background: #fff3c4 !important;
+      border-color: #e6ba47 !important;
+      box-shadow: inset 0 0 0 1px #e6ba47;
+    }
     .reef-sample-rope-toolbar { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin: 0 0 0.65rem; }
     .reef-sample-rope-toolbar h4 { margin: 0 0 0.15rem; color: #355f5b; }
     .reef-sample-rope-save-wrap { display: flex; align-items: center; gap: 0.65rem; }
