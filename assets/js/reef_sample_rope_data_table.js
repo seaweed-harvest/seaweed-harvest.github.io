@@ -89,10 +89,19 @@ export function rowRelativeWeightColours(row) {
   const values = R_AND_S_WEIGHT_KEYS.map(key => [key, row[key]])
     .filter(([, value]) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value)))
     .map(([key, value]) => [key, Number(value)]);
-  if (values.length < 2) return {};
+  if (!values.length) return {};
+  if (values.length === 1) {
+    return { [values[0][0]]: {
+      css: "background-color:hsl(60 68% 88%);",
+      label: "Only saved R+S weight in this row — comparison unavailable"
+    } };
+  }
   const min = Math.min(...values.map(([, value]) => value));
   const max = Math.max(...values.map(([, value]) => value));
-  if (min === max) return {};
+  if (min === max) return Object.fromEntries(values.map(([key])=>[key,{
+    css:"background-color:hsl(60 68% 88%);",
+    label:"Equal saved R+S weights in this row"
+  }]));
   return Object.fromEntries(values.map(([key, value]) => {
     const fraction = (value - min) / (max - min);
     const hue = Math.round(fraction * 120); // lower pink → yellow → higher green
