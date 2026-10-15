@@ -96,6 +96,24 @@
     .reef-detail-section h4 { margin: 0 0 4px; }
     .reef-detail-section p { margin: 0; }
     .reef-sample-detail-table input { min-width: 0; }
+    .reef-pair-shortcuts { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0 0 16px; }
+    .reef-pair-shortcuts > strong { font-size:.86rem; color:#3e6762; margin-right:4px; }
+    .reef-pair-shortcuts button { font-size:.84rem; padding:.4rem .7rem; }
+    .reef-pair-description { margin:0 0 14px; }
+    .reef-sample-pair-grid { display:grid; grid-template-columns: minmax(0,1fr); gap:16px; }
+    .reef-sample-pair-grid.is-paired { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    .reef-sample-comparison-card { min-width:0; border:1px solid #cfe0dd; border-radius:10px; padding:12px; background:#fff; }
+    .reef-sample-comparison-head { margin-bottom:12px; }
+    .reef-sample-comparison-head h4 { color:#214c48; margin:7px 0 4px; font-size:1rem; }
+    .reef-sample-comparison-head .field-hint { margin:0; }
+    .reef-sample-empty-note { background:#f5f8f7; padding:8px 10px; border-radius:6px; font-size:.82rem; margin:0 0 10px; color:#516e69; }
+    .reef-sample-card-table-wrap { max-width:100%; overflow-x:auto; }
+    .reef-sample-card-table-wrap table { min-width:640px; font-size:.78rem; }
+    .reef-register-stage-heading { min-width:86px; vertical-align:top; }
+    .reef-register-stage-heading > span { display:block; }
+    .reef-register-stage-heading small { display:block; margin-top:5px; font-weight:500; color:#5c736e; font-size:.68rem; line-height:1.2; white-space:normal; }
+    .reef-sample-card-table-wrap td { white-space:nowrap; }
+    @media (max-width: 1350px) { .reef-sample-pair-grid.is-paired { grid-template-columns:minmax(0,1fr); } }
     @media (max-width: 900px) {
       .reef-seaweed-records-toolbar { grid-template-columns: 1fr; }
       .reef-detail-grid { grid-template-columns: 1fr; }
@@ -146,6 +164,13 @@
           <button id="clearReefSeaweedRecordsSearch" type="button">Clear</button>
         </div>
 
+        <div id="reefSeaweedPairShortcuts" class="reef-pair-shortcuts" aria-label="Compare related Mkwiro monitoring sites">
+          <strong>View raft + shore farm:</strong>
+          <button type="button" data-open-reef-pair="MK-R2">Raft A + Farm A</button>
+          <button type="button" data-open-reef-pair="MK-R3">Raft B + Farm B</button>
+          <button type="button" data-open-reef-pair="MK-R1">Raft C + Farm C</button>
+        </div>
+
         <div class="responsive-table-wrap">
           <table class="management-table admin-data-table reef-seaweed-records-table">
             <thead>
@@ -185,6 +210,6 @@
     </section>
   </main>
 
-  <script type="module" src="./assets/js/reef_seaweed_records_page.js?v=4"></script>
+  <script type="module" src="./assets/js/reef_seaweed_records_page.js?v=5"></script>
 </body>
 </html>
