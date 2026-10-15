@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v157-rope-flat-grid";
+const CACHE_VERSION = "seaweed-harvest-collection-v158-reef-history";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
