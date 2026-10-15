@@ -12,14 +12,17 @@ NAVIGATION = ROOT / "assets" / "js" / "app_navigation.js"
 class ReefNurseryPublicNavigationStaticTest(unittest.TestCase):
     def test_navigation_builders_receive_the_current_page(self):
         source = NAVIGATION.read_text(encoding="utf-8")
-        self.assertIn("const forms = formLinks(profile, currentFile);", source)
-        self.assertIn("const records = recordLinks(profile, currentFile);", source)
+        self.assertIn("const forms = publicReefOnly ? [", source)
+        self.assertIn("] : formLinks(profile, currentFile);", source)
+        self.assertIn("const records = publicReefOnly ? [] : recordLinks(profile, currentFile);", source)
+        self.assertIn('currentFile === "reef_nursery_seaweed_data.html"', source)
         self.assertIn('drawerGroup("Forms", formLinks(profile, currentFile)', source)
         self.assertIn('drawerGroup("Records", recordLinks(profile, currentFile)', source)
 
     def test_anonymous_reef_page_does_not_fall_back_to_mawimbi_navigation(self):
         source = NAVIGATION.read_text(encoding="utf-8")
-        self.assertIn('return !profile && currentFile === "reef_nursery.html";', source)
+        self.assertIn('return !profile && ["reef_nursery.html", "reef_nursery_seaweed_data.html"].includes(currentFile);', source)
+        self.assertIn("publicReefOnly = !profile", source)
         self.assertIn("publicFallback: !anonymousReefNursery", source)
         self.assertIn("const publicCosme = isAnonymousCosmeRecordsPage(profile, currentFile)", source)
 
@@ -27,7 +30,11 @@ class ReefNurseryPublicNavigationStaticTest(unittest.TestCase):
         source = NAVIGATION.read_text(encoding="utf-8")
         self.assertIn("if (anonymousReefNursery) {", source)
         self.assertIn(
-            'links.push({ label: "Reef Nursery", href: "./reef_nursery.html", publicFallback: true });',
+            'links.push({ label: "Nursery - Training", href: "./reef_nursery.html", publicFallback: true });',
+            source,
+        )
+        self.assertIn(
+            'links.push({ label: "Nursery - Seaweed Data", href: "./reef_nursery_seaweed_data.html", publicFallback: true });',
             source,
         )
 
@@ -79,6 +86,7 @@ class ReefNurseryPublicNavigationStaticTest(unittest.TestCase):
 
             process.stdout.write(JSON.stringify({
               anonymousReefForms: labels(formLinks(null, "reef_nursery.html")),
+              anonymousSeaweedForms: labels(formLinks(null, "reef_nursery_seaweed_data.html")),
               anonymousReefRecords: labels(recordLinks(null, "reef_nursery.html")),
               anonymousCollectionForms: labels(formLinks(null, "collection.html")),
               anonymousCollectionRecords: labels(recordLinks(null, "collection.html")),
@@ -96,11 +104,12 @@ class ReefNurseryPublicNavigationStaticTest(unittest.TestCase):
             text=True,
         )
         data = json.loads(result.stdout)
-        self.assertEqual(data["anonymousReefForms"], ["Reef Nursery"])
+        self.assertEqual(data["anonymousReefForms"], ["Nursery - Training", "Nursery - Seaweed Data"])
+        self.assertEqual(data["anonymousSeaweedForms"], data["anonymousReefForms"])
         self.assertEqual(data["anonymousReefRecords"], ["Nursery - Training", "Nursery - Seaweed", "Photos"])
         self.assertEqual(data["anonymousCollectionForms"], ["Intake"])
         self.assertEqual(data["anonymousCollectionRecords"], ["Today's Intake"])
-        self.assertEqual(data["signedInCosmeForms"], ["Reef Nursery", "Dryer Table"])
+        self.assertEqual(data["signedInCosmeForms"], ["Nursery - Training", "Nursery - Seaweed Data", "Dryer Table"])
         self.assertEqual(data["signedInCosmeRecords"], ["Nursery - Training", "Nursery - Seaweed", "Photos"])
         self.assertEqual(data["anonymousSeaweedRecords"], data["anonymousReefRecords"])
         self.assertEqual(data["anonymousPhotosRecords"], data["anonymousReefRecords"])
