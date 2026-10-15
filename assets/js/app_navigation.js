@@ -25,7 +25,10 @@ export function setupAppNavigation(options = {}) {
     { label: "Nursery - Training", href: "./reef_nursery.html" },
     { label: "Nursery - Seaweed Data", href: "./reef_nursery_seaweed_data.html" }
   ] : formLinks(profile, currentFile);
-  const records = publicReefOnly ? [] : recordLinks(profile, currentFile);
+  const records = publicReefOnly ? [
+    { label: "Nursery - Training", href: "./reef_nursery.html?tab=records&record_type=training" },
+    { label: "Nursery - Seaweed", href: "./reef_seaweed_records.html" }
+  ] : recordLinks(profile, currentFile);
 
   header.classList.add("unified-app-header");
   const primary = document.createElement("nav");
