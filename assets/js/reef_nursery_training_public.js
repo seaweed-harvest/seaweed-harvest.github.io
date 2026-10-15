@@ -7,7 +7,7 @@ import {
 } from "./auth_client.js?v=25";
 import { callPublicRpc } from "./supabase_client.js";
 import { setupFavoriteFormButton } from "./favorite_forms.js?v=3";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=9";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=20261015a";
 
 const PHOTO_BUCKET = "reef-nursery-photos";
 const PHOTO_MAX_COUNT = 8;
@@ -310,7 +310,7 @@ function configureShell() {
     });
     els.favoriteReefNurseryForm.hidden = true;
     els.reefSignInAction.hidden = state.mode === "review";
-    if (title) title.textContent = "Reef Nursery";
+    if (title) title.textContent = "Nursery - Training";
     if (eyebrow) eyebrow.textContent = "Seaweed Harvest";
     els.reefAccessStatus.textContent = state.mode === "review"
       ? "Review mode — test submissions only"
