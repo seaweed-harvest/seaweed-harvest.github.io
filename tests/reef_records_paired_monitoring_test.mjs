@@ -25,7 +25,12 @@ const sites = {
 };
 const context = {
   mkwiroRaftDisplayLabel,
-  authClient:{rpc:async(method,args)=>{
+  authClient:{
+    storage:{from: bucket=>{
+      assert.equal(bucket,"reef-seaweed-record-photos");
+      return {createSignedUrl:async path=>({data:{signedUrl:"https://example.test/signed/"+path},error:null})};
+    }},
+    rpc:async(method,args)=>{
     calls.push([method,args.p_site_code || args.p_capture_id]);
     if(method==="ag_reef_sample_rope_register") {
       if(!sites[args.p_site_code]) return {error:new Error("Site unavailable"),data:null};
@@ -74,6 +79,8 @@ assert.deepEqual(registerCalls(),[["ag_reef_sample_rope_register","MK-R2"]]);
 assert.match(content.innerHTML,/Raft A/);
 assert.doesNotMatch(content.innerHTML,/Farm A/);
 assert.match(content.innerHTML,/29 Sept 2026/);
+assert.match(content.innerHTML,/Stage photos/,"Single selected register has stage photos below the table");
+assert.match(content.innerHTML,/first.jpg|signed\/sample-ropes/);
 assert.match(content.innerHTML,/reef-register-date-row/);
 assert.equal((content.innerHTML.match(/<h4>MK-R2 \(Cascadia Prototype\) \| Raft A<\/h4>/g) || []).length,1,"No duplicated record heading");
 assert(!content.innerHTML.includes("Time: 11:30"), "Optional recording time not displayed");
@@ -87,6 +94,7 @@ assert.deepEqual(registerCalls(),[["ag_reef_sample_rope_register","MK-R2"],["ag_
 assert.match(content.innerHTML,/Raft A/);
 assert.match(content.innerHTML,/Farm A/);
 assert.match(content.innerHTML,/No rope measurements recorded yet/);
+assert.doesNotMatch(content.innerHTML,/reef-rope-photo-gallery/,"Comparing multiple records hides photo thumbnails");
 
 
 // Deselecting the raft retains the farm card and vice versa.
