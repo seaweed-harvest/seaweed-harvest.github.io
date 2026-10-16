@@ -83,23 +83,39 @@ export function parseDryerModelWeather(data, stationLastDay, regionalRainLastDay
   };
 }
 
+// Plot a single consistent source over the entire visible date range.
+// Bati station observations stay intact in dryer_analysis_weather_snapshot.js,
+// but are deliberately not spliced into the modelled time series.
 export function modelWeatherTraces(live, days) {
   if (!live) return [];
-  const rows = days === 7 ? live.recent : days === 30 ? live.daily3 : live.daily7;
-  const points = (key, yaxis, label, color, format) => ({
-    x:rows.map((r)=>r.x), y:rows.map((r)=>r[key]),
-    customdata:rows.map((r)=>r.time),
-    type:"scatter",mode:"lines",name:label, xaxis:"x",yaxis,
-    line:{color,width:2.6,dash:"dash"},
-    hovertemplate:"%{customdata}<br><b>%{y:"+format.split(" ")[0]+"} "+format.split(" ").slice(1).join(" ")+"</b><extra>"+SOURCE+"</extra>"
+  const recent=live.recentAll || live.recent;
+  const daily=live.daily.filter(d=>Number.isFinite(d.temp) && Number.isFinite(d.rh));
+  const windowSize=days===90?7:3;
+  const series=days===7?recent:daily.map((r,i)=>{
+    const rows=daily.slice(Math.max(0,i-windowSize+1),i+1);
+    return {
+      x:r.x,time:r.date+" EAT",
+      temp:rows.reduce((total,item)=>total+item.temp,0)/rows.length,
+      rh:rows.reduce((total,item)=>total+item.rh,0)/rows.length
+    };
   });
+  const rainfall=live.daily.filter(d=>d.complete&&Number.isFinite(d.rain));
   return [
-    points("temp","y","Temperature (modelled)","#e78a55",".1f °C"),
-    points("rh","y2","Humidity (modelled)","#4ca58f",".0f % RH"),
-    {x:live.rain.map((r)=>r.x), y:live.rain.map((r)=>r.rain),
-      customdata:live.rain.map((r)=>r.date),type:"bar",name:"Rainfall (modelled)",opacity:.65,
-      marker:{color:"#7da7d4",pattern:{shape:"/"}},xaxis:"x",yaxis:"y3",
-      hovertemplate:"%{customdata} (EAT)<br><b>%{y:.1f} mm</b><extra>"+SOURCE+" (not a gauge)</extra>"}
+    {x:series.map(d=>d.x),y:series.map(d=>d.temp),customdata:series.map(d=>d.time),
+      name:"Temperature",type:"scatter",mode:"lines",
+      line:{color:"#e78a55",width:2.7,shape:"spline",smoothing:.25},
+      xaxis:"x",yaxis:"y",connectgaps:false,
+      hovertemplate:"%{customdata}<br><b>%{y:.1f} °C</b><extra>Open-Meteo · Mwazaro model</extra>"},
+    {x:series.map(d=>d.x),y:series.map(d=>d.rh),customdata:series.map(d=>d.time),
+      name:"Humidity",type:"scatter",mode:"lines",
+      line:{color:"#4ca58f",width:2.5,shape:"spline",smoothing:.25},
+      xaxis:"x",yaxis:"y2",connectgaps:false,
+      hovertemplate:"%{customdata}<br><b>%{y:.0f}% RH</b><extra>Open-Meteo · Mwazaro model</extra>"},
+    {x:rainfall.map(d=>d.x),y:rainfall.map(d=>d.rain),
+      customdata:rainfall.map(d=>d.date),name:"Rainfall",
+      type:"bar",marker:{color:"#7da7d4"},opacity:.5,
+      xaxis:"x",yaxis:"y3",
+      hovertemplate:"%{customdata} EAT<br><b>%{y:.1f} mm</b><extra>Open-Meteo · Mwazaro modelled rainfall</extra>"}
   ];
 }
 
