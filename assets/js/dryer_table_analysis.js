@@ -1,7 +1,7 @@
 import { currentAccessToken } from "./auth_client.js?v=25";
 import { DRYING_FORM_CONFIG } from "./dryer_table_config.js?v=2";
 import "./dryer_analysis_weather_snapshot.js?v=1";
-import { loadDryerModelWeather, seamlessDryerWeatherTraces, alignedModelDays } from "./dryer_analysis_live_weather.js?v=3";
+import { loadDryerModelWeather, seamlessDryerWeatherTraces, alignedModelDays } from "./dryer_analysis_live_weather.js?v=4";
 
 const RPC_NAME = "list_authenticated_seaweed_drying_ledger";
 const KENYA_TIME_ZONE = "Africa/Nairobi";
@@ -110,7 +110,7 @@ function installShell() {
           <span class="dryer-analysis-weather-pill" id="dryerAnalysisWeatherFreshness" aria-live="polite">Archive to 17 Sep · checking updates…</span>
         </div>
         <div class="dryer-analysis-chart-wrap"><div id="dryerAnalysisWeatherChart"></div>
-          <p class="dryer-analysis-note">7-day view retains the day/night cycle. 1-month and 3-month views use daylight measurements only. Archived rainfall is regional; newer rainfall is modelled near Mwazaro, not a rain-gauge measurement. Weather estimates are bias-aligned to the overlapping Bati station period; original unadjusted model values are in the hover details. Hatched rainfall bars identify estimates from <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a>. Missing dates remain blank. Tide overlay uses KMFRI 2026 Mombasa predictions; green bands mark days where the lowest predicted low is below 0.5 m. Dryer run bars are live from Dryer Table records.</p>
+          <p class="dryer-analysis-note">7-day view retains the day/night cycle. 1-month and 3-month views use daylight values. Archived rainfall is regional; newer rainfall is modelled near Mwazaro, not a rain-gauge measurement. Weather estimates are bias-aligned to the overlapping Bati station period; original unadjusted model values are in the hover details. Hatched rainfall bars identify estimates from <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a>. Missing dates remain blank. Tide overlay uses KMFRI 2026 Mombasa predictions; green bands mark days where the lowest predicted low is below 0.5 m. Dryer run bars are live from Dryer Table records.</p>
         </div>
       </div></details>
       <details open class="dryer-analysis-card"><summary>3. Performance scatter plot</summary><div class="dryer-analysis-card-body"><div class="dryer-analysis-chart-wrap"><div id="dryerAnalysisScatter"></div></div></div></details>
