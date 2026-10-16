@@ -428,9 +428,11 @@ function weatherBounds(days) {
 
   // Never show the empty weeks/months before any dryer activity. The dates
   // come from live records; the saved snapshot is a fallback while loading.
-  const firstRecordedDay = [...state.runs, ...(state.runs.length ? [] : (D.runs || []))]
-    .map((run) => kenyaDateKey(run.start))
-    .filter(Boolean)
+  const capturedDates = state.runs.length
+    ? state.runs.map((run) => kenyaDateKey(run.start))
+    : (D.runs || []).map((run) => String(run.start || "").slice(0, 10));
+  const firstRecordedDay = capturedDates
+    .filter((day) => /^\d{4}-\d{2}-\d{2}$/.test(day))
     .sort()[0];
   const firstRecordedMs = firstRecordedDay
     ? Date.parse(firstRecordedDay + "T00:00:00+03:00")
