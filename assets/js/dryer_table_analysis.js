@@ -512,7 +512,15 @@ function renderWeather() {
   const selected = selectedWeather(state.rangeDays);
   if (els.weatherMethod) els.weatherMethod.textContent = selected.method;
   if (els.tideButton) els.tideButton.classList.toggle("active", state.tideEnabled);
-  if (els.tidePill) els.tidePill.hidden = !state.tideEnabled;
+  if (els.tidePill) {
+    els.tidePill.hidden = !state.tideEnabled;
+    const coverage = TIDE.coverageEnd || TIDE.date.at(-1);
+    const chartEnd = weatherBounds(state.rangeDays)[1];
+    const outOfCoverage = chartEnd > new Date(coverage + "T23:59:59+03:00");
+    els.tidePill.textContent = outOfCoverage
+      ? "KMFRI tide predictions expired " + coverage + " · new annual table needed"
+      : "Harvest lows < 0.5 m · KMFRI through " + coverage;
+  }
 
   const data = weatherTraces(state.rangeDays);
   const layout = weatherLayout(state.rangeDays);
