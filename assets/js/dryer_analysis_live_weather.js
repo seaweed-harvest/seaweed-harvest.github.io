@@ -89,7 +89,7 @@ export function modelWeatherTraces(live, days) {
     customdata:rows.map((r)=>r.time),
     type:"scatter",mode:"lines",name:label, xaxis:"x",yaxis,
     line:{color,width:2.6,dash:"dash"},
-    hovertemplate:"%{customdata}<br><b>%{y:"+format+"}</b><extra>"+SOURCE+"</extra>"
+    hovertemplate:"%{customdata}<br><b>%{y:"+format.split(" ")[0]+"} "+format.split(" ").slice(1).join(" ")+"</b><extra>"+SOURCE+"</extra>"
   });
   return [
     points("temp","y","Temperature (modelled)","#e78a55",".1f °C"),
