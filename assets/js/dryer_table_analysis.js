@@ -22,7 +22,7 @@ const RAIN_DATES = D.rain.x.map((x) => String(x).slice(0, 10));
 const RAIN_VALUES = D.rain.y;
 const WEATHER = new Map(WEATHER_DATES.map((d, i) => [d, { temp: WEATHER_TEMP[i], rh: WEATHER_RH[i] }]));
 const RAIN = new Map(RAIN_DATES.map((d, i) => [d, RAIN_VALUES[i]]));
-const state = { runs: [], lastBayRows: [], rangeDays: 30, tideEnabled: false, weatherArchiveView: false, sort: { col: 1, dir: "desc" }, loading: false, liveWeather: null, weatherUpdatedAt: 0, weatherPromise: null };
+const state = { runs: [], lastBayRows: [], rangeDays: 30, tideEnabled: false, weatherArchiveView: false, weatherError: false, sort: { col: 1, dir: "desc" }, loading: false, liveWeather: null, weatherUpdatedAt: 0, weatherPromise: null };
 const els = {};
 let plotlyPromise;
 
@@ -391,6 +391,7 @@ async function refreshWeather() {
       const stationDay = WEATHER_DATES.at(-1), rainDay = RAIN_DATES.at(-1);
       const live = await loadDryerModelWeather(stationDay, rainDay);
       state.liveWeather = live;
+      state.weatherError = false;
       state.weatherUpdatedAt = Date.now();
       // Keep all original station/archived measurements untouched. Modelled
       // conditions only fill dates missing from the derived analysis maps.
@@ -409,6 +410,7 @@ async function refreshWeather() {
         render();
       } else renderWeather();
     } catch (error) {
+      state.weatherError = true;
       console.warn("Weather update unavailable, keeping historical measurements.", error);
       if (els.weatherFreshness) els.weatherFreshness.textContent =
         "Model refresh unavailable · showing historical Bati archive only through September";
@@ -528,7 +530,9 @@ function renderWeather() {
       ? "Original Bati station observations · available through September 2026"
       : state.liveWeather
         ? "Open-Meteo Mwazaro model through " + state.liveWeather.lastDate + " EAT"
-        : "Updating Mwazaro model · archived values shown until ready";
+        : state.weatherError
+          ? "Model update unavailable · showing Bati archive only"
+          : "Updating Mwazaro model · archived values shown until ready";
   }
   if (els.tidePill) {
     els.tidePill.hidden = !state.tideEnabled;
