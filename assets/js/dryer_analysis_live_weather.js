@@ -131,7 +131,7 @@ function stationDaily(snapshot, span) {
   return series.x.map((x,i)=>({date:standardDate(x),temp:series.temp[i],rh:series.hum[i]}))
     .filter(row=>Number.isFinite(row.temp)&&Number.isFinite(row.rh));
 }
-function offsetsFor(station, model, archiveEnd, keys) {
+function offsetsFor(station, model, archiveEnd) {
   const byDate=new Map(model.map(row=>[row.date,row]));
   const common=station.filter(row=>row.date<=archiveEnd&&byDate.has(row.date));
   const recent=common.slice(-21);
@@ -197,11 +197,21 @@ function combineHourlySeries(snapshot,live) {
   const common=overlap.filter(r=>stationByTime.has(Date.parse(r.x))).slice(-8);
   const tOffset=median(common.map(r=>stationByTime.get(Date.parse(r.x)).temp-r.temp))??0;
   const rhOffset=median(common.map(r=>stationByTime.get(Date.parse(r.x)).rh-r.rh))??0;
-  const newer=model.filter(d=>Date.parse(d.x)>last).map(r=>({
-    ...r,date:standardDate(r.x),rawTemp:r.temp,rawRh:r.rh,
-    temp:r.temp+tOffset,rh:Math.max(0,Math.min(100,r.rh+rhOffset)),
-    origin:"Mwazaro model (station-aligned)"
-  }));
+  const finalArchive=old.at(-1);
+  const matchingModel=model.find(r=>Date.parse(r.x)===last);
+  const anchorTemp=matchingModel?finalArchive.temp-matchingModel.temp:tOffset;
+  const anchorRh=matchingModel?finalArchive.rh-matchingModel.rh:rhOffset;
+  const newer=model.filter(d=>Date.parse(d.x)>last).map(r=>{
+    const days=Math.max(0,(Date.parse(r.x)-last)/86400000);
+    const fade=Math.min(1,days/10);
+    const tempCorrection=anchorTemp+(tOffset-anchorTemp)*fade;
+    const rhCorrection=anchorRh+(rhOffset-anchorRh)*fade;
+    return {
+      ...r,date:standardDate(r.x),rawTemp:r.temp,rawRh:r.rh,
+      temp:r.temp+tempCorrection,rh:Math.max(0,Math.min(100,r.rh+rhCorrection)),
+      origin:"Mwazaro model (station-aligned)"
+    };
+  });
   return old.concat(newer);
 }
 
