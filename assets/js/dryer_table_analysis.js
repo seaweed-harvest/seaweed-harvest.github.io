@@ -388,11 +388,11 @@ async function refreshWeather() {
       // Keep all original station/archived measurements untouched. Modelled
       // conditions only fill dates missing from the derived analysis maps.
       for (const day of live.daily) {
-        if (day.date > stationDay && !WEATHER.has(day.date) &&
+        if (day.date > stationDay &&
             Number.isFinite(day.temp) && Number.isFinite(day.rh)) {
           WEATHER.set(day.date, {temp:day.temp,rh:day.rh});
         }
-        if (day.date > rainDay && !RAIN.has(day.date) && day.complete) RAIN.set(day.date, day.rain);
+        if (day.date > rainDay && day.complete) RAIN.set(day.date, day.rain);
       }
       if (els.weatherFreshness) els.weatherFreshness.textContent =
         "Modelled Mwazaro through " + live.lastDate + " EAT · Open-Meteo";
