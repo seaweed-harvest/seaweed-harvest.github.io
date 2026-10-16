@@ -1,7 +1,8 @@
 import { currentAccessToken } from "./auth_client.js?v=25";
 import { DRYING_FORM_CONFIG } from "./dryer_table_config.js?v=2";
 import "./dryer_analysis_weather_snapshot.js?v=1";
-import { loadDryerModelWeather, seamlessDryerWeatherTraces, alignedModelDays } from "./dryer_analysis_live_weather.js?v=4";
+import "./dryer_kmfri_2026_tide_extension.js?v=1";
+import { loadDryerModelWeather, modelWeatherTraces } from "./dryer_analysis_live_weather.js?v=5";
 
 const RPC_NAME = "list_authenticated_seaweed_drying_ledger";
 const KENYA_TIME_ZONE = "Africa/Nairobi";
@@ -94,7 +95,7 @@ function installShell() {
       </div></details>
       <details open class="dryer-analysis-card"><summary>2. Drying timeline + Weather</summary><div class="dryer-analysis-card-body dryer-analysis-weather-parity">
         <div class="dryer-analysis-weather-header">
-          <div class="dryer-analysis-weather-subtitle">Temperature and humidity continue from the archived Bati station records using station-aligned weather estimates for Mwazaro; rainfall remains regional/modelled, not a Bati rain-gauge reading.</div>
+          <div class="dryer-analysis-weather-subtitle">All three weather plots now use one consistent Open-Meteo model for Mwazaro over the entire displayed period. Historical Bati Seaweed Station observations remain saved separately; these are not interchangeable with gridded weather.</div>
           <div class="dryer-analysis-weather-controls">
             <button type="button" data-analysis-range="7">7 days</button>
             <button type="button" data-analysis-range="30" class="active">1 month</button>
@@ -103,14 +104,14 @@ function installShell() {
           </div>
         </div>
         <div class="dryer-analysis-weather-pills">
-          <span class="dryer-analysis-weather-pill" id="dryerAnalysisWeatherMethod">Daylight 07:00–17:59 · 3-day smoothing; newer weather modelled</span>
-          <span class="dryer-analysis-weather-pill">Rainfall · daily regional/modelled total</span>
+          <span class="dryer-analysis-weather-pill" id="dryerAnalysisWeatherMethod">Daylight 07:00–17:59 · 3-day smoothing · consistent model</span>
+          <span class="dryer-analysis-weather-pill">Rainfall · daily modelled total (mm)</span>
           <span class="dryer-analysis-weather-pill">Timezone · East Africa Time</span>
           <span class="dryer-analysis-weather-pill" id="dryerAnalysisTidePill" hidden>Harvest window · lowest low &lt; 0.5 m</span>
-          <span class="dryer-analysis-weather-pill" id="dryerAnalysisWeatherFreshness" aria-live="polite">Archive to 17 Sep · checking updates…</span>
+          <span class="dryer-analysis-weather-pill" id="dryerAnalysisWeatherFreshness" aria-live="polite">Loading latest Mwazaro model…</span>
         </div>
         <div class="dryer-analysis-chart-wrap"><div id="dryerAnalysisWeatherChart"></div>
-          <p class="dryer-analysis-note">7-day view retains the day/night cycle. 1-month and 3-month views use daylight values. Archived rainfall is regional; newer rainfall is modelled near Mwazaro, not a rain-gauge measurement. Weather estimates are bias-aligned to the overlapping Bati station period; original unadjusted model values are in the hover details. Hatched rainfall bars identify estimates from <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a>. Missing dates remain blank. Tide overlay uses KMFRI 2026 Mombasa predictions; green bands mark days where the lowest predicted low is below 0.5 m. Dryer run bars are live from Dryer Table records.</p>
+          <p class="dryer-analysis-note">7-day view shows 3-hourly data; monthly views show daylight (07:00–17:59) averages smoothed over 3 or 7 days. Temperature, humidity and daily rainfall all use <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo's model near Mwazaro</a>, not on-site measurements. Historical Bati station observations are preserved in the archive and are not mixed into these lines. Rainfall is a modelled regional estimate (not a Bati rain gauge). Tide uses published KMFRI 2026 Mombasa predictions through 31 Dec 2026; green bands mark days with lowest predicted low below 0.5 m. Future years require newly published KMFRI predictions. Dryer run bars are live from Dryer Table records.</p>
         </div>
       </div></details>
       <details open class="dryer-analysis-card"><summary>3. Performance scatter plot</summary><div class="dryer-analysis-card-body"><div class="dryer-analysis-chart-wrap"><div id="dryerAnalysisScatter"></div></div></div></details>
@@ -387,7 +388,7 @@ async function refreshWeather() {
       state.weatherUpdatedAt = Date.now();
       // Keep all original station/archived measurements untouched. Modelled
       // conditions only fill dates missing from the derived analysis maps.
-      for (const day of alignedModelDays(D, live, 3)) {
+      for (const day of live.daily) {
         if (day.date > stationDay && Number.isFinite(day.temp) && Number.isFinite(day.rh)) {
           WEATHER.set(day.date, {temp:day.temp,rh:day.rh});
         }
@@ -396,7 +397,7 @@ async function refreshWeather() {
         if (day.date > rainDay) RAIN.set(day.date, day.rain);
       }
       if (els.weatherFreshness) els.weatherFreshness.textContent =
-        "Station-aligned Mwazaro model through " + live.lastDate + " EAT";
+        "Consistent Mwazaro model through " + live.lastDate + " EAT";
       if (state.lastBayRows.length) {
         state.runs = buildRuns(state.lastBayRows);
         render();
@@ -404,7 +405,7 @@ async function refreshWeather() {
     } catch (error) {
       console.warn("Weather update unavailable, keeping historical measurements.", error);
       if (els.weatherFreshness) els.weatherFreshness.textContent =
-        "Update unavailable · station archive to 17 Sep; rainfall to 15 Sep";
+        "Model refresh unavailable · showing historical Bati archive only through September";
       renderWeather();
     }
   })().finally(() => { state.weatherPromise = null; });
@@ -412,9 +413,9 @@ async function refreshWeather() {
 }
 
 function selectedWeather(days) {
-  if (days === 7) return { w: D.recent, method: "3-hour station archive · newer weather modelled" };
-  if (days === 30) return { w: D.oneMonth, method: "Daylight 07:00–17:59 · 3-day smoothing; newer weather modelled" };
-  return { w: D.threeMonth, method: "Daylight 07:00–17:59 · 7-day smoothing; newer weather modelled" };
+  if (days === 7) return { method: "3-hourly · Open-Meteo Mwazaro model" };
+  if (days === 30) return { method: "Daylight 07:00–17:59 · 3-day smoothing · single model" };
+  return { method: "Daylight 07:00–17:59 · 7-day smoothing · single model" };
 }
 
 function weatherBounds(days) {
@@ -424,11 +425,20 @@ function weatherBounds(days) {
   return [new Date(end.getTime() - days * 86400000), end];
 }
 
+
+function archiveWeatherFallbackTraces(days) {
+  const w = days === 7 ? D.recent : days === 30 ? D.oneMonth : D.threeMonth;
+  return [
+    {x:w.x,y:w.temp,type:"scatter",mode:"lines",name:"Temperature",line:{color:"#e78a55",width:2.7},xaxis:"x",yaxis:"y",hovertemplate:"%{x}<br>%{y:.1f} °C<extra>Historical Bati station only · update unavailable</extra>"},
+    {x:w.x,y:w.hum,type:"scatter",mode:"lines",name:"Humidity",line:{color:"#4ca58f",width:2.5},xaxis:"x",yaxis:"y2",hovertemplate:"%{x}<br>%{y:.0f} % RH<extra>Historical Bati station only · update unavailable</extra>"},
+    {x:D.rain.x,y:D.rain.y,type:"bar",name:"Rainfall",marker:{color:"#7da7d4"},opacity:.5,xaxis:"x",yaxis:"y3",hovertemplate:"%{x}<br>%{y:.1f} mm<extra>Regional rainfall archive only · update unavailable</extra>"}
+  ];
+}
+
 function weatherTraces(days) {
   const selected = selectedWeather(days);
-  const out = [
-    ...seamlessDryerWeatherTraces(D, state.liveWeather, days)
-  ];
+  const out = modelWeatherTraces(state.liveWeather, days);
+  if (!out.length) out.push(...archiveWeatherFallbackTraces(days));
 
   if (state.tideEnabled) {
     out.push({x:TIDE.x,y:TIDE.height,customdata:TIDE.date.map((d,i)=>[d,TIDE.time[i]]),type:"scatter",mode:"lines",name:"Lowest low tide",line:{color:"#687ea6",width:2.2,shape:"spline",smoothing:.45},xaxis:"x",yaxis:"y5",hovertemplate:"%{customdata[0]}<br>Low tide: <b>%{y:.2f} m</b> at %{customdata[1]} EAT<extra>Daily lowest low</extra>"});
