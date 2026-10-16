@@ -22,7 +22,7 @@ const RAIN_DATES = D.rain.x.map((x) => String(x).slice(0, 10));
 const RAIN_VALUES = D.rain.y;
 const WEATHER = new Map(WEATHER_DATES.map((d, i) => [d, { temp: WEATHER_TEMP[i], rh: WEATHER_RH[i] }]));
 const RAIN = new Map(RAIN_DATES.map((d, i) => [d, RAIN_VALUES[i]]));
-const state = { runs: [], lastBayRows: [], rangeDays: 30, tideEnabled: false, weatherArchiveView: false, weatherError: false, sort: { col: 1, dir: "desc" }, loading: false, liveWeather: null, weatherUpdatedAt: 0, weatherPromise: null };
+const state = { runs: [], lastBayRows: [], rangeDays: 30, tideEnabled: false, weatherError: false, sort: { col: 1, dir: "desc" }, loading: false, liveWeather: null, weatherUpdatedAt: 0, weatherPromise: null };
 const els = {};
 let plotlyPromise;
 
@@ -95,13 +95,12 @@ function installShell() {
       </div></details>
       <details open class="dryer-analysis-card"><summary>2. Drying timeline + Weather</summary><div class="dryer-analysis-card-body dryer-analysis-weather-parity">
         <div class="dryer-analysis-weather-header">
-          <div class="dryer-analysis-weather-subtitle">Temperature, humidity and rainfall use a single Open-Meteo Mwazaro model across the selected period. Choose “Bati station archive” to inspect the original station readings separately; the two sources are not equivalent.</div>
+          <div class="dryer-analysis-weather-subtitle">Weather conditions near Mwazaro (temperature, humidity and rainfall) alongside recorded drying periods and predicted tides.</div>
           <div class="dryer-analysis-weather-controls">
             <button type="button" data-analysis-range="7">7 days</button>
             <button type="button" data-analysis-range="30" class="active">1 month</button>
             <button type="button" data-analysis-range="90">3 months</button>
             <button id="dryerAnalysisTideToggle" type="button">Tide overlay</button>
-            <button id="dryerAnalysisArchiveToggle" type="button" title="Compare with the original Bati station readings, which end in September 2026.">Bati station archive</button>
           </div>
         </div>
         <div class="dryer-analysis-weather-pills">
@@ -112,7 +111,7 @@ function installShell() {
           <span class="dryer-analysis-weather-pill" id="dryerAnalysisWeatherFreshness" aria-live="polite">Loading latest Mwazaro model…</span>
         </div>
         <div class="dryer-analysis-chart-wrap"><div id="dryerAnalysisWeatherChart"></div>
-          <p class="dryer-analysis-note">7-day view shows 3-hourly data; monthly views show daylight (07:00–17:59) averages smoothed over 3 or 7 days. Temperature, humidity and daily rainfall all use <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo's model near Mwazaro</a>, not on-site measurements. Historical Bati station observations are preserved in the archive and are not mixed into these lines. Rainfall is a modelled regional estimate (not a Bati rain gauge). Tide uses published KMFRI 2026 Mombasa predictions through 31 Dec 2026; green bands mark days with lowest predicted low below 0.5 m. Future years require newly published KMFRI predictions. Dryer run bars are live from Dryer Table records.</p>
+          <p class="dryer-analysis-note">The timeline begins with the earliest recorded dryer-table run. Weather is sourced from <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> for the Mwazaro area (regional model estimates, not on-site sensor measurements); rainfall is a daily modelled total. The 7-day view uses 3-hour intervals; 1-month and 3-month views use daylight averages with 3- or 7-day smoothing. Tides are published KMFRI predictions for Mombasa through December 2026; shaded days have a lowest low tide under 0.5 m. Dryer activity comes directly from the recorded table runs.</p>
         </div>
       </div></details>
       <details open class="dryer-analysis-card"><summary>3. Performance scatter plot</summary><div class="dryer-analysis-card-body"><div class="dryer-analysis-chart-wrap"><div id="dryerAnalysisScatter"></div></div></div></details>
@@ -135,7 +134,6 @@ function cache() {
   els.weatherMethod = document.getElementById("dryerAnalysisWeatherMethod");
   els.weatherFreshness = document.getElementById("dryerAnalysisWeatherFreshness");
   els.tideButton = document.getElementById("dryerAnalysisTideToggle");
-  els.archiveButton = document.getElementById("dryerAnalysisArchiveToggle");
   els.tidePill = document.getElementById("dryerAnalysisTidePill");
 }
 
@@ -177,10 +175,6 @@ function bind() {
     state.tideEnabled = !state.tideEnabled;
     els.tideButton.classList.toggle("active", state.tideEnabled);
     els.tidePill.hidden = !state.tideEnabled;
-    renderWeather();
-  });
-  els.archiveButton?.addEventListener("click", () => {
-    state.weatherArchiveView = !state.weatherArchiveView;
     renderWeather();
   });
 
@@ -413,7 +407,7 @@ async function refreshWeather() {
       state.weatherError = true;
       console.warn("Weather update unavailable, keeping historical measurements.", error);
       if (els.weatherFreshness) els.weatherFreshness.textContent =
-        "Model refresh unavailable · showing historical Bati archive only through September";
+        "Weather update unavailable · historical observations shown where available";
       renderWeather();
     }
   })().finally(() => { state.weatherPromise = null; });
@@ -421,7 +415,6 @@ async function refreshWeather() {
 }
 
 function selectedWeather(days) {
-  if (state.weatherArchiveView) return { method: "Original Bati Seaweed Station archive · historical only (ends Sep 2026)" };
   if (days === 7) return { method: "3-hourly · Open-Meteo Mwazaro model" };
   if (days === 30) return { method: "Daylight 07:00–17:59 · 3-day smoothing · single model" };
   return { method: "Daylight 07:00–17:59 · 7-day smoothing · single model" };
@@ -430,8 +423,22 @@ function selectedWeather(days) {
 function weatherBounds(days) {
   const snapshotEnd = Date.parse(D.end);
   const liveEnd = state.runs.reduce((latest, run) => Math.max(latest, Date.parse(run.end || run.start) || 0), 0);
-  const end = new Date(Math.max(snapshotEnd, liveEnd, state.liveWeather?.end || 0));
-  return [new Date(end.getTime() - days * 86400000), end];
+  const endMs = Math.max(snapshotEnd, liveEnd, state.liveWeather?.end || 0);
+  const periodStart = endMs - days * 86400000;
+
+  // Never show the empty weeks/months before any dryer activity. The dates
+  // come from live records; the saved snapshot is a fallback while loading.
+  const firstRecordedDay = [...state.runs, ...(state.runs.length ? [] : (D.runs || []))]
+    .map((run) => kenyaDateKey(run.start))
+    .filter(Boolean)
+    .sort()[0];
+  const firstRecordedMs = firstRecordedDay
+    ? Date.parse(firstRecordedDay + "T00:00:00+03:00")
+    : null;
+  const startMs = Number.isFinite(firstRecordedMs)
+    ? Math.min(endMs, Math.max(periodStart, firstRecordedMs))
+    : periodStart;
+  return [new Date(startMs), new Date(endMs)];
 }
 
 
@@ -445,8 +452,7 @@ function archiveWeatherFallbackTraces(days) {
 }
 
 function weatherTraces(days) {
-  const selected = selectedWeather(days);
-  const out = state.weatherArchiveView ? archiveWeatherFallbackTraces(days) : modelWeatherTraces(state.liveWeather, days);
+  const out = modelWeatherTraces(state.liveWeather, days);
   if (!out.length) out.push(...archiveWeatherFallbackTraces(days));
 
   if (state.tideEnabled) {
@@ -521,18 +527,12 @@ function renderWeather() {
   const selected = selectedWeather(state.rangeDays);
   if (els.weatherMethod) els.weatherMethod.textContent = selected.method;
   if (els.tideButton) els.tideButton.classList.toggle("active", state.tideEnabled);
-  if (els.archiveButton) {
-    els.archiveButton.classList.toggle("active", state.weatherArchiveView);
-    els.archiveButton.setAttribute("aria-pressed", String(state.weatherArchiveView));
-  }
   if (els.weatherFreshness) {
-    els.weatherFreshness.textContent = state.weatherArchiveView
-      ? "Original Bati station observations · available through September 2026"
-      : state.liveWeather
-        ? "Open-Meteo Mwazaro model through " + state.liveWeather.lastDate + " EAT"
-        : state.weatherError
-          ? "Model update unavailable · showing Bati archive only"
-          : "Updating Mwazaro model · archived values shown until ready";
+    els.weatherFreshness.textContent = state.liveWeather
+      ? "Weather updated through " + state.liveWeather.lastDate + " EAT"
+      : state.weatherError
+        ? "Weather update unavailable · historical observations shown where available"
+        : "Updating weather…";
   }
   if (els.tidePill) {
     els.tidePill.hidden = !state.tideEnabled;
