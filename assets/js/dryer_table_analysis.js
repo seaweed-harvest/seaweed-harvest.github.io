@@ -22,7 +22,7 @@ const RAIN_DATES = D.rain.x.map((x) => String(x).slice(0, 10));
 const RAIN_VALUES = D.rain.y;
 const WEATHER = new Map(WEATHER_DATES.map((d, i) => [d, { temp: WEATHER_TEMP[i], rh: WEATHER_RH[i] }]));
 const RAIN = new Map(RAIN_DATES.map((d, i) => [d, RAIN_VALUES[i]]));
-const state = { runs: [], lastBayRows: [], rangeDays: 30, tideEnabled: false, sort: { col: 1, dir: "desc" }, loading: false, liveWeather: null, weatherUpdatedAt: 0, weatherPromise: null };
+const state = { runs: [], lastBayRows: [], rangeDays: 30, tideEnabled: false, weatherArchiveView: false, sort: { col: 1, dir: "desc" }, loading: false, liveWeather: null, weatherUpdatedAt: 0, weatherPromise: null };
 const els = {};
 let plotlyPromise;
 
@@ -95,12 +95,13 @@ function installShell() {
       </div></details>
       <details open class="dryer-analysis-card"><summary>2. Drying timeline + Weather</summary><div class="dryer-analysis-card-body dryer-analysis-weather-parity">
         <div class="dryer-analysis-weather-header">
-          <div class="dryer-analysis-weather-subtitle">All three weather plots now use one consistent Open-Meteo model for Mwazaro over the entire displayed period. Historical Bati Seaweed Station observations remain saved separately; these are not interchangeable with gridded weather.</div>
+          <div class="dryer-analysis-weather-subtitle">Temperature, humidity and rainfall use a single Open-Meteo Mwazaro model across the selected period. Choose “Bati station archive” to inspect the original station readings separately; the two sources are not equivalent.</div>
           <div class="dryer-analysis-weather-controls">
             <button type="button" data-analysis-range="7">7 days</button>
             <button type="button" data-analysis-range="30" class="active">1 month</button>
             <button type="button" data-analysis-range="90">3 months</button>
             <button id="dryerAnalysisTideToggle" type="button">Tide overlay</button>
+            <button id="dryerAnalysisArchiveToggle" type="button" title="Compare with the original Bati station readings, which end in September 2026.">Bati station archive</button>
           </div>
         </div>
         <div class="dryer-analysis-weather-pills">
@@ -134,6 +135,7 @@ function cache() {
   els.weatherMethod = document.getElementById("dryerAnalysisWeatherMethod");
   els.weatherFreshness = document.getElementById("dryerAnalysisWeatherFreshness");
   els.tideButton = document.getElementById("dryerAnalysisTideToggle");
+  els.archiveButton = document.getElementById("dryerAnalysisArchiveToggle");
   els.tidePill = document.getElementById("dryerAnalysisTidePill");
 }
 
@@ -175,6 +177,10 @@ function bind() {
     state.tideEnabled = !state.tideEnabled;
     els.tideButton.classList.toggle("active", state.tideEnabled);
     els.tidePill.hidden = !state.tideEnabled;
+    renderWeather();
+  });
+  els.archiveButton?.addEventListener("click", () => {
+    state.weatherArchiveView = !state.weatherArchiveView;
     renderWeather();
   });
 
@@ -413,6 +419,7 @@ async function refreshWeather() {
 }
 
 function selectedWeather(days) {
+  if (state.weatherArchiveView) return { method: "Original Bati Seaweed Station archive · historical only (ends Sep 2026)" };
   if (days === 7) return { method: "3-hourly · Open-Meteo Mwazaro model" };
   if (days === 30) return { method: "Daylight 07:00–17:59 · 3-day smoothing · single model" };
   return { method: "Daylight 07:00–17:59 · 7-day smoothing · single model" };
@@ -437,7 +444,7 @@ function archiveWeatherFallbackTraces(days) {
 
 function weatherTraces(days) {
   const selected = selectedWeather(days);
-  const out = modelWeatherTraces(state.liveWeather, days);
+  const out = state.weatherArchiveView ? archiveWeatherFallbackTraces(days) : modelWeatherTraces(state.liveWeather, days);
   if (!out.length) out.push(...archiveWeatherFallbackTraces(days));
 
   if (state.tideEnabled) {
@@ -512,6 +519,17 @@ function renderWeather() {
   const selected = selectedWeather(state.rangeDays);
   if (els.weatherMethod) els.weatherMethod.textContent = selected.method;
   if (els.tideButton) els.tideButton.classList.toggle("active", state.tideEnabled);
+  if (els.archiveButton) {
+    els.archiveButton.classList.toggle("active", state.weatherArchiveView);
+    els.archiveButton.setAttribute("aria-pressed", String(state.weatherArchiveView));
+  }
+  if (els.weatherFreshness) {
+    els.weatherFreshness.textContent = state.weatherArchiveView
+      ? "Original Bati station observations · available through September 2026"
+      : state.liveWeather
+        ? "Open-Meteo Mwazaro model through " + state.liveWeather.lastDate + " EAT"
+        : "Updating Mwazaro model · archived values shown until ready";
+  }
   if (els.tidePill) {
     els.tidePill.hidden = !state.tideEnabled;
     const coverage = TIDE.coverageEnd || TIDE.date.at(-1);
