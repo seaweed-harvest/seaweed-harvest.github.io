@@ -110,7 +110,7 @@ function installShell() {
           <span class="dryer-analysis-weather-pill" id="dryerAnalysisWeatherFreshness" aria-live="polite">Archive to 17 Sep · checking updates…</span>
         </div>
         <div class="dryer-analysis-chart-wrap"><div id="dryerAnalysisWeatherChart"></div>
-          <p class="dryer-analysis-note">7-day view retains the day/night cycle. 1-month and 3-month views use daylight measurements only. Archived rainfall is regional; newer rainfall is modelled near Mwazaro, not a gauge measurement. Dashed weather lines and hatched rainfall represent estimates. Missing dates remain blank. Tide overlay uses KMFRI 2026 Mombasa predictions; green bands mark days where the lowest predicted low is below 0.5 m. Dryer run bars are live from Dryer Table records.</p>
+          <p class="dryer-analysis-note">7-day view retains the day/night cycle. 1-month and 3-month views use daylight measurements only. Archived rainfall is regional; newer rainfall is modelled near Mwazaro, not a gauge measurement. Dashed weather lines and hatched rainfall represent estimates from <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> (Mwazaro grid, not on-site sensor observations). Missing dates remain blank. Tide overlay uses KMFRI 2026 Mombasa predictions; green bands mark days where the lowest predicted low is below 0.5 m. Dryer run bars are live from Dryer Table records.</p>
         </div>
       </div></details>
       <details open class="dryer-analysis-card"><summary>3. Performance scatter plot</summary><div class="dryer-analysis-card-body"><div class="dryer-analysis-chart-wrap"><div id="dryerAnalysisScatter"></div></div></div></details>
