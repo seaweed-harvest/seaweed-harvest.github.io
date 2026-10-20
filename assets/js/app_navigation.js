@@ -303,6 +303,24 @@ function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
     drawer.append(navigationLink({ label: "Community Map", href: "./admin_map.html" }, currentFile));
   }
 
+  // Tide is a separate application. Only expose its shortcut to existing Tide users.
+  // This shared sidebar supplies both the desktop menu and mobile drawer.
+  if (profile) {
+    const tideLinkPosition = document.createComment("Harvest Tides");
+    drawer.append(tideLinkPosition);
+    void import("./platform_access.js?v=1")
+      .then(({ hasApplicationAccess }) => hasApplicationAccess("tide"))
+      .then((allowed) => {
+        if (!tideLinkPosition.isConnected) return;
+        if (allowed) {
+          tideLinkPosition.replaceWith(navigationLink({ label: "Harvest Tides", href: "./tide/index.html" }, currentFile));
+        } else {
+          tideLinkPosition.remove();
+        }
+      })
+      .catch(() => tideLinkPosition.remove());
+  }
+
   drawer.append(drawerGroup("Forms", formLinks(profile, currentFile), currentFile, true));
   drawer.append(drawerGroup("Records", recordLinks(profile, currentFile), currentFile));
 
