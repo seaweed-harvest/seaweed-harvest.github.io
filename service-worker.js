@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v161-stage-photos-initial-colour";
+const CACHE_VERSION = "seaweed-harvest-collection-v162-harvest-tides-nav";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
