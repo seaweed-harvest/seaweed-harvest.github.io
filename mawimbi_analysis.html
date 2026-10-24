@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Mawimbi Analysis - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/mawimbi_analysis.css?v=1">
+  <link rel="stylesheet" href="./assets/css/mawimbi_analysis.css?v=2">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Seaweed Harvest">
@@ -36,7 +36,7 @@
           <div>
             <p class="eyebrow">Mawimbi · Records</p>
             <h2>Analysis</h2>
-            <p class="field-hint">Trends from the recorded Collection and BioStim Stock forms. Data updates when you reload the page.</p>
+            <p class="field-hint">Daily intake progress and accumulated production from the Collection and BioStim Stock forms. Reload to check recent records.</p>
           </div>
           <button id="analysisRefresh" type="button" class="analysis-refresh">Refresh data</button>
         </div>
@@ -52,32 +52,44 @@
       <section class="panel admin-page-section analysis-panel" aria-labelledby="harvestChartTitle">
         <div class="analysis-panel-heading">
           <div>
-            <h2 id="harvestChartTitle">Seaweed collected over time</h2>
-            <p class="field-hint">Wet seaweed (kg), from Intake Collection forms. Each collection is counted once.</p>
+            <h2 id="harvestChartTitle">Seaweed collection progress</h2>
+            <p class="field-hint">Wet seaweed (kg) from Intake Collection forms, counted once per recorded collection.</p>
           </div>
-          <strong class="analysis-stat" id="harvestTotal">— kg</strong>
+          <strong class="analysis-stat" id="harvestTotal">— kg collected</strong>
         </div>
         <div class="analysis-filter-grid">
           <label>Community
-            <select id="harvestCommunity">
-              <option value="">All communities combined</option>
-            </select>
+            <select id="harvestCommunity"><option value="">All communities combined</option></select>
           </label>
           <label>Group by
             <select id="harvestGrouping">
               <option value="day">Day</option>
-              <option value="week" selected>Week</option>
-              <option value="month">Month</option>
+              <option value="week">Week</option>
+              <option value="month" selected>Month</option>
             </select>
           </label>
         </div>
-        <div id="harvestPlot" class="analysis-plot" role="img" aria-label="Seaweed collected over time"></div>
+        <div class="analysis-chart-grid">
+          <div class="analysis-chart-block">
+            <div class="analysis-chart-heading">
+              <h3>Average daily collection</h3>
+              <strong id="harvestAverage" class="analysis-mini-stat">— kg/day</strong>
+            </div>
+            <p class="field-hint">Each period’s collected kg ÷ days with recorded collections. Useful for spotting a shift in daily output.</p>
+            <div id="harvestPlot" class="analysis-plot" role="img" aria-label="Average collection weight per active collection day, line chart"></div>
+          </div>
+          <div class="analysis-chart-block">
+            <div class="analysis-chart-heading"><h3>Accumulated seaweed collected</h3></div>
+            <p class="field-hint">Running total of collected kg, including earlier records when a date filter is applied.</p>
+            <div id="harvestCumulativePlot" class="analysis-plot" role="img" aria-label="Cumulative collected seaweed kilograms, line chart"></div>
+          </div>
+        </div>
         <p id="harvestEmpty" class="analysis-empty" hidden>No collections recorded for this selection.</p>
         <p id="harvestStatus" class="field-hint" aria-live="polite"></p>
         <details class="analysis-detail-table">
           <summary>Show collection figures</summary>
           <div class="responsive-table-wrap"><table class="management-table admin-data-table">
-            <thead><tr><th>Period beginning</th><th>Collected kg</th><th>Collection records</th></tr></thead>
+            <thead><tr><th>Period beginning</th><th>Collection days</th><th>Collected kg</th><th>Avg kg/day</th><th>Accumulated kg</th></tr></thead>
             <tbody id="harvestRows"></tbody>
           </table></div>
         </details>
@@ -86,18 +98,50 @@
       <section class="panel admin-page-section analysis-panel" aria-labelledby="stockChartTitle">
         <div class="analysis-panel-heading">
           <div>
-            <h2 id="stockChartTitle">Recorded BioStim stock volume</h2>
-            <p class="field-hint">Numbered stock on hand (L): new containers, less recorded removals, plus restorations.</p>
+            <h2 id="stockChartTitle">BioStim stock production</h2>
+            <p class="field-hint">Newly recorded BioStim stock (litres). QC retests and stock removals do not count as new production.</p>
           </div>
-          <strong class="analysis-stat" id="stockTotal">— L</strong>
+          <strong class="analysis-stat" id="stockTotal">— L produced</strong>
         </div>
-        <div id="stockPlot" class="analysis-plot" role="img" aria-label="Recorded BioStim stock balance over time with shaded QC dates"></div>
-        <div class="analysis-legend"><span class="analysis-line-key"></span> Recorded stock <span class="analysis-shade-key"></span> QC batch / retest recorded</div>
-        <p id="stockEmpty" class="analysis-empty" hidden>No numbered stock records for this selection.</p>
+        <div class="analysis-filter-grid">
+          <label>Group by
+            <select id="stockGrouping">
+              <option value="day">Day</option>
+              <option value="week">Week</option>
+              <option value="month" selected>Month</option>
+            </select>
+          </label>
+        </div>
+        <div class="analysis-chart-grid">
+          <div class="analysis-chart-block">
+            <div class="analysis-chart-heading">
+              <h3>Average daily stock intake</h3>
+              <strong id="stockAverage" class="analysis-mini-stat">— L/day</strong>
+            </div>
+            <p class="field-hint">New stock litres ÷ days with recorded new stock in each period.</p>
+            <div id="stockAveragePlot" class="analysis-plot" role="img" aria-label="Average new stock litres per active production day, line chart"></div>
+          </div>
+          <div class="analysis-chart-block">
+            <div class="analysis-chart-heading"><h3>Accumulated stock produced</h3></div>
+            <p class="field-hint">Running total of new litres recorded, before removals; never adds QC retests again.</p>
+            <div id="stockCumulativePlot" class="analysis-plot" role="img" aria-label="Accumulated new BioStim stock produced in litres, line chart"></div>
+          </div>
+        </div>
+        <div class="analysis-legend"><span class="analysis-line-key"></span> Recorded intake trend <span class="analysis-shade-key"></span> QC batch / retest date</div>
+        <p id="stockEmpty" class="analysis-empty" hidden>No numbered BioStim stock records for this selection.</p>
         <p id="stockStatus" class="field-hint" aria-live="polite"></p>
-        <p class="analysis-caution">This is a ledger-derived balance, not a physical stocktake. QC retests do not increase stock. Unidentified historical disposals without known carton identities or actual disposal dates are not subtracted. Shading marks recording dates, not the duration of QC; imported October 2026 retests may use 7 October as a reference date rather than the actual test date.</p>
+        <p class="analysis-caution">Both production plots count only initial, numbered litre/mL stock entries. The shaded periods contain recorded QC batches or retests, not necessarily the dates testing occurred. Imported October 2026 QC records may use 7 October as a reference date.</p>
         <details class="analysis-detail-table">
-          <summary>Show stock changes and QC dates</summary>
+          <summary>Show stock production figures</summary>
+          <div class="responsive-table-wrap"><table class="management-table admin-data-table">
+            <thead><tr><th>Period beginning</th><th>Production days</th><th>New stock (L)</th><th>Avg L/day</th><th>Accumulated (L)</th><th>QC records</th></tr></thead>
+            <tbody id="stockProductionRows"></tbody>
+          </table></div>
+        </details>
+        <details class="analysis-detail-table">
+          <summary>Show numbered stock on-hand balance and QC history</summary>
+          <p class="analysis-caution">This separate balance includes recorded removals/restorations, but is not a physical stocktake. Historical unidentified disposals without known container IDs or disposal dates are excluded.</p>
+          <div id="stockPlot" class="analysis-plot" role="img" aria-label="Recorded BioStim stock balance with shaded QC dates"></div>
           <div class="responsive-table-wrap"><table class="management-table admin-data-table">
             <thead><tr><th>Date</th><th>Change (L)</th><th>Recorded balance (L)</th><th>QC records</th></tr></thead>
             <tbody id="stockRows"></tbody>
@@ -107,6 +151,6 @@
     </section>
   </main>
   <script type="module" src="./assets/js/admin_page.js?v=39"></script>
-  <script type="module" src="./assets/js/mawimbi_analysis.js?v=1"></script>
+  <script type="module" src="./assets/js/mawimbi_analysis.js?v=2"></script>
 </body>
 </html>
