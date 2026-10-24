@@ -66,7 +66,7 @@ function addStyle(href, marker) {
 
 function installShell() {
   addStyle("./assets/css/dryer_analysis_live.css?v=2", "data-dryer-analysis-style");
-  addStyle("./assets/css/dryer_analysis_weather_parity.css?v=1", "data-dryer-analysis-weather-style");
+  addStyle("./assets/css/dryer_analysis_weather_parity.css?v=2", "data-dryer-analysis-weather-style");
 
   const tabs = document.getElementById("dryerRecordTabs");
   if (tabs && !document.getElementById("dryerAnalysisTab")) {
