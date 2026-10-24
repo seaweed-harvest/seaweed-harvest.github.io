@@ -245,13 +245,13 @@ async function fetchEveryPage(functionName, parameters, pageSize) {
 
 async function loadStock(range = null, refresh = false) {
   const requestId = ++state.stocking;
-  showMessage(els.stockStatus, "Loading numbered stock and QC history...");
-  els.stockPlot.replaceChildren();
+  showMessage(els.stockStatus, "Loading new stock entries and QC history...");
+  for (const plot of [els.stockAveragePlot, els.stockCumulativePlot, els.stockPlot]) plot.replaceChildren();
   els.stockEmpty.hidden = true;
   try {
     const dates = range || selectedRange();
     if (refresh || !state.stockRows || !state.stockActions) {
-      // Do not rely on a month-limited summary: the opening balance needs all earlier records.
+      // The opening balance and cumulative production must include earlier records.
       const [stockRows, stockActions] = await Promise.all([
         fetchEveryPage("ag_form_record_ledger", {
           p_record_type: "stock", p_start_date: "0001-01-01",
@@ -266,32 +266,49 @@ async function loadStock(range = null, refresh = false) {
       state.stockActions = stockActions;
     }
     if (requestId !== state.stocking) return;
-    // Blank "From" means begin at the first stock event, not nine years of empty space.
-    const earliest = [
+    const eventDates = [
       ...state.stockRows.map(row => row.record_date),
       ...state.stockActions.map(row => row.action_date)
-    ].filter(isISODate).sort()[0];
+    ].filter(isISODate).filter(date => date <= dates.end).sort();
+    const earliest = eventDates[0];
+    const latest = eventDates.at(-1);
     const plotRange = {
       ...dates,
       start: !els.analysisFrom.value && earliest && earliest <= dates.end
         ? (earliest > dates.start ? earliest : dates.start)
-        : dates.start
+        : dates.start,
+      end: !els.analysisTo.value && latest && latest >= dates.start ? latest : dates.end
     };
     const timeline = buildStockTimeline(state.stockRows, state.stockActions, plotRange);
-    els.stockTotal.textContent = `${formatNumber(timeline.lastBalance)} L`;
+    const grouping = els.stockGrouping.value;
+    const trend = groupIntakeSeries(timeline.intakeDays, grouping, plotRange);
+    els.stockTotal.textContent = formatNumber(trend.cumulative) + " L produced";
     if (!timeline.hasInitial && !timeline.hasActions) {
       els.stockEmpty.hidden = false;
+      els.stockAverage.textContent = "— L/day";
       els.stockRows.replaceChildren();
+      els.stockProductionRows.replaceChildren();
       showMessage(els.stockStatus, "No numbered BioStim stock records in the ledger.");
       return;
     }
+    drawLineChart(els.stockAveragePlot, trend.points, "average", "L/day",
+      "Average new BioStim stock litres per production day", true);
+    drawLineChart(els.stockCumulativePlot, trend.points, "cumulative", "L",
+      "Accumulated new BioStim stock production", true);
     drawStock(timeline.points, plotRange);
     renderStockTable(timeline.points);
-    showMessage(els.stockStatus,
-      `${formatNumber(timeline.initialCount)} new container records · ${formatNumber(timeline.qcCount)} QC batch/retest records · ${formatNumber(timeline.actionCount)} stock actions`);
+    renderIntakeTable(els.stockProductionRows, trend.points, true);
+    const current = [...trend.points].reverse().find(row => row.days > 0);
+    els.stockAverage.textContent = current ? formatNumber(current.average) + " L/day" : "— L/day";
+    showMessage(els.stockStatus, formatNumber(timeline.initialCount) + " new container entries · "
+      + formatNumber(timeline.qcCount) + " QC batch/retest records · "
+      + formatNumber(timeline.actionCount) + " stock actions · "
+      + formatNumber(trend.selectedTotal) + " L produced within selected dates. Latest active period: "
+      + (current ? formatDate(current.date) : "none") + ".");
   } catch (error) {
     if (requestId !== state.stocking) return;
-    els.stockTotal.textContent = "— L";
+    els.stockTotal.textContent = "— L produced";
+    els.stockAverage.textContent = "— L/day";
     showMessage(els.stockStatus, readableError(error), true);
     throw error;
   }
@@ -300,7 +317,7 @@ async function loadStock(range = null, refresh = false) {
 function buildStockTimeline(records, actions, range) {
   const daily = new Map();
   const entry = date => {
-    if (!daily.has(date)) daily.set(date, { date, delta: 0, qc: 0 });
+    if (!daily.has(date)) daily.set(date, { date, delta: 0, intake: 0, newCount: 0, qc: 0 });
     return daily.get(date);
   };
   let initialCount = 0, actionCount = 0, qcCount = 0;
@@ -318,6 +335,8 @@ function buildStockTimeline(records, actions, range) {
       : record.weight_unit === "mL" ? Number(record.weight_value) / 1000 : NaN;
     if (Number.isFinite(litres) && litres >= 0) {
       entry(date).delta += litres;
+      entry(date).intake += litres;
+      entry(date).newCount += 1;
       initialCount++;
     }
   }
@@ -353,6 +372,7 @@ function buildStockTimeline(records, actions, range) {
   }
   return {
     points, lastBalance: balance, initialCount, actionCount, qcCount,
+    intakeDays: sorted.map(row => ({ date: row.date, volume: row.intake, count: row.newCount, qc: row.qc })),
     hasInitial: initialCount > 0, hasActions: actionCount > 0
   };
 }
