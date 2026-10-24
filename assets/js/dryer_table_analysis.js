@@ -25,6 +25,7 @@ const RAIN = new Map(RAIN_DATES.map((d, i) => [d, RAIN_VALUES[i]]));
 const state = { runs: [], lastBayRows: [], rangeDays: 30, tideEnabled: false, weatherError: false, sort: { col: 1, dir: "desc" }, loading: false, liveWeather: null, weatherUpdatedAt: 0, weatherPromise: null };
 const els = {};
 let plotlyPromise;
+let lastWeatherMobile = null;
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -33,6 +34,7 @@ function init() {
   cache();
   if (!els.tabs || !els.tab || !els.panel) return;
   bind();
+  observeWeatherWidth();
   window.setInterval(() => { if (!els.panel.hidden) void refreshWeather(); }, 3 * 3600000);
   if (new URLSearchParams(location.search).get("tab") === TAB) void activateWhenRecordsReady();
 }
@@ -524,6 +526,93 @@ function weatherLayout(days) {
   };
 }
 
+
+/*
+ * The desktop figure deliberately remains unchanged. On narrow displays,
+ * Plotly cannot fit four independent Y axes plus nine dryer-table labels.
+ * Put the existing traces on vertically separated rows instead.
+ */
+function isNarrowWeatherView() {
+  const width = els.weather?.getBoundingClientRect().width || 0;
+  return width > 0 && width < 620;
+}
+
+function observeWeatherWidth() {
+  if (typeof ResizeObserver === "undefined" || !els.weather?.parentElement) return;
+  const observer = new ResizeObserver(() => {
+    if (!els.panel.hidden && lastWeatherMobile !== null &&
+        isNarrowWeatherView() !== lastWeatherMobile) renderWeather();
+  });
+  observer.observe(els.weather.parentElement);
+}
+
+function mobileWeatherLayout(days, desktop) {
+  const tide = state.tideEnabled;
+  // Increasing the chart height rather than its minimum width makes all
+  // weather readings and recorded drying periods accessible without sideways scrolling.
+  const rows = tide
+    ? { temp:[.84,.96], humidity:[.68,.80], rain:[.52,.64], low:[.36,.48], runs:[.07,.32] }
+    : { temp:[.79,.96], humidity:[.59,.76], rain:[.39,.56], low:[.36,.37], runs:[.07,.35] };
+  const [start,end] = weatherBounds(days);
+  const step = days === 7 ? 2 : days === 30 ? 7 : 21;
+  const tickvals=[], ticktext=[];
+  for (let ms=start.getTime(); ms<=end.getTime(); ms+=step*86400000) {
+    const date = new Date(ms);
+    tickvals.push(date.toISOString());
+    ticktext.push(date.toLocaleDateString("en-GB", {
+      day:"numeric",month:"short",timeZone:KENYA_TIME_ZONE
+    }));
+  }
+  const tables = [...desktop.yaxis4.categoryarray].reverse();
+  const shortTable = (name) => name
+    .replace(/^EXISTING SHED\s*/i,"Shed ")
+    .replace(/^NEW\s*/i,"New ")
+    .replace(/^Shed - General$/i,"General");
+  const axis = (domain,suffix,extra={}) => ({
+    domain,anchor:"x",side:"left",title:{text:""},fixedrange:true,
+    showgrid:true,gridcolor:"rgba(70,90,85,.09)",zeroline:false,
+    ticksuffix:suffix,tickfont:{size:10},nticks:4,automargin:false,...extra
+  });
+  const headings = [
+    ["Temperature (°C)",rows.temp],
+    ["Humidity (% RH)",rows.humidity],
+    ["Rainfall (mm)",rows.rain],
+    ...(tide ? [["Lowest low tide (m)",rows.low]] : []),
+    ["Drying periods",rows.runs]
+  ].map(([text,domain]) => ({
+    xref:"paper",yref:"paper",x:0,y:domain[1]+.011,
+    text:"<b>"+text+"</b>",xanchor:"left",yanchor:"bottom",
+    showarrow:false,font:{size:12,color:"#526a63"}
+  }));
+  // Retain the existing grid and harvest-day shading, but shade the
+  // mobile weather rows rather than the desktop weather-panel coordinates.
+  const shapes=desktop.shapes.filter(shape => !(shape.type==="line" && shape.xref==="paper"))
+    .map(shape => shape.type==="rect"
+      ? {...shape,y0:tide?rows.low[0]:rows.rain[0],y1:rows.temp[1]}
+      : shape);
+  const xaxis={...desktop.xaxis,domain:[0,1],showticklabels:false};
+  delete xaxis.matches;
+  return {
+    ...desktop,
+    margin:{l:76,r:10,t:36,b:48},showlegend:false,
+    hovermode:"closest",
+    xaxis,
+    xaxis2:{...desktop.xaxis2,domain:[0,1],anchor:"y4",
+      matches:"x",side:"bottom",tickmode:"array",tickvals,ticktext,
+      tickfont:{size:10},tickangle:0,ticklen:4,showticklabels:true},
+    yaxis:axis(rows.temp," °C"),
+    yaxis2:axis(rows.humidity," %",{range:[45,100]}),
+    yaxis3:axis(rows.rain," mm",{rangemode:"tozero"}),
+    yaxis5:axis(rows.low," m",{range:[0,1.6],visible:tide,
+      tickfont:{size:10,color:"#687ea6"}}),
+    yaxis4:{domain:rows.runs,anchor:"x2",type:"category",fixedrange:true,
+      categoryorder:"array",categoryarray:desktop.yaxis4.categoryarray,
+      tickmode:"array",tickvals:tables,ticktext:tables.map(shortTable),
+      tickfont:{size:10},showgrid:false,zeroline:false,automargin:false},
+    shapes,annotations:headings
+  };
+}
+
 function renderWeather() {
   if (!window.Plotly || !D || !TIDE) return;
   const selected = selectedWeather(state.rangeDays);
@@ -547,7 +636,12 @@ function renderWeather() {
   }
 
   const data = weatherTraces(state.rangeDays);
-  const layout = weatherLayout(state.rangeDays);
+  const desktopLayout = weatherLayout(state.rangeDays);
+  const mobile = isNarrowWeatherView();
+  lastWeatherMobile = mobile;
+  els.weather.classList.toggle("dryer-weather-mobile",mobile);
+  els.weather.classList.toggle("dryer-weather-mobile-tides",mobile && state.tideEnabled);
+  const layout = mobile ? mobileWeatherLayout(state.rangeDays,desktopLayout) : desktopLayout;
   const config = { responsive:true,displaylogo:false,scrollZoom:false,doubleClick:false,displayModeBar:false };
   const draw = els.weather?._fullLayout ? window.Plotly.react : window.Plotly.newPlot;
   Promise.resolve(draw.call(window.Plotly, els.weather, data, layout, config)).catch((error) => {
