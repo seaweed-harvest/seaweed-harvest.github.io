@@ -22,6 +22,7 @@
 .analysis-plot text { fill:var(--text-muted); font-size:12px; }
 .analysis-plot .analysis-axis { stroke:var(--border); stroke-width:1; }
 .analysis-plot .analysis-stroke { stroke:var(--accent); stroke-width:3; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+.analysis-plot .analysis-gap-stroke { stroke:var(--accent); stroke-width:2; stroke-dasharray:5 6; opacity:.55; fill:none; }
 .analysis-plot .analysis-qc-band { fill:#d6a248; opacity:.24; }
 .analysis-plot .analysis-point { fill:var(--accent); }
 .analysis-plot .analysis-plot-title { fill:var(--text); font-weight:600; font-size:13px; }
