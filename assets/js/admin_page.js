@@ -571,6 +571,7 @@ function requiredPermissionForPage() {
     "admin_community.html": "can_view_data",
     "admin_ledger.html": "can_view_data",
     "records.html": "can_view_data",
+    "mawimbi_analysis.html": "can_view_data",
     "process_record.html": "can_submit_collection",
     "stabilization_packing.html": "can_submit_collection",
     "site_water_sample.html": "can_submit_collection",
