@@ -14,8 +14,9 @@ async function init() {
   [
     "analysisFrom", "analysisTo", "analysisApply", "analysisRefresh", "analysisStatus",
     "harvestCommunity", "harvestGrouping", "harvestPlot", "harvestEmpty",
-    "harvestTotal", "harvestStatus", "harvestRows",
-    "stockPlot", "stockEmpty", "stockTotal", "stockStatus", "stockRows"
+    "harvestTotal", "harvestAverage", "harvestCumulativePlot", "harvestStatus", "harvestRows",
+    "stockPlot", "stockAveragePlot", "stockCumulativePlot", "stockGrouping",
+    "stockTotal", "stockAverage", "stockProductionRows", "stockEmpty", "stockStatus", "stockRows"
   ].forEach(id => { els[id] = document.getElementById(id); });
   if (!els.harvestPlot) return;
 
@@ -44,6 +45,7 @@ async function init() {
     els.analysisRefresh.addEventListener("click", () => void refreshViews(true));
     els.harvestCommunity.addEventListener("change", () => { void loadHarvest().catch(() => {}); });
     els.harvestGrouping.addEventListener("change", () => { void loadHarvest().catch(() => {}); });
+    els.stockGrouping.addEventListener("change", () => { void loadStock().catch(() => {}); });
     await refreshViews(true);
   } catch (error) {
     showMessage(els.analysisStatus, readableError(error), true);
@@ -89,50 +91,98 @@ async function refreshViews(refreshStock) {
 
 async function loadHarvest(range = null) {
   const requestId = ++state.harvesting;
-  showMessage(els.harvestStatus, "Loading collection totals...");
+  showMessage(els.harvestStatus, "Loading daily collection records...");
   els.harvestPlot.replaceChildren();
+  els.harvestCumulativePlot.replaceChildren();
   els.harvestEmpty.hidden = true;
   try {
     const dates = range || selectedRange();
     const grouping = els.harvestGrouping.value;
+    // Historical daily totals give a true cumulative total even with a From date.
+    const historyStart = String(Number(dates.end.slice(0, 4)) - 9) + "-01-01";
     const { data, error } = await authClient.rpc("ag_sec_operational_summary", {
-      p_start_date: dates.start,
+      p_start_date: dates.start < historyStart ? dates.start : historyStart,
       p_end_date: dates.end,
-      p_grouping: grouping,
+      p_grouping: "day",
       p_community_id: els.harvestCommunity.value || null
     });
     if (error) throw error;
     if (requestId !== state.harvesting) return;
     const result = unwrap(data);
-    const raw = (Array.isArray(result?.rows) ? result.rows : [])
+    const daily = (Array.isArray(result?.rows) ? result.rows : [])
       .filter(row => isISODate(row.period_start))
       .map(row => ({
         date: row.period_start,
-        kg: finiteNumber(row.intake_weight_kg),
+        volume: finiteNumber(row.intake_weight_kg),
         count: finiteNumber(row.collection_count)
       }))
-      .filter(row => row.kg > 0 || row.count > 0)
+      .filter(row => row.volume > 0 || row.count > 0)
       .sort((a, b) => a.date.localeCompare(b.date));
-    const totalKg = finiteNumber(result?.totals?.intake_weight_kg);
-    els.harvestTotal.textContent = `${formatNumber(totalKg)} kg`;
-    if (!raw.length) {
+    els.harvestTotal.textContent = formatNumber(daily.reduce((sum, row) => sum + row.volume, 0)) + " kg collected";
+    if (!daily.length) {
       els.harvestEmpty.hidden = false;
+      els.harvestAverage.textContent = "— kg/day";
       els.harvestRows.replaceChildren();
       showMessage(els.harvestStatus, "No collection entries in this period.");
       return;
     }
-    const points = fillMissingPeriods(raw, grouping, els.analysisFrom.value ? dates.start : raw[0].date,
-      els.analysisTo.value ? dates.end : raw[raw.length - 1].date);
-    drawHarvest(points);
-    renderHarvestTable(points);
-    showMessage(els.harvestStatus,
-      `${formatNumber(raw.reduce((sum, row) => sum + row.count, 0))} collection entries · ${grouping === "day" ? "Daily" : grouping === "week" ? "Weekly" : "Monthly"} totals`);
+    const visible = {
+      start: els.analysisFrom.value ? dates.start : (daily[0].date > dates.start ? daily[0].date : dates.start),
+      end: els.analysisTo.value ? dates.end : daily[daily.length - 1].date
+    };
+    const trend = groupIntakeSeries(daily, grouping, visible);
+    drawLineChart(els.harvestPlot, trend.points, "average", "kg/day",
+      "Average daily collection per recorded collection day");
+    drawLineChart(els.harvestCumulativePlot, trend.points, "cumulative", "kg",
+      "Accumulated seaweed collected");
+    renderIntakeTable(els.harvestRows, trend.points);
+    const latest = [...trend.points].reverse().find(row => row.days > 0);
+    els.harvestAverage.textContent = latest ? formatNumber(latest.average) + " kg/day" : "— kg/day";
+    const periodLabel = grouping === "day" ? "daily" : grouping === "week" ? "weekly" : "monthly";
+    showMessage(els.harvestStatus, periodLabel + " average per recorded collection day · "
+      + formatNumber(trend.selectedTotal) + " kg in selected dates · "
+      + formatNumber(trend.opening) + " kg before selection. Latest active period: "
+      + (latest ? formatDate(latest.date) : "none") + ".");
   } catch (error) {
     if (requestId !== state.harvesting) return;
-    els.harvestTotal.textContent = "— kg";
+    els.harvestTotal.textContent = "— kg collected";
+    els.harvestAverage.textContent = "— kg/day";
     showMessage(els.harvestStatus, readableError(error), true);
     throw error;
   }
+}
+
+/** Average per distinct day with an intake record, rather than per form or calendar day. */
+function groupIntakeSeries(dailyRows, grouping, range) {
+  const buckets = new Map();
+  let opening = 0;
+  for (const row of dailyRows) {
+    if (!isISODate(row.date) || row.date > range.end) continue;
+    const amount = Math.max(0, finiteNumber(row.volume));
+    if (row.date < range.start) { opening += amount; continue; }
+    const key = periodStart(row.date, grouping);
+    if (!buckets.has(key)) buckets.set(key, { volume: 0, activeDates: new Set(), qc: 0 });
+    const bucket = buckets.get(key);
+    bucket.volume += amount;
+    if (finiteNumber(row.count) > 0) bucket.activeDates.add(row.date);
+    bucket.qc += finiteNumber(row.qc);
+  }
+  let cumulative = opening;
+  let cursor = periodStart(range.start, grouping);
+  const end = periodStart(range.end, grouping);
+  const points = [];
+  while (cursor <= end && points.length < 3700) {
+    const bucket = buckets.get(cursor);
+    const volume = bucket?.volume || 0;
+    const days = bucket?.activeDates.size || 0;
+    cumulative += volume;
+    points.push({
+      date: cursor, volume, days, qc: bucket?.qc || 0,
+      average: days ? volume / days : null, cumulative
+    });
+    cursor = nextPeriod(cursor, grouping);
+  }
+  return { points, opening, selectedTotal: cumulative - opening, cumulative };
 }
 
 function fillMissingPeriods(raw, grouping, from, to) {
