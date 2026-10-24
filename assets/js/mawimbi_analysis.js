@@ -1,4 +1,4 @@
-import { authClient, hasOrganisationCapability, requireAggregatorAccess } from "./auth_client.js";
+import { authClient, hasOrganisationCapability, requireAggregatorAccess } from "./auth_client.js?v=25";
 import { selectRows } from "./supabase_client.js";
 
 const STOCK_PAGE_SIZE = 50;
