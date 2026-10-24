@@ -72,4 +72,12 @@
   .dryer-analysis-weather-parity .dryer-analysis-chart-wrap {
     overflow-x: hidden;
   }
+  .dryer-analysis-weather-parity #dryerAnalysisWeatherChart.dryer-weather-mobile {
+    height: 940px;
+    width: 100%;
+    min-width: 0;
+  }
+  .dryer-analysis-weather-parity #dryerAnalysisWeatherChart.dryer-weather-mobile-tides {
+    height: 1100px;
+  }
 }
