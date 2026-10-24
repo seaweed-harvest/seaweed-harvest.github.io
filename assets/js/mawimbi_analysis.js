@@ -377,26 +377,54 @@ function buildStockTimeline(records, actions, range) {
   };
 }
 
-function drawHarvest(rows) {
-  const width = 880, height = 286, left = 64, right = 18, top = 24, bottom = 46;
+function drawLineChart(parent, rows, field, unit, label, qcBands = false) {
+  const width = 880, height = 268, left = 70, right = 20, top = 24, bottom = 42;
   const plotW = width - left - right, plotH = height - top - bottom;
-  const max = Math.max(1, ...rows.map(row => row.kg));
-  const ceiling = niceCeiling(max);
-  const svg = baseSvg(width, height, els.harvestPlot);
-  drawGrid(svg, { width, height, left, right, top, bottom, max: ceiling, suffix: "kg" });
-  const barW = Math.max(.7, Math.min(30, (plotW / rows.length) * .76));
-  rows.forEach((row, index) => {
-    if (row.kg <= 0) return;
-    const x = left + ((index + .5) / rows.length) * plotW;
-    const h = row.kg / ceiling * plotH;
+  const valid = rows.map(row => row[field]).filter(value => value != null && Number.isFinite(value));
+  const ceiling = niceCeiling(Math.max(1, ...valid));
+  const svg = baseSvg(width, height, parent);
+  drawGrid(svg, { width, height, left, right, top, bottom, max: ceiling, suffix: unit });
+  const x = index => left + (rows.length === 1 ? plotW / 2 : index / (rows.length - 1) * plotW);
+  const y = value => top + (1 - value / ceiling) * plotH;
+  if (qcBands) rows.forEach((row, index) => {
+    if (!row.qc) return;
+    const cx = x(index);
     svgNode(svg, "rect", {
-      x: x - barW / 2, y: top + plotH - h, width: barW, height: h,
-      rx: Math.min(barW / 4, 3), class: "analysis-bar"
-    }, `${formatDate(row.date)}: ${formatNumber(row.kg)} kg from ${row.count} collection entries`);
+      x: Math.max(left, cx - 4), y: top,
+      width: Math.min(8, left + plotW - Math.max(left, cx - 4)), height: plotH,
+      class: "analysis-qc-band"
+    }, formatDate(row.date) + ": " + row.qc + " QC records (recorded during this period)");
   });
-  drawDateLabels(svg, rows.map(row => row.date), left, plotW, height - 16);
-  els.harvestPlot.setAttribute("aria-label",
-    `Wet seaweed collected by period. ${rows.length} periods, maximum ${formatNumber(max)} kilograms.`);
+  // No intake day means no observed average: break the line, rather than
+  // falsely suggesting there was a zero-kg/L active intake day.
+  let section = "";
+  const flush = () => {
+    if (!section) return;
+    svgNode(svg, "path", { d: section, class: "analysis-stroke" });
+    section = "";
+  };
+  rows.forEach((row, index) => {
+    const value = row[field];
+    if (value == null || !Number.isFinite(value)) { flush(); return; }
+    section += (section ? " L " : "M ") + x(index) + " " + y(value);
+  });
+  flush();
+  const sampleEvery = Math.max(1, Math.ceil(rows.length / 45));
+  rows.forEach((row, index) => {
+    const value = row[field];
+    if (value == null || !Number.isFinite(value)) return;
+    if (index % sampleEvery !== 0 && index !== rows.length - 1) return;
+    svgNode(svg, "circle", {
+      cx: x(index), cy: y(value), r: rows.length > 50 ? 2.5 : 3.7,
+      class: "analysis-point"
+    }, formatDate(row.date) + ": " + formatNumber(value) + " " + unit + "; "
+      + formatNumber(row.volume) + " " + (unit.startsWith("kg") ? "kg" : "L")
+      + " newly recorded across " + row.days + " intake day(s)"
+      + (row.qc ? "; " + row.qc + " QC records" : ""));
+  });
+  drawDateLabels(svg, rows.map(row => row.date), left, plotW, height - 13);
+  parent.setAttribute("aria-label", label + " (" + rows.length + " periods). "
+    + (valid.length ? "Most recent observed value: " + formatNumber(valid.at(-1)) + " " + unit : "No recorded intake days."));
 }
 
 function drawStock(rows, range) {
@@ -480,10 +508,16 @@ function drawDateLabels(svg, dates, left, plotW, y) {
   });
 }
 
-function renderHarvestTable(rows) {
-  els.harvestRows.replaceChildren();
-  for (const row of rows) {
-    appendCells(els.harvestRows, [formatDate(row.date), formatNumber(row.kg), formatNumber(row.count)]);
+function renderIntakeTable(parent, rows, stock = false) {
+  parent.replaceChildren();
+  for (const row of [...rows].reverse()) {
+    const cells = [
+      formatDate(row.date), formatNumber(row.days), formatNumber(row.volume),
+      row.average == null ? "—" : formatNumber(row.average),
+      formatNumber(row.cumulative)
+    ];
+    if (stock) cells.push(formatNumber(row.qc));
+    appendCells(parent, cells);
   }
 }
 
