@@ -9,13 +9,20 @@
 .analysis-filter-grid button { min-height:40px; }
 .analysis-date-note { margin:8px 0; }
 .analysis-panel { margin-top:14px; }
+.analysis-chart-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:14px; margin:16px 0 9px; }
+.analysis-chart-block { min-width:0; border:1px solid var(--border-soft); border-radius:10px; padding:13px; }
+.analysis-chart-block .field-hint { margin:5px 0 0; }
+.analysis-chart-heading { display:flex; gap:8px; align-items:baseline; justify-content:space-between; flex-wrap:wrap; }
+.analysis-chart-heading h3 { margin:0; font-size:1rem; color:var(--text); }
+.analysis-mini-stat { color:var(--accent); font-size:.93rem; font-variant-numeric:tabular-nums; }
+@media (min-width:1550px) { .analysis-chart-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 .analysis-stat { font-size:1.23rem; font-variant-numeric:tabular-nums; color:var(--accent); white-space:nowrap; }
-.analysis-plot { width:100%; margin-top:14px; overflow-x:auto; overflow-y:hidden; min-height:240px; -webkit-overflow-scrolling:touch; }
-.analysis-plot svg { width:100%; min-width:600px; display:block; overflow:visible; font-family:inherit; }
+.analysis-plot { width:100%; margin-top:10px; overflow-x:auto; overflow-y:hidden; min-height:220px; -webkit-overflow-scrolling:touch; }
+.analysis-plot svg { width:100%; min-width:0; display:block; overflow:visible; font-family:inherit; }
 .analysis-plot text { fill:var(--text-muted); font-size:12px; }
 .analysis-plot .analysis-axis { stroke:var(--border); stroke-width:1; }
 .analysis-plot .analysis-stroke { stroke:var(--accent); stroke-width:3; fill:none; stroke-linecap:round; stroke-linejoin:round; }
-.analysis-plot .analysis-bar { fill:var(--accent); }
+.analysis-plot .analysis-gap-stroke { stroke:var(--accent); stroke-width:2; stroke-dasharray:5 6; opacity:.55; fill:none; }
 .analysis-plot .analysis-qc-band { fill:#d6a248; opacity:.24; }
 .analysis-plot .analysis-point { fill:var(--accent); }
 .analysis-plot .analysis-plot-title { fill:var(--text); font-weight:600; font-size:13px; }
@@ -35,6 +42,8 @@
   .analysis-filter-grid label { min-width:0; }
   .analysis-filter-grid button { grid-column:1/-1; }
   .analysis-plot { min-height:180px; }
+  .analysis-chart-block { padding:10px; }
+  .analysis-chart-grid { gap:10px; }
   .analysis-stat { font-size:1.06rem; }
   .analysis-panel { margin-top:10px; }
   .analysis-caution { font-size:.73rem; }

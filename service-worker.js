@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v163-mawimbi-analysis";
+const CACHE_VERSION = "seaweed-harvest-collection-v164-mawimbi-line-trends";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
