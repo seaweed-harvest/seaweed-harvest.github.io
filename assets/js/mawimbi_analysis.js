@@ -128,7 +128,7 @@ async function loadHarvest(range = null) {
     }
     const visible = {
       start: els.analysisFrom.value ? dates.start : (daily[0].date > dates.start ? daily[0].date : dates.start),
-      end: els.analysisTo.value ? dates.end : daily[daily.length - 1].date
+      end: els.analysisTo.value ? dates.end : (daily.at(-1).date >= (els.analysisFrom.value || dates.start) ? daily.at(-1).date : dates.end)
     };
     const trend = groupIntakeSeries(daily, grouping, visible);
     drawLineChart(els.harvestPlot, trend.points, "average", "kg/day",
@@ -378,7 +378,8 @@ function buildStockTimeline(records, actions, range) {
 }
 
 function drawLineChart(parent, rows, field, unit, label, qcBands = false) {
-  const width = Math.max(360, Math.min(880, parent.clientWidth || 880));
+  const availableWidth = parent.clientWidth || (typeof window !== "undefined" ? window.innerWidth - 40 : 880);
+  const width = Math.max(360, Math.min(880, availableWidth));
   const height = 268, left = 70, right = 20, top = 24, bottom = 42;
   const plotW = width - left - right, plotH = height - top - bottom;
   const valid = rows.map(row => row[field]).filter(value => value != null && Number.isFinite(value));
