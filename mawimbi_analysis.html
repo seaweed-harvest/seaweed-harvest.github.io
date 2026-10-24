@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Mawimbi Analysis - Seaweed Harvest</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+  <link rel="stylesheet" href="./assets/css/mawimbi_analysis.css?v=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Seaweed Harvest">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
+  <script type="module" src="./assets/js/pwa_bootstrap.js"></script>
+</head>
+<body class="admin-console-page mawimbi-analysis-page" data-auth-pending>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div><p class="eyebrow">Seaweed aggregation</p><h1>Analysis</h1></div>
+      <div class="header-actions admin-header-controls">
+        <nav class="app-nav" aria-label="Main navigation">
+          <a href="./records.html">Records</a>
+          <a href="./home.html">Home</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+  <main class="app-shell admin-shell admin-layout">
+    <aside id="analysisSidebar" class="admin-sidebar" aria-label="Application menu"></aside>
+    <section class="admin-content">
+      <section class="panel admin-page-section">
+        <div class="analysis-title">
+          <div>
+            <p class="eyebrow">Mawimbi · Records</p>
+            <h2>Analysis</h2>
+            <p class="field-hint">Trends from the recorded Collection and BioStim Stock forms. Data updates when you reload the page.</p>
+          </div>
+          <button id="analysisRefresh" type="button" class="analysis-refresh">Refresh data</button>
+        </div>
+        <div class="analysis-filter-grid">
+          <label>From <input id="analysisFrom" type="date" aria-label="Analysis from date"></label>
+          <label>To <input id="analysisTo" type="date" aria-label="Analysis to date"></label>
+          <button id="analysisApply" type="button">Apply dates</button>
+        </div>
+        <p class="field-hint analysis-date-note">Leave dates blank for all available records. Dates use Kenya local time.</p>
+        <p id="analysisStatus" class="admin-status" role="status" aria-live="polite">Loading analysis...</p>
+      </section>
+
+      <section class="panel admin-page-section analysis-panel" aria-labelledby="harvestChartTitle">
+        <div class="analysis-panel-heading">
+          <div>
+            <h2 id="harvestChartTitle">Seaweed collected over time</h2>
+            <p class="field-hint">Wet seaweed (kg), from Intake Collection forms. Each collection is counted once.</p>
+          </div>
+          <strong class="analysis-stat" id="harvestTotal">— kg</strong>
+        </div>
+        <div class="analysis-filter-grid">
+          <label>Community
+            <select id="harvestCommunity">
+              <option value="">All communities combined</option>
+            </select>
+          </label>
+          <label>Group by
+            <select id="harvestGrouping">
+              <option value="day">Day</option>
+              <option value="week" selected>Week</option>
+              <option value="month">Month</option>
+            </select>
+          </label>
+        </div>
+        <div id="harvestPlot" class="analysis-plot" role="img" aria-label="Seaweed collected over time"></div>
+        <p id="harvestEmpty" class="analysis-empty" hidden>No collections recorded for this selection.</p>
+        <p id="harvestStatus" class="field-hint" aria-live="polite"></p>
+        <details class="analysis-detail-table">
+          <summary>Show collection figures</summary>
+          <div class="responsive-table-wrap"><table class="management-table admin-data-table">
+            <thead><tr><th>Period beginning</th><th>Collected kg</th><th>Collection records</th></tr></thead>
+            <tbody id="harvestRows"></tbody>
+          </table></div>
+        </details>
+      </section>
+
+      <section class="panel admin-page-section analysis-panel" aria-labelledby="stockChartTitle">
+        <div class="analysis-panel-heading">
+          <div>
+            <h2 id="stockChartTitle">Recorded BioStim stock volume</h2>
+            <p class="field-hint">Numbered stock on hand (L): new containers, less recorded removals, plus restorations.</p>
+          </div>
+          <strong class="analysis-stat" id="stockTotal">— L</strong>
+        </div>
+        <div id="stockPlot" class="analysis-plot" role="img" aria-label="Recorded BioStim stock balance over time with shaded QC dates"></div>
+        <div class="analysis-legend"><span class="analysis-line-key"></span> Recorded stock <span class="analysis-shade-key"></span> QC batch / retest recorded</div>
+        <p id="stockEmpty" class="analysis-empty" hidden>No numbered stock records for this selection.</p>
+        <p id="stockStatus" class="field-hint" aria-live="polite"></p>
+        <p class="analysis-caution">This is a ledger-derived balance, not a physical stocktake. QC retests do not increase stock. Unidentified historical disposals without known carton identities or actual disposal dates are not subtracted. Shading marks recording dates, not the duration of QC; imported October 2026 retests may use 7 October as a reference date rather than the actual test date.</p>
+        <details class="analysis-detail-table">
+          <summary>Show stock changes and QC dates</summary>
+          <div class="responsive-table-wrap"><table class="management-table admin-data-table">
+            <thead><tr><th>Date</th><th>Change (L)</th><th>Recorded balance (L)</th><th>QC records</th></tr></thead>
+            <tbody id="stockRows"></tbody>
+          </table></div>
+        </details>
+      </section>
+    </section>
+  </main>
+  <script type="module" src="./assets/js/admin_page.js?v=39"></script>
+  <script type="module" src="./assets/js/mawimbi_analysis.js?v=1"></script>
+</body>
+</html>

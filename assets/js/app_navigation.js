@@ -456,6 +456,7 @@ function recordLinks(profile, currentFile = "") {
   return links.concat(permittedLinks(profile, [
     { label: "Ledger Transcriptions", href: "./historical_records.html", permission: "can_view_data", requiredAggregator: "SANDBOX" },
     { label: "Record Ledgers", href: "./records.html", permission: "can_view_data", capabilityAny: ["form_site_water_samples", "form_intake_collection", "form_stock_record", "form_process_record"], className: "app-nav-desktop-only" },
+    { label: "Analysis", href: "./mawimbi_analysis.html", permission: "can_view_data", requiredAggregator: "MAWIMBI", capability: "form_intake_collection" },
     ...(isProtectedOwner(profile) ? [{ label: "Dryer Table Records", href: "./dryer_table_records.html", permission: "can_view_data", requiredAggregator: "COSME", capability: "form_dryer_table" }] : []),
     ...(cosmeRecords ? [
       { label: "Nursery - Training", href: "./reef_nursery.html?tab=records", ...nurseryRecordAccess },

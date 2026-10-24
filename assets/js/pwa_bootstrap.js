@@ -6,6 +6,7 @@ const organisationContextEventKey = "seaweed-active-organisation-change";
 const safeContextReloadPages = new Set([
   "home.html",
   "records.html",
+  "mawimbi_analysis.html",
   "photos.html",
   "deleted_records.html",
   "historical_records.html",

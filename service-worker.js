@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v162-harvest-tides-nav";
+const CACHE_VERSION = "seaweed-harvest-collection-v163-mawimbi-analysis";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -16,6 +16,7 @@ const APP_SHELL = [
   "./reef_seaweed_records.html",
   "./dryer_table.html",
   "./records.html",
+  "./mawimbi_analysis.html",
   "./photos.html",
   "./deleted_records.html",
   "./historical_records.html",
@@ -28,6 +29,7 @@ const APP_SHELL = [
   "./favicon.ico",
   "./manifest.webmanifest",
   "./assets/css/ag.css",
+  "./assets/css/mawimbi_analysis.css",
   "./assets/css/form_foundation.css",
   "./assets/css/site_water_sample.css",
   "./assets/css/reef_nursery.css",
@@ -99,6 +101,7 @@ const APP_SHELL = [
   "./assets/js/dryer_table_form.js",
   "./assets/js/dryer_table_language.js",
   "./assets/js/records_page.js",
+  "./assets/js/mawimbi_analysis.js",
   "./assets/js/photos_page.js",
   "./assets/js/photos_page_v4.js",
   "./assets/js/deleted_records_page.js",
