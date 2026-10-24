@@ -410,6 +410,18 @@ function drawLineChart(parent, rows, field, unit, label, qcBands = false) {
     section += (section ? " L " : "M ") + x(index) + " " + y(value);
   });
   flush();
+  // A dashed connector signals an unobserved intervening period instead of
+  // pretending there was a recorded average in that gap.
+  let previousObserved = -1;
+  rows.forEach((row, index) => {
+    if (row[field] == null || !Number.isFinite(row[field])) return;
+    if (previousObserved >= 0 && index > previousObserved + 1) {
+      const path = "M " + x(previousObserved) + " " + y(rows[previousObserved][field])
+        + " L " + x(index) + " " + y(row[field]);
+      svgNode(svg, "path", { d: path, class: "analysis-gap-stroke" });
+    }
+    previousObserved = index;
+  });
   const sampleEvery = Math.max(1, Math.ceil(rows.length / 45));
   rows.forEach((row, index) => {
     const value = row[field];
