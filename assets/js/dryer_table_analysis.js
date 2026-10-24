@@ -641,6 +641,7 @@ function renderWeather() {
   lastWeatherMobile = mobile;
   els.weather.classList.toggle("dryer-weather-mobile",mobile);
   els.weather.classList.toggle("dryer-weather-mobile-tides",mobile && state.tideEnabled);
+  els.weather.style.height = mobile ? (state.tideEnabled ? "1100px" : "940px") : "";
   const layout = mobile ? mobileWeatherLayout(state.rangeDays,desktopLayout) : desktopLayout;
   const config = { responsive:true,displaylogo:false,scrollZoom:false,doubleClick:false,displayModeBar:false };
   const draw = els.weather?._fullLayout ? window.Plotly.react : window.Plotly.newPlot;
