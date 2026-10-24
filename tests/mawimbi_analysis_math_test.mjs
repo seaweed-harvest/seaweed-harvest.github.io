@@ -139,6 +139,18 @@ test("line SVG is readable on a narrow phone and has accessible point tooltips",
   assert.ok(plot.children[0].children.some(node => node.attributes.class === "analysis-stroke"));
 });
 
+test("missing collection months get a dashed connector rather than a fake zero-average line", () => {
+  const plot = mockElement();
+  plot.clientWidth = 420;
+  const series = groupIntakeSeries([
+    { date: "2026-07-01", volume: 300, count: 1 },
+    { date: "2026-09-01", volume: 1000, count: 1 }
+  ], "month", { start: "2026-07-01", end: "2026-09-30" });
+  drawLineChart(plot, series.points, "average", "kg/day", "Collection trend");
+  assert.equal(series.points[1].average, null);
+  assert.ok(plot.children[0].children.some(node => node.attributes.class === "analysis-gap-stroke"));
+});
+
 test("mobile and desktop navigation, four production plots and QC balance drill-down are preserved", () => {
   const nav = readFileSync(new URL("../assets/js/app_navigation.js", import.meta.url), "utf8");
   const page = readFileSync(new URL("../mawimbi_analysis.html", import.meta.url), "utf8");
