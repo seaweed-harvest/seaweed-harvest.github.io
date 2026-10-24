@@ -378,7 +378,8 @@ function buildStockTimeline(records, actions, range) {
 }
 
 function drawLineChart(parent, rows, field, unit, label, qcBands = false) {
-  const width = 880, height = 268, left = 70, right = 20, top = 24, bottom = 42;
+  const width = Math.max(360, Math.min(880, parent.clientWidth || 880));
+  const height = 268, left = 70, right = 20, top = 24, bottom = 42;
   const plotW = width - left - right, plotH = height - top - bottom;
   const valid = rows.map(row => row[field]).filter(value => value != null && Number.isFinite(value));
   const ceiling = niceCeiling(Math.max(1, ...valid));
@@ -485,12 +486,12 @@ function svgNode(parent, tag, attributes, title = null) {
   return el;
 }
 
-function drawGrid(svg, { height, left, right, top, bottom, max, min = 0, suffix }) {
+function drawGrid(svg, { width, height, left, right, top, bottom, max, min = 0, suffix }) {
   const graphH = height - top - bottom;
   for (let n = 0; n <= 4; n++) {
     const value = min + (max - min) * (4 - n) / 4;
     const y = top + graphH * n / 4;
-    svgNode(svg, "line", { x1: left, y1: y, x2: 880 - right, y2: y, class: "analysis-axis" });
+    svgNode(svg, "line", { x1: left, y1: y, x2: width - right, y2: y, class: "analysis-axis" });
     const label = svgNode(svg, "text", { x: left - 9, y: y + 4, "text-anchor": "end" });
     label.textContent = `${formatShort(value)} ${suffix}`;
   }
@@ -498,11 +499,12 @@ function drawGrid(svg, { height, left, right, top, bottom, max, min = 0, suffix 
 
 function drawDateLabels(svg, dates, left, plotW, y) {
   if (!dates.length) return;
-  const labels = [dates[0], dates[Math.floor((dates.length - 1) / 2)], dates[dates.length - 1]];
+  const mid = new Date(Math.floor((dayNumber(dates[0]) + dayNumber(dates.at(-1))) / 2) * 86400000).toISOString().slice(0, 10);
+  const labels = dates.length === 1 ? [dates[0]] : [dates[0], mid, dates.at(-1)];
   labels.forEach((date, index) => {
     const label = svgNode(svg, "text", {
-      x: left + (plotW * index / 2), y,
-      "text-anchor": index === 0 ? "start" : index === 2 ? "end" : "middle"
+      x: dates.length === 1 ? left + plotW / 2 : left + (plotW * index / 2), y,
+      "text-anchor": dates.length === 1 ? "middle" : index === 0 ? "start" : index === 2 ? "end" : "middle"
     });
     label.textContent = formatDate(date);
   });
