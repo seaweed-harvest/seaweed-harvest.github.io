@@ -7,6 +7,7 @@ import { setupFavoriteFormButton } from "./favorite_forms.js?v=3";
 import { selectRows } from "./supabase_client.js";
 import { setPrintValue, setupPdfWorksheet } from "./print_worksheet.js";
 import { installSuggestedInput } from "./suggested_input.js";
+import { validateStockPhotoFiles, uploadStockPhotos, removeStockPhotos, renderPhotoPreviews } from "./stock_photo_upload.js";
 
 const els = {};
 let submissionId = crypto.randomUUID();
@@ -30,6 +31,7 @@ async function init() {
     "packingRetestTargetField", "packingRetestTarget",
     "packingEc", "packingStabilizerYes", "packingStabilizerNo", "packingStabilizerFields",
     "packingChemical", "packingDose", "packingDoseUnit", "packingDoseDefault", "packingNotes",
+    "packingPhotoFiles", "packingCameraPhoto", "packingPhotoPreview", "packingPhotoStatus", "packingSavedPhotoLink",
     "packingCitricAcidYes", "packingCitricAcidNo", "packingCitricAcidFields",
     "packingCitricAcidChemical", "packingCitricAcidDose", "packingCitricAcidDoseUnit",
     "packingCitricAcidDoseDefault",
@@ -79,6 +81,19 @@ async function init() {
   els.packingBatchRecordedBy.value = els.packingRecordedBy.value;
   els.packingBatchDate.value = kenyaDate();
   els.packingRecordForm.addEventListener("submit", submitRecord);
+  for (const control of [els.packingPhotoFiles, els.packingCameraPhoto]) {
+    control.addEventListener("change", () => {
+      try {
+        const files = pendingStockPhotos();
+        renderPhotoPreviews(els.packingPhotoPreview, files);
+        els.packingPhotoStatus.textContent = `${files.length} photo(s) ready.`;
+      } catch (error) {
+        control.value = "";
+        renderPhotoPreviews(els.packingPhotoPreview, pendingStockPhotos());
+        els.packingPhotoStatus.textContent = error.message;
+      }
+    });
+  }
   els.packingBatchForm.addEventListener("submit", submitBatch);
   els.clearPackingRecord.addEventListener("click", clearForm);
   els.clearPackingBatch.addEventListener("click", clearBatch);
@@ -148,6 +163,10 @@ function renderSpecies(rows) {
   els.packingBatchSpecies.value = defaultSpecies;
 }
 
+function pendingStockPhotos() {
+  return validateStockPhotoFiles([...(els.packingPhotoFiles.files || []), ...(els.packingCameraPhoto.files || [])]);
+}
+
 async function submitRecord(event) {
   event.preventDefault();
   if (!els.packingRecordForm.reportValidity()) return;
@@ -156,6 +175,7 @@ async function submitRecord(event) {
 
   els.savePackingRecord.disabled = true;
   setStatus("Checking carton number...");
+  let uploadedPhotos = [];
   try {
     let allowDuplicate = false;
     let cartonInstanceId = null;
@@ -191,8 +211,10 @@ async function submitRecord(event) {
       }
     }
     setStatus("Saving...");
-    const { data, error } = await authClient.rpc("ag_submit_stabilization_packing_record_v3", {
+    uploadedPhotos = await uploadStockPhotos(pendingStockPhotos(), submissionId, (await authClient.auth.getUser()).data?.user?.id);
+    const { data, error } = await authClient.rpc("ag_submit_stabilization_stock_with_photos", {
       p_submission_id: submissionId,
+      p_photos: uploadedPhotos,
       p_record: {
         record_type: selectedRecordType(),
         auto_carton_serial: selectedRecordType() === "initial" && !cartonSerialWasEdited && !allowDuplicate,
@@ -221,17 +243,23 @@ async function submitRecord(event) {
       }
     });
     if (error) throw error;
+    uploadedPhotos = [];
     const saved = Array.isArray(data) ? data[0] : data;
     const serial = saved?.carton_serial || els.cartonSerial.value.trim();
     const recordType = saved?.record_type || selectedRecordType();
     rememberCarton(serial, recordType);
     resetInputs(saved?.next_carton_serial || nextSerialAfter(serial));
+    if (saved?.record_id) {
+      els.packingSavedPhotoLink.href = `./stock_record_photos.html?id=${encodeURIComponent(saved.record_id)}`;
+      els.packingSavedPhotoLink.hidden = false;
+    }
     setStatus(recordType === "retest"
       ? `Retest for carton ${serial} saved.`
       : allowDuplicate
         ? `Another physical carton numbered ${serial} saved with a separate record.`
         : `Carton ${serial} saved. Next carton ${nextCartonSerial} is ready.`);
   } catch (error) {
+    await removeStockPhotos(uploadedPhotos);
     setStatus(error.message, "error");
   } finally {
     els.savePackingRecord.disabled = false;
@@ -240,6 +268,7 @@ async function submitRecord(event) {
 
 function clearForm() {
   resetInputs();
+  els.packingSavedPhotoLink.hidden = true;
   setStatus("");
 }
 
@@ -431,6 +460,8 @@ function resetInputs(nextSerial = nextCartonSerial) {
   const recordedBy = els.packingRecordedBy.value;
   nextCartonSerial = String(nextSerial || nextCartonSerial || "1");
   els.packingRecordForm.reset();
+  els.packingPhotoPreview.replaceChildren();
+  els.packingPhotoStatus.textContent = "";
   els.packedOn.value = kenyaDate();
   els.packingSpecies.value = defaultSpecies;
   els.packingRecordedBy.value = recordedBy;

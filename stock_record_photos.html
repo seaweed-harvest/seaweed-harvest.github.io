@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Stock Record Photos - Seaweed Harvest</title>
+  <link rel="stylesheet" href="./assets/css/ag.css">
+  <link rel="stylesheet" href="./assets/css/form_foundation.css?v=2">
+  <link rel="stylesheet" href="./assets/css/stock_photos.css">
+  <script type="module" src="./assets/js/pwa_bootstrap.js"></script>
+</head>
+<body class="admin-console-page form-record-page stock-record-photos-page" data-auth-pending>
+  <header class="app-header"><div class="app-header-inner">
+    <div><p class="eyebrow">Mawimbi · Stock QC</p><h1>Stock photos</h1></div>
+    <div class="header-actions admin-header-controls"><nav class="app-nav"><a href="./records.html?category=stock">Records</a><a href="./stabilization_packing.html">Stock form</a></nav></div>
+  </div></header>
+  <main class="app-shell admin-shell admin-layout form-record-layout">
+    <aside class="admin-sidebar form-page-sidebar"><h2>Records</h2><a href="./records.html?category=stock">Stock ledger</a></aside>
+    <section class="admin-content admin-page-section form-page-content">
+      <section class="panel form-record-panel">
+        <h2 id="stockPhotoRecordHeading">Stock record</h2>
+        <p id="stockPhotoRecordDetail" class="stock-photo-helper"></p>
+        <p id="stockPhotoViewStatus" aria-live="polite" class="admin-status"></p>
+        <div id="stockPhotoGallery" class="stock-photo-gallery"></div>
+        <form id="stockPhotoAddForm" class="standard-form" hidden>
+          <fieldset><legend>Add photos</legend>
+            <label>Photos (maximum two per record)
+              <input id="additionalStockPhotos" type="file" accept="image/*" multiple>
+            </label>
+            <label>Or take a photo
+              <input id="additionalStockCameraPhoto" type="file" accept="image/*" capture="environment">
+            </label>
+            <div id="additionalStockPhotoPreview" class="stock-photo-preview"></div>
+            <p class="stock-photo-helper">Images are compressed and kept in private storage.</p>
+          </fieldset>
+          <div class="button-row standard-form-actions">
+            <button id="addStockPhotosButton" type="submit">Attach photos</button>
+          </div>
+        </form>
+      </section>
+    </section>
+  </main>
+  <script type="module" src="./assets/js/admin_page.js?v=35"></script>
+  <script type="module" src="./assets/js/stock_record_photos.js?v=1"></script>
+</body>
+</html>

@@ -94,14 +94,20 @@
                 <select id="siteSampleSalinityUnit" aria-label="Salinity unit"><option value="PSU">PSU</option><option value="ppt">ppt</option></select>
               </span>
             </label>
+            <label>pH
+              <input id="siteSamplePh" type="number" min="0" max="14" step="0.01" inputmode="decimal" data-recommended="true">
+            </label>
+            <label>Dissolved oxygen (mg/L)
+              <input id="siteSampleDissolvedOxygen" type="number" min="0" max="50" step="0.01" inputmode="decimal" data-recommended="true">
+            </label>
             <label>Total dissolved solids (TDS)
               <span class="standard-input-group standard-input-group-unit">
-                <input id="siteSampleTds" type="number" min="0" max="100000000" step="0.001" inputmode="decimal" data-recommended="true">
+                <input id="siteSampleTds" type="number" min="0" max="100000000" step="0.001" inputmode="decimal">
                 <select id="siteSampleTdsUnit" aria-label="TDS unit"><option value="mg/L">mg/L</option><option value="g/L">g/L</option><option value="ppt">ppt</option></select>
               </span>
             </label>
             <label>Electrical conductivity (mS/cm)
-              <input id="siteSampleEc" type="number" min="0" max="10000" step="0.001" inputmode="decimal" data-recommended="true">
+              <input id="siteSampleEc" type="number" min="0" max="10000" step="0.001" inputmode="decimal">
             </label>
             <div class="standard-choice-field">
               <span class="standard-field-label">E. coli sample taken</span>
@@ -141,14 +147,14 @@
         <div><span>Spring tide</span><strong id="printSiteSampleTide"></strong></div>
         <div><span>Recorded by</span><strong id="printSiteSampleRecordedBy"></strong></div>
       </div>
-      <table class="ag-print-table ag-print-site-sample-table" data-pdf-widths="3,13,8,13,8,9,8,8,10,20">
-        <colgroup><col><col><col><col><col><col><col><col><col><col></colgroup>
+      <table class="ag-print-table ag-print-site-sample-table" data-pdf-widths="3,12,7,11,7,6,7,8,8,8,8,15">
+        <colgroup><col><col><col><col><col><col><col><col><col><col><col><col></colgroup>
         <thead>
           <tr>
-            <th scope="col">No.</th><th scope="col">Date / time</th><th scope="col">Tide</th><th scope="col">Community</th><th scope="col">Temp. &deg;C</th><th scope="col">Salinity</th><th scope="col">TDS</th><th scope="col">EC</th><th scope="col">E. coli sample</th><th scope="col">Notes</th>
+            <th scope="col">No.</th><th scope="col">Date / time</th><th scope="col">Tide</th><th scope="col">Community</th><th scope="col">Temp. &deg;C</th><th scope="col">Salinity</th><th scope="col">pH</th><th scope="col">DO mg/L</th><th scope="col">TDS</th><th scope="col">EC</th><th scope="col">E. coli sample</th><th scope="col">Notes</th>
           </tr>
         </thead>
-        <tbody data-print-rows="10" data-print-columns="10"></tbody>
+        <tbody data-print-rows="10" data-print-columns="12"></tbody>
       </table>
       <footer class="ag-print-footer">
         <div><span>Entered into system by</span><strong></strong></div><div><span>Date</span><strong></strong></div><div><span>Checked by</span><strong></strong></div>
@@ -156,6 +162,6 @@
     </article>
   </section>
   <script type="module" src="./assets/js/admin_page.js?v=35"></script>
-  <script type="module" src="./assets/js/site_water_sample_form.js?v=8"></script>
+  <script type="module" src="./assets/js/site_water_sample_form.js?v=10"></script>
 </body>
 </html>

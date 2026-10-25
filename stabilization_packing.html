@@ -8,6 +8,7 @@
   <title>BioStim Stock Record - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
   <link rel="stylesheet" href="./assets/css/form_foundation.css?v=2">
+  <link rel="stylesheet" href="./assets/css/stock_photos.css">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -194,6 +195,18 @@
             </div>
           </fieldset>
 
+          <fieldset class="stock-photo-field">
+            <legend>Stock / QC photos</legend>
+            <label>Attach photos (optional, up to two)
+              <input id="packingPhotoFiles" type="file" accept="image/*" multiple>
+            </label>
+            <label>Or take a photo
+              <input id="packingCameraPhoto" type="file" accept="image/*" capture="environment">
+            </label>
+            <p class="stock-photo-helper">Photograph the stock or QC sample. Photos are stored privately against this individual record.</p>
+            <div id="packingPhotoPreview" class="stock-photo-preview"></div>
+            <p id="packingPhotoStatus" class="admin-status" aria-live="polite"></p>
+          </fieldset>
           <label class="packing-notes-field">Notes
             <textarea id="packingNotes" rows="2" maxlength="1000"></textarea>
           </label>
@@ -202,6 +215,7 @@
             <button id="savePackingRecord" type="submit">Save BioStim record</button>
             <button id="clearPackingRecord" type="button">Clear</button>
             <p id="packingRecordStatus" class="admin-status" aria-live="polite"></p>
+            <a id="packingSavedPhotoLink" href="#" hidden>View / add photos to saved record</a>
           </div>
         </form>
 
@@ -385,6 +399,6 @@
     </article>
   </section>
   <script type="module" src="./assets/js/admin_page.js?v=35"></script>
-  <script type="module" src="./assets/js/stabilization_packing_form.js?v=17"></script>
+  <script type="module" src="./assets/js/stabilization_packing_form.js?v=18"></script>
 </body>
 </html>

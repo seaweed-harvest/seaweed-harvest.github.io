@@ -1,0 +1,6 @@
+.stock-photo-preview { display:flex; flex-wrap:wrap; gap:12px; margin:8px 0 0; }
+.stock-photo-thumbnail { width:142px; height:142px; max-width:44%; object-fit:cover; border-radius:10px; border:1px solid var(--border, #ccd); }
+.stock-photo-gallery { display:flex; flex-wrap:wrap; gap:12px; margin:16px 0; }
+.stock-photo-gallery a { display:inline-flex; }
+.stock-photo-gallery img { width:min(260px, 44vw); height:200px; object-fit:cover; border-radius:10px; }
+.stock-photo-helper { color:var(--text-muted,#666); font-size:.9rem; }

@@ -6,7 +6,7 @@ import { selectRows } from "./supabase_client.js";
 
 const els = {};
 const MEASUREMENT_IDS = [
-  "siteSampleTemperature", "siteSampleSalinity", "siteSampleTds", "siteSampleEc"
+  "siteSampleTemperature", "siteSampleSalinity", "siteSamplePh", "siteSampleDissolvedOxygen", "siteSampleTds", "siteSampleEc"
 ];
 
 let submissionId = crypto.randomUUID();
@@ -19,7 +19,7 @@ async function init() {
   [
     "siteSampleForm", "siteSampledAt",
     "siteSampleCommunity", "siteSampleGps", "siteSampleGpsHint", "captureSiteSampleGps",
-    "siteSampleRecordedBy", "siteSampleTemperature", "siteSampleSalinity", "siteSampleSalinityUnit",
+    "siteSampleRecordedBy", "siteSampleTemperature", "siteSampleSalinity", "siteSampleSalinityUnit", "siteSamplePh", "siteSampleDissolvedOxygen",
     "siteSampleTds", "siteSampleTdsUnit", "siteSampleEc", "siteSampleNotes", "saveSiteSample",
     "clearSiteSample", "favoriteSiteSampleForm", "printSiteSampleWorksheet", "siteSampleStatus",
     "siteSamplePrintWorksheet", "printSiteSampleCommunity", "printSiteSampleDate",
@@ -30,7 +30,7 @@ async function init() {
     button: els.printSiteSampleWorksheet,
     worksheet: els.siteSamplePrintWorksheet,
     rowCount: 10,
-    columnCount: 10,
+    columnCount: 12,
     prepare: prepareSiteSampleWorksheet
   });
 
@@ -102,7 +102,7 @@ async function submitSiteSample(event) {
   els.saveSiteSample.disabled = true;
   setStatus("Saving...");
   try {
-    const { data, error } = await authClient.rpc("ag_submit_site_water_sample_record_v4", {
+    const { data, error } = await authClient.rpc("ag_submit_site_water_sample_record_v5", {
       p_submission_id: submissionId,
       p_record: {
         auto_sample_number: true,
@@ -117,6 +117,8 @@ async function submitSiteSample(event) {
         temperature_c: numberOrNull(els.siteSampleTemperature.value),
         salinity_value: numberOrNull(els.siteSampleSalinity.value),
         salinity_unit: els.siteSampleSalinityUnit.value,
+        ph_value: numberOrNull(els.siteSamplePh.value),
+        dissolved_oxygen_mg_l: numberOrNull(els.siteSampleDissolvedOxygen.value),
         tds_value: numberOrNull(els.siteSampleTds.value),
         tds_unit: els.siteSampleTdsUnit.value,
         electrical_conductivity_ms_cm: numberOrNull(els.siteSampleEc.value),

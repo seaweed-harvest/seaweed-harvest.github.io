@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v164-mawimbi-line-trends";
+const CACHE_VERSION = "seaweed-harvest-collection-v165-mawimbi-ro-stock-photos-do";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -9,6 +9,8 @@ const APP_SHELL = [
   "./process_record.html",
   "./stabilization_packing.html",
   "./site_water_sample.html",
+  "./mawimbi_ro_monitoring.html",
+  "./stock_record_photos.html",
   "./reef_nursery.html",
   "./reef_nursery_seaweed_data.html",
   "./reef_nursery_training.html",
@@ -32,6 +34,7 @@ const APP_SHELL = [
   "./assets/css/mawimbi_analysis.css",
   "./assets/css/form_foundation.css",
   "./assets/css/site_water_sample.css",
+  "./assets/css/stock_photos.css",
   "./assets/css/reef_nursery.css",
   "./assets/css/reef_nursery_wp01.css",
   "./assets/css/reef_nursery_wp02.css",
@@ -68,6 +71,9 @@ const APP_SHELL = [
   "./assets/js/stabilization_stock_lookup.js",
   "./assets/js/stabilization_stock_runtime_bridge.js",
   "./assets/js/site_water_sample_form.js",
+  "./assets/js/mawimbi_ro_monitoring.js",
+  "./assets/js/stock_photo_upload.js",
+  "./assets/js/stock_record_photos.js",
   "./assets/js/reef_nursery_boot.js",
   "./assets/js/reef_nursery_site_capture.js",
   "./assets/js/reef_sample_rope_stage_photos.js",

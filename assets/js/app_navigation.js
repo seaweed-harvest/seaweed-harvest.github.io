@@ -414,6 +414,7 @@ function formLinks(profile, currentFile = "") {
     || isAnonymousCosmeRecordsPage(profile, currentFile);
   const links = [
     { label: "Site Water Samples", href: "./site_water_sample.html", permission: "can_submit_collection", capability: "form_site_water_samples" },
+    { label: "RO Processing Water", href: "./mawimbi_ro_monitoring.html", requiredAggregator: "MAWIMBI", permission: "can_submit_collection", capability: "form_site_water_samples" },
     { label: "Intake", href: "./collection.html", capability: "form_intake_collection", publicFallback: !anonymousReefNursery },
     { label: "Stock", href: "./stabilization_packing.html", permission: "can_submit_collection", capability: "form_stock_record" },
     { label: "Process", href: "./process_record.html", permission: "can_submit_collection", capability: "form_process_record" }
@@ -456,6 +457,7 @@ function recordLinks(profile, currentFile = "") {
   return links.concat(permittedLinks(profile, [
     { label: "Ledger Transcriptions", href: "./historical_records.html", permission: "can_view_data", requiredAggregator: "SANDBOX" },
     { label: "Record Ledgers", href: "./records.html", permission: "can_view_data", capabilityAny: ["form_site_water_samples", "form_intake_collection", "form_stock_record", "form_process_record"], className: "app-nav-desktop-only" },
+    { label: "RO Monitoring Records", href: "./mawimbi_ro_monitoring.html", requiredAggregator: "MAWIMBI", permission: "can_submit_collection", capability: "form_site_water_samples" },
     { label: "Analysis", href: "./mawimbi_analysis.html", permission: "can_view_data", requiredAggregator: "MAWIMBI", capability: "form_intake_collection" },
     ...(isProtectedOwner(profile) ? [{ label: "Dryer Table Records", href: "./dryer_table_records.html", permission: "can_view_data", requiredAggregator: "COSME", capability: "form_dryer_table" }] : []),
     ...(cosmeRecords ? [

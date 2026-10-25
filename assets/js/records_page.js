@@ -41,6 +41,8 @@ const COLUMNS = {
     ["tide_stage", "Tide"],
     ["temperature_c", "Temperature C"],
     ["salinity_value", "Salinity"],
+    ["ph_value", "pH"],
+    ["dissolved_oxygen_mg_l", "DO mg/L"],
     ["tds_value", "TDS"],
     ["electrical_conductivity_ms_cm", "EC mS/cm"],
     ["e_coli_sample_taken", "E. coli sample"],
@@ -51,6 +53,7 @@ const COLUMNS = {
     ["record_date", "Date"],
     ["record_number", "Container"],
     ["record_type", "Entry"],
+    ["photo_count", "Photos"],
     ["species", "Species"],
     ["weight_value", "Volume"],
     ["stabilizer_added", "Stabiliser"],
@@ -774,7 +777,7 @@ async function ledgerRpc(range, communityId, search, page) {
         p_page_limit: PAGE_SIZE,
         p_page_offset: page * PAGE_SIZE
       })
-    : await authClient.rpc("ag_form_record_ledger", {
+    : await authClient.rpc("ag_form_record_ledger_v2", {
         p_record_type: state.category,
         p_start_date: range.start,
         p_end_date: range.end,
@@ -1376,7 +1379,9 @@ function recordRowsHtml(rows, options = {}) {
         ${selection}
         ${columns.map(([field, label]) => `<td>${editing
           ? formRecordEditor(row, field, label, draft)
-          : escapeHtml(cellValue(row, field))}</td>`).join("")}
+          : (state.category === "stock" && field === "photo_count" && id !== "null"
+            ? `<a href="./stock_record_photos.html?id=${encodeURIComponent(id)}">${(Array.isArray(row.photo_attachments) ? row.photo_attachments.length : Number(row.photo_count || 0))} photo(s)</a>`
+            : escapeHtml(cellValue(row, field)))}</td>`).join("")}
       </tr>`;
   }).join("");
 }
@@ -1518,7 +1523,7 @@ async function saveFormRecordEdits() {
   els.formLedgerSaveEdits.disabled = true;
   els.formLedgerDiscardEdits.disabled = true;
   setFormRecordActionStatus(`Saving ${updates.length} record${updates.length === 1 ? "" : "s"}...`);
-  const { data, error } = await authClient.rpc("ag_update_daily_form_records", {
+  const { data, error } = await authClient.rpc("ag_update_daily_form_records_with_site_measurements", {
     p_record_type: state.category,
     p_updates: updates
   });
@@ -1589,6 +1594,8 @@ function formRecordDraft(row) {
       temperature_c: nullableValue(row.temperature_c),
       salinity_value: nullableValue(row.salinity_value),
       salinity_unit: row.salinity_unit || "PSU",
+      ph_value: nullableValue(row.ph_value),
+      dissolved_oxygen_mg_l: nullableValue(row.dissolved_oxygen_mg_l),
       tds_value: nullableValue(row.tds_value),
       tds_unit: row.tds_unit || "mg/L",
       electrical_conductivity_ms_cm: nullableValue(row.electrical_conductivity_ms_cm),
@@ -1648,6 +1655,8 @@ function serializeFormRecordDraft(row, draft) {
       temperature_c: numberOrNull(draft.temperature_c),
       salinity_value: numberOrNull(draft.salinity_value),
       salinity_unit: draft.salinity_unit,
+      ph_value: numberOrNull(draft.ph_value),
+      dissolved_oxygen_mg_l: numberOrNull(draft.dissolved_oxygen_mg_l),
       tds_value: numberOrNull(draft.tds_value),
       tds_unit: draft.tds_unit,
       electrical_conductivity_ms_cm: numberOrNull(draft.electrical_conductivity_ms_cm),
@@ -1700,6 +1709,7 @@ function formRecordEditor(row, field, label, draft) {
     if (field === "salinity_value") {
       return formRecordMeasurement(id, "salinity_value", draft.salinity_value, "salinity_unit", draft.salinity_unit, ["PSU", "ppt"], label);
     }
+    if (field === "ph_value" || field === "dissolved_oxygen_mg_l") return formRecordNumberInput(id, field, draft[field], label);
     if (field === "tds_value") {
       return formRecordMeasurement(id, "tds_value", draft.tds_value, "tds_unit", draft.tds_unit, ["mg/L", "g/L", "ppt"], label);
     }
@@ -1926,7 +1936,7 @@ function cellValue(row, field) {
     return "-";
   }
   if (field.endsWith("_kg") || field.endsWith("_l") || field.endsWith("_percent")
-    || ["temperature_c", "ph_value", "electrical_conductivity_ms_cm", "number_of_presses"].includes(field)) {
+    || ["temperature_c", "ph_value", "dissolved_oxygen_mg_l", "electrical_conductivity_ms_cm", "number_of_presses"].includes(field)) {
     return formatNumber(value);
   }
   return value === null || value === undefined || value === "" ? "-" : String(value);
