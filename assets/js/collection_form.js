@@ -566,7 +566,7 @@ function cacheElements() {
     "priceOverrideReason",
     "customCollectionFields",
     "collectionNotes",
-    "collectionPhotos",
+    "collectionPhotos", "collectionCameraPhoto", "collectionTakePhoto", "collectionChoosePhotos",
     "collectionPhotosField",
     "collectionPhotoStatus",
     "collectionPhotoPreview",
@@ -681,7 +681,10 @@ function bindEvents() {
   els.collectionForm.addEventListener("change", updateCustomCalculations);
   els.collectionForm.addEventListener("input", updateEmptyFieldHighlights);
   els.collectionForm.addEventListener("change", updateEmptyFieldHighlights);
+  els.collectionTakePhoto.addEventListener("click", () => els.collectionCameraPhoto.click());
+  els.collectionChoosePhotos.addEventListener("click", () => els.collectionPhotos.click());
   els.collectionPhotos.addEventListener("change", addCollectionPhotos);
+  els.collectionCameraPhoto.addEventListener("change", addCollectionPhotos);
   els.collectionPhotoRetake.addEventListener("change", replaceCollectionPhoto);
   els.retakeCollectionPhoto.addEventListener("click", beginCollectionPhotoRetake);
   els.deleteCollectionPhoto.addEventListener("click", deleteActiveCollectionPhoto);
@@ -1908,11 +1911,12 @@ function updatePhotoSelectionStatus() {
   renderCollectionPhotoPreview();
 }
 
-function addCollectionPhotos() {
+function addCollectionPhotos(event) {
   const available = PHOTO_MAX_COUNT - state.collectionPhotos.length;
-  const files = acceptedCollectionPhotoFiles(els.collectionPhotos.files, available);
+  const source = event?.currentTarget || els.collectionPhotos;
+  const files = acceptedCollectionPhotoFiles(source.files, available);
   if (files.length) state.collectionPhotos.push(...files);
-  els.collectionPhotos.value = "";
+  source.value = "";
   updatePhotoSelectionStatus();
 }
 
