@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Mawimbi Analysis - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/mawimbi_analysis.css?v=2">
+  <link rel="stylesheet" href="./assets/css/mawimbi_analysis.css?v=3">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Seaweed Harvest">
@@ -36,7 +36,7 @@
           <div>
             <p class="eyebrow">Mawimbi · Records</p>
             <h2>Analysis</h2>
-            <p class="field-hint">Daily intake progress and accumulated production from the Collection and BioStim Stock forms. Reload to check recent records.</p>
+            <p class="field-hint">Processing intake, extraction efficiency, community collection and BioStim stock trends. Reload to check recent records.</p>
           </div>
           <button id="analysisRefresh" type="button" class="analysis-refresh">Refresh data</button>
         </div>
@@ -47,6 +47,68 @@
         </div>
         <p class="field-hint analysis-date-note">Leave dates blank for all available records. Dates use Kenya local time.</p>
         <p id="analysisStatus" class="admin-status" role="status" aria-live="polite">Loading analysis...</p>
+      </section>
+
+      <section id="processingAnalysisSection" class="panel admin-page-section analysis-panel" aria-labelledby="processingChartTitle">
+        <div class="analysis-panel-heading">
+          <div>
+            <h2 id="processingChartTitle">Processing intake &amp; extraction</h2>
+            <p class="field-hint">From Mawimbi Processing records. Dates are processing dates, not the dates forms were entered.</p>
+          </div>
+          <div class="analysis-summary-metrics">
+            <span><strong class="analysis-stat" id="processingReceivedTotal">— kg</strong><small>Seaweed received</small></span>
+            <span><strong class="analysis-stat" id="processingYieldTotal">— L/kg</strong><small>Overall extraction yield</small></span>
+          </div>
+        </div>
+        <div class="analysis-filter-grid">
+          <label>Trend grouped by
+            <select id="processingGrouping">
+              <option value="day">Day</option>
+              <option value="week">Week</option>
+              <option value="month" selected>Month</option>
+            </select>
+          </label>
+        </div>
+        <div class="analysis-chart-grid">
+          <div class="analysis-chart-block">
+            <div class="analysis-chart-heading"><h3>Seaweed received each processing day</h3></div>
+            <p class="field-hint">One dot per processing date, showing total received kg across all Processing forms on that day.</p>
+            <div id="processingReceivedPlot" class="analysis-plot" role="img" aria-label="Scatter plot of daily processing seaweed received in kg"></div>
+          </div>
+          <div class="analysis-chart-block">
+            <div class="analysis-chart-heading"><h3>Average daily processing intake</h3><strong class="analysis-mini-stat" id="processingAverage">— kg/day</strong></div>
+            <p class="field-hint">Each period’s received kg ÷ days with processing records. Days without processing are not counted.</p>
+            <div id="processingAveragePlot" class="analysis-plot" role="img" aria-label="Average kg received per processing day by period"></div>
+          </div>
+          <div class="analysis-chart-block">
+            <div class="analysis-chart-heading"><h3>Daily extraction yield</h3></div>
+            <p class="field-hint">One dot per processing day: total pressed liquid (L) ÷ corresponding seaweed received (kg).</p>
+            <div id="processingDailyYieldPlot" class="analysis-plot" role="img" aria-label="Scatter plot of extraction yield in litres per kg per processing day"></div>
+          </div>
+          <div class="analysis-chart-block">
+            <div class="analysis-chart-heading"><h3>Extraction yield over time</h3><strong class="analysis-mini-stat" id="processingPeriodYield">— L/kg</strong></div>
+            <p class="field-hint">Weighted by seaweed received: total pressed liquid (L) ÷ total received kg for each period. Higher means more liquid per kg.</p>
+            <div id="processingYieldPlot" class="analysis-plot" role="img" aria-label="Trend of weighted extraction yield in litres of pressed liquid per kg received"></div>
+            <p class="field-hint">Yield axes are zoomed to reveal small differences; compare the L/kg figures rather than the visual slope alone.</p>
+          </div>
+        </div>
+        <p id="processingEmpty" class="analysis-empty" hidden>No Processing records for this date range.</p>
+        <p id="processingStatus" class="field-hint" aria-live="polite"></p>
+        <p class="analysis-caution">Pressed liquid is measured at the pressing stage, not necessarily final packed BioStim volume. Yield is shown as L/kg, rather than an assumed mass percentage. Records missing either measurement are not included in extraction yield, and will be reported separately.</p>
+        <details class="analysis-detail-table">
+          <summary>Show processing totals and extraction by period</summary>
+          <div class="responsive-table-wrap"><table class="management-table admin-data-table">
+            <thead><tr><th>Period beginning</th><th>Processing days</th><th>Received (kg)</th><th>Avg kg/day</th><th>Pressed liquid (L)</th><th>Yield (L/kg)</th></tr></thead>
+            <tbody id="processingPeriodRows"></tbody>
+          </table></div>
+        </details>
+        <details class="analysis-detail-table">
+          <summary>Show individual processing days</summary>
+          <div class="responsive-table-wrap"><table class="management-table admin-data-table">
+            <thead><tr><th>Processing date</th><th>Received (kg)</th><th>Pressed liquid (L)</th><th>Yield (L/kg)</th></tr></thead>
+            <tbody id="processingDailyRows"></tbody>
+          </table></div>
+        </details>
       </section>
 
       <section class="panel admin-page-section analysis-panel" aria-labelledby="harvestChartTitle">
@@ -151,6 +213,6 @@
     </section>
   </main>
   <script type="module" src="./assets/js/admin_page.js?v=39"></script>
-  <script type="module" src="./assets/js/mawimbi_analysis.js?v=2"></script>
+  <script type="module" src="./assets/js/mawimbi_analysis.js?v=3"></script>
 </body>
 </html>
