@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v170-site-sample-form-consistency";
+const CACHE_VERSION = "seaweed-harvest-collection-v171-mawimbi-smoothed-trends";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
