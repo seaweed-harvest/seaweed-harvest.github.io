@@ -652,6 +652,14 @@ function allDoseConfigs() {
 function updateBatchState() {
   const count = batchRangeCount();
   els.packingBatchCount.textContent = count > 0 && count <= 100 ? String(count) : "Check range";
+  const volume = Number(els.packingBatchVolume.value);
+  const unit = els.packingBatchVolumeUnit.value;
+  const litresEach = unit === "mL" ? volume / 1000 : volume;
+  const valid = count > 0 && count <= 100 && Number.isFinite(volume) && volume > 0;
+  els.packingBatchVolumePreview.textContent = valid
+    ? count + " containers × " + formatBatchNumber(volume) + " " + unit +
+      " = " + formatBatchNumber(count * litresEach) + " L total"
+    : "Enter the volume in each container to see the batch total.";
   els.packingBatchForm.querySelectorAll("input, select, textarea").forEach((control) => {
     if (["checkbox", "button", "submit", "reset"].includes(control.type) || control.disabled) return;
     control.classList.toggle("empty-value-control", control.required && !String(control.value || "").trim());
