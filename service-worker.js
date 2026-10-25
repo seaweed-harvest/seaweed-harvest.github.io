@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v169-coastal-lab-photo-uploads";
+const CACHE_VERSION = "seaweed-harvest-collection-v170-mawimbi-photo-ui-final";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
