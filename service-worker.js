@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v165-mawimbi-ro-stock-photos-do";
+const CACHE_VERSION = "seaweed-harvest-collection-v166-mawimbi-ro-heading";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
