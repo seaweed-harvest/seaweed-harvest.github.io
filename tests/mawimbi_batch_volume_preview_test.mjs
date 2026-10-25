@@ -5,15 +5,14 @@ import { runInNewContext } from "node:vm";
 
 const js = readFileSync(new URL("../assets/js/stabilization_packing_form.js", import.meta.url), "utf8")
   .replace(/import\s+[\s\S]*?\s+from\s+["'][^"']+["'];/g, "");
-const api = runInNewContext(
-  js + "\nthis.unit = { formatBatchNumber, updateBatchState, submitBatch, els };",
-  {
-    document: { addEventListener() {} },
-    crypto: { randomUUID: () => "test-uuid" },
-    window: { confirm: () => false },
-    Intl, Number, String, Date, BigInt
-  }
-).unit;
+const context = {
+  document: { addEventListener() {} },
+  crypto: { randomUUID: () => "test-uuid" },
+  window: { confirm: () => false },
+  Intl, Number, String, Date, BigInt
+};
+runInNewContext(js + "\nthis.unit = { formatBatchNumber, updateBatchState, submitBatch, els };", context);
+const api = context.unit;
 
 function setup(volume, unit = "L") {
   const form = { reportValidity: () => true, querySelectorAll: () => [], querySelector: () => ({ value: "no" }) };
