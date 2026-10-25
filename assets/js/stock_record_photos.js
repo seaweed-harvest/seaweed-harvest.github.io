@@ -10,6 +10,8 @@ const gallery = document.getElementById("stockPhotoGallery");
 const form = document.getElementById("stockPhotoAddForm");
 const input = document.getElementById("additionalStockPhotos");
 const camera = document.getElementById("additionalStockCameraPhoto");
+const take = document.getElementById("additionalStockTakePhoto");
+const choose = document.getElementById("additionalStockChoosePhotos");
 const preview = document.getElementById("additionalStockPhotoPreview");
 const button = document.getElementById("addStockPhotosButton");
 let userId = null, current = null;
@@ -25,6 +27,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     status("Open a stock photo record using the link from the stock ledger.");
     return;
   }
+  take.addEventListener("click", () => camera.click());
+  choose.addEventListener("click", () => input.click());
   for (const control of [input, camera]) {
     control.addEventListener("change", () => {
       try {
