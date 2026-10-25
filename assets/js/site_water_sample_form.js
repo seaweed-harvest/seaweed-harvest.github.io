@@ -61,7 +61,7 @@ async function init() {
       try {
         const files = pendingSamplePhotos();
         renderPhotoPreviews(els.siteSamplePhotoPreview, files);
-        els.siteSamplePhotoStatus.textContent = files.length + " photo(s) ready.";
+        els.siteSamplePhotoStatus.textContent = files.length + " of 4 photos";
       } catch (error) {
         control.value = "";
         renderPhotoPreviews(els.siteSamplePhotoPreview, pendingSamplePhotos());
@@ -251,7 +251,7 @@ function resetInputs() {
   els.siteSampleCamera.value = "";
   els.siteSamplePhotoFiles.value = "";
   els.siteSamplePhotoPreview.replaceChildren();
-  els.siteSamplePhotoStatus.textContent = "";
+  els.siteSamplePhotoStatus.textContent = "0 of 4 photos";
   els.siteSampleRecordedBy.value = recordedBy;
   els.siteSampleCommunity.value = community;
   els.siteSampledAt.value = kenyaDateTime();
