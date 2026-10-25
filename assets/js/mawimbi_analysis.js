@@ -14,8 +14,9 @@ async function init() {
   [
     "analysisFrom", "analysisTo", "analysisApply", "analysisRefresh", "analysisStatus",
     "harvestCommunity", "harvestGrouping", "harvestPlot", "harvestEmpty",
-    "harvestTotal", "harvestStatus", "harvestRows",
-    "stockPlot", "stockEmpty", "stockTotal", "stockStatus", "stockRows"
+    "harvestTotal", "harvestAverage", "harvestCumulativePlot", "harvestStatus", "harvestRows",
+    "stockPlot", "stockAveragePlot", "stockCumulativePlot", "stockGrouping",
+    "stockTotal", "stockAverage", "stockProductionRows", "stockEmpty", "stockStatus", "stockRows"
   ].forEach(id => { els[id] = document.getElementById(id); });
   if (!els.harvestPlot) return;
 
@@ -44,6 +45,7 @@ async function init() {
     els.analysisRefresh.addEventListener("click", () => void refreshViews(true));
     els.harvestCommunity.addEventListener("change", () => { void loadHarvest().catch(() => {}); });
     els.harvestGrouping.addEventListener("change", () => { void loadHarvest().catch(() => {}); });
+    els.stockGrouping.addEventListener("change", () => { void loadStock().catch(() => {}); });
     await refreshViews(true);
   } catch (error) {
     showMessage(els.analysisStatus, readableError(error), true);
@@ -89,50 +91,98 @@ async function refreshViews(refreshStock) {
 
 async function loadHarvest(range = null) {
   const requestId = ++state.harvesting;
-  showMessage(els.harvestStatus, "Loading collection totals...");
+  showMessage(els.harvestStatus, "Loading daily collection records...");
   els.harvestPlot.replaceChildren();
+  els.harvestCumulativePlot.replaceChildren();
   els.harvestEmpty.hidden = true;
   try {
     const dates = range || selectedRange();
     const grouping = els.harvestGrouping.value;
+    // Historical daily totals give a true cumulative total even with a From date.
+    const historyStart = String(Number(dates.end.slice(0, 4)) - 9) + "-01-01";
     const { data, error } = await authClient.rpc("ag_sec_operational_summary", {
-      p_start_date: dates.start,
+      p_start_date: dates.start < historyStart ? dates.start : historyStart,
       p_end_date: dates.end,
-      p_grouping: grouping,
+      p_grouping: "day",
       p_community_id: els.harvestCommunity.value || null
     });
     if (error) throw error;
     if (requestId !== state.harvesting) return;
     const result = unwrap(data);
-    const raw = (Array.isArray(result?.rows) ? result.rows : [])
+    const daily = (Array.isArray(result?.rows) ? result.rows : [])
       .filter(row => isISODate(row.period_start))
       .map(row => ({
         date: row.period_start,
-        kg: finiteNumber(row.intake_weight_kg),
+        volume: finiteNumber(row.intake_weight_kg),
         count: finiteNumber(row.collection_count)
       }))
-      .filter(row => row.kg > 0 || row.count > 0)
+      .filter(row => row.volume > 0 || row.count > 0)
       .sort((a, b) => a.date.localeCompare(b.date));
-    const totalKg = finiteNumber(result?.totals?.intake_weight_kg);
-    els.harvestTotal.textContent = `${formatNumber(totalKg)} kg`;
-    if (!raw.length) {
+    els.harvestTotal.textContent = formatNumber(daily.reduce((sum, row) => sum + row.volume, 0)) + " kg collected";
+    if (!daily.length) {
       els.harvestEmpty.hidden = false;
+      els.harvestAverage.textContent = "— kg/day";
       els.harvestRows.replaceChildren();
       showMessage(els.harvestStatus, "No collection entries in this period.");
       return;
     }
-    const points = fillMissingPeriods(raw, grouping, els.analysisFrom.value ? dates.start : raw[0].date,
-      els.analysisTo.value ? dates.end : raw[raw.length - 1].date);
-    drawHarvest(points);
-    renderHarvestTable(points);
-    showMessage(els.harvestStatus,
-      `${formatNumber(raw.reduce((sum, row) => sum + row.count, 0))} collection entries · ${grouping === "day" ? "Daily" : grouping === "week" ? "Weekly" : "Monthly"} totals`);
+    const visible = {
+      start: els.analysisFrom.value ? dates.start : (daily[0].date > dates.start ? daily[0].date : dates.start),
+      end: els.analysisTo.value ? dates.end : (daily.at(-1).date >= (els.analysisFrom.value || dates.start) ? daily.at(-1).date : dates.end)
+    };
+    const trend = groupIntakeSeries(daily, grouping, visible);
+    drawLineChart(els.harvestPlot, trend.points, "average", "kg/day",
+      "Average daily collection per recorded collection day");
+    drawLineChart(els.harvestCumulativePlot, trend.points, "cumulative", "kg",
+      "Accumulated seaweed collected");
+    renderIntakeTable(els.harvestRows, trend.points);
+    const latest = [...trend.points].reverse().find(row => row.days > 0);
+    els.harvestAverage.textContent = latest ? formatNumber(latest.average) + " kg/day" : "— kg/day";
+    const periodLabel = grouping === "day" ? "daily" : grouping === "week" ? "weekly" : "monthly";
+    showMessage(els.harvestStatus, periodLabel + " average per recorded collection day · "
+      + formatNumber(trend.selectedTotal) + " kg in selected dates · "
+      + formatNumber(trend.opening) + " kg before selection. Latest active period: "
+      + (latest ? formatDate(latest.date) : "none") + ".");
   } catch (error) {
     if (requestId !== state.harvesting) return;
-    els.harvestTotal.textContent = "— kg";
+    els.harvestTotal.textContent = "— kg collected";
+    els.harvestAverage.textContent = "— kg/day";
     showMessage(els.harvestStatus, readableError(error), true);
     throw error;
   }
+}
+
+/** Average per distinct day with an intake record, rather than per form or calendar day. */
+function groupIntakeSeries(dailyRows, grouping, range) {
+  const buckets = new Map();
+  let opening = 0;
+  for (const row of dailyRows) {
+    if (!isISODate(row.date) || row.date > range.end) continue;
+    const amount = Math.max(0, finiteNumber(row.volume));
+    if (row.date < range.start) { opening += amount; continue; }
+    const key = periodStart(row.date, grouping);
+    if (!buckets.has(key)) buckets.set(key, { volume: 0, activeDates: new Set(), qc: 0 });
+    const bucket = buckets.get(key);
+    bucket.volume += amount;
+    if (finiteNumber(row.count) > 0) bucket.activeDates.add(row.date);
+    bucket.qc += finiteNumber(row.qc);
+  }
+  let cumulative = opening;
+  let cursor = periodStart(range.start, grouping);
+  const end = periodStart(range.end, grouping);
+  const points = [];
+  while (cursor <= end && points.length < 3700) {
+    const bucket = buckets.get(cursor);
+    const volume = bucket?.volume || 0;
+    const days = bucket?.activeDates.size || 0;
+    cumulative += volume;
+    points.push({
+      date: cursor, volume, days, qc: bucket?.qc || 0,
+      average: days ? volume / days : null, cumulative
+    });
+    cursor = nextPeriod(cursor, grouping);
+  }
+  return { points, opening, selectedTotal: cumulative - opening, cumulative };
 }
 
 function fillMissingPeriods(raw, grouping, from, to) {
@@ -195,13 +245,13 @@ async function fetchEveryPage(functionName, parameters, pageSize) {
 
 async function loadStock(range = null, refresh = false) {
   const requestId = ++state.stocking;
-  showMessage(els.stockStatus, "Loading numbered stock and QC history...");
-  els.stockPlot.replaceChildren();
+  showMessage(els.stockStatus, "Loading new stock entries and QC history...");
+  for (const plot of [els.stockAveragePlot, els.stockCumulativePlot, els.stockPlot]) plot.replaceChildren();
   els.stockEmpty.hidden = true;
   try {
     const dates = range || selectedRange();
     if (refresh || !state.stockRows || !state.stockActions) {
-      // Do not rely on a month-limited summary: the opening balance needs all earlier records.
+      // The opening balance and cumulative production must include earlier records.
       const [stockRows, stockActions] = await Promise.all([
         fetchEveryPage("ag_form_record_ledger", {
           p_record_type: "stock", p_start_date: "0001-01-01",
@@ -216,32 +266,49 @@ async function loadStock(range = null, refresh = false) {
       state.stockActions = stockActions;
     }
     if (requestId !== state.stocking) return;
-    // Blank "From" means begin at the first stock event, not nine years of empty space.
-    const earliest = [
+    const eventDates = [
       ...state.stockRows.map(row => row.record_date),
       ...state.stockActions.map(row => row.action_date)
-    ].filter(isISODate).sort()[0];
+    ].filter(isISODate).filter(date => date <= dates.end).sort();
+    const earliest = eventDates[0];
+    const latest = eventDates.at(-1);
     const plotRange = {
       ...dates,
       start: !els.analysisFrom.value && earliest && earliest <= dates.end
         ? (earliest > dates.start ? earliest : dates.start)
-        : dates.start
+        : dates.start,
+      end: !els.analysisTo.value && latest && latest >= dates.start ? latest : dates.end
     };
     const timeline = buildStockTimeline(state.stockRows, state.stockActions, plotRange);
-    els.stockTotal.textContent = `${formatNumber(timeline.lastBalance)} L`;
+    const grouping = els.stockGrouping.value;
+    const trend = groupIntakeSeries(timeline.intakeDays, grouping, plotRange);
+    els.stockTotal.textContent = formatNumber(trend.cumulative) + " L produced";
     if (!timeline.hasInitial && !timeline.hasActions) {
       els.stockEmpty.hidden = false;
+      els.stockAverage.textContent = "— L/day";
       els.stockRows.replaceChildren();
+      els.stockProductionRows.replaceChildren();
       showMessage(els.stockStatus, "No numbered BioStim stock records in the ledger.");
       return;
     }
+    drawLineChart(els.stockAveragePlot, trend.points, "average", "L/day",
+      "Average new BioStim stock litres per production day", true);
+    drawLineChart(els.stockCumulativePlot, trend.points, "cumulative", "L",
+      "Accumulated new BioStim stock production", true);
     drawStock(timeline.points, plotRange);
     renderStockTable(timeline.points);
-    showMessage(els.stockStatus,
-      `${formatNumber(timeline.initialCount)} new container records · ${formatNumber(timeline.qcCount)} QC batch/retest records · ${formatNumber(timeline.actionCount)} stock actions`);
+    renderIntakeTable(els.stockProductionRows, trend.points, true);
+    const current = [...trend.points].reverse().find(row => row.days > 0);
+    els.stockAverage.textContent = current ? formatNumber(current.average) + " L/day" : "— L/day";
+    showMessage(els.stockStatus, formatNumber(timeline.initialCount) + " new container entries · "
+      + formatNumber(timeline.qcCount) + " QC batch/retest records · "
+      + formatNumber(timeline.actionCount) + " stock actions · "
+      + formatNumber(trend.selectedTotal) + " L produced within selected dates. Latest active period: "
+      + (current ? formatDate(current.date) : "none") + ".");
   } catch (error) {
     if (requestId !== state.stocking) return;
-    els.stockTotal.textContent = "— L";
+    els.stockTotal.textContent = "— L produced";
+    els.stockAverage.textContent = "— L/day";
     showMessage(els.stockStatus, readableError(error), true);
     throw error;
   }
@@ -250,7 +317,7 @@ async function loadStock(range = null, refresh = false) {
 function buildStockTimeline(records, actions, range) {
   const daily = new Map();
   const entry = date => {
-    if (!daily.has(date)) daily.set(date, { date, delta: 0, qc: 0 });
+    if (!daily.has(date)) daily.set(date, { date, delta: 0, intake: 0, newCount: 0, qc: 0 });
     return daily.get(date);
   };
   let initialCount = 0, actionCount = 0, qcCount = 0;
@@ -268,6 +335,8 @@ function buildStockTimeline(records, actions, range) {
       : record.weight_unit === "mL" ? Number(record.weight_value) / 1000 : NaN;
     if (Number.isFinite(litres) && litres >= 0) {
       entry(date).delta += litres;
+      entry(date).intake += litres;
+      entry(date).newCount += 1;
       initialCount++;
     }
   }
@@ -303,30 +372,73 @@ function buildStockTimeline(records, actions, range) {
   }
   return {
     points, lastBalance: balance, initialCount, actionCount, qcCount,
+    intakeDays: sorted.map(row => ({ date: row.date, volume: row.intake, count: row.newCount, qc: row.qc })),
     hasInitial: initialCount > 0, hasActions: actionCount > 0
   };
 }
 
-function drawHarvest(rows) {
-  const width = 880, height = 286, left = 64, right = 18, top = 24, bottom = 46;
+function drawLineChart(parent, rows, field, unit, label, qcBands = false) {
+  const availableWidth = parent.clientWidth || (typeof window !== "undefined" ? window.innerWidth - 40 : 880);
+  const width = Math.max(360, Math.min(880, availableWidth));
+  const height = 268, left = 70, right = 20, top = 24, bottom = 42;
   const plotW = width - left - right, plotH = height - top - bottom;
-  const max = Math.max(1, ...rows.map(row => row.kg));
-  const ceiling = niceCeiling(max);
-  const svg = baseSvg(width, height, els.harvestPlot);
-  drawGrid(svg, { width, height, left, right, top, bottom, max: ceiling, suffix: "kg" });
-  const barW = Math.max(.7, Math.min(30, (plotW / rows.length) * .76));
-  rows.forEach((row, index) => {
-    if (row.kg <= 0) return;
-    const x = left + ((index + .5) / rows.length) * plotW;
-    const h = row.kg / ceiling * plotH;
+  const valid = rows.map(row => row[field]).filter(value => value != null && Number.isFinite(value));
+  const ceiling = niceCeiling(Math.max(1, ...valid));
+  const svg = baseSvg(width, height, parent);
+  drawGrid(svg, { width, height, left, right, top, bottom, max: ceiling, suffix: unit });
+  const x = index => left + (rows.length === 1 ? plotW / 2 : index / (rows.length - 1) * plotW);
+  const y = value => top + (1 - value / ceiling) * plotH;
+  if (qcBands) rows.forEach((row, index) => {
+    if (!row.qc) return;
+    const cx = x(index);
     svgNode(svg, "rect", {
-      x: x - barW / 2, y: top + plotH - h, width: barW, height: h,
-      rx: Math.min(barW / 4, 3), class: "analysis-bar"
-    }, `${formatDate(row.date)}: ${formatNumber(row.kg)} kg from ${row.count} collection entries`);
+      x: Math.max(left, cx - 4), y: top,
+      width: Math.min(8, left + plotW - Math.max(left, cx - 4)), height: plotH,
+      class: "analysis-qc-band"
+    }, formatDate(row.date) + ": " + row.qc + " QC records (recorded during this period)");
   });
-  drawDateLabels(svg, rows.map(row => row.date), left, plotW, height - 16);
-  els.harvestPlot.setAttribute("aria-label",
-    `Wet seaweed collected by period. ${rows.length} periods, maximum ${formatNumber(max)} kilograms.`);
+  // No intake day means no observed average: break the line, rather than
+  // falsely suggesting there was a zero-kg/L active intake day.
+  let section = "";
+  const flush = () => {
+    if (!section) return;
+    svgNode(svg, "path", { d: section, class: "analysis-stroke" });
+    section = "";
+  };
+  rows.forEach((row, index) => {
+    const value = row[field];
+    if (value == null || !Number.isFinite(value)) { flush(); return; }
+    section += (section ? " L " : "M ") + x(index) + " " + y(value);
+  });
+  flush();
+  // A dashed connector signals an unobserved intervening period instead of
+  // pretending there was a recorded average in that gap.
+  let previousObserved = -1;
+  rows.forEach((row, index) => {
+    if (row[field] == null || !Number.isFinite(row[field])) return;
+    if (previousObserved >= 0 && index > previousObserved + 1) {
+      const path = "M " + x(previousObserved) + " " + y(rows[previousObserved][field])
+        + " L " + x(index) + " " + y(row[field]);
+      svgNode(svg, "path", { d: path, class: "analysis-gap-stroke" });
+    }
+    previousObserved = index;
+  });
+  const sampleEvery = Math.max(1, Math.ceil(rows.length / 45));
+  rows.forEach((row, index) => {
+    const value = row[field];
+    if (value == null || !Number.isFinite(value)) return;
+    if (index % sampleEvery !== 0 && index !== rows.length - 1) return;
+    svgNode(svg, "circle", {
+      cx: x(index), cy: y(value), r: rows.length > 50 ? 2.5 : 3.7,
+      class: "analysis-point"
+    }, formatDate(row.date) + ": " + formatNumber(value) + " " + unit + "; "
+      + formatNumber(row.volume) + " " + (unit.startsWith("kg") ? "kg" : "L")
+      + " newly recorded across " + row.days + " intake day(s)"
+      + (row.qc ? "; " + row.qc + " QC records" : ""));
+  });
+  drawDateLabels(svg, rows.map(row => row.date), left, plotW, height - 13);
+  parent.setAttribute("aria-label", label + " (" + rows.length + " periods). "
+    + (valid.length ? "Most recent observed value: " + formatNumber(valid.at(-1)) + " " + unit : "No recorded intake days."));
 }
 
 function drawStock(rows, range) {
@@ -387,12 +499,12 @@ function svgNode(parent, tag, attributes, title = null) {
   return el;
 }
 
-function drawGrid(svg, { height, left, right, top, bottom, max, min = 0, suffix }) {
+function drawGrid(svg, { width, height, left, right, top, bottom, max, min = 0, suffix }) {
   const graphH = height - top - bottom;
   for (let n = 0; n <= 4; n++) {
     const value = min + (max - min) * (4 - n) / 4;
     const y = top + graphH * n / 4;
-    svgNode(svg, "line", { x1: left, y1: y, x2: 880 - right, y2: y, class: "analysis-axis" });
+    svgNode(svg, "line", { x1: left, y1: y, x2: width - right, y2: y, class: "analysis-axis" });
     const label = svgNode(svg, "text", { x: left - 9, y: y + 4, "text-anchor": "end" });
     label.textContent = `${formatShort(value)} ${suffix}`;
   }
@@ -400,20 +512,27 @@ function drawGrid(svg, { height, left, right, top, bottom, max, min = 0, suffix 
 
 function drawDateLabels(svg, dates, left, plotW, y) {
   if (!dates.length) return;
-  const labels = [dates[0], dates[Math.floor((dates.length - 1) / 2)], dates[dates.length - 1]];
+  const mid = new Date(Math.floor((dayNumber(dates[0]) + dayNumber(dates.at(-1))) / 2) * 86400000).toISOString().slice(0, 10);
+  const labels = dates.length === 1 ? [dates[0]] : [dates[0], mid, dates.at(-1)];
   labels.forEach((date, index) => {
     const label = svgNode(svg, "text", {
-      x: left + (plotW * index / 2), y,
-      "text-anchor": index === 0 ? "start" : index === 2 ? "end" : "middle"
+      x: dates.length === 1 ? left + plotW / 2 : left + (plotW * index / 2), y,
+      "text-anchor": dates.length === 1 ? "middle" : index === 0 ? "start" : index === 2 ? "end" : "middle"
     });
     label.textContent = formatDate(date);
   });
 }
 
-function renderHarvestTable(rows) {
-  els.harvestRows.replaceChildren();
-  for (const row of rows) {
-    appendCells(els.harvestRows, [formatDate(row.date), formatNumber(row.kg), formatNumber(row.count)]);
+function renderIntakeTable(parent, rows, stock = false) {
+  parent.replaceChildren();
+  for (const row of [...rows].reverse()) {
+    const cells = [
+      formatDate(row.date), formatNumber(row.days), formatNumber(row.volume),
+      row.average == null ? "—" : formatNumber(row.average),
+      formatNumber(row.cumulative)
+    ];
+    if (stock) cells.push(formatNumber(row.qc));
+    appendCells(parent, cells);
   }
 }
 
