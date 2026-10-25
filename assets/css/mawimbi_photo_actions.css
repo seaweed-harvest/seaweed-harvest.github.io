@@ -1,0 +1,40 @@
+/* Same two-button camera/gallery treatment as COSME Nursery – Training. */
+.mawimbi-photo-toolbar.standard-photo-toolbar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+.mawimbi-photo-toolbar .standard-photo-action {
+  min-width: 0;
+  width: 100%;
+  padding: 12px 8px;
+  border: 1px solid #bedbd4;
+  border-radius: 12px;
+  background: #fff;
+  color: #48847b;
+  font-weight: 650;
+  line-height: 1.25;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  white-space: normal;
+  cursor: pointer;
+}
+.mawimbi-photo-toolbar .standard-photo-action:hover,
+.mawimbi-photo-toolbar .standard-photo-action:focus-visible {
+  border-color: #61a79a;
+  background: #edf7f4;
+}
+.mawimbi-photo-toolbar .standard-photo-action svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+}
+.mawimbi-photo-toolbar .standard-photo-action:disabled { opacity: 0.5; cursor: not-allowed; }
+.mawimbi-photo-toolbar + .standard-hidden-file { display: block; }
+@media (max-width: 380px) {
+ .mawimbi-photo-toolbar { gap: 7px; }
+ .mawimbi-photo-toolbar .standard-photo-action { font-size: .92rem; gap: 6px; }
+}
