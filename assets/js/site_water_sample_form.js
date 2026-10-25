@@ -239,6 +239,7 @@ function parseGps(value) {
 }
 
 function clearForm() {
+  els.siteSampleSavedPhotoLink.hidden = true;
   resetInputs();
   setStatus("");
 }
