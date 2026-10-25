@@ -632,7 +632,10 @@ function drawLineChart(parent, rows, field, unit, label, qcBands = false) {
     ? Math.ceil((Math.max(...valid) + .025) * 20) / 20 : niceCeiling(Math.max(1, ...valid));
   const svg = baseSvg(width, height, parent);
   drawGrid(svg, { width, height, left, right, top, bottom, min: floor, max: ceiling, suffix: unit });
-  const x = index => left + (rows.length === 1 ? plotW / 2 : index / (rows.length - 1) * plotW);
+  const firstDay = rows.length ? dayNumber(rows[0].date) : 0;
+  const lastDay = rows.length ? dayNumber(rows.at(-1).date) : 0;
+  const x = index => left + (lastDay === firstDay ? plotW / 2 :
+    (dayNumber(rows[index].date) - firstDay) / (lastDay - firstDay) * plotW);
   const y = value => top + (ceiling - value) / (ceiling - floor) * plotH;
   if (qcBands) rows.forEach((row, index) => {
     if (!row.qc) return;
@@ -677,10 +680,10 @@ function drawLineChart(parent, rows, field, unit, label, qcBands = false) {
     svgNode(svg, "circle", {
       cx: x(index), cy: y(value), r: rows.length > 50 ? 2.5 : 3.7,
       class: "analysis-point"
-    }, formatDate(row.date) + ": " + (isYield ? formatYield(value) : formatNumber(value)) + " " + unit + "; "
-      + formatNumber(row.volume) + " " + (unit.startsWith("kg") ? "kg" : unit === "L/kg" ? "kg received" : "L")
-      + " newly recorded across " + row.days + " intake day(s)"
-      + (row.qc ? "; " + row.qc + " QC records" : ""));
+    }, formatDate(row.date) + ": " + (isYield ? formatYield(value) : formatNumber(value)) + " " + unit
+      + (row.from && row.to ? " · 14-day window " + formatDate(row.from) + "–" + formatDate(row.to) : "")
+      + (row.days != null ? " · " + formatNumber(row.days) + " recorded days" : "")
+      + (row.qc ? " · " + row.qc + " QC records" : ""));
   });
   drawDateLabels(svg, rows.map(row => row.date), left, plotW, height - 13);
   parent.setAttribute("aria-label", label + " (" + rows.length + " periods). "
