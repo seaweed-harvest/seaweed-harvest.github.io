@@ -40,7 +40,7 @@ async function init() {
     "printPackingWeightHeader", "printPackingSalinityHeader", "printPackingDoseHeader",
     "packingEntryTabs", "packingSingleTab", "packingBatchTab", "packingBatchForm",
     "packingBatchRecordedBy", "packingBatchFirst", "packingBatchLast", "packingBatchDate",
-    "packingBatchSpecies", "packingBatchVolume", "packingBatchVolumeUnit",
+    "packingBatchSpecies", "packingBatchVolume", "packingBatchVolumeUnit", "packingBatchVolumePreview",
     "packingBatchStabilizerYes", "packingBatchStabilizerNo", "packingBatchStabilizerFields",
     "packingBatchChemical", "packingBatchDose", "packingBatchDoseUnit", "packingBatchDoseDefault",
     "packingBatchCitricAcidYes", "packingBatchCitricAcidNo", "packingBatchCitricAcidFields",
@@ -503,6 +503,21 @@ async function submitBatch(event) {
     return;
   }
 
+  const submittedVolume = Number(els.packingBatchVolume.value);
+  const eachLitres = els.packingBatchVolumeUnit.value === "mL"
+    ? submittedVolume / 1000 : submittedVolume;
+  if (eachLitres > 40 && count > 1) {
+    const totalLitres = count * eachLitres;
+    const confirmation = count + " containers × " + formatBatchNumber(eachLitres) +
+      " L per container = " + formatBatchNumber(totalLitres) +
+      " L total.\n\nIf " + formatBatchNumber(eachLitres) +
+      " L is the WHOLE batch, enter " + formatBatchNumber(eachLitres / count) +
+      " L per container instead.\n\nSave this batch total?";
+    if (!window.confirm(confirmation)) {
+      setBatchStatus("Not saved. Review the volume per container.", "error");
+      return;
+    }
+  }
   els.savePackingBatch.disabled = true;
   setBatchStatus(`Saving ${count} containers...`);
   try {
@@ -543,7 +558,7 @@ async function submitBatch(event) {
     nextCartonSerial = String(saved?.next_carton_serial || nextSerialAfter(els.packingBatchLast.value));
     setBatchStatus(saved?.duplicate
       ? "This batch was already saved. Existing container records and QC were not changed."
-      : `${saved?.created_count || count} containers saved: ${saved?.first_carton_serial || els.packingBatchFirst.value} to ${saved?.last_carton_serial || els.packingBatchLast.value}.${saved?.qc_measurements_recorded ? " Shared vessel QC applied to all containers." : ""}`
+      : `${saved?.created_count || count} containers saved: ${saved?.first_carton_serial || els.packingBatchFirst.value} to ${saved?.last_carton_serial || els.packingBatchLast.value} · ${els.packingBatchVolumePreview.textContent}.${saved?.qc_measurements_recorded ? " Shared vessel QC applied to all containers." : ""}`
     );
     resetBatchInputs();
     setNewCartonMode();
@@ -649,9 +664,22 @@ function allDoseConfigs() {
   return [...singleDoseConfigs(), ...batchDoseConfigs()];
 }
 
+function formatBatchNumber(value) {
+  return Number(value).toLocaleString("en-KE", { maximumFractionDigits: 3 });
+}
+
 function updateBatchState() {
   const count = batchRangeCount();
   els.packingBatchCount.textContent = count > 0 && count <= 100 ? String(count) : "Check range";
+  const volume = Number(els.packingBatchVolume.value);
+  const unit = els.packingBatchVolumeUnit.value;
+  const litresEach = unit === "mL" ? volume / 1000 : volume;
+  const valid = count > 0 && count <= 100 && Number.isFinite(volume) && volume > 0;
+  els.packingBatchVolumePreview.textContent = valid
+    ? count + " containers × " + formatBatchNumber(volume) + " " + unit +
+      " = " + formatBatchNumber(count * litresEach) + " L total" +
+      (litresEach > 40 && count > 1 ? " · Check: is this volume per container?" : "")
+    : "Enter the volume in each container to see the batch total.";
   els.packingBatchForm.querySelectorAll("input, select, textarea").forEach((control) => {
     if (["checkbox", "button", "submit", "reset"].includes(control.type) || control.disabled) return;
     control.classList.toggle("empty-value-control", control.required && !String(control.value || "").trim());
