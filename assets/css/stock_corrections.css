@@ -1,0 +1,31 @@
+
+/* Mawimbi stock corrections: compact, touch-friendly editors; scoped to this panel. */
+#stockCorrections { margin-top: 1.25rem; }
+#stockCorrections .sc-toolbar { display:flex; align-items:end; flex-wrap:wrap; gap:0.75rem; margin:0.8rem 0; }
+#stockCorrections .sc-toolbar label { display:grid; gap:0.3rem; font-weight:600; }
+#stockCorrections .sc-toolbar input { min-height:2.6rem; }
+#stockCorrections .sc-modes { display:flex; gap:0.5rem; margin:0.7rem 0; }
+#stockCorrections .sc-modes button[aria-pressed="true"] { background:#0f766e; color:#fff; }
+#stockCorrections .sc-list { display:flex; flex-wrap:wrap; gap:0.5rem; margin:0.8rem 0; }
+#stockCorrections .sc-list button { min-height:2.5rem; padding:0.45rem 0.7rem; }
+#stockCorrections .sc-list button[aria-pressed="true"] { border:2px solid #0f766e; font-weight:700; }
+#stockCorrections .sc-editor { max-width:900px; }
+#stockCorrections .sc-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0.8rem; margin:0.9rem 0; }
+#stockCorrections .sc-grid label { display:flex; flex-direction:column; gap:0.3rem; font-weight:600; min-width:0; }
+#stockCorrections .sc-grid input, #stockCorrections .sc-grid select { min-width:0; width:100%; box-sizing:border-box; min-height:2.7rem; }
+#stockCorrections .sc-grid label.sc-check { flex-direction:row; align-items:center; gap:0.6rem; }
+#stockCorrections .sc-grid .sc-check input { width:auto; min-height:unset; }
+#stockCorrections .sc-summary { margin:0.8rem 0; font-weight:600; }
+#stockCorrections .sc-help { font-size:0.92rem; opacity:0.8; }
+#stockCorrections .sc-actions { display:flex; flex-wrap:wrap; align-items:center; gap:0.75rem; margin-top:1rem; }
+#stockCorrections .sc-actions button { min-height:2.65rem; }
+#stockCorrections .sc-status { margin-top:0.7rem; }
+#stockCorrections #scBatchSharedFields[hidden], #stockCorrections [hidden] { display:none !important; }
+@media(max-width:720px) {
+  #stockCorrections .sc-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:0.7rem; }
+  #stockCorrections .sc-modes button { flex:1; }
+  #stockCorrections .sc-actions button { flex:1; }
+}
+@media(max-width:390px) {
+  #stockCorrections .sc-grid { grid-template-columns:1fr; }
+}
