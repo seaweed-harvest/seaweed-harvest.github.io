@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v168-processing-yield";
+const CACHE_VERSION = "seaweed-harvest-collection-v169-coastal-lab-photo-uploads";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -11,6 +11,7 @@ const APP_SHELL = [
   "./site_water_sample.html",
   "./mawimbi_ro_monitoring.html",
   "./stock_record_photos.html",
+  "./site_water_sample_photos.html",
   "./reef_nursery.html",
   "./reef_nursery_seaweed_data.html",
   "./reef_nursery_training.html",
@@ -35,6 +36,7 @@ const APP_SHELL = [
   "./assets/css/form_foundation.css",
   "./assets/css/site_water_sample.css",
   "./assets/css/stock_photos.css",
+  "./assets/css/mawimbi_photo_actions.css",
   "./assets/css/reef_nursery.css",
   "./assets/css/reef_nursery_wp01.css",
   "./assets/css/reef_nursery_wp02.css",
@@ -74,6 +76,7 @@ const APP_SHELL = [
   "./assets/js/mawimbi_ro_monitoring.js",
   "./assets/js/stock_photo_upload.js",
   "./assets/js/stock_record_photos.js",
+  "./assets/js/site_water_sample_photos.js",
   "./assets/js/reef_nursery_boot.js",
   "./assets/js/reef_nursery_site_capture.js",
   "./assets/js/reef_sample_rope_stage_photos.js",
