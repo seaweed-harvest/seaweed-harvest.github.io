@@ -503,6 +503,21 @@ async function submitBatch(event) {
     return;
   }
 
+  const submittedVolume = Number(els.packingBatchVolume.value);
+  const eachLitres = els.packingBatchVolumeUnit.value === "mL"
+    ? submittedVolume / 1000 : submittedVolume;
+  if (eachLitres > 40 && count > 1) {
+    const totalLitres = count * eachLitres;
+    const confirmation = count + " containers × " + formatBatchNumber(eachLitres) +
+      " L per container = " + formatBatchNumber(totalLitres) +
+      " L total.\n\nIf " + formatBatchNumber(eachLitres) +
+      " L is the WHOLE batch, enter " + formatBatchNumber(eachLitres / count) +
+      " L per container instead.\n\nSave this batch total?";
+    if (!window.confirm(confirmation)) {
+      setBatchStatus("Not saved. Review the volume per container.", "error");
+      return;
+    }
+  }
   els.savePackingBatch.disabled = true;
   setBatchStatus(`Saving ${count} containers...`);
   try {
