@@ -11,3 +11,11 @@
 .stock-photo-field #packingPhotoStatus:empty,
 .form-record-page .stock-photo-preview:empty { display: none; }
 .stock-photo-field #packingPhotoStatus { margin: 0; }
+
+/* Process Record: full-width camera/gallery buttons, compact six-photo previews. */
+.form-record-page .process-photo-field { grid-template-columns: minmax(0, 1fr) !important; gap: 8px; padding-bottom: 0; }
+.process-photo-field .stock-photo-preview:empty { display: none; }
+.process-photo-field #processPhotoHint { margin: 0; }
+.process-photo-card { margin: 0; max-width: 160px; min-width: 0; font-size: .75rem; }
+.process-photo-card figcaption { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--text-muted, #666); }
+.process-photo-card .danger-text-action { padding: 4px 0; }
