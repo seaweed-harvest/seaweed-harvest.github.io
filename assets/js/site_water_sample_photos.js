@@ -67,7 +67,7 @@ async function refresh() {
     }
     if (!data.photo_attachments.length) {
       const p=document.createElement("p");
-      p.textContent="No photos attached yet. Add E. coli laboratory results whenever they are ready.";
+      p.textContent="No photos attached yet.";
       list.append(p);
     }
     const remaining=MAX-data.photo_attachments.length;

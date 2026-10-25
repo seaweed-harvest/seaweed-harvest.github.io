@@ -29,7 +29,7 @@ async function init() {
     button: els.printSiteSampleWorksheet,
     worksheet: els.siteSamplePrintWorksheet,
     rowCount: 10,
-    columnCount: 12,
+    columnCount: 11,
     prepare: prepareSiteSampleWorksheet
   });
 
@@ -138,7 +138,6 @@ async function submitSiteSample(event) {
         tds_value: numberOrNull(els.siteSampleTds.value),
         tds_unit: els.siteSampleTdsUnit.value,
         electrical_conductivity_ms_cm: numberOrNull(els.siteSampleEc.value),
-        e_coli_sample_taken: selectedEColiSampleTaken(),
         notes: textOrNull(els.siteSampleNotes.value)
       }
     });
@@ -187,11 +186,6 @@ function renderCommunities(rows) {
 
 function selectedTideStage() {
   return els.siteSampleForm.querySelector('[name="siteSampleTide"]:checked')?.value || null;
-}
-
-function selectedEColiSampleTaken() {
-  const choice = els.siteSampleForm.querySelector('[name="siteSampleEColiTaken"]:checked')?.value;
-  return choice === "yes" ? true : choice === "no" ? false : null;
 }
 
 function captureGps() {

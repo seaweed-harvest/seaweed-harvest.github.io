@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Site Water Sample - Seaweed Aggregation</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/site_water_sample.css?v=2">
+  <link rel="stylesheet" href="./assets/css/site_water_sample.css?v=3">
   <link rel="stylesheet" href="./assets/css/stock_photos.css?v=2">
   <link rel="stylesheet" href="./assets/css/mawimbi_photo_actions.css">
   <link rel="stylesheet" href="./assets/css/form_foundation.css?v=2">
@@ -126,13 +126,6 @@
                 </span>
               </label>
             </div>
-            <div class="standard-choice-field site-sample-ecoli-field">
-              <span class="standard-field-label">E. coli sample taken (optional)</span>
-              <div class="standard-segmented-control" role="radiogroup" aria-label="E. coli sample taken">
-                <label><input type="radio" name="siteSampleEColiTaken" value="yes"><span>Yes</span></label>
-                <label><input type="radio" name="siteSampleEColiTaken" value="no"><span>No</span></label>
-              </div>
-            </div>
           </fieldset>
 
           <fieldset>
@@ -177,14 +170,14 @@
         <div><span>Spring tide</span><strong id="printSiteSampleTide"></strong></div>
         <div><span>Recorded by</span><strong id="printSiteSampleRecordedBy"></strong></div>
       </div>
-      <table class="ag-print-table ag-print-site-sample-table" data-pdf-widths="3,12,7,11,7,6,7,8,8,8,8,15">
-        <colgroup><col><col><col><col><col><col><col><col><col><col><col><col></colgroup>
+      <table class="ag-print-table ag-print-site-sample-table" data-pdf-widths="3,13,8,12,8,7,8,9,9,9,14">
+        <colgroup><col><col><col><col><col><col><col><col><col><col><col></colgroup>
         <thead>
           <tr>
-            <th scope="col">No.</th><th scope="col">Date / time</th><th scope="col">Tide</th><th scope="col">Community</th><th scope="col">Temp. &deg;C</th><th scope="col">Salinity</th><th scope="col">pH</th><th scope="col">DO mg/L</th><th scope="col">TDS</th><th scope="col">EC</th><th scope="col">E. coli sample</th><th scope="col">Notes</th>
+            <th scope="col">No.</th><th scope="col">Date / time</th><th scope="col">Tide</th><th scope="col">Community</th><th scope="col">Temp. &deg;C</th><th scope="col">Salinity</th><th scope="col">pH</th><th scope="col">DO mg/L</th><th scope="col">TDS</th><th scope="col">EC</th><th scope="col">Notes</th>
           </tr>
         </thead>
-        <tbody data-print-rows="10" data-print-columns="12"></tbody>
+        <tbody data-print-rows="10" data-print-columns="11"></tbody>
       </table>
       <footer class="ag-print-footer">
         <div><span>Entered into system by</span><strong></strong></div><div><span>Date</span><strong></strong></div><div><span>Checked by</span><strong></strong></div>
@@ -192,6 +185,6 @@
     </article>
   </section>
   <script type="module" src="./assets/js/admin_page.js?v=35"></script>
-  <script type="module" src="./assets/js/site_water_sample_form.js?v=14"></script>
+  <script type="module" src="./assets/js/site_water_sample_form.js?v=15"></script>
 </body>
 </html>

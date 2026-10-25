@@ -45,7 +45,6 @@ const COLUMNS = {
     ["dissolved_oxygen_mg_l", "DO mg/L"],
     ["tds_value", "TDS"],
     ["electrical_conductivity_ms_cm", "EC mS/cm"],
-    ["e_coli_sample_taken", "E. coli sample"],
     ["photo_link", "Photos"],
     ["recorded_by_name", "Recorded by"],
     ["notes", "Notes"]
@@ -103,8 +102,7 @@ const REPORTS = {
       ["avg_temperature_c", "Avg temp C", "number"],
       ["avg_salinity", "Avg salinity", "number"],
       ["avg_tds_mg_l", "Avg TDS mg/L", "number"],
-      ["avg_ec_ms_cm", "Avg EC mS/cm", "number"],
-      ["e_coli_sample_count", "E. coli samples", "integer"]
+      ["avg_ec_ms_cm", "Avg EC mS/cm", "number"]
     ],
     metrics: [
       ["record_count", "Samples", "integer"],
@@ -1301,7 +1299,7 @@ function renderCommunityMetrics() {
 function renderCommunityRows(errorMessage = "") {
   els.formLedgerCount.textContent = `${state.communityRows.length} ${state.communityRows.length === 1 ? "community" : "communities"}`;
   if (errorMessage || !state.communityRows.length) {
-    els.formLedgerCommunityRows.innerHTML = emptyRow(9, errorMessage || "No community samples match this period.");
+    els.formLedgerCommunityRows.innerHTML = emptyRow(8, errorMessage || "No community samples match this period.");
     return;
   }
   els.formLedgerCommunityRows.innerHTML = state.communityRows.map((row) => `
@@ -1312,7 +1310,6 @@ function renderCommunityRows(errorMessage = "") {
       <td>${escapeHtml(formatNumber(row.avg_salinity))}</td>
       <td>${escapeHtml(formatNumber(row.avg_tds_mg_l))}</td>
       <td>${escapeHtml(formatNumber(row.avg_ec_ms_cm))}</td>
-      <td>${escapeHtml(formatInteger(row.e_coli_sample_count))}</td>
       <td>${escapeHtml(formatDate(row.first_record_date))}</td>
       <td>${escapeHtml(formatDate(row.last_record_date))}</td>
     </tr>
@@ -1605,10 +1602,6 @@ function formRecordDraft(row) {
       tds_value: nullableValue(row.tds_value),
       tds_unit: row.tds_unit || "mg/L",
       electrical_conductivity_ms_cm: nullableValue(row.electrical_conductivity_ms_cm),
-      e_coli_sample_taken: row.e_coli_sample_taken === null
-        || row.e_coli_sample_taken === undefined
-        ? ""
-        : String(Boolean(row.e_coli_sample_taken)),
       recorded_by_name: row.recorded_by_name || "",
       notes: row.notes || ""
     };
@@ -1668,7 +1661,6 @@ function serializeFormRecordDraft(row, draft) {
       tds_value: numberOrNull(draft.tds_value),
       tds_unit: draft.tds_unit,
       electrical_conductivity_ms_cm: numberOrNull(draft.electrical_conductivity_ms_cm),
-      e_coli_sample_taken: booleanOrNull(draft.e_coli_sample_taken),
       recorded_by_name: draft.recorded_by_name.trim(),
       notes: textOrNull(draft.notes)
     };
@@ -1723,7 +1715,6 @@ function formRecordEditor(row, field, label, draft) {
       return formRecordMeasurement(id, "tds_value", draft.tds_value, "tds_unit", draft.tds_unit, ["mg/L", "g/L", "ppt"], label);
     }
     if (field === "photo_link") return `<a href="./site_water_sample_photos.html?id=${encodeURIComponent(id)}">View / add</a>`;
-    if (field === "e_coli_sample_taken") return formRecordBooleanSelect(id, field, draft[field], label);
     if (field === "recorded_by_name") return formRecordInput(id, field, draft[field], "text", label, { required: true, maxlength: 160 });
     if (field === "notes") return formRecordInput(id, field, draft[field], "text", label, { maxlength: 1000 });
   } else {
