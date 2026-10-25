@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v173-stock-batch-preview";
+const CACHE_VERSION = "seaweed-harvest-collection-v174-optional-stock-ecoli";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",

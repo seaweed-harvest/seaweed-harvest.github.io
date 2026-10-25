@@ -194,6 +194,13 @@
                 <span class="standard-field-hint">Specific gravity (SG), unitless. Optional.</span>
               </label>
             </div>
+            <div class="standard-choice-field">
+              <span class="standard-field-label">E. coli sample taken (optional)</span>
+              <div class="standard-segmented-control" role="radiogroup" aria-label="Stock E. coli sample taken">
+                <label><input type="radio" name="packingEColiSampleTaken" value="yes"><span>Yes</span></label>
+                <label><input type="radio" name="packingEColiSampleTaken" value="no"><span>No</span></label>
+              </div>
+            </div>
           </fieldset>
 
           <fieldset class="stock-photo-field">
@@ -337,6 +344,13 @@
                 <span class="standard-field-hint">Specific gravity (SG), dimensionless.</span>
               </label>
             </div>
+            <div class="standard-choice-field">
+              <span class="standard-field-label">E. coli sample taken — bulk vessel (optional)</span>
+              <div class="standard-segmented-control" role="radiogroup" aria-label="Bulk vessel E. coli sample taken">
+                <label><input type="radio" name="packingBatchEColiSampleTaken" value="yes"><span>Yes</span></label>
+                <label><input type="radio" name="packingBatchEColiSampleTaken" value="no"><span>No</span></label>
+              </div>
+            </div>
           </fieldset>
 
           <label class="packing-notes-field">Notes
@@ -400,6 +414,6 @@
     </article>
   </section>
   <script type="module" src="./assets/js/admin_page.js?v=35"></script>
-  <script type="module" src="./assets/js/stabilization_packing_form.js?v=21"></script>
+  <script type="module" src="./assets/js/stabilization_packing_form.js?v=22"></script>
 </body>
 </html>

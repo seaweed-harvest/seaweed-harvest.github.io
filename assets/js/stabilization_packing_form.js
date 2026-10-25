@@ -214,7 +214,7 @@ async function submitRecord(event) {
     }
     setStatus("Saving...");
     uploadedPhotos = await uploadStockPhotos(pendingStockPhotos(), submissionId, (await authClient.auth.getUser()).data?.user?.id);
-    const { data, error } = await authClient.rpc("ag_submit_stabilization_stock_with_photos", {
+    const { data, error } = await authClient.rpc("ag_submit_stabilization_stock_with_ecoli_v1", {
       p_submission_id: submissionId,
       p_photos: uploadedPhotos,
       p_record: {
@@ -235,6 +235,7 @@ async function submitRecord(event) {
         brix_value: numberOrNull(els.packingBrix.value),
         hydrometer_value: numberOrNull(els.packingHydrometer.value),
         hydrometer_scale: els.packingHydrometer.value !== "" ? "SG" : null,
+        e_coli_sample_taken: selectedYesNo(els.packingRecordForm, "packingEColiSampleTaken"),
         stabilizer_added: stabilizerAdded ?? false,
         chemical_dose_value: stabilizerAdded ? numberOrNull(els.packingDose.value) : null,
         chemical_dose_unit: els.packingDoseUnit.value,
@@ -523,7 +524,7 @@ async function submitBatch(event) {
   try {
     const stabilizerAdded = selectedYesNo(els.packingBatchForm, "packingBatchStabilizerAdded");
     const citricAcidAdded = selectedYesNo(els.packingBatchForm, "packingBatchCitricAcidAdded");
-    const { data, error } = await authClient.rpc("ag_submit_stabilization_packing_batch_v2", {
+    const { data, error } = await authClient.rpc("ag_submit_stabilization_packing_batch_v3", {
       p_batch_submission_id: batchSubmissionId,
       p_record: {
         first_carton_serial: els.packingBatchFirst.value.trim(),
@@ -550,6 +551,7 @@ async function submitBatch(event) {
         brix_value: numberOrNull(els.packingBatchBrix.value),
         hydrometer_value: numberOrNull(els.packingBatchHydrometer.value),
         hydrometer_scale: els.packingBatchHydrometer.value !== "" ? "SG" : null,
+        e_coli_sample_taken: selectedYesNo(els.packingBatchForm, "packingBatchEColiSampleTaken"),
         notes: textOrNull(els.packingBatchNotes.value)
       }
     });

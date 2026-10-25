@@ -64,6 +64,7 @@ const COLUMNS = {
     ["electrical_conductivity_ms_cm", "EC mS/cm"],
     ["brix_value", "Brix °Bx"],
     ["hydrometer_value", "Hydrometer SG"],
+    ["e_coli_sample_taken", "E. coli sample"],
     ["recorded_by_name", "Recorded by"],
     ["notes", "Notes"]
   ]
@@ -1528,7 +1529,7 @@ async function saveFormRecordEdits() {
   els.formLedgerSaveEdits.disabled = true;
   els.formLedgerDiscardEdits.disabled = true;
   setFormRecordActionStatus(`Saving ${updates.length} record${updates.length === 1 ? "" : "s"}...`);
-  const { data, error } = await authClient.rpc("ag_update_daily_form_records_with_site_measurements", {
+  const { data, error } = await authClient.rpc("ag_update_daily_form_records_with_stock_ecoli", {
     p_record_type: state.category,
     p_updates: updates
   });
@@ -1628,6 +1629,8 @@ function formRecordDraft(row) {
     salinity_unit: row.salinity_unit || "PSU",
     ph_value: nullableValue(row.ph_value),
     electrical_conductivity_ms_cm: nullableValue(row.electrical_conductivity_ms_cm),
+    e_coli_sample_taken: row.e_coli_sample_taken === null || row.e_coli_sample_taken === undefined
+      ? "" : String(Boolean(row.e_coli_sample_taken)),
     recorded_by_name: row.recorded_by_name || "",
     notes: row.notes || ""
   };
@@ -1684,6 +1687,7 @@ function serializeFormRecordDraft(row, draft) {
     salinity_unit: draft.salinity_unit,
     ph_value: numberOrNull(draft.ph_value),
     electrical_conductivity_ms_cm: numberOrNull(draft.electrical_conductivity_ms_cm),
+    e_coli_sample_taken: booleanOrNull(draft.e_coli_sample_taken),
     recorded_by_name: draft.recorded_by_name.trim(),
     notes: textOrNull(draft.notes)
   };
@@ -1743,6 +1747,7 @@ function formRecordEditor(row, field, label, draft) {
     if (field === "ph_value" || field === "electrical_conductivity_ms_cm") {
       return formRecordNumberInput(id, field, draft[field], label);
     }
+    if (field === "e_coli_sample_taken") return formRecordBooleanSelect(id, field, draft[field], label);
     if (field === "recorded_by_name") return formRecordInput(id, field, draft[field], "text", label, { required: true, maxlength: 160 });
     if (field === "notes") return formRecordInput(id, field, draft[field], "text", label, { maxlength: 1000 });
   }
@@ -1929,7 +1934,7 @@ function cellValue(row, field) {
   if (field === "salinity_value") return measurement(value, row.salinity_unit);
   if (field === "hydrometer_value") return measurement(value, row.hydrometer_scale);
   if (field === "qc_source" && state.category === "stock") {
-    const hasQc = ["salinity_value", "ph_value", "electrical_conductivity_ms_cm", "brix_value", "hydrometer_value"]
+    const hasQc = ["salinity_value", "ph_value", "electrical_conductivity_ms_cm", "brix_value", "hydrometer_value", "e_coli_sample_taken"]
       .some((key) => row[key] !== null && row[key] !== undefined && row[key] !== "");
     if (!hasQc) return "-";
     return value === "bulk_vessel" ? "Bulk vessel" : "Not specified";
