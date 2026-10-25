@@ -31,7 +31,7 @@ async function init() {
     "processReceivedHint", "processPressedLiquidL", "processPressedLiquidHint",
     "processWetPulpKg", "processDryPulpKg",
     "processLostSeaweedKg", "processPressCount", "processTotalTime", "processAveragePress",
-    "processWetDryRatio", "processStockProductRatio", "processPhoto",
+    "processWetDryRatio", "processStockProductRatio", "processPhoto", "processCameraPhoto", "processTakePhoto", "processChoosePhotos",
     "processPhotoHint", "processPhotoPreview", "processPhotoImage", "processPhotoName",
     "deleteProcessPhoto", "processNotes", "saveProcessRecord",
     "clearProcessRecord", "processRecordStatus", "favoriteProcessForm"
@@ -79,7 +79,10 @@ function bindEvents() {
     state.finishDateChanged = true;
     updateCalculations();
   });
+  els.processTakePhoto.addEventListener("click", () => els.processCameraPhoto.click());
+  els.processChoosePhotos.addEventListener("click", () => els.processPhoto.click());
   els.processPhoto.addEventListener("change", selectPhoto);
+  els.processCameraPhoto.addEventListener("change", selectPhoto);
   els.deleteProcessPhoto.addEventListener("click", clearPhoto);
   els.processRecordForm.addEventListener("input", () => {
     updateCalculations();
@@ -135,8 +138,8 @@ async function loadFormContext() {
     : `${formatNumber(dailyPressedLiquidL)} L registered today.`;
 }
 
-async function selectPhoto() {
-  const file = els.processPhoto.files?.[0];
+async function selectPhoto(event) {
+  const file = (event?.target?.files || els.processPhoto.files)?.[0];
   if (!file) return;
   setStatus("Preparing photo...");
   try {
@@ -162,6 +165,7 @@ function clearPhoto() {
   clearPhotoPreviewUrl();
   state.photo = null;
   els.processPhoto.value = "";
+  els.processCameraPhoto.value = "";
   els.processPhotoImage.removeAttribute("src");
   els.processPhotoName.textContent = "";
   els.processPhotoPreview.hidden = true;
