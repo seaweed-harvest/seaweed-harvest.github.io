@@ -16,8 +16,7 @@ const els = {};
 const state = {
   access: null,
   submissionId: crypto.randomUUID(),
-  photo: null,
-  photoUrl: null,
+  photos: [],
   finishDateChanged: false
 };
 
@@ -32,8 +31,8 @@ async function init() {
     "processWetPulpKg", "processDryPulpKg",
     "processLostSeaweedKg", "processPressCount", "processTotalTime", "processAveragePress",
     "processWetDryRatio", "processStockProductRatio", "processPhoto", "processCameraPhoto", "processTakePhoto", "processChoosePhotos",
-    "processPhotoHint", "processPhotoPreview", "processPhotoImage", "processPhotoName",
-    "deleteProcessPhoto", "processNotes", "saveProcessRecord",
+    "processPhotoHint", "processPhotoPreview",
+    "processNotes", "saveProcessRecord",
     "clearProcessRecord", "processRecordStatus", "favoriteProcessForm"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
@@ -83,7 +82,6 @@ function bindEvents() {
   els.processChoosePhotos.addEventListener("click", () => els.processPhoto.click());
   els.processPhoto.addEventListener("change", selectPhoto);
   els.processCameraPhoto.addEventListener("change", selectPhoto);
-  els.deleteProcessPhoto.addEventListener("click", clearPhoto);
   els.processRecordForm.addEventListener("input", () => {
     updateCalculations();
     updateFieldHighlights();
@@ -139,42 +137,66 @@ async function loadFormContext() {
 }
 
 async function selectPhoto(event) {
-  const file = (event?.target?.files || els.processPhoto.files)?.[0];
-  if (!file) return;
-  setStatus("Preparing photo...");
+  const files = Array.from(event?.target?.files || []);
+  if (event?.target) event.target.value = "";
+  if (!files.length) return;
+  if (state.photos.length + files.length > 6) {
+    setStatus("Maximum 6 photos per record.", "error");
+    return;
+  }
+  setStatus("Preparing photos...");
   try {
-    const blob = await compressPhoto(file);
-    clearPhotoPreviewUrl();
-    state.photo = {
-      blob,
-      originalName: String(file.name || "process-sample.jpg").slice(0, 255)
-    };
-    state.photoUrl = URL.createObjectURL(blob);
-    els.processPhotoImage.src = state.photoUrl;
-    els.processPhotoName.textContent = `${state.photo.originalName} - ${formatFileSize(blob.size)}`;
-    els.processPhotoPreview.hidden = false;
-    els.processPhotoHint.textContent = "Photo ready.";
+    for (const file of files) {
+      if (!String(file.type || "").startsWith("image/")) {
+        throw new Error("Choose image files only.");
+      }
+      const blob = await compressPhoto(file);
+      state.photos.push({
+        blob,
+        originalName: String(file.name || "process-photo.jpg").slice(0, 255),
+        url: URL.createObjectURL(blob)
+      });
+    }
     setStatus("");
   } catch (error) {
-    clearPhoto();
     setStatus(error.message, "error");
   }
+  renderProcessPhotos();
+}
+
+function renderProcessPhotos() {
+  els.processPhotoPreview.replaceChildren();
+  state.photos.forEach((photo, index) => {
+    const figure = document.createElement("figure");
+    figure.className = "process-photo-card";
+    const image = document.createElement("img");
+    image.className = "stock-photo-thumbnail";
+    image.src = photo.url;
+    image.alt = photo.originalName;
+    const caption = document.createElement("figcaption");
+    caption.textContent = photo.originalName;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "danger-text-action";
+    remove.textContent = "Remove";
+    remove.setAttribute("aria-label", "Remove " + photo.originalName);
+    remove.addEventListener("click", () => {
+      URL.revokeObjectURL(photo.url);
+      state.photos.splice(index, 1);
+      renderProcessPhotos();
+    });
+    figure.append(image, caption, remove);
+    els.processPhotoPreview.append(figure);
+  });
+  els.processPhotoHint.textContent = state.photos.length + " of 6 photos";
 }
 
 function clearPhoto() {
-  clearPhotoPreviewUrl();
-  state.photo = null;
+  state.photos.forEach((photo) => URL.revokeObjectURL(photo.url));
+  state.photos = [];
   els.processPhoto.value = "";
   els.processCameraPhoto.value = "";
-  els.processPhotoImage.removeAttribute("src");
-  els.processPhotoName.textContent = "";
-  els.processPhotoPreview.hidden = true;
-  els.processPhotoHint.textContent = "One photo, compressed before upload.";
-}
-
-function clearPhotoPreviewUrl() {
-  if (state.photoUrl) URL.revokeObjectURL(state.photoUrl);
-  state.photoUrl = null;
+  renderProcessPhotos();
 }
 
 async function submitProcessRecord(event) {
@@ -185,11 +207,12 @@ async function submitProcessRecord(event) {
 
   els.saveProcessRecord.disabled = true;
   setStatus("Saving...");
-  let uploadedPath = null;
+  const uploadedPhotos = [];
   try {
-    const photo = await uploadPhoto();
-    uploadedPath = photo?.storage_path || null;
-    const { data, error } = await authClient.rpc("ag_submit_process_record", {
+    for (let index = 0; index < state.photos.length; index++) {
+      uploadedPhotos.push(await uploadPhoto(state.photos[index], index));
+    }
+    const { data, error } = await authClient.rpc("ag_submit_process_record_with_photos", {
       p_submission_id: state.submissionId,
       p_record: {
         start_date: els.processDate.value,
@@ -204,9 +227,9 @@ async function submitProcessRecord(event) {
         dry_pulp_kg: numberOrNull(els.processDryPulpKg.value),
         lost_seaweed_kg: numberOrNull(els.processLostSeaweedKg.value),
         number_of_presses: integerOrNull(els.processPressCount.value),
-        photo,
         notes: textOrNull(els.processNotes.value)
-      }
+      },
+      p_photos: uploadedPhotos
     });
     if (error) throw error;
     const saved = Array.isArray(data) ? data[0] : data;
@@ -215,28 +238,29 @@ async function submitProcessRecord(event) {
     resetAfterSave();
   } catch (error) {
     console.error("Process Record save failed", error);
-    if (uploadedPath) await authClient.storage.from(PHOTO_BUCKET).remove([uploadedPath]);
+    if (uploadedPhotos.length) {
+      await authClient.storage.from(PHOTO_BUCKET).remove(uploadedPhotos.map((photo) => photo.storage_path));
+    }
     setStatus(error.message, "error");
   } finally {
     els.saveProcessRecord.disabled = false;
   }
 }
 
-async function uploadPhoto() {
-  if (!state.photo) return null;
+async function uploadPhoto(photo, index) {
   const userId = state.access.session?.user?.id;
-  if (!userId) throw new Error("Sign in again before uploading the photo.");
-  const storagePath = `${userId}/${state.submissionId}/01-${crypto.randomUUID()}.jpg`;
+  if (!userId) throw new Error("Sign in again before uploading photos.");
+  const storagePath = `${userId}/${state.submissionId}/${String(index + 1).padStart(2, "0")}-${crypto.randomUUID()}.jpg`;
   const { error } = await authClient.storage.from(PHOTO_BUCKET).upload(
     storagePath,
-    state.photo.blob,
+    photo.blob,
     { contentType: "image/jpeg", cacheControl: "3600", upsert: false }
   );
   if (error) throw error;
   return {
     storage_path: storagePath,
-    original_name: state.photo.originalName,
-    byte_size: state.photo.blob.size,
+    original_name: photo.originalName,
+    byte_size: photo.blob.size,
     content_type: "image/jpeg"
   };
 }
