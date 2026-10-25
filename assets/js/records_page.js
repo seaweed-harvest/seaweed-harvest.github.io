@@ -1382,6 +1382,8 @@ function recordRowsHtml(rows, options = {}) {
           ? formRecordEditor(row, field, label, draft)
           : (state.category === "site_sample" && field === "photo_link" && id
             ? `<a href="./site_water_sample_photos.html?id=${encodeURIComponent(id)}">View / add</a>`
+            : state.category === "process" && field === "has_photo" && Boolean(row.has_photo) && id
+            ? `<a href="./process_record_photos.html?id=${encodeURIComponent(id)}">View photos</a>`
             : state.category === "stock" && field === "photo_count" && id !== "null"
             ? `<a href="./stock_record_photos.html?id=${encodeURIComponent(id)}">${(Array.isArray(row.photo_attachments) ? row.photo_attachments.length : Number(row.photo_count || 0))} photo(s)</a>`
             : escapeHtml(cellValue(row, field)))}</td>`).join("")}
