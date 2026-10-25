@@ -5,10 +5,6 @@ import { setPrintValue, setupPdfWorksheet } from "./print_worksheet.js";
 import { selectRows } from "./supabase_client.js";
 
 const els = {};
-const MEASUREMENT_IDS = [
-  "siteSampleTemperature", "siteSampleSalinity", "siteSamplePh", "siteSampleDissolvedOxygen", "siteSampleTds", "siteSampleEc"
-];
-
 let submissionId = crypto.randomUUID();
 let gpsAccuracyMeters = null;
 let communities = [];
@@ -87,12 +83,6 @@ async function submitSiteSample(event) {
     els.siteSampleGps.setCustomValidity("");
     return;
   }
-  if (!MEASUREMENT_IDS.some((id) => els[id].value !== "")) {
-    els.siteSampleTemperature.focus();
-    setStatus("Enter at least one site measurement.", "error");
-    return;
-  }
-
   const community = communities.find((row) => row.id === els.siteSampleCommunity.value);
   if (!community) {
     setStatus("Select a community.", "error");
@@ -102,7 +92,7 @@ async function submitSiteSample(event) {
   els.saveSiteSample.disabled = true;
   setStatus("Saving...");
   try {
-    const { data, error } = await authClient.rpc("ag_submit_site_water_sample_record_v5", {
+    const { data, error } = await authClient.rpc("ag_submit_site_water_sample_record_v6", {
       p_submission_id: submissionId,
       p_record: {
         auto_sample_number: true,
@@ -150,7 +140,8 @@ function selectedTideStage() {
 }
 
 function selectedEColiSampleTaken() {
-  return els.siteSampleForm.querySelector('[name="siteSampleEColiTaken"]:checked')?.value === "yes";
+  const choice = els.siteSampleForm.querySelector('[name="siteSampleEColiTaken"]:checked')?.value;
+  return choice === "yes" ? true : choice === "no" ? false : null;
 }
 
 function captureGps() {
