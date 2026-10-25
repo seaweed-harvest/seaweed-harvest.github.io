@@ -5,7 +5,7 @@ import { runInNewContext } from "node:vm";
 
 const script = readFileSync(new URL("../assets/js/mawimbi_analysis.js", import.meta.url), "utf8")
   .replace(/^import[^\n]*\n/gm, "")
-  + "\nthis.math = { buildStockTimeline, groupIntakeSeries, fillMissingPeriods, periodStart, nextPeriod, drawLineChart, buildProcessingMetrics, drawProcessingScatter };";
+  + "\nthis.math = { buildStockTimeline, groupIntakeSeries, fillMissingPeriods, periodStart, nextPeriod, drawLineChart, buildProcessingMetrics, drawProcessingScatter, rollingTrendPoints, cumulativeWeeklyPoints };";
 function mockElement() {
   return {
     children: [], attributes: {},
@@ -19,7 +19,7 @@ const context = {
   Intl, Date, Math, Number, String, Array, Map, Set
 };
 runInNewContext(script, context, { filename: "mawimbi_analysis.js" });
-const { buildStockTimeline, groupIntakeSeries, fillMissingPeriods, periodStart, nextPeriod, drawLineChart, buildProcessingMetrics, drawProcessingScatter } = context.math;
+const { buildStockTimeline, groupIntakeSeries, fillMissingPeriods, periodStart, nextPeriod, drawLineChart, buildProcessingMetrics, drawProcessingScatter, rollingTrendPoints, cumulativeWeeklyPoints } = context.math;
 
 test("monthly average uses distinct days with collections, not collection count or calendar days", () => {
   const trend = groupIntakeSeries([
@@ -254,5 +254,69 @@ test("Mawimbi Analysis includes processing plots and only displays them with Pro
   }
   assert.match(js, /hasOrganisationCapability\(access.profile, "form_process_record"\)/);
   assert.match(js, /p_record_type: "process"/);
-  assert.match(page, /total pressed liquid \(L\).*total received kg/i);
+  assert.match(page, /total pressed liquid \(L\).*received seaweed \(kg\)/i);
+});
+
+
+test("Rolling fourteen-day intake windows overlap on both sides of a Sunday/Monday boundary", () => {
+  const result = rollingTrendPoints([
+    {date:"2026-09-06",volume:1000,count:1},
+    {date:"2026-09-07",volume:1000,count:1}
+  ], {start:"2026-09-01",end:"2026-09-15"});
+  assert.equal(result[0].date, "2026-09-01");
+  assert.equal(result[1].date, "2026-09-08");
+  assert.equal(result[0].volume, 2000);
+  assert.equal(result[1].volume, 2000);
+  assert.equal(result[0].average, 1000);
+  assert.equal(result[1].average, 1000);
+});
+
+test("Rolling extraction yield is weighted by matching seaweed kg and ignores inactive dates", () => {
+  const rows=[
+    {date:"2026-08-02",received:100,yieldReceived:100,yieldPressed:20},
+    {date:"2026-08-03",received:900,yieldReceived:900,yieldPressed:450},
+    {date:"2026-08-20",received:700,yieldReceived:700,yieldPressed:280}
+  ];
+  const result=rollingTrendPoints(rows,{start:"2026-08-01",end:"2026-08-22"},"yield");
+  assert.equal(result[0].yield, .47);
+  assert.equal(result[0].average, 500);
+  assert.equal(result[1].yield, .47);
+  assert.equal(result[2].yield, null);
+  assert.equal(result[3].yield, .4);
+});
+
+test("Rolling trend leaves gaps when no processing or collection days were recorded", () => {
+  const rows=[
+    {date:"2026-08-01",volume:300,count:1},
+    {date:"2026-09-01",volume:900,count:1}
+  ];
+  const result=rollingTrendPoints(rows,{start:"2026-08-01",end:"2026-09-01"});
+  assert.equal(result[0].average,300);
+  assert.equal(result[2].average,null);
+  assert.equal(result.at(-1).average,900);
+});
+
+test("Cumulative weekly points retain actual totals including prior filtered history", () => {
+  const rows=[
+    {date:"2026-07-29",volume:100},
+    {date:"2026-08-02",volume:300},
+    {date:"2026-08-03",volume:500},
+    {date:"2026-08-16",volume:400}
+  ];
+  const result=cumulativeWeeklyPoints(rows,{start:"2026-08-01",end:"2026-08-16"});
+  assert.equal(result[0].cumulative,100);
+  assert.equal(result[1].cumulative,900);
+  assert.equal(result.at(-1).cumulative,1300);
+});
+
+test("Default rolling selector, compact copy and outlier exclusion are visible without editing data", () => {
+  const page=readFileSync(new URL("../mawimbi_analysis.html",import.meta.url),"utf8");
+  const js=readFileSync(new URL("../assets/js/mawimbi_analysis.js",import.meta.url),"utf8");
+  assert.equal((page.match(/value="rolling" selected/g)||[]).length,3);
+  assert.match(js,/row\.date !== "2026-07-13"/);
+  assert.match(page,/13 Jul outlier excluded/);
+  assert.ok(!page.includes("Useful for spotting a shift in daily output"));
+  assert.ok(!page.includes("Records missing either measurement are not included"));
+  assert.match(js,/function rollingTrendPoints/);
+  assert.match(js,/function cumulativeWeeklyPoints/);
 });
