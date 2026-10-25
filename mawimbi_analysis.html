@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Mawimbi Analysis - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/mawimbi_analysis.css?v=3">
+  <link rel="stylesheet" href="./assets/css/mawimbi_analysis.css?v=4">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Seaweed Harvest">
@@ -36,7 +36,7 @@
           <div>
             <p class="eyebrow">Mawimbi · Records</p>
             <h2>Analysis</h2>
-            <p class="field-hint">Processing intake, extraction efficiency, community collection and BioStim stock trends. Reload to check recent records.</p>
+            
           </div>
           <button id="analysisRefresh" type="button" class="analysis-refresh">Refresh data</button>
         </div>
@@ -45,7 +45,7 @@
           <label>To <input id="analysisTo" type="date" aria-label="Analysis to date"></label>
           <button id="analysisApply" type="button">Apply dates</button>
         </div>
-        <p class="field-hint analysis-date-note">Leave dates blank for all available records. Dates use Kenya local time.</p>
+        
         <p id="analysisStatus" class="admin-status" role="status" aria-live="polite">Loading analysis...</p>
       </section>
 
@@ -53,7 +53,7 @@
         <div class="analysis-panel-heading">
           <div>
             <h2 id="processingChartTitle">Processing intake &amp; extraction</h2>
-            <p class="field-hint">From Mawimbi Processing records. Dates are processing dates, not the dates forms were entered.</p>
+            
           </div>
           <div class="analysis-summary-metrics">
             <span><strong class="analysis-stat" id="processingReceivedTotal">— kg</strong><small>Seaweed received</small></span>
@@ -61,49 +61,51 @@
           </div>
         </div>
         <div class="analysis-filter-grid">
-          <label>Trend grouped by
+          <label>Trend
             <select id="processingGrouping">
+              <option value="rolling" selected>Smoothed · 14 days</option>
               <option value="day">Day</option>
               <option value="week">Week</option>
-              <option value="month" selected>Month</option>
+              <option value="month">Month</option>
             </select>
           </label>
         </div>
         <div class="analysis-chart-grid">
           <div class="analysis-chart-block">
-            <div class="analysis-chart-heading"><h3>Seaweed received each processing day</h3></div>
-            <p class="field-hint">One dot per processing date, showing total received kg across all Processing forms on that day.</p>
+            <div class="analysis-chart-heading"><h3>Seaweed received · daily</h3></div>
+            
             <div id="processingReceivedPlot" class="analysis-plot" role="img" aria-label="Scatter plot of daily processing seaweed received in kg"></div>
           </div>
           <div class="analysis-chart-block">
-            <div class="analysis-chart-heading"><h3>Average daily processing intake</h3><strong class="analysis-mini-stat" id="processingAverage">— kg/day</strong></div>
-            <p class="field-hint">Each period’s received kg ÷ days with processing records. Days without processing are not counted.</p>
+            <div class="analysis-chart-heading"><h3>Average processing intake</h3><strong class="analysis-mini-stat" id="processingAverage">— kg/day</strong></div>
+            
             <div id="processingAveragePlot" class="analysis-plot" role="img" aria-label="Average kg received per processing day by period"></div>
           </div>
           <div class="analysis-chart-block">
-            <div class="analysis-chart-heading"><h3>Daily extraction yield</h3></div>
-            <p class="field-hint">One dot per processing day: total pressed liquid (L) ÷ corresponding seaweed received (kg).</p>
+            <div class="analysis-chart-heading"><h3>Extraction yield · daily</h3></div>
+            
             <div id="processingDailyYieldPlot" class="analysis-plot" role="img" aria-label="Scatter plot of extraction yield in litres per kg per processing day"></div>
           </div>
           <div class="analysis-chart-block">
-            <div class="analysis-chart-heading"><h3>Extraction yield over time</h3><strong class="analysis-mini-stat" id="processingPeriodYield">— L/kg</strong></div>
-            <p class="field-hint">Weighted by seaweed received: total pressed liquid (L) ÷ total received kg for each period. Higher means more liquid per kg.</p>
+            <div class="analysis-chart-heading"><h3>Extraction yield trend</h3><strong class="analysis-mini-stat" id="processingPeriodYield">— L/kg</strong></div>
+            
             <div id="processingYieldPlot" class="analysis-plot" role="img" aria-label="Trend of weighted extraction yield in litres of pressed liquid per kg received"></div>
-            <p class="field-hint">Yield axes are zoomed to reveal small differences; compare the L/kg figures rather than the visual slope alone.</p>
+            
           </div>
         </div>
         <p id="processingEmpty" class="analysis-empty" hidden>No Processing records for this date range.</p>
         <p id="processingStatus" class="field-hint" aria-live="polite"></p>
-        <p class="analysis-caution">Pressed liquid is measured at the pressing stage, not necessarily final packed BioStim volume. Yield is shown as L/kg, rather than an assumed mass percentage. Records missing either measurement are not included in extraction yield, and will be reported separately.</p>
+        
         <details class="analysis-detail-table">
-          <summary>Show processing totals and extraction by period</summary>
+          <summary>Period figures</summary>
+          <p class="analysis-caution">Yield = total pressed liquid (L) / matched received seaweed (kg). Pressed liquid is not final packed BioStim.</p>
           <div class="responsive-table-wrap"><table class="management-table admin-data-table">
             <thead><tr><th>Period beginning</th><th>Processing days</th><th>Received (kg)</th><th>Avg kg/day</th><th>Pressed liquid (L)</th><th>Yield (L/kg)</th></tr></thead>
             <tbody id="processingPeriodRows"></tbody>
           </table></div>
         </details>
         <details class="analysis-detail-table">
-          <summary>Show individual processing days</summary>
+          <summary>Daily figures</summary>
           <div class="responsive-table-wrap"><table class="management-table admin-data-table">
             <thead><tr><th>Processing date</th><th>Received (kg)</th><th>Pressed liquid (L)</th><th>Yield (L/kg)</th></tr></thead>
             <tbody id="processingDailyRows"></tbody>
@@ -115,7 +117,7 @@
         <div class="analysis-panel-heading">
           <div>
             <h2 id="harvestChartTitle">Seaweed collection progress</h2>
-            <p class="field-hint">Wet seaweed (kg) from Intake Collection forms, counted once per recorded collection.</p>
+            <p class="analysis-note">13 Jul outlier excluded · Collection dates</p>
           </div>
           <strong class="analysis-stat" id="harvestTotal">— kg collected</strong>
         </div>
@@ -123,11 +125,12 @@
           <label>Community
             <select id="harvestCommunity"><option value="">All communities combined</option></select>
           </label>
-          <label>Group by
+          <label>Trend
             <select id="harvestGrouping">
+              <option value="rolling" selected>Smoothed · 14 days</option>
               <option value="day">Day</option>
               <option value="week">Week</option>
-              <option value="month" selected>Month</option>
+              <option value="month">Month</option>
             </select>
           </label>
         </div>
@@ -137,19 +140,19 @@
               <h3>Average daily collection</h3>
               <strong id="harvestAverage" class="analysis-mini-stat">— kg/day</strong>
             </div>
-            <p class="field-hint">Each period’s collected kg ÷ days with recorded collections. Useful for spotting a shift in daily output.</p>
+            
             <div id="harvestPlot" class="analysis-plot" role="img" aria-label="Average collection weight per active collection day, line chart"></div>
           </div>
           <div class="analysis-chart-block">
-            <div class="analysis-chart-heading"><h3>Accumulated seaweed collected</h3></div>
-            <p class="field-hint">Running total of collected kg, including earlier records when a date filter is applied.</p>
+            <div class="analysis-chart-heading"><h3>Cumulative seaweed collected</h3></div>
+            
             <div id="harvestCumulativePlot" class="analysis-plot" role="img" aria-label="Cumulative collected seaweed kilograms, line chart"></div>
           </div>
         </div>
         <p id="harvestEmpty" class="analysis-empty" hidden>No collections recorded for this selection.</p>
         <p id="harvestStatus" class="field-hint" aria-live="polite"></p>
         <details class="analysis-detail-table">
-          <summary>Show collection figures</summary>
+          <summary>Period figures</summary>
           <div class="responsive-table-wrap"><table class="management-table admin-data-table">
             <thead><tr><th>Period beginning</th><th>Collection days</th><th>Collected kg</th><th>Avg kg/day</th><th>Accumulated kg</th></tr></thead>
             <tbody id="harvestRows"></tbody>
@@ -161,48 +164,49 @@
         <div class="analysis-panel-heading">
           <div>
             <h2 id="stockChartTitle">BioStim stock production</h2>
-            <p class="field-hint">Newly recorded BioStim stock (litres). QC retests and stock removals do not count as new production.</p>
+            
           </div>
           <strong class="analysis-stat" id="stockTotal">— L produced</strong>
         </div>
         <div class="analysis-filter-grid">
-          <label>Group by
+          <label>Trend
             <select id="stockGrouping">
+              <option value="rolling" selected>Smoothed · 14 days</option>
               <option value="day">Day</option>
               <option value="week">Week</option>
-              <option value="month" selected>Month</option>
+              <option value="month">Month</option>
             </select>
           </label>
         </div>
         <div class="analysis-chart-grid">
           <div class="analysis-chart-block">
             <div class="analysis-chart-heading">
-              <h3>Average daily stock intake</h3>
+              <h3>Average stock intake</h3>
               <strong id="stockAverage" class="analysis-mini-stat">— L/day</strong>
             </div>
-            <p class="field-hint">New stock litres ÷ days with recorded new stock in each period.</p>
+            
             <div id="stockAveragePlot" class="analysis-plot" role="img" aria-label="Average new stock litres per active production day, line chart"></div>
           </div>
           <div class="analysis-chart-block">
-            <div class="analysis-chart-heading"><h3>Accumulated stock produced</h3></div>
-            <p class="field-hint">Running total of new litres recorded, before removals; never adds QC retests again.</p>
+            <div class="analysis-chart-heading"><h3>Cumulative stock produced</h3></div>
+            
             <div id="stockCumulativePlot" class="analysis-plot" role="img" aria-label="Accumulated new BioStim stock produced in litres, line chart"></div>
           </div>
         </div>
-        <div class="analysis-legend"><span class="analysis-line-key"></span> Recorded intake trend <span class="analysis-shade-key"></span> QC batch / retest date</div>
+        
         <p id="stockEmpty" class="analysis-empty" hidden>No numbered BioStim stock records for this selection.</p>
         <p id="stockStatus" class="field-hint" aria-live="polite"></p>
-        <p class="analysis-caution">Both production plots count only initial, numbered litre/mL stock entries. The shaded periods contain recorded QC batches or retests, not necessarily the dates testing occurred. Imported October 2026 QC records may use 7 October as a reference date.</p>
+        
         <details class="analysis-detail-table">
-          <summary>Show stock production figures</summary>
+          <summary>Period figures</summary>
           <div class="responsive-table-wrap"><table class="management-table admin-data-table">
             <thead><tr><th>Period beginning</th><th>Production days</th><th>New stock (L)</th><th>Avg L/day</th><th>Accumulated (L)</th><th>QC records</th></tr></thead>
             <tbody id="stockProductionRows"></tbody>
           </table></div>
         </details>
         <details class="analysis-detail-table">
-          <summary>Show numbered stock on-hand balance and QC history</summary>
-          <p class="analysis-caution">This separate balance includes recorded removals/restorations, but is not a physical stocktake. Historical unidentified disposals without known container IDs or disposal dates are excluded.</p>
+          <summary>Stock balance &amp; QC</summary>
+          <p class="analysis-caution">Balance excludes unidentified historical disposals. QC periods are shaded.</p>
           <div id="stockPlot" class="analysis-plot" role="img" aria-label="Recorded BioStim stock balance with shaded QC dates"></div>
           <div class="responsive-table-wrap"><table class="management-table admin-data-table">
             <thead><tr><th>Date</th><th>Change (L)</th><th>Recorded balance (L)</th><th>QC records</th></tr></thead>
@@ -213,6 +217,6 @@
     </section>
   </main>
   <script type="module" src="./assets/js/admin_page.js?v=39"></script>
-  <script type="module" src="./assets/js/mawimbi_analysis.js?v=3"></script>
+  <script type="module" src="./assets/js/mawimbi_analysis.js?v=4"></script>
 </body>
 </html>
