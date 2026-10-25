@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="./assets/css/form_foundation.css?v=2">
   <link rel="stylesheet" href="./assets/css/stock_photos.css?v=2">
   <link rel="stylesheet" href="./assets/css/mawimbi_photo_actions.css">
+  <link rel="stylesheet" href="./assets/css/stock_corrections.css?v=2">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -44,6 +45,7 @@
           <div class="form-panel-actions">
             <a class="button-link compact-button" href="./today.html?records=stock-record">Today's Intake</a>
             <a class="button-link compact-button" href="./records.html">Stock records</a>
+            <a class="button-link compact-button" href="#stockCorrections">Edit record / batch</a>
             <button id="favoritePackingForm" class="form-favorite-action" type="button" aria-pressed="false" aria-label="Add BioStim Stock Record to dashboard" title="Add BioStim Stock Record to dashboard">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" data-lucide="star" aria-hidden="true"><path d="m12 2.8 2.8 5.7 6.3.9-4.6 4.4 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.4 6.3-.9L12 2.8Z"></path></svg>
             </button>
@@ -369,6 +371,44 @@
           </div>
         </form>
       </section>
+      <section id="stockCorrections" class="panel form-record-panel" aria-labelledby="scHeading">
+      <div class="section-head compact"><h2 id="scHeading">Correct stock records</h2></div>
+      <div class="sc-toolbar">
+        <label>Record date <input id="scDate" type="date" required></label>
+        <button id="scRefresh" type="button">Refresh</button>
+      </div>
+      <div class="sc-modes" role="group" aria-label="Correction type">
+        <button id="scModeRecord" type="button" aria-pressed="true">Edit record</button>
+        <button id="scModeBatch" type="button" aria-pressed="false">Edit batch</button>
+      </div>
+      <div id="scRecordArea">
+        <div id="scRecordList" class="sc-list" aria-label="Select a container"></div>
+        <form id="scRecordEditor" class="sc-editor"></form>
+      </div>
+      <div id="scBatchArea" hidden>
+        <label class="sc-editor">Select batch
+          <select id="scBatchSelect"></select>
+        </label>
+        <form id="scBatchEditor" class="sc-editor" hidden>
+          <p id="scBatchSummary" class="sc-summary"></p>
+          <div class="sc-grid">
+            <label>First container number
+              <input id="scBatchFirst" name="first_carton_serial" type="text" inputmode="numeric" pattern="[0-9]{1,18}" required>
+            </label>
+            <label>Last container number
+              <input id="scBatchLast" name="last_carton_serial" type="text" inputmode="numeric" pattern="[0-9]{1,18}" required>
+            </label>
+          </div>
+          <label class="sc-check">
+            <input id="scApplyShared" name="apply_shared" type="checkbox">
+            Update shared measurements across this batch
+          </label>
+          <div id="scBatchSharedFields" hidden></div>
+          <div class="sc-actions"><button type="submit">Save batch changes</button></div>
+        </form>
+      </div>
+      <p id="scStatus" class="admin-status sc-status" role="status" aria-live="polite"></p>
+    </section>
     </section>
   </main>
   <section id="packingPrintWorksheet" class="ag-print-document" data-print-title="BioStim Stock Worksheet" data-pdf-filename="seaweed-biostim-stock-worksheet.pdf" aria-hidden="true">
@@ -415,5 +455,6 @@
   </section>
   <script type="module" src="./assets/js/admin_page.js?v=35"></script>
   <script type="module" src="./assets/js/stabilization_packing_form.js?v=22"></script>
+  <script type="module" src="./assets/js/stock_corrections.js?v=2"></script>
 </body>
 </html>
