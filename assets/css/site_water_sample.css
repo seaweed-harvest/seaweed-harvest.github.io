@@ -1,31 +1,45 @@
+/* Shared Process/Stock form field and unit patterns. */
+.site-sample-form .site-sample-details-grid,
+.site-sample-form .site-sample-measurement-grid {
+  width: 100%;
+  max-width: 860px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+  align-items: start;
+}
+.site-sample-form .site-sample-details-grid > label,
+.site-sample-form .site-sample-measurement-grid > label { min-width: 0; }
+.site-sample-form .site-sample-measurement-grid .standard-input-group-compact {
+  grid-template-columns: minmax(0, 1fr) 62px;
+}
 .site-sample-form .site-sample-gps-row {
+  max-width: 860px;
   grid-template-columns: minmax(0, 1fr) 78px;
 }
-
-.site-sample-form .site-sample-gps-row button {
-  min-height: 40px;
-  padding: 8px 12px;
-}
-
-@media (max-width: 520px) {
-  .site-sample-form .standard-input-group-unit {
-    grid-template-columns: minmax(0, 1fr) 104px;
+.site-sample-form .site-sample-gps-row button { min-height: 40px; padding: 8px 12px; }
+@media (max-width: 760px) {
+  .site-sample-form .site-sample-details-grid,
+  .site-sample-form .site-sample-measurement-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
   }
-
   .site-sample-form .site-sample-gps-row {
     grid-template-columns: minmax(0, 1fr) 72px;
   }
 }
-
+/* 12-column worksheet, matching the data-pdf-widths in its markup. */
 @media print {
   .ag-print-site-sample-table col:nth-child(1) { width: 3%; }
-  .ag-print-site-sample-table col:nth-child(2) { width: 13%; }
-  .ag-print-site-sample-table col:nth-child(3) { width: 8%; }
-  .ag-print-site-sample-table col:nth-child(4) { width: 13%; }
-  .ag-print-site-sample-table col:nth-child(5) { width: 8%; }
-  .ag-print-site-sample-table col:nth-child(6) { width: 9%; }
-  .ag-print-site-sample-table col:nth-child(7) { width: 8%; }
+  .ag-print-site-sample-table col:nth-child(2) { width: 12%; }
+  .ag-print-site-sample-table col:nth-child(3) { width: 7%; }
+  .ag-print-site-sample-table col:nth-child(4) { width: 11%; }
+  .ag-print-site-sample-table col:nth-child(5) { width: 7%; }
+  .ag-print-site-sample-table col:nth-child(6) { width: 6%; }
+  .ag-print-site-sample-table col:nth-child(7) { width: 7%; }
   .ag-print-site-sample-table col:nth-child(8) { width: 8%; }
-  .ag-print-site-sample-table col:nth-child(9) { width: 10%; }
-  .ag-print-site-sample-table col:nth-child(10) { width: 20%; }
+  .ag-print-site-sample-table col:nth-child(9) { width: 8%; }
+  .ag-print-site-sample-table col:nth-child(10) { width: 8%; }
+  .ag-print-site-sample-table col:nth-child(11) { width: 8%; }
+  .ag-print-site-sample-table col:nth-child(12) { width: 15%; }
 }

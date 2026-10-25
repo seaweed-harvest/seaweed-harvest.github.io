@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Site Water Sample - Seaweed Aggregation</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/site_water_sample.css">
+  <link rel="stylesheet" href="./assets/css/site_water_sample.css?v=2">
   <link rel="stylesheet" href="./assets/css/stock_photos.css">
   <link rel="stylesheet" href="./assets/css/mawimbi_photo_actions.css">
   <link rel="stylesheet" href="./assets/css/form_foundation.css?v=2">
@@ -62,22 +62,24 @@
           </label>
 
           <fieldset>
-            <legend>Sample</legend>
+            <legend>Sample details</legend>
             <p class="standard-field-hint">Only date/time and community are required.</p>
+            <div class="site-sample-details-grid">
+              <label><span class="standard-field-label standard-field-label-aligned">Date and time</span>
+                <input id="siteSampledAt" type="datetime-local" required>
+              </label>
+              <label><span class="standard-field-label standard-field-label-aligned">Community</span>
+                <select id="siteSampleCommunity" required><option value="">Select community</option></select>
+              </label>
+            </div>
             <div class="standard-choice-field">
-              <span class="standard-field-label">Spring tide</span>
+              <span class="standard-field-label">Spring tide (optional)</span>
               <div class="standard-segmented-control" role="radiogroup" aria-label="Spring tide stage">
                 <label><input type="radio" name="siteSampleTide" value="spring_low"><span>Low</span></label>
                 <label><input type="radio" name="siteSampleTide" value="spring_high"><span>High</span></label>
               </div>
             </div>
-            <label>Date and time
-              <input id="siteSampledAt" type="datetime-local" required>
-            </label>
-            <label>Community
-              <select id="siteSampleCommunity" required><option value="">Select community</option></select>
-            </label>
-            <label>GPS fix <span class="standard-field-hint">(optional)</span>
+            <label><span class="standard-field-label">GPS fix (optional)</span>
               <span class="standard-input-group site-sample-gps-row">
                 <input id="siteSampleGps" type="text" inputmode="decimal" autocomplete="off" placeholder="-4.646000, 39.381000" aria-describedby="siteSampleGpsHint">
                 <button id="captureSiteSampleGps" type="button">GPS</button>
@@ -87,33 +89,44 @@
           </fieldset>
 
           <fieldset>
-            <legend>Measurements (optional)</legend>
-            <p class="standard-field-hint">Enter only the readings you were able to collect. You can save the sample with no sensor readings.</p>
-            <label>Water temperature (&deg;C)
-              <input id="siteSampleTemperature" type="number" min="-10" max="100" step="0.1" inputmode="decimal">
-            </label>
-            <label>Salinity
+            <legend>Water measurements (optional)</legend>
+            <p class="standard-field-hint">Enter whichever readings are available. A sample can be saved with no sensor measurements.</p>
+            <div class="site-sample-measurement-grid">
+              <label><span class="standard-field-label standard-field-label-aligned">Water temperature</span>
+                <span class="standard-input-group standard-input-group-compact">
+                  <input id="siteSampleTemperature" type="number" min="-10" max="100" step="0.1" inputmode="decimal">
+                  <span class="standard-input-addon" aria-hidden="true">°C</span>
+                </span>
+              </label>
+              <label><span class="standard-field-label standard-field-label-aligned">Salinity</span>
               <span class="standard-input-group standard-input-group-unit">
                 <input id="siteSampleSalinity" type="number" min="0" max="100" step="0.001" inputmode="decimal">
                 <select id="siteSampleSalinityUnit" aria-label="Salinity unit"><option value="PSU">PSU</option><option value="ppt">ppt</option></select>
               </span>
             </label>
-            <label>pH
-              <input id="siteSamplePh" type="number" min="0" max="14" step="0.01" inputmode="decimal">
+              <label><span class="standard-field-label standard-field-label-aligned">pH</span>
+                <input id="siteSamplePh" type="number" min="0" max="14" step="0.01" inputmode="decimal">
             </label>
-            <label>Dissolved oxygen (mg/L)
-              <input id="siteSampleDissolvedOxygen" type="number" min="0" max="50" step="0.01" inputmode="decimal">
-            </label>
-            <label>Total dissolved solids (TDS)
+              <label><span class="standard-field-label standard-field-label-aligned">Dissolved oxygen</span>
+                <span class="standard-input-group standard-input-group-compact">
+                  <input id="siteSampleDissolvedOxygen" type="number" min="0" max="50" step="0.01" inputmode="decimal">
+                  <span class="standard-input-addon" aria-hidden="true">mg/L</span>
+                </span>
+              </label>
+              <label><span class="standard-field-label standard-field-label-aligned">Total dissolved solids (TDS)</span>
               <span class="standard-input-group standard-input-group-unit">
                 <input id="siteSampleTds" type="number" min="0" max="100000000" step="0.001" inputmode="decimal">
                 <select id="siteSampleTdsUnit" aria-label="TDS unit"><option value="mg/L">mg/L</option><option value="g/L">g/L</option><option value="ppt">ppt</option></select>
               </span>
             </label>
-            <label>Electrical conductivity (mS/cm)
-              <input id="siteSampleEc" type="number" min="0" max="10000" step="0.001" inputmode="decimal">
-            </label>
-            <div class="standard-choice-field">
+              <label><span class="standard-field-label standard-field-label-aligned">Electrical conductivity</span>
+                <span class="standard-input-group standard-input-group-compact">
+                  <input id="siteSampleEc" type="number" min="0" max="10000" step="0.001" inputmode="decimal">
+                  <span class="standard-input-addon" aria-hidden="true">mS/cm</span>
+                </span>
+              </label>
+            </div>
+            <div class="standard-choice-field site-sample-ecoli-field">
               <span class="standard-field-label">E. coli sample taken (optional)</span>
               <div class="standard-segmented-control" role="radiogroup" aria-label="E. coli sample taken">
                 <label><input type="radio" name="siteSampleEColiTaken" value="yes"><span>Yes</span></label>
@@ -180,6 +193,6 @@
     </article>
   </section>
   <script type="module" src="./assets/js/admin_page.js?v=35"></script>
-  <script type="module" src="./assets/js/site_water_sample_form.js?v=12"></script>
+  <script type="module" src="./assets/js/site_water_sample_form.js?v=13"></script>
 </body>
 </html>
