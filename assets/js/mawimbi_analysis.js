@@ -6,13 +6,17 @@ const ACTION_PAGE_SIZE = 100;
 const MAX_LEDGER_ROWS = 12000;
 const SVG_NS = "http://www.w3.org/2000/svg";
 const els = {};
-const state = { stockRows: null, stockActions: null, harvesting: 0, stocking: 0 };
+const state = { stockRows: null, stockActions: null, harvesting: 0, stocking: 0, processing: 0, processingEnabled: false };
 
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   [
     "analysisFrom", "analysisTo", "analysisApply", "analysisRefresh", "analysisStatus",
+    "processingAnalysisSection", "processingGrouping", "processingReceivedPlot", "processingAveragePlot",
+    "processingDailyYieldPlot", "processingYieldPlot", "processingReceivedTotal", "processingYieldTotal",
+    "processingAverage", "processingPeriodYield", "processingEmpty", "processingStatus",
+    "processingPeriodRows", "processingDailyRows",
     "harvestCommunity", "harvestGrouping", "harvestPlot", "harvestEmpty",
     "harvestTotal", "harvestAverage", "harvestCumulativePlot", "harvestStatus", "harvestRows",
     "stockPlot", "stockAveragePlot", "stockCumulativePlot", "stockGrouping",
@@ -28,6 +32,8 @@ async function init() {
       window.location.replace("./access_pending.html");
       return;
     }
+    state.processingEnabled = hasOrganisationCapability(access.profile, "form_process_record");
+    if (!state.processingEnabled) els.processingAnalysisSection.hidden = true;
     const communities = await selectRows(
       "ag_secure_communities",
       "select=community_id,community_name&order=community_name.asc"
@@ -46,11 +52,13 @@ async function init() {
     els.harvestCommunity.addEventListener("change", () => { void loadHarvest().catch(() => {}); });
     els.harvestGrouping.addEventListener("change", () => { void loadHarvest().catch(() => {}); });
     els.stockGrouping.addEventListener("change", () => { void loadStock().catch(() => {}); });
+    if (state.processingEnabled) els.processingGrouping.addEventListener("change", () => { void loadProcessing().catch(() => {}); });
     await refreshViews(true);
   } catch (error) {
     showMessage(els.analysisStatus, readableError(error), true);
     showMessage(els.harvestStatus, readableError(error), true);
     showMessage(els.stockStatus, readableError(error), true);
+    if (state.processingEnabled) showMessage(els.processingStatus, readableError(error), true);
   }
 }
 
@@ -80,6 +88,7 @@ async function refreshViews(refreshStock) {
   catch (error) { showMessage(els.analysisStatus, error.message, true); return; }
   showMessage(els.analysisStatus, "Loading current records...");
   const tasks = [loadHarvest(range), loadStock(range, refreshStock)];
+  if (state.processingEnabled) tasks.push(loadProcessing(range));
   const results = await Promise.allSettled(tasks);
   if (results.every(result => result.status === "fulfilled")) {
     showMessage(els.analysisStatus, "Showing current record data.");
@@ -185,6 +194,172 @@ function groupIntakeSeries(dailyRows, grouping, range) {
   return { points, opening, selectedTotal: cumulative - opening, cumulative };
 }
 
+/** Actual Mawimbi Processing records: processed date and two independent measurements. */
+async function loadProcessing(range = null) {
+  const requestId = ++state.processing;
+  showMessage(els.processingStatus, "Loading Processing form records...");
+  for (const plot of [els.processingReceivedPlot, els.processingAveragePlot,
+    els.processingDailyYieldPlot, els.processingYieldPlot]) plot.replaceChildren();
+  els.processingEmpty.hidden = true;
+  try {
+    const dates = range || selectedRange();
+    const records = await fetchEveryPage("ag_form_record_ledger", {
+      p_record_type: "process",
+      p_start_date: dates.start, p_end_date: dates.end,
+      p_community_id: null, p_search: null
+    }, STOCK_PAGE_SIZE);
+    if (requestId !== state.processing) return;
+    const metrics = buildProcessingMetrics(records, els.processingGrouping.value, dates);
+    els.processingReceivedTotal.textContent = formatNumber(metrics.received) + " kg";
+    els.processingYieldTotal.textContent = metrics.yield == null ? "— L/kg" : formatYield(metrics.yield) + " L/kg";
+    els.processingAverage.textContent = "— kg/day";
+    els.processingPeriodYield.textContent = "— L/kg";
+    els.processingPeriodRows.replaceChildren();
+    els.processingDailyRows.replaceChildren();
+    if (!metrics.daily.length) {
+      els.processingEmpty.hidden = false;
+      showMessage(els.processingStatus, "No Processing records within these dates.");
+      return;
+    }
+    const plotRange = {
+      start: els.analysisFrom.value ? dates.start : metrics.daily[0].date,
+      end: els.analysisTo.value ? dates.end : metrics.daily.at(-1).date
+    };
+    // Actual processing days are dots, positioned using real calendar dates.
+    drawProcessingScatter(els.processingReceivedPlot, metrics.daily,
+      "received", "kg", "Seaweed received per processing day", plotRange);
+    drawProcessingScatter(els.processingDailyYieldPlot, metrics.daily,
+      "yield", "L/kg", "Daily pressed-liquid extraction yield", plotRange);
+    const grouped = metrics.periods;
+    drawLineChart(els.processingAveragePlot, grouped, "average", "kg/day",
+      "Average seaweed received per processing day");
+    drawLineChart(els.processingYieldPlot, grouped, "yield", "L/kg",
+      "Weighted liquid extraction yield");
+    const lastActive = [...grouped].reverse().find(row => row.days && row.average != null);
+    const lastYield = [...grouped].reverse().find(row => row.yield != null);
+    if (lastActive) els.processingAverage.textContent = formatNumber(lastActive.average) + " kg/day";
+    if (lastYield) els.processingPeriodYield.textContent = formatYield(lastYield.yield) + " L/kg";
+    renderProcessingTables(metrics);
+    showMessage(els.processingStatus,
+      formatNumber(metrics.daily.length) + " processing days · " +
+      formatNumber(metrics.pressed) + " L pressed liquid · " +
+      (metrics.missing ? metrics.missing + " records missing a usable yield measurement; excluded from yield only." :
+        "All displayed records have usable yield measurements."));
+  } catch (error) {
+    if (requestId !== state.processing) return;
+    els.processingReceivedTotal.textContent = "— kg";
+    els.processingYieldTotal.textContent = "— L/kg";
+    showMessage(els.processingStatus, readableError(error), true);
+    throw error;
+  }
+}
+
+/** Period yield = sum(pressed liquid)/sum(matched received kg); never average ratios. */
+function buildProcessingMetrics(records, grouping, range) {
+  const days = new Map();
+  let missing = 0;
+  for (const row of records) {
+    const date = row.record_date;
+    if (!isISODate(date) || date < range.start || date > range.end) continue;
+    if (!days.has(date)) days.set(date, { date, received: 0, pressed: 0, yieldReceived: 0, yieldPressed: 0, count: 0 });
+    const day = days.get(date);
+    const kg = row.received_seaweed_kg == null ? NaN : Number(row.received_seaweed_kg);
+    const liquid = row.pressed_liquid_l == null ? NaN : Number(row.pressed_liquid_l);
+    const validKg = Number.isFinite(kg) && kg > 0;
+    const validLiquid = Number.isFinite(liquid) && liquid >= 0;
+    if (validKg) day.received += kg;
+    if (validLiquid) day.pressed += liquid;
+    if (validKg && validLiquid) {
+      day.yieldReceived += kg;
+      day.yieldPressed += liquid;
+    } else {
+      missing++;
+    }
+    day.count++;
+  }
+  const daily = [...days.values()].sort((a, b) => a.date.localeCompare(b.date)).map(row => ({
+    ...row, yield: row.yieldReceived > 0 ? row.yieldPressed / row.yieldReceived : null
+  }));
+  const buckets = new Map();
+  for (const row of daily) {
+    const key = periodStart(row.date, grouping);
+    if (!buckets.has(key)) buckets.set(key, { date: key, received: 0, pressed: 0, yieldReceived: 0, yieldPressed: 0, days: 0 });
+    const bucket = buckets.get(key);
+    bucket.received += row.received;
+    bucket.pressed += row.pressed;
+    bucket.yieldReceived += row.yieldReceived;
+    bucket.yieldPressed += row.yieldPressed;
+    bucket.days++;
+  }
+  const received = daily.reduce((sum, row) => sum + row.received, 0);
+  const pressed = daily.reduce((sum, row) => sum + row.pressed, 0);
+  const matchedKg = daily.reduce((sum, row) => sum + row.yieldReceived, 0);
+  const matchedLiquid = daily.reduce((sum, row) => sum + row.yieldPressed, 0);
+  const periods = [];
+  if (daily.length) {
+    // Start/end from actual records when dates were left blank, not nine empty years.
+    const from = range.start < daily[0].date ? daily[0].date : range.start;
+    const until = range.end > daily.at(-1).date ? daily.at(-1).date : range.end;
+    for (let cursor = periodStart(from, grouping), end = periodStart(until, grouping);
+      cursor <= end && periods.length < 3700; cursor = nextPeriod(cursor, grouping)) {
+      const bucket = buckets.get(cursor);
+      periods.push({
+        date: cursor, days: bucket?.days || 0,
+        volume: bucket?.received || 0, received: bucket?.received || 0, pressed: bucket?.pressed || 0,
+        average: bucket?.days ? bucket.received / bucket.days : null,
+        yield: bucket?.yieldReceived ? bucket.yieldPressed / bucket.yieldReceived : null,
+        matchedKg: bucket?.yieldReceived || 0
+      });
+    }
+  }
+  return { daily, periods, received, pressed, yield: matchedKg ? matchedLiquid / matchedKg : null, missing };
+}
+
+function renderProcessingTables(metrics) {
+  for (const row of [...metrics.periods].reverse()) {
+    appendCells(els.processingPeriodRows, [
+      formatDate(row.date), formatNumber(row.days), formatNumber(row.received),
+      row.average == null ? "—" : formatNumber(row.average),
+      formatNumber(row.pressed), row.yield == null ? "—" : formatYield(row.yield)
+    ]);
+  }
+  for (const row of [...metrics.daily].reverse()) {
+    appendCells(els.processingDailyRows, [
+      formatDate(row.date), formatNumber(row.received), formatNumber(row.pressed),
+      row.yield == null ? "—" : formatYield(row.yield)
+    ]);
+  }
+}
+
+/** Real-time-based scatter: missing dates are blank, not zero-kg processing days. */
+function drawProcessingScatter(parent, rows, field, unit, label, range) {
+  const availableWidth = parent.clientWidth || (typeof window !== "undefined" ? window.innerWidth - 40 : 880);
+  const width = Math.max(360, Math.min(880, availableWidth));
+  const height = 268, left = 68, right = 18, top = 24, bottom = 42;
+  const plotW = width - left - right, plotH = height - top - bottom;
+  const values = rows.map(row => row[field]).filter(v => v != null && Number.isFinite(v));
+  const isYield = unit === "L/kg";
+  const floor = isYield && values.length
+    ? Math.max(0, Math.floor((Math.min(...values) - .025) * 20) / 20) : 0;
+  const ceiling = isYield && values.length
+    ? Math.ceil((Math.max(...values) + .025) * 20) / 20 : niceCeiling(Math.max(1, ...values));
+  const svg = baseSvg(width, height, parent);
+  drawGrid(svg, { width, height, left, right, top, bottom, min: floor, max: ceiling, suffix: unit });
+  const a = dayNumber(range.start), b = dayNumber(range.end);
+  const x = date => left + (b === a ? .5 : (dayNumber(date) - a) / (b - a)) * plotW;
+  const y = value => top + (ceiling - value) / (ceiling - floor) * plotH;
+  for (const row of rows) {
+    const value = row[field];
+    if (value == null || !Number.isFinite(value)) continue;
+    svgNode(svg, "circle", {
+      cx: x(row.date), cy: y(value), r: 4.4, class: "analysis-point"
+    }, formatDate(row.date) + ": " + (unit === "L/kg" ? formatYield(value) : formatNumber(value)) + " " + unit +
+      " · " + formatNumber(row.received) + " kg received · " + formatNumber(row.pressed) + " L pressed");
+  }
+  drawDateLabels(svg, [range.start, range.end], left, plotW, height - 13);
+  parent.setAttribute("aria-label", label + " (" + values.length + " dated measurements).");
+}
+
 function fillMissingPeriods(raw, grouping, from, to) {
   const byDate = new Map(raw.map(row => [row.date, row]));
   let cursor = periodStart(from, grouping);
@@ -225,7 +400,7 @@ async function fetchEveryPage(functionName, parameters, pageSize) {
   const first = await fetchPage(0);
   const total = Number(first?.total_count ?? 0);
   if (!Number.isInteger(total) || total < 0 || total > MAX_LEDGER_ROWS) {
-    throw new Error("There are too many stock records for this chart; an aggregated reporting endpoint is needed.");
+    throw new Error("There are too many records for this chart; an aggregated reporting endpoint is needed.");
   }
   const pages = Math.ceil(total / pageSize);
   const output = [...(Array.isArray(first?.rows) ? first.rows : [])];
@@ -383,11 +558,15 @@ function drawLineChart(parent, rows, field, unit, label, qcBands = false) {
   const height = 268, left = 70, right = 20, top = 24, bottom = 42;
   const plotW = width - left - right, plotH = height - top - bottom;
   const valid = rows.map(row => row[field]).filter(value => value != null && Number.isFinite(value));
-  const ceiling = niceCeiling(Math.max(1, ...valid));
+  const isYield = unit === "L/kg";
+  const floor = isYield && valid.length
+    ? Math.max(0, Math.floor((Math.min(...valid) - .025) * 20) / 20) : 0;
+  const ceiling = isYield && valid.length
+    ? Math.ceil((Math.max(...valid) + .025) * 20) / 20 : niceCeiling(Math.max(1, ...valid));
   const svg = baseSvg(width, height, parent);
-  drawGrid(svg, { width, height, left, right, top, bottom, max: ceiling, suffix: unit });
+  drawGrid(svg, { width, height, left, right, top, bottom, min: floor, max: ceiling, suffix: unit });
   const x = index => left + (rows.length === 1 ? plotW / 2 : index / (rows.length - 1) * plotW);
-  const y = value => top + (1 - value / ceiling) * plotH;
+  const y = value => top + (ceiling - value) / (ceiling - floor) * plotH;
   if (qcBands) rows.forEach((row, index) => {
     if (!row.qc) return;
     const cx = x(index);
@@ -431,14 +610,14 @@ function drawLineChart(parent, rows, field, unit, label, qcBands = false) {
     svgNode(svg, "circle", {
       cx: x(index), cy: y(value), r: rows.length > 50 ? 2.5 : 3.7,
       class: "analysis-point"
-    }, formatDate(row.date) + ": " + formatNumber(value) + " " + unit + "; "
-      + formatNumber(row.volume) + " " + (unit.startsWith("kg") ? "kg" : "L")
+    }, formatDate(row.date) + ": " + (isYield ? formatYield(value) : formatNumber(value)) + " " + unit + "; "
+      + formatNumber(row.volume) + " " + (unit.startsWith("kg") ? "kg" : unit === "L/kg" ? "kg received" : "L")
       + " newly recorded across " + row.days + " intake day(s)"
       + (row.qc ? "; " + row.qc + " QC records" : ""));
   });
   drawDateLabels(svg, rows.map(row => row.date), left, plotW, height - 13);
   parent.setAttribute("aria-label", label + " (" + rows.length + " periods). "
-    + (valid.length ? "Most recent observed value: " + formatNumber(valid.at(-1)) + " " + unit : "No recorded intake days."));
+    + (valid.length ? "Most recent observed value: " + (isYield ? formatYield(valid.at(-1)) : formatNumber(valid.at(-1))) + " " + unit : "No recorded intake days."));
 }
 
 function drawStock(rows, range) {
@@ -506,7 +685,7 @@ function drawGrid(svg, { width, height, left, right, top, bottom, max, min = 0, 
     const y = top + graphH * n / 4;
     svgNode(svg, "line", { x1: left, y1: y, x2: width - right, y2: y, class: "analysis-axis" });
     const label = svgNode(svg, "text", { x: left - 9, y: y + 4, "text-anchor": "end" });
-    label.textContent = `${formatShort(value)} ${suffix}`;
+    label.textContent = suffix === "L/kg" ? formatYield(value) : formatNumber(value);
   }
 }
 
@@ -574,8 +753,8 @@ function formatDate(iso) {
 function formatNumber(value) {
   return Number(value).toLocaleString("en-KE", { maximumFractionDigits: 1 });
 }
-function formatShort(value) {
-  return Math.abs(value) >= 1000 ? `${formatNumber(value / 1000)}k` : formatNumber(value);
+function formatYield(value) {
+  return Number(value).toLocaleString("en-KE", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 }
 function readableError(error) { return error?.message || "The analysis could not be loaded."; }
 function showMessage(element, message, isError = false) {
