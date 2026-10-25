@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v171-mawimbi-smoothed-trends";
+const CACHE_VERSION = "seaweed-harvest-collection-v172-mawimbi-photo-forms";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -7,6 +7,7 @@ const APP_SHELL = [
   "./collection.html",
   "./my_details.html",
   "./process_record.html",
+  "./process_record_photos.html",
   "./stabilization_packing.html",
   "./site_water_sample.html",
   "./mawimbi_ro_monitoring.html",
@@ -65,6 +66,7 @@ const APP_SHELL = [
   "./assets/js/my_details_page.js",
   "./assets/js/dashboard_preferences.js",
   "./assets/js/process_record_form.js",
+  "./assets/js/process_record_photos.js",
   "./assets/js/process_timestamps.mjs",
   "./assets/js/suggested_input.js",
   "./assets/js/stabilization_packing_form.js",
