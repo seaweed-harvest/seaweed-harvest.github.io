@@ -338,12 +338,16 @@ function drawProcessingScatter(parent, rows, field, unit, label, range) {
   const height = 268, left = 68, right = 18, top = 24, bottom = 42;
   const plotW = width - left - right, plotH = height - top - bottom;
   const values = rows.map(row => row[field]).filter(v => v != null && Number.isFinite(v));
-  const ceiling = niceCeiling(Math.max(.001, ...values));
+  const isYield = unit === "L/kg";
+  const floor = isYield && values.length
+    ? Math.max(0, Math.floor((Math.min(...values) - .025) * 20) / 20) : 0;
+  const ceiling = isYield && values.length
+    ? Math.ceil((Math.max(...values) + .025) * 20) / 20 : niceCeiling(Math.max(1, ...values));
   const svg = baseSvg(width, height, parent);
-  drawGrid(svg, { width, height, left, right, top, bottom, max: ceiling, suffix: unit });
+  drawGrid(svg, { width, height, left, right, top, bottom, min: floor, max: ceiling, suffix: unit });
   const a = dayNumber(range.start), b = dayNumber(range.end);
   const x = date => left + (b === a ? .5 : (dayNumber(date) - a) / (b - a)) * plotW;
-  const y = value => top + (1 - value / ceiling) * plotH;
+  const y = value => top + (ceiling - value) / (ceiling - floor) * plotH;
   for (const row of rows) {
     const value = row[field];
     if (value == null || !Number.isFinite(value)) continue;
@@ -554,11 +558,15 @@ function drawLineChart(parent, rows, field, unit, label, qcBands = false) {
   const height = 268, left = 70, right = 20, top = 24, bottom = 42;
   const plotW = width - left - right, plotH = height - top - bottom;
   const valid = rows.map(row => row[field]).filter(value => value != null && Number.isFinite(value));
-  const ceiling = niceCeiling(Math.max(1, ...valid));
+  const isYield = unit === "L/kg";
+  const floor = isYield && valid.length
+    ? Math.max(0, Math.floor((Math.min(...valid) - .025) * 20) / 20) : 0;
+  const ceiling = isYield && valid.length
+    ? Math.ceil((Math.max(...valid) + .025) * 20) / 20 : niceCeiling(Math.max(1, ...valid));
   const svg = baseSvg(width, height, parent);
-  drawGrid(svg, { width, height, left, right, top, bottom, max: ceiling, suffix: unit });
+  drawGrid(svg, { width, height, left, right, top, bottom, min: floor, max: ceiling, suffix: unit });
   const x = index => left + (rows.length === 1 ? plotW / 2 : index / (rows.length - 1) * plotW);
-  const y = value => top + (1 - value / ceiling) * plotH;
+  const y = value => top + (ceiling - value) / (ceiling - floor) * plotH;
   if (qcBands) rows.forEach((row, index) => {
     if (!row.qc) return;
     const cx = x(index);
@@ -602,14 +610,14 @@ function drawLineChart(parent, rows, field, unit, label, qcBands = false) {
     svgNode(svg, "circle", {
       cx: x(index), cy: y(value), r: rows.length > 50 ? 2.5 : 3.7,
       class: "analysis-point"
-    }, formatDate(row.date) + ": " + formatNumber(value) + " " + unit + "; "
+    }, formatDate(row.date) + ": " + (isYield ? formatYield(value) : formatNumber(value)) + " " + unit + "; "
       + formatNumber(row.volume) + " " + (unit.startsWith("kg") ? "kg" : unit === "L/kg" ? "kg received" : "L")
       + " newly recorded across " + row.days + " intake day(s)"
       + (row.qc ? "; " + row.qc + " QC records" : ""));
   });
   drawDateLabels(svg, rows.map(row => row.date), left, plotW, height - 13);
   parent.setAttribute("aria-label", label + " (" + rows.length + " periods). "
-    + (valid.length ? "Most recent observed value: " + formatNumber(valid.at(-1)) + " " + unit : "No recorded intake days."));
+    + (valid.length ? "Most recent observed value: " + (isYield ? formatYield(valid.at(-1)) : formatNumber(valid.at(-1))) + " " + unit : "No recorded intake days."));
 }
 
 function drawStock(rows, range) {
