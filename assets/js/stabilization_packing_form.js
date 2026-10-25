@@ -649,6 +649,10 @@ function allDoseConfigs() {
   return [...singleDoseConfigs(), ...batchDoseConfigs()];
 }
 
+function formatBatchNumber(value) {
+  return Number(value).toLocaleString("en-KE", { maximumFractionDigits: 3 });
+}
+
 function updateBatchState() {
   const count = batchRangeCount();
   els.packingBatchCount.textContent = count > 0 && count <= 100 ? String(count) : "Check range";
