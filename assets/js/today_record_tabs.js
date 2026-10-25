@@ -13,7 +13,7 @@ const CATEGORY_CONFIG = {
     rpcType: "site_sample",
     dataKey: "site_samples",
     prefix: "todaySiteSample",
-    colspan: 11,
+    colspan: 12,
     empty: "No site samples were recorded on this date."
   },
   "stock-record": {
@@ -477,6 +477,7 @@ function renderSiteSampleRow(row) {
       <td>${editing ? measurementEditor(key, id, "tds_value", draft.tds_value, "tds_unit", draft.tds_unit, ["mg/L", "g/L", "ppt"]) : escapeHtml(measurement(row.tds_value, row.tds_unit))}</td>
       <td>${editing ? numberControl(key, id, "electrical_conductivity_ms_cm", draft.electrical_conductivity_ms_cm) : escapeHtml(measurement(row.electrical_conductivity_ms_cm, "mS/cm"))}</td>
       <td>${editing ? booleanControl(key, id, "e_coli_sample_taken", draft.e_coli_sample_taken) : escapeHtml(booleanLabel(row.e_coli_sample_taken))}</td>
+      <td><a href="./site_water_sample_photos.html?id=${encodeURIComponent(id)}">View / add</a></td>
       <td>${editing ? inputControl(key, id, "recorded_by_name", draft.recorded_by_name, "text", { required: true, maxlength: 160 }) : escapeHtml(row.recorded_by_name || "-")}</td>
       <td>${editing ? inputControl(key, id, "notes", draft.notes, "text", { maxlength: 1000 }) : escapeHtml(row.notes || "-")}</td>
     </tr>`;
