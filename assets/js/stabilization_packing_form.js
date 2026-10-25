@@ -40,7 +40,7 @@ async function init() {
     "printPackingWeightHeader", "printPackingSalinityHeader", "printPackingDoseHeader",
     "packingEntryTabs", "packingSingleTab", "packingBatchTab", "packingBatchForm",
     "packingBatchRecordedBy", "packingBatchFirst", "packingBatchLast", "packingBatchDate",
-    "packingBatchSpecies", "packingBatchVolume", "packingBatchVolumeUnit",
+    "packingBatchSpecies", "packingBatchVolume", "packingBatchVolumeUnit", "packingBatchVolumePreview",
     "packingBatchStabilizerYes", "packingBatchStabilizerNo", "packingBatchStabilizerFields",
     "packingBatchChemical", "packingBatchDose", "packingBatchDoseUnit", "packingBatchDoseDefault",
     "packingBatchCitricAcidYes", "packingBatchCitricAcidNo", "packingBatchCitricAcidFields",
