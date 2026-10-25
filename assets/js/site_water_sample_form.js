@@ -3,6 +3,7 @@ import { authClient, requireOrganisationCapability } from "./auth_client.js";
 import { setupFavoriteFormButton } from "./favorite_forms.js?v=3";
 import { setPrintValue, setupPdfWorksheet } from "./print_worksheet.js";
 import { selectRows } from "./supabase_client.js";
+import { uploadRecordPhotos, removeRecordPhotos, validateRecordPhotoFiles, renderPhotoPreviews } from "./stock_photo_upload.js";
 
 const els = {};
 let submissionId = crypto.randomUUID();
@@ -17,6 +18,8 @@ async function init() {
     "siteSampleCommunity", "siteSampleGps", "siteSampleGpsHint", "captureSiteSampleGps",
     "siteSampleRecordedBy", "siteSampleTemperature", "siteSampleSalinity", "siteSampleSalinityUnit", "siteSamplePh", "siteSampleDissolvedOxygen",
     "siteSampleTds", "siteSampleTdsUnit", "siteSampleEc", "siteSampleNotes", "saveSiteSample",
+    "siteSamplePhotoFiles", "siteSampleCamera", "siteSampleTakePhoto", "siteSampleChoosePhotos",
+    "siteSamplePhotoPreview", "siteSamplePhotoStatus", "siteSampleSavedPhotoLink",
     "clearSiteSample", "favoriteSiteSampleForm", "printSiteSampleWorksheet", "siteSampleStatus",
     "siteSamplePrintWorksheet", "printSiteSampleCommunity", "printSiteSampleDate",
     "printSiteSampleTide", "printSiteSampleRecordedBy"
@@ -51,6 +54,21 @@ async function init() {
     || access.profile?.phone
     || "Signed-in user";
   els.siteSampleForm.addEventListener("submit", submitSiteSample);
+  els.siteSampleTakePhoto.addEventListener("click", () => els.siteSampleCamera.click());
+  els.siteSampleChoosePhotos.addEventListener("click", () => els.siteSamplePhotoFiles.click());
+  for (const control of [els.siteSampleCamera, els.siteSamplePhotoFiles]) {
+    control.addEventListener("change", () => {
+      try {
+        const files = pendingSamplePhotos();
+        renderPhotoPreviews(els.siteSamplePhotoPreview, files);
+        els.siteSamplePhotoStatus.textContent = files.length + " photo(s) ready.";
+      } catch (error) {
+        control.value = "";
+        renderPhotoPreviews(els.siteSamplePhotoPreview, pendingSamplePhotos());
+        els.siteSamplePhotoStatus.textContent = error.message;
+      }
+    });
+  }
   els.clearSiteSample.addEventListener("click", clearForm);
   els.captureSiteSampleGps.addEventListener("click", captureGps);
   els.siteSampleGps.addEventListener("input", () => { gpsAccuracyMeters = null; });
@@ -69,6 +87,12 @@ async function init() {
   } catch (error) {
     setStatus(error.message, "error");
   }
+}
+
+function pendingSamplePhotos() {
+  return validateRecordPhotoFiles(
+    [...(els.siteSampleCamera.files || []), ...(els.siteSamplePhotoFiles.files || [])], 4
+  );
 }
 
 async function submitSiteSample(event) {
@@ -90,8 +114,10 @@ async function submitSiteSample(event) {
   }
 
   els.saveSiteSample.disabled = true;
+  let storedSampleId = null;
   setStatus("Saving...");
   try {
+    const photos = pendingSamplePhotos();
     const { data, error } = await authClient.rpc("ag_submit_site_water_sample_record_v6", {
       p_submission_id: submissionId,
       p_record: {
@@ -117,8 +143,32 @@ async function submitSiteSample(event) {
       }
     });
     if (error) throw error;
+    const saved = Array.isArray(data) ? data[0] : data;
+    storedSampleId = saved?.record_id || null;
+    if (!storedSampleId) throw new Error("Sample saved but its record link is missing. Open Records to add photos.");
+    els.siteSampleSavedPhotoLink.href = "./site_water_sample_photos.html?id=" + encodeURIComponent(storedSampleId);
+    els.siteSampleSavedPhotoLink.hidden = false;
     resetInputs();
-    setStatus("Site sample saved.");
+    if (photos.length) {
+      let uploaded = [];
+      try {
+        const person = (await authClient.auth.getUser()).data?.user?.id;
+        const uploadId = crypto.randomUUID();
+        setStatus("Sample saved. Attaching photos...");
+        uploaded = await uploadRecordPhotos(photos, uploadId, person, "site-water-sample-photos");
+        const attached = await authClient.rpc("ag_add_site_water_sample_photos", {
+          p_record_id: storedSampleId, p_upload_id: uploadId, p_photos: uploaded
+        });
+        if (attached.error) throw attached.error;
+        uploaded = [];
+      } catch (photoError) {
+        await removeRecordPhotos(uploaded, "site-water-sample-photos");
+        setStatus("Sample saved. Photo attachment failed: " + photoError.message +
+          ". Use the View / add photos link to attach later.", "error");
+        return;
+      }
+    }
+    setStatus("Site sample saved" + (photos.length ? " with photos." : ". Add lab-result photos later via Records."));
   } catch (error) {
     setStatus(error.message, "error");
   } finally {
@@ -197,6 +247,10 @@ function resetInputs() {
   const recordedBy = els.siteSampleRecordedBy.value;
   const community = els.siteSampleCommunity.value;
   els.siteSampleForm.reset();
+  els.siteSampleCamera.value = "";
+  els.siteSamplePhotoFiles.value = "";
+  els.siteSamplePhotoPreview.replaceChildren();
+  els.siteSamplePhotoStatus.textContent = "";
   els.siteSampleRecordedBy.value = recordedBy;
   els.siteSampleCommunity.value = community;
   els.siteSampledAt.value = kenyaDateTime();
