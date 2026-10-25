@@ -46,6 +46,7 @@ const COLUMNS = {
     ["tds_value", "TDS"],
     ["electrical_conductivity_ms_cm", "EC mS/cm"],
     ["e_coli_sample_taken", "E. coli sample"],
+    ["photo_link", "Photos"],
     ["recorded_by_name", "Recorded by"],
     ["notes", "Notes"]
   ],
@@ -1379,7 +1380,9 @@ function recordRowsHtml(rows, options = {}) {
         ${selection}
         ${columns.map(([field, label]) => `<td>${editing
           ? formRecordEditor(row, field, label, draft)
-          : (state.category === "stock" && field === "photo_count" && id !== "null"
+          : (state.category === "site_sample" && field === "photo_link" && id
+            ? `<a href="./site_water_sample_photos.html?id=${encodeURIComponent(id)}">View / add</a>`
+            : state.category === "stock" && field === "photo_count" && id !== "null"
             ? `<a href="./stock_record_photos.html?id=${encodeURIComponent(id)}">${(Array.isArray(row.photo_attachments) ? row.photo_attachments.length : Number(row.photo_count || 0))} photo(s)</a>`
             : escapeHtml(cellValue(row, field)))}</td>`).join("")}
       </tr>`;
@@ -1713,6 +1716,7 @@ function formRecordEditor(row, field, label, draft) {
     if (field === "tds_value") {
       return formRecordMeasurement(id, "tds_value", draft.tds_value, "tds_unit", draft.tds_unit, ["mg/L", "g/L", "ppt"], label);
     }
+    if (field === "photo_link") return `<a href="./site_water_sample_photos.html?id=${encodeURIComponent(id)}">View / add</a>`;
     if (field === "e_coli_sample_taken") return formRecordBooleanSelect(id, field, draft[field], label);
     if (field === "recorded_by_name") return formRecordInput(id, field, draft[field], "text", label, { required: true, maxlength: 160 });
     if (field === "notes") return formRecordInput(id, field, draft[field], "text", label, { maxlength: 1000 });
