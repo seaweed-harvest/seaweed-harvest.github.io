@@ -11,7 +11,7 @@ import {
   initCollectionLanguage,
   t,
   unitLabel
-} from "./collection_language.js?v=24";
+} from "./collection_language.js?v=25";
 import {
   clearOfflineCollectionAccess,
   initialiseOfflineStore,
