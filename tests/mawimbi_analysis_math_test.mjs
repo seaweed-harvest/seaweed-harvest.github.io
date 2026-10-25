@@ -5,7 +5,7 @@ import { runInNewContext } from "node:vm";
 
 const script = readFileSync(new URL("../assets/js/mawimbi_analysis.js", import.meta.url), "utf8")
   .replace(/^import[^\n]*\n/gm, "")
-  + "\nthis.math = { buildStockTimeline, groupIntakeSeries, fillMissingPeriods, periodStart, nextPeriod, drawLineChart };";
+  + "\nthis.math = { buildStockTimeline, groupIntakeSeries, fillMissingPeriods, periodStart, nextPeriod, drawLineChart, buildProcessingMetrics, drawProcessingScatter };";
 function mockElement() {
   return {
     children: [], attributes: {},
@@ -19,7 +19,7 @@ const context = {
   Intl, Date, Math, Number, String, Array, Map, Set
 };
 runInNewContext(script, context, { filename: "mawimbi_analysis.js" });
-const { buildStockTimeline, groupIntakeSeries, fillMissingPeriods, periodStart, nextPeriod, drawLineChart } = context.math;
+const { buildStockTimeline, groupIntakeSeries, fillMissingPeriods, periodStart, nextPeriod, drawLineChart, buildProcessingMetrics, drawProcessingScatter } = context.math;
 
 test("monthly average uses distinct days with collections, not collection count or calendar days", () => {
   const trend = groupIntakeSeries([
@@ -164,4 +164,95 @@ test("mobile and desktop navigation, four production plots and QC balance drill-
   assert.match(page, /Accumulated stock produced/);
   assert.match(style, /analysis-chart-grid/);
   assert.match(style, /min-width:0/);
+});
+
+test("Processing yield is total pressed liquid divided by total matched received kg, not an average of daily ratios", () => {
+  const metrics = buildProcessingMetrics([
+    { record_date: "2026-07-29", received_seaweed_kg: 300, pressed_liquid_l: 90,
+      created_at: "2026-08-02T08:00:00+03:00" },
+    { record_date: "2026-07-30", received_seaweed_kg: 700, pressed_liquid_l: 420 },
+    { record_date: "2026-08-01", received_seaweed_kg: 1000, pressed_liquid_l: 450 }
+  ], "month", { start: "2026-07-01", end: "2026-08-31" });
+  assert.equal(metrics.daily.length, 3);
+  assert.equal(metrics.daily[0].date, "2026-07-29");
+  assert.equal(metrics.received, 2000);
+  assert.equal(metrics.pressed, 960);
+  assert.equal(metrics.yield, .48);
+  assert.equal(metrics.periods[0].received, 1000);
+  assert.equal(metrics.periods[0].average, 500);
+  assert.equal(metrics.periods[0].yield, .51);
+  assert.equal(metrics.periods[1].yield, .45);
+});
+
+test("Two processing forms on the same date count as one processing day and are combined", () => {
+  const metrics = buildProcessingMetrics([
+    { record_date: "2026-09-15", received_seaweed_kg: 500, pressed_liquid_l: 200 },
+    { record_date: "2026-09-15", received_seaweed_kg: 600, pressed_liquid_l: 240 },
+    { record_date: "2026-09-16", received_seaweed_kg: 900, pressed_liquid_l: 450 }
+  ], "week", { start: "2026-09-14", end: "2026-09-20" });
+  assert.equal(metrics.daily.length, 2);
+  assert.equal(metrics.daily[0].received, 1100);
+  assert.equal(metrics.daily[0].yield, .4);
+  assert.equal(metrics.periods[0].days, 2);
+  assert.equal(metrics.periods[0].average, 1000);
+  assert.equal(metrics.periods[0].yield, 890 / 2000);
+});
+
+test("Incomplete or zero denominator records cannot contaminate yield and are separately counted", () => {
+  const metrics = buildProcessingMetrics([
+    { record_date: "2026-10-10", received_seaweed_kg: 100, pressed_liquid_l: 40 },
+    { record_date: "2026-10-10", received_seaweed_kg: 200, pressed_liquid_l: null },
+    { record_date: "2026-10-11", received_seaweed_kg: 0, pressed_liquid_l: 20 }
+  ], "month", { start: "2026-10-01", end: "2026-10-31" });
+  assert.equal(metrics.received, 300);
+  assert.equal(metrics.missing, 2);
+  assert.equal(metrics.yield, .4);
+  assert.equal(metrics.periods[0].yield, .4);
+  assert.equal(metrics.periods[0].average, 150);
+});
+
+test("Processing trend respects selected date range and doesn't use submission timestamps", () => {
+  const metrics = buildProcessingMetrics([
+    { record_date: "2026-07-13", received_seaweed_kg: 600, pressed_liquid_l: 200 },
+    { record_date: "2026-09-01", received_seaweed_kg: 1000, pressed_liquid_l: 450,
+      created_at: "2026-10-04T07:00:00Z" }
+  ], "month", { start: "2026-09-01", end: "2026-09-30" });
+  assert.equal(metrics.daily.length, 1);
+  assert.equal(metrics.daily[0].date, "2026-09-01");
+  assert.equal(metrics.received, 1000);
+  assert.equal(metrics.pressed, 450);
+});
+
+test("Processing scatter uses real dates and full, readable numeric axes on phones", () => {
+  const plot = mockElement();
+  plot.clientWidth = 390;
+  const metrics = buildProcessingMetrics([
+    { record_date: "2026-07-29", received_seaweed_kg: 378, pressed_liquid_l: 110 },
+    { record_date: "2026-10-24", received_seaweed_kg: 800, pressed_liquid_l: 308 }
+  ], "month", { start: "2026-07-01", end: "2026-10-31" });
+  drawProcessingScatter(plot, metrics.daily, "received", "kg", "Daily processing received",
+    { start: "2026-07-29", end: "2026-10-24" });
+  assert.equal(plot.children[0].attributes.viewBox, "0 0 390 268");
+  assert.equal(plot.children[0].children.filter(el => el.attributes.class === "analysis-point").length, 2);
+  const axis = plot.children[0].children.filter(el => el.attributes["text-anchor"] === "end")
+    .map(el => el.textContent);
+  assert.ok(axis.includes("1,000") || axis.includes("1000"));
+  assert.ok(axis.every(label => !label.includes("k")));
+  const yieldPlot = mockElement();
+  yieldPlot.clientWidth = 390;
+  drawProcessingScatter(yieldPlot, metrics.daily, "yield", "L/kg", "Yield per processing day",
+    { start: "2026-07-29", end: "2026-10-24" });
+  assert.ok(yieldPlot.children[0].children.some(el => el.textContent === "0.300"));
+});
+
+test("Mawimbi Analysis includes processing plots and only displays them with Processing form capability", () => {
+  const js = readFileSync(new URL("../assets/js/mawimbi_analysis.js", import.meta.url), "utf8");
+  const page = readFileSync(new URL("../mawimbi_analysis.html", import.meta.url), "utf8");
+  for (const id of ["processingAnalysisSection", "processingReceivedPlot", "processingAveragePlot",
+    "processingDailyYieldPlot", "processingYieldPlot", "processingPeriodRows", "processingDailyRows"]) {
+    assert.ok(page.includes('id="' + id + '"'), "Missing " + id);
+  }
+  assert.match(js, /hasOrganisationCapability\(access.profile, "form_process_record"\)/);
+  assert.match(js, /p_record_type: "process"/);
+  assert.match(page, /total pressed liquid \(L\).*total received kg/i);
 });
