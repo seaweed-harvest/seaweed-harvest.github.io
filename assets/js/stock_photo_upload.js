@@ -7,14 +7,14 @@ const MAX_BYTES = 700 * 1024;
 const TARGET_BYTES = 550 * 1024;
 const MAX_EDGE = 1920;
 
-export function validateStockPhotoFiles(fileList, available = MAX_STOCK_PHOTOS) {
+export function validateRecordPhotoFiles(fileList, available = MAX_STOCK_PHOTOS) {
   const files = Array.from(fileList || []);
   if (files.length > available) throw new Error("Add at most " + available + " photo(s).");
   if (files.some(f => !f.type.startsWith("image/"))) throw new Error("Choose image files only.");
   return files;
 }
 
-export async function uploadStockPhotos(files, submissionId, userId) {
+export async function uploadRecordPhotos(files, submissionId, userId, bucket = STOCK_PHOTO_BUCKET) {
   if (!files.length) return [];
   if (!userId) throw new Error("Sign in before uploading stock photos.");
   const uploaded = [];
@@ -22,7 +22,7 @@ export async function uploadStockPhotos(files, submissionId, userId) {
     for (const file of files) {
       const blob = await compressStockPhoto(file);
       const path = userId + "/" + submissionId + "/" + crypto.randomUUID() + ".jpg";
-      const { error } = await authClient.storage.from(STOCK_PHOTO_BUCKET).upload(
+      const { error } = await authClient.storage.from(bucket).upload(
         path, blob, { contentType: "image/jpeg", cacheControl: "3600", upsert: false }
       );
       if (error) throw error;
@@ -31,14 +31,14 @@ export async function uploadStockPhotos(files, submissionId, userId) {
     }
     return uploaded;
   } catch (error) {
-    await removeStockPhotos(uploaded);
+    await removeRecordPhotos(uploaded, bucket);
     throw error;
   }
 }
 
-export async function removeStockPhotos(photos) {
+export async function removeRecordPhotos(photos, bucket = STOCK_PHOTO_BUCKET) {
   const paths = photos.map(photo => photo.storage_path).filter(Boolean);
-  if (paths.length) await authClient.storage.from(STOCK_PHOTO_BUCKET).remove(paths);
+  if (paths.length) await authClient.storage.from(bucket).remove(paths);
 }
 
 async function compressStockPhoto(file) {
@@ -93,3 +93,10 @@ export function renderPhotoPreviews(container, files) {
     container.append(img);
   }
 }
+
+export const validateStockPhotoFiles = (files, available = MAX_STOCK_PHOTOS) =>
+  validateRecordPhotoFiles(files, available);
+export const uploadStockPhotos = (files, submissionId, userId) =>
+  uploadRecordPhotos(files, submissionId, userId, STOCK_PHOTO_BUCKET);
+export const removeStockPhotos = (photos) =>
+  removeRecordPhotos(photos, STOCK_PHOTO_BUCKET);
