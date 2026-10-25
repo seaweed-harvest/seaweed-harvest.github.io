@@ -8,7 +8,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./assets/icons/tide-planner-icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./assets/vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="./assets/css/tides.css?v=20260723-table-harvest-align">
+  <link rel="stylesheet" href="./assets/css/tides.css?v=20261025-live-kmd-v1">
 </head>
 <body>
   <header class="app-header">
@@ -43,6 +43,7 @@
       <strong id="weatherAlertLabel" data-i18n="weatherWarning.loadingLabel">Weather alerts:</strong>
       <span id="weatherAlertText" class="weather-warning-text" data-i18n="weatherWarning.loadingText">Checking Kenya Meteorological Department alerts...</span>
       <span id="weatherAlertMeta" class="weather-warning-meta" hidden></span>
+      <div id="weatherAlertItems" class="weather-warning-items" hidden></div>
       <a id="weatherAlertSource" href="https://meteo.go.ke/weather-warnings/" target="_blank" rel="noopener" data-i18n="weatherWarning.sourceLink">Check Kenya Meteorological Department warnings</a>
     </section>
 
@@ -108,7 +109,7 @@
   <script src="./assets/vendor/leaflet/leaflet.js"></script>
   <script type="module" src="./assets/js/disclaimer.js?v=20260723-table-harvest-align"></script>
   <script type="module" src="./assets/js/language.js?v=20260723-table-harvest-align"></script>
-  <script type="module" src="./assets/js/weather_alerts.js?v=20260723-table-harvest-align"></script>
+  <script type="module" src="./assets/js/weather_alerts.js?v=20261025-live-kmd-v1"></script>
   <script type="module" src="./assets/js/pwa.js?v=20260723-table-harvest-align"></script>
   <script type="module" src="./assets/js/map_page.js?v=20260810-offline-bundle-v2"></script>
 </body>
