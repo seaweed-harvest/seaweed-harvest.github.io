@@ -8,6 +8,8 @@
   <title>Site Water Sample - Seaweed Aggregation</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
   <link rel="stylesheet" href="./assets/css/site_water_sample.css">
+  <link rel="stylesheet" href="./assets/css/stock_photos.css">
+  <link rel="stylesheet" href="./assets/css/mawimbi_photo_actions.css">
   <link rel="stylesheet" href="./assets/css/form_foundation.css?v=2">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -127,10 +129,24 @@
             </label>
           </fieldset>
 
+          <fieldset>
+            <legend>Photos (optional)</legend>
+            <p class="stock-photo-helper">Add field photos now, or attach E. coli lab-result photos later from the original record. Up to four photos per sample.</p>
+            <div class="standard-photo-toolbar mawimbi-photo-toolbar">
+              <button id="siteSampleTakePhoto" class="standard-photo-action" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4 16 6h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l1.5-2z"></path><circle cx="12" cy="13" r="3"></circle></svg><span>Take photo</span></button>
+              <button id="siteSampleChoosePhotos" class="standard-photo-action" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg><span>Choose photos</span></button>
+            </div>
+            <input id="siteSampleCamera" class="standard-hidden-file" type="file" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
+            <input id="siteSamplePhotoFiles" class="standard-hidden-file" type="file" accept="image/*" multiple tabindex="-1" aria-hidden="true">
+            <div id="siteSamplePhotoPreview" class="stock-photo-preview" aria-live="polite"></div>
+            <p id="siteSamplePhotoStatus" class="standard-field-hint" aria-live="polite"></p>
+          </fieldset>
+
           <div class="button-row standard-form-actions">
             <button id="saveSiteSample" type="submit">Save site sample</button>
             <button id="clearSiteSample" type="button">Clear</button>
             <p id="siteSampleStatus" class="admin-status" aria-live="polite"></p>
+            <a id="siteSampleSavedPhotoLink" href="#" hidden>View / add photos to this sample</a>
           </div>
         </form>
       </section>
@@ -164,6 +180,6 @@
     </article>
   </section>
   <script type="module" src="./assets/js/admin_page.js?v=35"></script>
-  <script type="module" src="./assets/js/site_water_sample_form.js?v=11"></script>
+  <script type="module" src="./assets/js/site_water_sample_form.js?v=12"></script>
 </body>
 </html>
