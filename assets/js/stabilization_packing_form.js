@@ -662,7 +662,8 @@ function updateBatchState() {
   const valid = count > 0 && count <= 100 && Number.isFinite(volume) && volume > 0;
   els.packingBatchVolumePreview.textContent = valid
     ? count + " containers × " + formatBatchNumber(volume) + " " + unit +
-      " = " + formatBatchNumber(count * litresEach) + " L total"
+      " = " + formatBatchNumber(count * litresEach) + " L total" +
+      (litresEach > 40 && count > 1 ? " · Check: is this volume per container?" : "")
     : "Enter the volume in each container to see the batch total.";
   els.packingBatchForm.querySelectorAll("input, select, textarea").forEach((control) => {
     if (["checkbox", "button", "submit", "reset"].includes(control.type) || control.disabled) return;
