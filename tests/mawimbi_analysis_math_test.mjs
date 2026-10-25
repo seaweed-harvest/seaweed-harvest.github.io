@@ -161,7 +161,7 @@ test("mobile and desktop navigation, four production plots and QC balance drill-
     assert.ok(page.includes('id="' + id + '"'), "Missing " + id);
   }
   assert.match(page, /average daily collection/i);
-  assert.match(page, /Accumulated stock produced/);
+  assert.match(page, /Cumulative stock produced/);
   assert.match(style, /analysis-chart-grid/);
   assert.match(style, /min-width:0/);
 });
@@ -275,14 +275,14 @@ test("Rolling extraction yield is weighted by matching seaweed kg and ignores in
   const rows=[
     {date:"2026-08-02",received:100,yieldReceived:100,yieldPressed:20},
     {date:"2026-08-03",received:900,yieldReceived:900,yieldPressed:450},
-    {date:"2026-08-20",received:700,yieldReceived:700,yieldPressed:280}
+    {date:"2026-08-30",received:700,yieldReceived:700,yieldPressed:280}
   ];
-  const result=rollingTrendPoints(rows,{start:"2026-08-01",end:"2026-08-22"},"yield");
+  const result=rollingTrendPoints(rows,{start:"2026-08-01",end:"2026-08-30"},"yield");
   assert.equal(result[0].yield, .47);
   assert.equal(result[0].average, 500);
   assert.equal(result[1].yield, .47);
   assert.equal(result[2].yield, null);
-  assert.equal(result[3].yield, .4);
+  assert.equal(result.at(-1).yield, .4);
 });
 
 test("Rolling trend leaves gaps when no processing or collection days were recorded", () => {
