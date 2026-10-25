@@ -558,7 +558,7 @@ async function submitBatch(event) {
     nextCartonSerial = String(saved?.next_carton_serial || nextSerialAfter(els.packingBatchLast.value));
     setBatchStatus(saved?.duplicate
       ? "This batch was already saved. Existing container records and QC were not changed."
-      : `${saved?.created_count || count} containers saved: ${saved?.first_carton_serial || els.packingBatchFirst.value} to ${saved?.last_carton_serial || els.packingBatchLast.value}.${saved?.qc_measurements_recorded ? " Shared vessel QC applied to all containers." : ""}`
+      : `${saved?.created_count || count} containers saved: ${saved?.first_carton_serial || els.packingBatchFirst.value} to ${saved?.last_carton_serial || els.packingBatchLast.value} · ${els.packingBatchVolumePreview.textContent}.${saved?.qc_measurements_recorded ? " Shared vessel QC applied to all containers." : ""}`
     );
     resetBatchInputs();
     setNewCartonMode();
