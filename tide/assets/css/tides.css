@@ -3381,3 +3381,72 @@ main.admin-layout + .marine-disclaimer-footer {
     white-space: nowrap;
   }
 }
+
+/* Concise, source-linked KMD advisories on both Tide and Map pages. */
+.weather-warning-items {
+  flex-basis: 100%;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 1fr));
+  gap: 8px;
+  margin: 7px 0 3px;
+}
+.weather-warning-items[hidden] { display: none; }
+.weather-warning-item {
+  min-width: 0;
+  border: 1px solid rgba(180, 83, 9, 0.18);
+  border-radius: 9px;
+  padding: 9px 11px;
+  background: rgba(255, 255, 255, 0.7);
+}
+.weather-warning-item-heading {
+  display: flex;
+  gap: 6px 9px;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.weather-warning-item-heading strong { font-size: 0.95rem; }
+.weather-warning-severity {
+  font-size: 0.76rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 2px 7px;
+  color: #92400e;
+  background: #fef3c7;
+}
+.weather-warning-item-summary {
+  margin: 5px 0 6px;
+  font-size: 0.85rem;
+  line-height: 1.42;
+}
+.weather-warning-item-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px 12px;
+  flex-wrap: wrap;
+  color: #754c19;
+  font-size: 0.77rem;
+}
+.weather-warning-item-footer a { margin-left: 0; font-size: inherit; }
+.weather-warning-strip[data-weather-alert-status="active"] {
+  border-color: rgba(245, 158, 11, 0.48);
+  border-left-color: #d97706;
+  background: #fffbeb;
+  color: #65420b;
+}
+.weather-warning-strip[data-weather-alert-status="active"] strong,
+.weather-warning-strip[data-weather-alert-status="active"] a { color: #92400e; }
+.weather-warning-strip[data-weather-alert-severity="severe"] {
+  border-left-color: #b91c1c;
+  background: #fff7ed;
+}
+.weather-warning-strip[data-weather-alert-severity="severe"] .weather-warning-severity {
+  background: #fee2e2;
+  color: #991b1b;
+}
+@media (max-width: 600px) {
+  .weather-warning-items { grid-template-columns: minmax(0, 1fr); }
+  .weather-warning-item { padding: 8px 10px; }
+}

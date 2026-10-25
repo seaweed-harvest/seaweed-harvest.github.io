@@ -1,4 +1,4 @@
-const CACHE_VERSION = "20260810-beta-notice-single-source-v6";
+const CACHE_VERSION = "20261025-live-kmd-weather-v1";
 const SHELL_CACHE = `seaweed-tide-planner-shell-${CACHE_VERSION}`;
 const DATA_CACHE = "seaweed-tide-planner-data-v3";
 const MAP_TILE_CACHE = "seaweed-tide-planner-map-tiles-v1";

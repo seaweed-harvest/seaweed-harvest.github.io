@@ -1,256 +1,255 @@
-import { APP_CONFIG } from "./config.js?v=20260723-table-harvest-align";
 import { getLocale, t } from "./language.js?v=20260723-table-harvest-align";
-import {
-  tideBackendContext,
-  tideBackendTables
-} from "./platform_backend.js?v=20260810-platform-auth-v3";
 
-const SOURCE_KEY = "kmd_cap";
 const KMD_WARNINGS_URL = "https://meteo.go.ke/weather-warnings/";
-const EDGE_FUNCTION_NAME = "kmd-weather-alerts";
+const PUBLIC_ALERT_ENDPOINT = "https://wwzmajhdusfyfskppupg.supabase.co/functions/v1/kmd-weather-alerts";
+const REFRESH_INTERVAL_MS = 15 * 60 * 1000;
+const MAX_RESPONSE_AGE_MS = 45 * 60 * 1000;
 
-let lastRenderedStatus = null;
+let lastStatus = null;
 let elements = null;
+let refreshing = false;
 
 function initWeatherAlerts() {
-  elements = getElements();
-  if (!elements.card) return;
-
-  renderWeatherAlert({
-    status: "loading",
-    source_url: KMD_WARNINGS_URL
-  });
-
-  document.addEventListener("seaweed-language-change", () => {
-    renderWeatherAlert(lastRenderedStatus || { status: "loading", source_url: KMD_WARNINGS_URL });
-  });
-
-  refreshWeatherAlertStatus();
-}
-
-function getElements() {
-  return {
+  elements = {
     card: document.getElementById("weatherAlertCard"),
     label: document.getElementById("weatherAlertLabel"),
     text: document.getElementById("weatherAlertText"),
     meta: document.getElementById("weatherAlertMeta"),
+    items: document.getElementById("weatherAlertItems"),
     source: document.getElementById("weatherAlertSource")
   };
+  if (!elements.card) return;
+
+  renderWeatherAlert({ status: "loading" });
+  document.addEventListener("seaweed-language-change", () => {
+    renderWeatherAlert(lastStatus || { status: "loading" });
+  });
+  document.getElementById("locationSelect")?.addEventListener("change", () => {
+    if (lastStatus) renderWeatherAlert(lastStatus);
+  });
+  document.getElementById("mapRegionSelect")?.addEventListener("change", () => {
+    if (lastStatus) renderWeatherAlert(lastStatus);
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && lastStatus?.fetched_at &&
+      Date.now() - new Date(lastStatus.fetched_at).getTime() >= REFRESH_INTERVAL_MS) {
+      refreshWeatherAlertStatus();
+    }
+  });
+  refreshWeatherAlertStatus();
+  window.setInterval(() => {
+    if (!document.hidden) refreshWeatherAlertStatus();
+  }, REFRESH_INTERVAL_MS);
 }
 
 async function refreshWeatherAlertStatus() {
+  if (refreshing) return;
+  refreshing = true;
   try {
-    const storedStatus = await loadStoredStatusFromSupabase();
-    renderWeatherAlert(storedStatus);
-    return;
-  } catch (storedError) {
-    console.warn("Stored KMD weather alert status could not be read.", storedError);
-  }
-
-  if (APP_CONFIG.weatherAlerts?.edgeRefreshEnabled) {
-    try {
-      const liveStatus = await loadLiveStatusFromEdgeFunction();
-      renderWeatherAlert(liveStatus);
-      return;
-    } catch (edgeError) {
-      console.warn("KMD weather alert refresh failed.", edgeError);
+    const response = await fetch(PUBLIC_ALERT_ENDPOINT, {
+      method: "GET",
+      mode: "cors",
+      cache: "no-store",
+      signal: AbortSignal.timeout(16000)
+    });
+    if (!response.ok) throw new Error(`KMD alerts HTTP ${response.status}`);
+    const data = await response.json();
+    const status = normalizeWeatherStatus(data.status || data);
+    const fetched = Date.parse(status.fetched_at || "");
+    if (!Number.isFinite(fetched) || fetched > Date.now() + 60000 ||
+      Date.now() - fetched > MAX_RESPONSE_AGE_MS || !["active", "clear"].includes(status.status)) {
+      throw new Error("KMD alert information is not current");
     }
+    renderWeatherAlert(status);
+  } catch (error) {
+    console.warn("KMD weather alert status is unavailable:", error);
+    renderWeatherAlert({ status: "error" });
+  } finally {
+    refreshing = false;
   }
-
-  renderWeatherAlert({
-    status: "error",
-    source_url: KMD_WARNINGS_URL,
-    error_message: "Weather alert status unavailable."
-  });
 }
 
-async function loadLiveStatusFromEdgeFunction() {
-  const backend = await tideBackendContext();
-  if (!backend.url || !backend.anonKey || !backend.accessToken) {
-    throw new Error("Supabase Edge Function details are not configured.");
-  }
-
-  const response = await fetch(`${backend.url}/functions/v1/${EDGE_FUNCTION_NAME}`, {
-    cache: "no-store",
-    headers: {
-      apikey: backend.anonKey,
-      Authorization: `Bearer ${backend.accessToken}`
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error(`KMD alert refresh failed: ${response.status} ${response.statusText}`);
-  }
-
-  const payload = await response.json();
-  return normalizeWeatherStatus(payload.status || payload);
-}
-
-async function loadStoredStatusFromSupabase() {
-  const backend = await tideBackendContext();
-  if (!backend.restUrl || !backend.anonKey || !backend.accessToken) {
-    throw new Error("Supabase public read details are not configured.");
-  }
-
-  const query = `source_key=eq.${encodeURIComponent(SOURCE_KEY)}&select=*&limit=1`;
-  const response = await fetch(`${backend.restUrl}/${tideBackendTables().weather}?${query}`, {
-    cache: "no-store",
-    headers: {
-      apikey: backend.anonKey,
-      Authorization: `Bearer ${backend.accessToken}`
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error(`KMD stored alert read failed: ${response.status} ${response.statusText}`);
-  }
-
-  const rows = await response.json();
-  if (!Array.isArray(rows) || !rows.length) {
-    throw new Error("No KMD weather alert status row found.");
-  }
-
-  return normalizeWeatherStatus(rows[0]);
-}
-
-function normalizeWeatherStatus(rawStatus) {
-  const raw = rawStatus || {};
-  const alerts = normalizeAlerts(raw.alerts);
-  const activeCount = Number(raw.active_alert_count ?? raw.activeAlertCount ?? 0);
-  const coastalCount = Number(raw.coastal_alert_count ?? raw.coastalAlertCount ?? 0);
-  const status = String(raw.status || (activeCount > 0 ? "active" : "unknown")).toLowerCase();
-
+function normalizeWeatherStatus(raw) {
+  const alerts = Array.isArray(raw.alerts) ? raw.alerts : [];
   return {
-    source_key: raw.source_key || raw.sourceKey || SOURCE_KEY,
-    source_name: raw.source_name || raw.sourceName || "Kenya Meteorological Department",
-    source_url: raw.source_url || raw.sourceUrl || KMD_WARNINGS_URL,
-    status,
-    headline: raw.headline || alerts[0]?.headline || "",
-    summary: raw.summary || alerts[0]?.summary || "",
-    severity: raw.severity || alerts[0]?.severity || "",
-    areas: Array.isArray(raw.areas) ? raw.areas : alerts[0]?.areas || [],
-    coastal_relevant: Boolean(raw.coastal_relevant ?? raw.coastalRelevant ?? coastalCount > 0),
-    active_alert_count: activeCount,
-    coastal_alert_count: coastalCount,
-    fetched_at: raw.fetched_at || raw.fetchedAt || "",
-    error_message: raw.error_message || raw.errorMessage || "",
+    status: String(raw.status || "unknown").toLowerCase(),
+    fetched_at: raw.fetched_at || "",
+    active_alert_count: Number(raw.active_alert_count || 0),
+    coastal_alert_count: Number(raw.coastal_alert_count || 0),
     alerts
   };
 }
 
-function normalizeAlerts(value) {
-  if (!value) return [];
-  if (Array.isArray(value)) return value;
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }
-  return [];
+function isKenyanCoastSelected() {
+  const location = document.getElementById("locationSelect");
+  const region = document.getElementById("mapRegionSelect");
+  const selectedLabel = location?.selectedOptions?.[0]?.textContent ||
+    region?.selectedOptions?.[0]?.textContent || "";
+  return !/tanzania|zanzibar|dar es salaam|pemba|tanga region/i.test(selectedLabel);
 }
 
-function renderWeatherAlert(status) {
+function activeCoastalAlerts(status) {
+  const now = Date.now();
+  const selected = status.alerts.filter(alert => {
+    const expiry = Date.parse(alert.expires_at || "");
+    return alert.coastal_relevant === true &&
+      (!Number.isFinite(expiry) || expiry > now);
+  });
+  const priority = event => /wave|swell|sea state/i.test(event) ? 0 :
+    /wind|gale|storm/i.test(event) ? 1 : /rain|flood/i.test(event) ? 2 : 3;
+  // Prefer an explicitly local advisory over a generic national one when
+  // both cover the same weather event. Keep individual source links.
+  const specificity = alert => /kwale|shimoni|wasini|mombasa/i.test(
+    (alert.areas || []).join(" ")) ? 1 : 0;
+  selected.sort((a, b) => priority(a.event || a.headline || "") -
+    priority(b.event || b.headline || "") ||
+    specificity(b) - specificity(a) ||
+    Date.parse(b.sent_at || 0) - Date.parse(a.sent_at || 0));
+  const seen = new Set();
+  return selected.filter(alert => {
+    const label = String(alert.event || alert.headline || "weather").toLowerCase();
+    const group = /wave|swell/.test(label) ? "waves" :
+      /wind|gale/.test(label) ? "winds" :
+      /rain|flood/.test(label) ? "rain" : label;
+    if (seen.has(group)) return false;
+    seen.add(group);
+    return true;
+  }).slice(0, 4);
+}
+
+function renderWeatherAlert(raw) {
   if (!elements?.card) return;
+  const status = normalizeWeatherStatus(raw);
+  lastStatus = status;
+  const isKenyan = isKenyanCoastSelected();
+  const localAlerts = isKenyan && status.status === "active" ? activeCoastalAlerts(status) : [];
+  let label, description, appearance;
 
-  const normalized = normalizeWeatherStatus(status);
-  lastRenderedStatus = normalized;
-
-  const display = getDisplayState(normalized);
-  elements.card.dataset.weatherAlertStatus = display.status;
-  elements.label.textContent = display.label;
-  elements.text.textContent = display.text;
-
-  if (elements.meta) {
-    elements.meta.textContent = display.meta;
-    elements.meta.hidden = !display.meta;
+  if (status.status === "loading") {
+    appearance = "loading";
+    label = t("weatherWarning.loadingLabel");
+    description = t("weatherWarning.loadingText");
+  } else if (status.status === "error" || status.status === "unknown") {
+    appearance = "error";
+    label = t("weatherWarning.errorLabel");
+    description = t("weatherWarning.errorText");
+  } else if (localAlerts.length) {
+    appearance = "active";
+    label = t("weatherWarning.activeCoastalLabel");
+    description = t("weatherWarning.coastalCount", { count: localAlerts.length });
+  } else if (!isKenyan) {
+    appearance = "unknown";
+    label = t("weatherWarning.nonKenyanLabel");
+    description = t("weatherWarning.nonKenyanText");
+  } else if (status.status === "active") {
+    appearance = "unknown";
+    label = t("weatherWarning.activeLabel");
+    description = t("weatherWarning.noCoastalText");
+  } else {
+    appearance = "clear";
+    label = t("weatherWarning.clearLabel");
+    description = t("weatherWarning.clearText");
   }
 
+  elements.card.dataset.weatherAlertStatus = appearance;
+  elements.card.dataset.weatherAlertSeverity = localAlerts.some(a => /severe|extreme/i.test(a.severity || "")) ? "severe" : "moderate";
+  elements.label.textContent = label;
+  elements.text.textContent = description;
+  if (elements.meta) {
+    elements.meta.textContent = ["active", "clear"].includes(status.status) ?
+      formatLastChecked(status.fetched_at) : "";
+    elements.meta.hidden = !elements.meta.textContent;
+  }
   if (elements.source) {
-    elements.source.href = normalized.source_url || KMD_WARNINGS_URL;
+    elements.source.href = KMD_WARNINGS_URL;
     elements.source.textContent = t("weatherWarning.sourceLink");
   }
+  if (elements.items) {
+    elements.items.replaceChildren();
+    for (const alert of localAlerts) elements.items.appendChild(createAlertItem(alert));
+    elements.items.hidden = !localAlerts.length;
+  }
 }
 
-function getDisplayState(status) {
-  if (status.status === "loading") {
-    return {
-      status: "loading",
-      label: t("weatherWarning.loadingLabel"),
-      text: t("weatherWarning.loadingText"),
-      meta: ""
-    };
-  }
+function createAlertItem(alert) {
+  const item = document.createElement("article");
+  item.className = "weather-warning-item";
+  const heading = document.createElement("div");
+  heading.className = "weather-warning-item-heading";
 
-  if (status.status === "active" && status.active_alert_count > 0) {
-    const labelKey = status.coastal_relevant ? "weatherWarning.activeCoastalLabel" : "weatherWarning.activeLabel";
-    return {
-      status: "active",
-      label: t(labelKey),
-      text: buildActiveAlertText(status),
-      meta: formatLastChecked(status.fetched_at)
-    };
-  }
+  const title = document.createElement("strong");
+  title.textContent = trimText(alert.event || alert.headline || t("weatherWarning.activeLabel"), 65);
+  heading.appendChild(title);
 
-  if (status.status === "clear") {
-    return {
-      status: "clear",
-      label: t("weatherWarning.clearLabel"),
-      text: t("weatherWarning.clearText"),
-      meta: formatLastChecked(status.fetched_at)
-    };
+  if (alert.severity) {
+    const severity = document.createElement("span");
+    severity.className = "weather-warning-severity";
+    severity.textContent = alert.severity;
+    heading.appendChild(severity);
   }
+  item.appendChild(heading);
 
-  if (status.status === "error") {
-    return {
-      status: "error",
-      label: t("weatherWarning.errorLabel"),
-      text: t("weatherWarning.errorText"),
-      meta: formatLastChecked(status.fetched_at)
-    };
+  const summary = trimText(alert.summary || alert.headline || "", 175);
+  if (summary) {
+    const detail = document.createElement("p");
+    detail.className = "weather-warning-item-summary";
+    detail.textContent = summary;
+    item.appendChild(detail);
   }
-
-  return {
-    status: "unknown",
-    label: t("weatherWarning.label"),
-    text: t("weatherWarning.text"),
-    meta: formatLastChecked(status.fetched_at)
-  };
+  const footer = document.createElement("div");
+  footer.className = "weather-warning-item-footer";
+  const expiry = formatExpiry(alert.expires_at);
+  if (expiry) {
+    const until = document.createElement("span");
+    until.textContent = t("weatherWarning.validUntil", { time: expiry });
+    footer.appendChild(until);
+  }
+  const sourceLink = safeKmdLink(alert.link);
+  if (sourceLink) {
+    const link = document.createElement("a");
+    link.href = sourceLink;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = t("weatherWarning.advisoryLink");
+    footer.appendChild(link);
+  }
+  if (footer.childNodes.length) item.appendChild(footer);
+  return item;
 }
 
-function buildActiveAlertText(status) {
-  const parts = [];
-  if (status.headline) parts.push(status.headline);
-  if (status.severity) parts.push(status.severity);
-  if (Array.isArray(status.areas) && status.areas.length) parts.push(status.areas.slice(0, 3).join(", "));
-  if (status.summary) parts.push(status.summary);
-
-  const text = parts.filter(Boolean).join(" - ");
-  return trimText(text || t("weatherWarning.text"), 260);
+function safeKmdLink(link) {
+  try {
+    const url = new URL(link);
+    return url.protocol === "https:" && url.hostname === "meteo.go.ke" ? url.href : null;
+  } catch {
+    return null;
+  }
 }
 
-function formatLastChecked(value) {
+function formatExpiry(value) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-
-  const formatted = new Intl.DateTimeFormat(getLocale(), {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
+  return new Intl.DateTimeFormat(getLocale(), {
+    day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
     timeZone: "Africa/Nairobi"
   }).format(date);
+}
 
-  return t("weatherWarning.lastChecked", { time: formatted });
+function formatLastChecked(value) {
+  const date = new Date(value || "");
+  if (Number.isNaN(date.getTime())) return "";
+  return t("weatherWarning.lastChecked", {
+    time: new Intl.DateTimeFormat(getLocale(), {
+      day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+      timeZone: "Africa/Nairobi"
+    }).format(date)
+  });
 }
 
 function trimText(value, maxLength) {
   const text = String(value || "").replace(/\s+/g, " ").trim();
-  if (text.length <= maxLength) return text;
-  return `${text.slice(0, maxLength - 3).trim()}...`;
+  return text.length <= maxLength ? text : `${text.slice(0, maxLength - 3).trim()}…`;
 }
 
 if (document.readyState === "loading") {
