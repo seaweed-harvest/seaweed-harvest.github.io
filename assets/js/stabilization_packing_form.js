@@ -88,7 +88,7 @@ async function init() {
       try {
         const files = pendingStockPhotos();
         renderPhotoPreviews(els.packingPhotoPreview, files);
-        els.packingPhotoStatus.textContent = `${files.length} photo(s) ready.`;
+        els.packingPhotoStatus.textContent = `${files.length} of 2 photos`;
       } catch (error) {
         control.value = "";
         renderPhotoPreviews(els.packingPhotoPreview, pendingStockPhotos());
@@ -463,7 +463,7 @@ function resetInputs(nextSerial = nextCartonSerial) {
   nextCartonSerial = String(nextSerial || nextCartonSerial || "1");
   els.packingRecordForm.reset();
   els.packingPhotoPreview.replaceChildren();
-  els.packingPhotoStatus.textContent = "";
+  els.packingPhotoStatus.textContent = "0 of 2 photos";
   els.packedOn.value = kenyaDate();
   els.packingSpecies.value = defaultSpecies;
   els.packingRecordedBy.value = recordedBy;
