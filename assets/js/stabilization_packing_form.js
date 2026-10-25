@@ -31,7 +31,7 @@ async function init() {
     "packingRetestTargetField", "packingRetestTarget",
     "packingEc", "packingStabilizerYes", "packingStabilizerNo", "packingStabilizerFields",
     "packingChemical", "packingDose", "packingDoseUnit", "packingDoseDefault", "packingNotes",
-    "packingPhotoFiles", "packingCameraPhoto", "packingPhotoPreview", "packingPhotoStatus", "packingSavedPhotoLink",
+    "packingPhotoFiles", "packingCameraPhoto", "packingTakePhoto", "packingChoosePhotos", "packingPhotoPreview", "packingPhotoStatus", "packingSavedPhotoLink",
     "packingCitricAcidYes", "packingCitricAcidNo", "packingCitricAcidFields",
     "packingCitricAcidChemical", "packingCitricAcidDose", "packingCitricAcidDoseUnit",
     "packingCitricAcidDoseDefault",
@@ -81,6 +81,8 @@ async function init() {
   els.packingBatchRecordedBy.value = els.packingRecordedBy.value;
   els.packingBatchDate.value = kenyaDate();
   els.packingRecordForm.addEventListener("submit", submitRecord);
+  els.packingTakePhoto.addEventListener("click", () => els.packingCameraPhoto.click());
+  els.packingChoosePhotos.addEventListener("click", () => els.packingPhotoFiles.click());
   for (const control of [els.packingPhotoFiles, els.packingCameraPhoto]) {
     control.addEventListener("change", () => {
       try {
