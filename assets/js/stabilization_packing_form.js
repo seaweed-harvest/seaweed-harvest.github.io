@@ -17,6 +17,108 @@ let nextCartonSerial = "1";
 let cartonSerialWasEdited = false;
 let applyingCartonSuggestion = false;
 let batchSubmissionId = crypto.randomUUID();
+
+const requestedBatchId = new URLSearchParams(window.location.search).get("edit_batch");
+let editingBatch = null;
+function batchReturnUrl() {
+  const candidate = new URLSearchParams(window.location.search).get("return_to") || "";
+  // Never accept an external redirect from a link.
+  return /^\.?\/?records\.html\?(?!.*[<>])/i.test(candidate)
+    ? candidate.replace(/^\//, "./")
+    : "./records.html?category=stock&view=all";
+}
+function selectBatchRadio(name, value) {
+  const desired = value === null || value === undefined ? "" : value ? "yes" : "no";
+  els.packingBatchForm.querySelectorAll(`[name="${name}"]`).forEach((el) => {
+    el.checked = el.value === desired;
+  });
+}
+function originalSharedMeasurements(row) {
+  return {
+    species: row.species,
+    weight_value: row.weight_value,
+    weight_unit: row.weight_unit,
+    stabilizer_added: Boolean(row.stabilizer_added),
+    chemical_dose_value: row.stabilizer_added ? row.chemical_dose_value : null,
+    citric_acid_added: Boolean(row.citric_acid_added),
+    citric_acid_dose_value: row.citric_acid_added ? row.citric_acid_dose_value : null,
+    salinity_value: row.salinity_value,
+    salinity_unit: row.salinity_unit,
+    ph_value: row.ph_value,
+    electrical_conductivity_ms_cm: row.electrical_conductivity_ms_cm,
+    brix_value: row.brix_value
+  };
+}
+function sameBatchValue(a, b) {
+  if (a == null || a === "") return b == null || b === "";
+  if (b == null || b === "") return false;
+  return String(a) === String(b);
+}
+function fillOriginalBatch(row, rows) {
+  els.packingBatchFirst.value = rows[0].carton_serial;
+  els.packingBatchLast.value = rows[rows.length - 1].carton_serial;
+  els.packingBatchDate.value = row.packed_on;
+  els.packingBatchRecordedBy.value = row.recorded_by_name || "";
+  els.packingBatchSpecies.value = row.species;
+  els.packingBatchVolume.value = row.weight_value ?? "";
+  els.packingBatchVolumeUnit.value = row.weight_unit || "L";
+  selectBatchRadio("packingBatchStabilizerAdded", row.stabilizer_added);
+  selectBatchRadio("packingBatchCitricAcidAdded", row.citric_acid_added);
+  updateBatchStabilizerControls();
+  els.packingBatchDose.value = row.chemical_dose_value ?? "";
+  els.packingBatchCitricAcidDose.value = row.citric_acid_dose_value ?? "";
+  els.packingBatchSalinity.value = row.salinity_value ?? "";
+  els.packingBatchSalinityUnit.value = row.salinity_unit || "PSU";
+  els.packingBatchPh.value = row.ph_value ?? "";
+  els.packingBatchEc.value = row.electrical_conductivity_ms_cm ?? "";
+  els.packingBatchBrix.value = row.brix_value ?? "";
+  els.packingBatchHydrometer.value = row.hydrometer_value ?? "";
+  selectBatchRadio("packingBatchEColiSampleTaken", row.e_coli_sample_taken);
+  els.packingBatchNotes.value = row.notes || "";
+  updateBatchState();
+}
+async function loadOriginalBatchForEditing() {
+  if (!requestedBatchId) return;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestedBatchId)) {
+    throw new Error("Invalid batch reference.");
+  }
+  els.savePackingBatch.disabled = true;
+  const { data, error } = await authClient.rpc("ag_get_stabilization_packing_batch_for_edit", {
+    p_batch_submission_id: requestedBatchId
+  });
+  if (error) throw error;
+  const batch = Array.isArray(data) ? data[0] : data;
+  const rows = (batch?.rows || []).slice().sort((a,b) => {
+    const first = BigInt(a.carton_serial);
+    const second = BigInt(b.carton_serial);
+    return first < second ? -1 : first > second ? 1 : 0;
+  });
+  if (!rows.length) throw new Error("Batch was not found.");
+  const first = rows[0];
+  const compareKeys = ["packed_on", "recorded_by_name", "notes", "hydrometer_value", "hydrometer_scale", "e_coli_sample_taken"];
+  const base = originalSharedMeasurements(first);
+  const mixed = rows.some((row) => (
+    compareKeys.some((key) => !sameBatchValue(row[key], first[key])) ||
+    Object.keys(base).some((key) => !sameBatchValue(originalSharedMeasurements(row)[key], base[key]))
+  ));
+  editingBatch = {
+    id: requestedBatchId, rows, expectedCount: batch.expected_count,
+    latest: batch.expected_latest_updated_at, originalShared: base, mixed
+  };
+  fillOriginalBatch(first,rows);
+  els.packingBatchTab.click();
+  els.packingSingleTab.hidden = true;
+  els.packingBatchEditNotice.hidden = false;
+  els.packingBatchEditCancel.href = batchReturnUrl();
+  els.packingBatchEditWarning.textContent = mixed
+    ? " Some containers have different measurements; saving shared QC will replace those individual values."
+    : " Changes will update this existing batch, not create another.";
+  els.savePackingBatch.textContent = "Save batch changes";
+  els.clearPackingBatch.textContent = "Restore saved values";
+  els.savePackingBatch.disabled = false;
+  els.packingBatchFirst.focus();
+}
+
 let cartonSuggestion = null;
 
 document.addEventListener("DOMContentLoaded", init);
@@ -143,9 +245,20 @@ async function init() {
     updateBatchStabilizerControls();
     updateBatchState();
     updateFieldHighlights();
-    els.cartonSerial.focus();
+    if (requestedBatchId) {
+      await loadOriginalBatchForEditing();
+    } else {
+      els.cartonSerial.focus();
+    }
   } catch (error) {
-    setStatus(error.message, "error");
+    if (requestedBatchId) {
+      els.packingBatchTab.click();
+      els.packingSingleTab.hidden = true;
+      els.savePackingBatch.disabled = true;
+      setBatchStatus(error.message || "Could not open this batch for editing.", "error");
+    } else {
+      setStatus(error.message, "error");
+    }
   }
 }
 
@@ -496,6 +609,10 @@ function handleEntryTabClick(event) {
 
 async function submitBatch(event) {
   event.preventDefault();
+  if (requestedBatchId && !editingBatch) {
+    setBatchStatus("The existing batch has not loaded. No changes were saved.", "error");
+    return;
+  }
   if (!els.packingBatchForm.reportValidity()) return;
   const count = batchRangeCount();
   if (count < 1 || count > 100) {
@@ -524,9 +641,7 @@ async function submitBatch(event) {
   try {
     const stabilizerAdded = selectedYesNo(els.packingBatchForm, "packingBatchStabilizerAdded");
     const citricAcidAdded = selectedYesNo(els.packingBatchForm, "packingBatchCitricAcidAdded");
-    const { data, error } = await authClient.rpc("ag_submit_stabilization_packing_batch_v3", {
-      p_batch_submission_id: batchSubmissionId,
-      p_record: {
+    const batchValues = {
         first_carton_serial: els.packingBatchFirst.value.trim(),
         last_carton_serial: els.packingBatchLast.value.trim(),
         packed_on: els.packingBatchDate.value,
@@ -553,10 +668,59 @@ async function submitBatch(event) {
         hydrometer_scale: els.packingBatchHydrometer.value !== "" ? "SG" : null,
         e_coli_sample_taken: selectedYesNo(els.packingBatchForm, "packingBatchEColiSampleTaken"),
         notes: textOrNull(els.packingBatchNotes.value)
-      }
+    };
+    let result;
+    if (editingBatch) {
+      const before = editingBatch.originalShared;
+      const sharedValues = {
+        species: batchValues.species,
+        weight_value: batchValues.volume_value, weight_unit: batchValues.volume_unit,
+        stabilizer_added: batchValues.stabilizer_added,
+        chemical_dose_value: batchValues.chemical_dose_value,
+        citric_acid_added: batchValues.citric_acid_added,
+        citric_acid_dose_value: batchValues.citric_acid_dose_value,
+        salinity_value: batchValues.salinity_value, salinity_unit: batchValues.salinity_unit,
+        ph_value: batchValues.ph_value,
+        electrical_conductivity_ms_cm: batchValues.electrical_conductivity_ms_cm,
+        brix_value: batchValues.brix_value
+      };
+      const sharedChanged = Object.keys(sharedValues)
+        .some((key) => !sameBatchValue(sharedValues[key], before[key]));
+      const first = BigInt(batchValues.first_carton_serial);
+      const last = BigInt(batchValues.last_carton_serial);
+      const removals = editingBatch.rows.filter((row) => {
+        const serial = BigInt(row.carton_serial);
+        return serial < first || serial > last;
+      });
+      if (removals.length && !window.confirm(
+        `Remove ${removals.length} container(s) outside the new range? Their removal will be recorded in Deleted Records.`
+      )) return;
+      if (sharedChanged && editingBatch.mixed && !window.confirm(
+        "This batch has different recorded measurements across some containers. Replace their common QC values with these form values?"
+      )) return;
+      const { data, error } = await authClient.rpc("ag_update_stabilization_packing_batch_from_form", {
+        p_batch_submission_id: editingBatch.id,
+        p_record: {
+          ...batchValues,
+          ...sharedValues,
+          first_carton_serial: batchValues.first_carton_serial,
+          last_carton_serial: batchValues.last_carton_serial,
+          apply_shared: sharedChanged,
+          allow_remove: removals.length > 0,
+          expected_count: editingBatch.expectedCount,
+          expected_latest_updated_at: editingBatch.latest
+        }
+      });
+      if (error) throw error;
+      setBatchStatus(`Batch updated. ${data?.added_count || 0} containers added, ${data?.removed_count || 0} removed.`);
+      window.location.assign(batchReturnUrl());
+      return;
+    }
+    result = await authClient.rpc("ag_submit_stabilization_packing_batch_v3", {
+      p_batch_submission_id: batchSubmissionId, p_record: batchValues
     });
-    if (error) throw error;
-    const saved = Array.isArray(data) ? data[0] : data;
+    if (result.error) throw result.error;
+    const saved = Array.isArray(result.data) ? result.data[0] : result.data;
     nextCartonSerial = String(saved?.next_carton_serial || nextSerialAfter(els.packingBatchLast.value));
     setBatchStatus(saved?.duplicate
       ? "This batch was already saved. Existing container records and QC were not changed."
@@ -572,7 +736,11 @@ async function submitBatch(event) {
 }
 
 function clearBatch() {
-  resetBatchInputs();
+  if (editingBatch) {
+    fillOriginalBatch(editingBatch.rows[0], editingBatch.rows);
+  } else {
+    resetBatchInputs();
+  }
   setBatchStatus("");
 }
 
