@@ -1,4 +1,4 @@
-import { calculateContractWorkAmount } from "./dryer_payment_math.js?v=1";
+import { calculateContractWorkAmount } from "./dryer_payment_math.js?v=2";
 
 const PAYMENT_TERMS_ID = "dryerPaymentTermsReference";
 const REPORT_BUTTON_ID = "dryerPaymentReviewReport";
@@ -20,12 +20,18 @@ function parseKesAmount(label) {
 
 function parseActivityCounts(row) {
   const text = row?.querySelector("td:nth-child(4)")?.textContent || "";
-  const match = text.match(/(\d+)\s*L\s*\/\s*(\d+)\s*U/i);
-  if (!match) return null;
-  return {
-    loadings: Number(match[1]),
-    unloadings: Number(match[2])
-  };
+  const match = text.match(/(\d+)\s*L\s*\/\s*(\d+)\s*R\s*\/\s*(\d+)\s*U/i);
+  if (match) {
+    return {
+      loadings: Number(match[1]),
+      reweighs: Number(match[2]),
+      unloadings: Number(match[3])
+    };
+  }
+  // Older archived rows can still display L / U.
+  const legacy = text.match(/(\d+)\s*L\s*\/\s*(\d+)\s*U/i);
+  if (!legacy) return null;
+  return { loadings: Number(legacy[1]), reweighs: 0, unloadings: Number(legacy[2]) };
 }
 
 function escapeHtml(value) {
@@ -184,8 +190,8 @@ function installTermsReference() {
   details.innerHTML = `
     <summary>Payment terms reference</summary>
     <ul>
-      <li><strong>KES 500</strong> per qualifying activity day once either 8 bay loadings or 8 bay unloadings is reached.</li>
-      <li><strong>KES 25</strong> for each additional loading or unloading activity above the initial 8.</li>
+      <li><strong>KES 500</strong> per qualifying activity day once 8 bay loadings, 8 bay reweighs, or 8 bay unloadings is reached.</li>
+      <li><strong>KES 25</strong> for each additional loading, reweigh or unloading activity above the initial 8.</li>
       <li><strong>KES 100</strong> phone/data allowance per activity day when the Research Assistant uses their own phone and mobile data.</li>
     </ul>
   `;
@@ -201,7 +207,7 @@ function selectedReportRows() {
         ? row.nextElementSibling
         : null;
       const cells = row.querySelectorAll("td");
-      const counts = parseActivityCounts(row) || { loadings: 0, unloadings: 0 };
+      const counts = parseActivityCounts(row) || { loadings: 0, reweighs: 0, unloadings: 0 };
       const activityPay = Number(row.querySelector("[data-payment-work-input]")?.value || 0);
       const phoneSelect = row.querySelector("[data-payment-phone-select]");
       const phoneData = Number(phoneSelect?.value || 0);
@@ -215,6 +221,7 @@ function selectedReportRows() {
         assistant: cells[2]?.textContent?.trim() || "—",
         loadings: counts.loadings,
         unloadings: counts.unloadings,
+    reweighs: counts.reweighs,
         minimum: cells[4]?.querySelector(".status-pill")?.textContent?.trim() || "—",
         activityPay: Number.isFinite(activityPay) ? Math.round(activityPay) : 0,
         phoneData: Number.isFinite(phoneData) ? Math.round(phoneData) : 0,
@@ -245,6 +252,7 @@ function reportHtml(rows) {
     <tr>
       <td>${escapeHtml(row.date)}</td>
       <td class="num">${row.loadings}</td>
+      <td class="num">${row.reweighs}</td>
       <td class="num">${row.unloadings}</td>
       <td>${escapeHtml(row.minimum)}</td>
       <td class="money">${escapeHtml(row.activityPay.toLocaleString("en-KE"))}</td>
@@ -319,13 +327,14 @@ function reportHtml(rows) {
 
     <table>
       <colgroup>
-        <col style="width:10%"><col style="width:5%"><col style="width:5%"><col style="width:12%">
-        <col style="width:11%"><col style="width:11%"><col style="width:12%"><col style="width:34%">
+        <col style="width:10%"><col style="width:5%"><col style="width:5%"><col style="width:5%">
+        <col style="width:12%"><col style="width:10%"><col style="width:10%"><col style="width:12%"><col style="width:31%">
       </colgroup>
       <thead>
         <tr>
           <th>Date</th>
           <th>Load</th>
+          <th>Reweigh</th>
           <th>Unload</th>
           <th>Minimum</th>
           <th>Activity pay (KES)</th>
@@ -484,7 +493,7 @@ function buildPayDetail(row) {
 
   const counts = parseActivityCounts(row);
   if (!counts) return;
-  const calculation = calculateContractWorkAmount(counts.loadings, counts.unloadings);
+  const calculation = calculateContractWorkAmount(counts.loadings, counts.unloadings, counts.reweighs);
 
   const detail = document.createElement("div");
   detail.className = "dryer-pay-detail";
