@@ -59,7 +59,7 @@ declare
  v_extra_change boolean;
  v_first_serial text;
  v_last_serial text;
- v_prior jsonb;
+ v_meta jsonb;
 begin
  if v_actor is null then raise exception 'Sign in to edit stock.' using errcode='42501'; end if;
  if p_batch_submission_id is null or p_record is null or jsonb_typeof(p_record)<>'object' then
@@ -72,6 +72,12 @@ begin
    where r.aggregator_id=v_org and r.batch_submission_id=p_batch_submission_id and r.record_type='initial'
    order by carton_serial::numeric,id limit 1;
  if not found then raise exception 'Batch not found.' using errcode='P0002'; end if;
+ v_meta := coalesce(p_record->'metadata_changes','{}'::jsonb);
+ if jsonb_typeof(v_meta) <> 'object' or
+    exists(select 1 from jsonb_object_keys(v_meta) key
+           where key not in ('packed_on','recorded_by_name','notes','hydrometer_value','hydrometer_scale','e_coli_sample_taken')) then
+   raise exception 'Unsupported batch correction field.' using errcode='22023';
+ end if;
  v_date := nullif(p_record->>'packed_on','')::date;
  v_name := nullif(trim(p_record->>'recorded_by_name'),'');
  v_notes := nullif(trim(p_record->>'notes'),'');
@@ -91,14 +97,7 @@ begin
    raise exception 'Hydrometer readings on the batch form must use SG.' using errcode='22023';
  end if;
  if v_hydrometer is null then v_hydrometer_scale:=null; end if;
- v_extra_change := exists (
-   select 1 from public.ag_stabilization_packing_records r
-   where r.aggregator_id=v_org and r.batch_submission_id=p_batch_submission_id and r.record_type='initial'
-    and (r.packed_on is distinct from v_date or r.recorded_by_name is distinct from v_name
-      or r.notes is distinct from v_notes or r.hydrometer_value is distinct from v_hydrometer
-      or r.hydrometer_scale is distinct from v_hydrometer_scale
-      or r.e_coli_sample_taken is distinct from v_ecoli)
- );
+ v_extra_change := v_meta <> '{}'::jsonb;
  -- Prevent altering already moved stock via the supplementary fields.
  if v_extra_change and exists (
   select 1 from public.ag_stabilization_packing_records r
@@ -119,15 +118,17 @@ begin
        'before',jsonb_build_object('packed_on',r.packed_on,'recorded_by_name',r.recorded_by_name,
           'notes',r.notes,'hydrometer_value',r.hydrometer_value,'hydrometer_scale',r.hydrometer_scale,
           'e_coli_sample_taken',r.e_coli_sample_taken),
-       'after',jsonb_build_object('packed_on',v_date,'recorded_by_name',v_name,'notes',v_notes,
-          'hydrometer_value',v_hydrometer,'hydrometer_scale',v_hydrometer_scale,
-          'e_coli_sample_taken',v_ecoli))
+       'changed_fields',v_meta)
    from public.ag_stabilization_packing_records r
     where r.aggregator_id=v_org and r.batch_submission_id=p_batch_submission_id and r.record_type='initial';
    update public.ag_stabilization_packing_records r
-     set packed_on=v_date,recorded_by_name=v_name,notes=v_notes,
-         hydrometer_value=v_hydrometer,hydrometer_scale=v_hydrometer_scale,
-         e_coli_sample_taken=v_ecoli,updated_at=now()
+     set packed_on=case when v_meta ? 'packed_on' then v_date else r.packed_on end,
+         recorded_by_name=case when v_meta ? 'recorded_by_name' then v_name else r.recorded_by_name end,
+         notes=case when v_meta ? 'notes' then v_notes else r.notes end,
+         hydrometer_value=case when v_meta ? 'hydrometer_value' then v_hydrometer else r.hydrometer_value end,
+         hydrometer_scale=case when v_meta ? 'hydrometer_scale' then v_hydrometer_scale else r.hydrometer_scale end,
+         e_coli_sample_taken=case when v_meta ? 'e_coli_sample_taken' then v_ecoli else r.e_coli_sample_taken end,
+         updated_at=now()
    where r.aggregator_id=v_org and r.batch_submission_id=p_batch_submission_id and r.record_type='initial';
  end if;
  return v_result;
