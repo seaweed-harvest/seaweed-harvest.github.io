@@ -7796,14 +7796,48 @@ label input[type="checkbox"] {
     text-align: center;
   }
 
+  /*
+   * Keep the record-date control inside its card on narrow iOS screens.
+   * A shrinkable grid track avoids the native date input's intrinsic width
+   * expanding the shared row beyond the panel's content box.
+   */
+  #recordTodayWorkspace {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .today-shared-date {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
-    flex-direction: column;
     gap: 6px;
   }
 
-  .today-shared-date input {
+  .today-shared-date input[type="date"] {
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /*
+   * Shared mobile form sizing: native date/time/month pickers must fit
+   * their labels and cards rather than enforcing a browser intrinsic width.
+   * This does not change desktop field dimensions or table scrolling.
+   */
+  .admin-content :where(
+    input[type="date"],
+    input[type="datetime-local"],
+    input[type="time"],
+    input[type="month"]
+  ) {
+    min-inline-size: 0;
+    max-inline-size: 100%;
+    box-sizing: border-box;
   }
 
   .form-ledger-view-heading {

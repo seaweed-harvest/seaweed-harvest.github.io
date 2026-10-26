@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v177-ledger-batch-edit";
+const CACHE_VERSION = "seaweed-harvest-collection-v178-mobile-date-fit";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
