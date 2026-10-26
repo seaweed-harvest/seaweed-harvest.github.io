@@ -36,6 +36,27 @@ export const DRYER_SHED_TABLES = Object.freeze([
     stationUid: "ST-0102",
     bayCount: 1,
     noConfiguration: true
+  }),
+  Object.freeze({
+    value: "bati-dryer-shed-t6",
+    label: "Dryer Shed - T6",
+    stationUid: "ST-0102",
+    bayCount: 1,
+    noConfiguration: true
+  }),
+  Object.freeze({
+    value: "bati-dryer-shed-t7",
+    label: "Dryer Shed - T7",
+    stationUid: "ST-0102",
+    bayCount: 1,
+    noConfiguration: true
+  }),
+  Object.freeze({
+    value: "bati-dryer-shed-t8",
+    label: "Dryer Shed - T8",
+    stationUid: "ST-0102",
+    bayCount: 1,
+    noConfiguration: true
   })
 ]);
 

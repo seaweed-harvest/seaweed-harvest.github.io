@@ -44,6 +44,24 @@ class DryerTablePaymentLogicTest(unittest.TestCase):
                 self.assertEqual(result["contractAmountKes"], contract)
                 self.assertEqual(result["referenceAmountKes"], reference)
 
+    def test_reweigh_counts_as_individual_payable_bay_activity(self):
+        cases = {
+            "eight_reweighs": (0, 0, 8, True, 500, 200),
+            "eight_loadings_three_reweighs": (8, 0, 3, True, 575, 275),
+            "eight_reweighs_three_unloadings": (0, 3, 8, True, 575, 275),
+            "only_seven_reweighs": (0, 0, 7, False, None, 175),
+            "mixed_below_same_type_threshold": (4, 2, 2, False, None, 200),
+        }
+        for name, (loads, unloads, reweighs, qualifies, contract, reference) in cases.items():
+            with self.subTest(name=name):
+                result = run_math(
+                    f"module.calculateContractWorkAmount({loads}, {unloads}, {reweighs})"
+                )
+                self.assertEqual(result["qualifies"], qualifies)
+                self.assertEqual(result["contractAmountKes"], contract)
+                self.assertEqual(result["referenceAmountKes"], reference)
+                self.assertEqual(result["reweighCount"], reweighs)
+
     def test_phone_credit_never_reduces_work_compensation(self):
         result = run_math(
             "module.calculateSelectedPayment(["

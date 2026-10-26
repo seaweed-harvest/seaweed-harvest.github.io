@@ -1,8 +1,8 @@
 import { currentAccessToken, currentProfile } from "./auth_client.js?v=25";
 import { DRYING_FORM_CONFIG } from "./dryer_table_config.js?v=2";
-import { calculateSelectedPayment } from "./dryer_payment_math.js?v=1";
+import { calculateSelectedPayment } from "./dryer_payment_math.js?v=2";
 
-export { calculateSelectedPayment } from "./dryer_payment_math.js?v=1";
+export { calculateSelectedPayment } from "./dryer_payment_math.js?v=2";
 
 const PAYMENT_WORKSPACE_RPC = "list_authenticated_seaweed_drying_payment_workspace";
 const SAVE_DECISION_RPC = "save_authenticated_seaweed_drying_activity_day_decision";
@@ -377,7 +377,7 @@ class DryerPaymentsController {
     if (!this.state.activityDays.length) {
       this.els.dryerActivityDayRows.innerHTML = emptyRow(
         9,
-        "No dryer loading or unloading activity days are available."
+        "No dryer loading, reweigh or unloading activity days are available."
       );
       this.renderSelectionPanel();
       setStatus(this.els.dryerPaymentActivityStatus, "0 activity days");
@@ -446,7 +446,7 @@ class DryerPaymentsController {
       </td>
       <td>${escapeHtml(day.assistant_name || day.assistant_key || "—")}</td>
       <td>${escapeHtml(
-        `${formatInteger(day.loading_count)} L / ${formatInteger(
+        `${formatInteger(day.loading_count)} L / ${formatInteger(day.reweigh_count)} R / ${formatInteger(
           day.unloading_count
         )} U`
       )}</td>
@@ -496,7 +496,7 @@ class DryerPaymentsController {
             (event) => `<li><strong>${escapeHtml(
               event.table_location || event.receipt_number || "Drying event"
             )}</strong> — ${escapeHtml(
-              `${formatInteger(event.loading_count)} loadings / ${formatInteger(
+              `${formatInteger(event.loading_count)} loadings / ${formatInteger(event.reweigh_count)} reweighs / ${formatInteger(
                 event.unloading_count
               )} unloadings`
             )}</li>`
@@ -966,7 +966,7 @@ class DryerPaymentsController {
             (day) => `<li><strong>${escapeHtml(
               formatDateKey(day.activity_date)
             )}</strong> — ${escapeHtml(
-              `${formatInteger(day.loading_count)} L / ${formatInteger(
+              `${formatInteger(day.loading_count)} L / ${formatInteger(day.reweigh_count)} R / ${formatInteger(
                 day.unloading_count
               )} U`
             )}; work ${escapeHtml(
