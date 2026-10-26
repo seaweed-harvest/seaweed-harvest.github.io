@@ -1,0 +1,57 @@
+name: COSME dryer payments and sheds
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/dryer_payment_math.js'
+      - 'assets/js/dryer_payment_ui_refinement.js'
+      - 'assets/js/dryer_table_payments.js'
+      - 'assets/js/dryer_table_config.js'
+      - 'assets/js/dryer_table_shed_locations.js'
+      - 'supabase/migrations/*dryer*.sql'
+      - 'tests/dryer_table_payment_logic_test.py'
+      - '.github/workflows/dryer-payments-and-sheds-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'assets/js/dryer_payment_math.js'
+      - 'assets/js/dryer_payment_ui_refinement.js'
+      - 'assets/js/dryer_table_payments.js'
+      - 'assets/js/dryer_table_config.js'
+      - 'assets/js/dryer_table_shed_locations.js'
+      - 'supabase/migrations/*dryer*.sql'
+      - 'tests/dryer_table_payment_logic_test.py'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check JavaScript syntax
+        run: |
+          node --check assets/js/dryer_payment_math.js
+          node --check assets/js/dryer_table_payments.js
+          node --check assets/js/dryer_payment_ui_refinement.js
+          node --check assets/js/dryer_table_config.js
+          node --check assets/js/dryer_table_shed_locations.js
+      - name: Test payment calculations
+        run: python -m unittest discover -s tests -p 'dryer_table_payment_logic_test.py' -v
+      - name: Check T6-T8 frontend and database migration alignment
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          config = Path("assets/js/dryer_table_config.js").read_text()
+          shed = Path("assets/js/dryer_table_shed_locations.js").read_text()
+          migration = Path("supabase/migrations/20261026121000_dryer_shed_t6_t8.sql").read_text()
+          for number in (6, 7, 8):
+              code = f"bati-dryer-shed-t{number}"
+              assert code in config and code in shed and code in migration, code
+          assert "noConfiguration: true" in shed
+          assert "v_after_acl is distinct from v_acl" in migration
+          PY
