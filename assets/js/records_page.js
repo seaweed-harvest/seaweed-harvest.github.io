@@ -219,7 +219,7 @@ async function init() {
     "formLedgerFrom", "formLedgerTo", "formLedgerSearch", "loadFormLedger",
     "exportFormLedger", "previousFormLedgerPage", "formLedgerPageStatus",
     "nextFormLedgerPage", "formLedgerHead", "formLedgerRows", "formLedgerStatus",
-    "formLedgerEditActions", "formLedgerSelectedCount", "formLedgerStartEdit",
+    "formLedgerEditActions", "formLedgerSelectedCount", "formLedgerStartEdit", "formLedgerEditBatch",
     "formLedgerSaveEdits", "formLedgerDiscardEdits", "formLedgerDeleteSelected",
     "formLedgerActionStatus",
     "formLedgerGrouping", "formLedgerPeriodFrom", "formLedgerPeriodTo",
@@ -394,6 +394,7 @@ function bindEvents() {
   els.formLedgerRows.addEventListener("change", handleFormRecordTableChange);
   els.formLedgerRows.addEventListener("input", handleFormRecordDraftInput);
   els.formLedgerStartEdit.addEventListener("click", startFormRecordEdit);
+  els.formLedgerEditBatch.addEventListener("click", openSelectedLedgerStockBatch);
   els.formLedgerSaveEdits.addEventListener("click", saveFormRecordEdits);
   els.formLedgerDiscardEdits.addEventListener("click", discardFormRecordEdits);
   els.formLedgerDeleteSelected.addEventListener("click", deleteSelectedFormRecords);
@@ -1431,6 +1432,24 @@ function toggleAllFormRecords(event) {
   renderAllRows();
 }
 
+function selectedLedgerStockBatch() {
+  if (state.category !== "stock") return null;
+  const rows = state.rows.filter((row) => state.selectedFormRecordIds.has(String(row.id)));
+  if (!rows.length || rows.some((row) => row.record_type !== "initial" || !row.batch_submission_id || !row.id)) return null;
+  const id = rows[0].batch_submission_id;
+  return rows.every((row) => row.batch_submission_id === id) ? id : null;
+}
+
+function openSelectedLedgerStockBatch() {
+  if (!canManageFormRecords() || state.editingFormRecordIds.size) return;
+  const id = selectedLedgerStockBatch();
+  if (!id) return;
+  const url = new URL("./stabilization_packing.html", window.location.href);
+  url.searchParams.set("edit_batch", id);
+  url.searchParams.set("return_to", "./records.html" + window.location.search);
+  window.location.assign(url.href);
+}
+
 function updateFormRecordSelectionUi() {
   if (!els.formLedgerEditActions) return;
   const canManage = canManageFormRecords();
@@ -1442,6 +1461,9 @@ function updateFormRecordSelectionUi() {
   els.formLedgerStartEdit.hidden = editing;
   els.formLedgerStartEdit.disabled = !selected;
   els.formLedgerStartEdit.textContent = selected > 1 ? `Edit ${selected}` : "Edit";
+  const batchId = !editing && canManage ? selectedLedgerStockBatch() : null;
+  els.formLedgerEditBatch.hidden = !batchId;
+  els.formLedgerEditBatch.disabled = !batchId;
   els.formLedgerSaveEdits.hidden = !editing;
   els.formLedgerSaveEdits.disabled = !dirty;
   els.formLedgerSaveEdits.textContent = dirty > 1 ? `Save ${dirty}` : "Save";
