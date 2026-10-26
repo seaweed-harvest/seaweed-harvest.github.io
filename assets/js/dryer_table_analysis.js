@@ -3,8 +3,9 @@ import { DRYING_FORM_CONFIG } from "./dryer_table_config.js?v=2";
 import "./dryer_analysis_weather_snapshot.js?v=1";
 import "./dryer_kmfri_2026_tide_extension.js?v=1";
 import { loadDryerModelWeather, modelWeatherTraces } from "./dryer_analysis_live_weather.js?v=5";
+import { deriveReweighMeasurements } from "./dryer_reweigh_math.js?v=1";
 
-const RPC_NAME = "list_authenticated_seaweed_drying_ledger";
+const RPC_NAME = "list_authenticated_seaweed_drying_ledger_with_reweighs";
 const KENYA_TIME_ZONE = "Africa/Nairobi";
 const TAB = "analysis";
 const ORDER = ["NEW T1","NEW T2","NEW T3","NEW T4","EXISTING SHED T1","EXISTING SHED T2","EXISTING SHED T3","EXISTING SHED T4","EXISTING SHED T5","Shed - General"];
@@ -22,7 +23,7 @@ const RAIN_DATES = D.rain.x.map((x) => String(x).slice(0, 10));
 const RAIN_VALUES = D.rain.y;
 const WEATHER = new Map(WEATHER_DATES.map((d, i) => [d, { temp: WEATHER_TEMP[i], rh: WEATHER_RH[i] }]));
 const RAIN = new Map(RAIN_DATES.map((d, i) => [d, RAIN_VALUES[i]]));
-const state = { runs: [], lastBayRows: [], rangeDays: 30, tideEnabled: false, weatherError: false, sort: { col: 1, dir: "desc" }, loading: false, liveWeather: null, weatherUpdatedAt: 0, weatherPromise: null };
+const state = { runs: [], lastBayRows: [], reweighEvents: [], rangeDays: 30, tideEnabled: false, weatherError: false, sort: { col: 1, dir: "desc" }, loading: false, liveWeather: null, weatherUpdatedAt: 0, weatherPromise: null };
 const els = {};
 let plotlyPromise;
 let lastWeatherMobile = null;
@@ -117,7 +118,7 @@ function installShell() {
         </div>
       </div></details>
       <details open class="dryer-analysis-card"><summary>3. Performance scatter plot</summary><div class="dryer-analysis-card-body"><div class="dryer-analysis-chart-wrap"><div id="dryerAnalysisScatter"></div></div></div></details>
-      <details open class="dryer-analysis-card"><summary>4. Run-level source data</summary><div class="dryer-analysis-card-body"><div class="responsive-table-wrap"><table id="dryerAnalysisRunTable" class="management-table admin-data-table dryer-analysis-table"><thead><tr><th data-sort-type="text">Table</th><th data-sort-type="date">Date range</th><th data-sort-type="number">Bays</th><th data-sort-type="number">Start load</th><th data-sort-type="number">End load</th><th data-sort-type="number">Load / bay</th><th data-sort-type="number">Avg daytime<br>temp</th><th data-sort-type="number">Avg daytime<br>humidity</th><th data-sort-type="number">Avg rainfall*</th><th data-sort-type="number">Weight lost</th><th data-sort-type="number">Elapsed time</th><th data-sort-type="number">Drying efficiency</th><th data-sort-type="text">Timing status</th></tr></thead><tbody></tbody></table></div></div></details>`;
+      <details open class="dryer-analysis-card"><summary>4. Run-level source data</summary><div class="dryer-analysis-card-body"><div class="responsive-table-wrap"><table id="dryerAnalysisRunTable" class="management-table admin-data-table dryer-analysis-table"><thead><tr><th data-sort-type="text">Table</th><th data-sort-type="date">Date range</th><th data-sort-type="number">Bays</th><th data-sort-type="number">Start load</th><th data-sort-type="number">End load</th><th data-sort-type="number">Load / bay</th><th data-sort-type="number">Avg daytime<br>temp</th><th data-sort-type="number">Avg daytime<br>humidity</th><th data-sort-type="number">Avg rainfall*</th><th data-sort-type="number">Weight lost</th><th data-sort-type="number">Elapsed time</th><th data-sort-type="number">Drying efficiency</th><th data-sort-type="text">Timing status</th><th>Intermediate measurements</th></tr></thead><tbody></tbody></table></div></div></details>`;
     const payments = document.getElementById("dryerPaymentsPanel");
     payments?.parentElement?.insertBefore(panel, payments);
   }
@@ -242,7 +243,8 @@ async function load() {
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}${await responseDetail(response)}`);
     const data = await response.json();
     state.lastBayRows = Array.isArray(data?.bay_rows) ? data.bay_rows : [];
-    state.runs = buildRuns(state.lastBayRows);
+    state.reweighEvents = Array.isArray(data?.reweigh_events) ? data.reweigh_events : [];
+    state.runs = buildRuns(state.lastBayRows, state.reweighEvents);
     render();
     setStatus(`${state.runs.length} drying ${state.runs.length === 1 ? "event" : "events"} analysed from live records · refreshed ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`);
   } finally {
@@ -250,17 +252,19 @@ async function load() {
   }
 }
 
-function buildRuns(rows) {
+function buildRuns(rows, reweighEvents = []) {
   const groups = new Map();
   rows.forEach((row) => {
     const key = String(row.submission_id || row.receipt_number || `${row.table_location || "unknown"}:${row.loading_at || row.recorded_at || "unknown"}`);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(row);
   });
-  return [...groups.values()].map(eventToRun).filter((run) => run.start).sort((a, b) => Date.parse(b.start) - Date.parse(a.start));
+  return [...groups.entries()].map(([id, bayRows]) =>
+    eventToRun(bayRows, reweighEvents.filter((event) => event.submission_id === id))
+  ).filter((run) => run.start).sort((a, b) => Date.parse(b.start) - Date.parse(a.start));
 }
 
-function eventToRun(rows) {
+function eventToRun(rows, reweighEvents = []) {
   const table = tableName(rows.find((row) => row.table_location)?.table_location);
   const start = earliest(rows, "loading_at") || earliest(rows, "recorded_at");
   const complete = rows.length > 0 && rows.every((row) => row.status === "complete" && row.unloading_at && optionalNumber(row.unloading_weight_kg) !== null);
@@ -273,7 +277,8 @@ function eventToRun(rows) {
   const lost = complete && startkg > 0 ? (startkg - unloaded) / startkg * 100 : null;
   const hours = complete && Date.parse(end) >= Date.parse(start) ? (Date.parse(end) - Date.parse(start)) / 3600000 : null;
   const weather = weatherAverage(start, end || start);
-  return { table, start, end, bays, startkg, endkg, kgpb, lost, hours, status: timingStatus(table, start, end, complete), ...weather };
+  const intermediate = deriveReweighMeasurements(reweighEvents, startkg, start);
+  return { table, start, end, bays, startkg, endkg, kgpb, lost, hours, intermediate, status: timingStatus(table, start, end, complete), ...weather };
 }
 
 function tableName(value) {
@@ -332,8 +337,35 @@ function renderSummary() {
 function renderRuns() {
   els.runBody.innerHTML = [...state.runs].sort((a,b) => Date.parse(b.start) - Date.parse(a.start)).map((run) => {
     const eff = timingUsable(run.status) ? efficiency(run) : null;
-    return `<tr data-start="${escAttr(run.start)}"><td data-sort="${escAttr(run.table.toLowerCase())}">${esc(run.table)}</td><td data-sort="${escAttr(run.start)}">${esc(dateRange(run))}</td><td data-sort="${run.bays}">${run.bays}</td><td data-sort="${sortValue(run.startkg)}">${fmt(run.startkg," kg")}</td><td data-sort="${sortValue(run.endkg)}">${fmt(run.endkg," kg")}</td><td data-sort="${sortValue(run.kgpb)}">${fmt(run.kgpb," kg")}</td><td class="analysis-temp" data-sort="${sortValue(run.temp)}">${fmt(run.temp," °C")}</td><td class="analysis-rh" data-sort="${sortValue(run.rh)}">${fmt(run.rh,"%")}</td><td class="analysis-rain" data-sort="${sortValue(run.rain)}">${fmt(run.rain," mm/day")}</td><td class="analysis-loss" data-sort="${sortValue(run.lost)}">${fmt(run.lost,"%")}</td><td class="analysis-time" data-usable="${timingUsable(run.status) ? 1 : 0}" data-sort="${sortValue(run.hours)}">${fmt(run.hours," h")}</td><td class="analysis-eff" data-sort="${sortValue(eff)}">${fmt(eff," %/day")}</td><td data-sort="${run.status}">${status(run.status)}</td></tr>`;
+    return `<tr data-start="${escAttr(run.start)}"><td data-sort="${escAttr(run.table.toLowerCase())}">${esc(run.table)}</td><td data-sort="${escAttr(run.start)}">${esc(dateRange(run))}</td><td data-sort="${run.bays}">${run.bays}</td><td data-sort="${sortValue(run.startkg)}">${fmt(run.startkg," kg")}</td><td data-sort="${sortValue(run.endkg)}">${fmt(run.endkg," kg")}</td><td data-sort="${sortValue(run.kgpb)}">${fmt(run.kgpb," kg")}</td><td class="analysis-temp" data-sort="${sortValue(run.temp)}">${fmt(run.temp," °C")}</td><td class="analysis-rh" data-sort="${sortValue(run.rh)}">${fmt(run.rh,"%")}</td><td class="analysis-rain" data-sort="${sortValue(run.rain)}">${fmt(run.rain," mm/day")}</td><td class="analysis-loss" data-sort="${sortValue(run.lost)}">${fmt(run.lost,"%")}</td><td class="analysis-time" data-usable="${timingUsable(run.status) ? 1 : 0}" data-sort="${sortValue(run.hours)}">${fmt(run.hours," h")}</td><td class="analysis-eff" data-sort="${sortValue(eff)}">${fmt(eff," %/day")}</td><td data-sort="${run.status}">${status(run.status)}</td><td>${intermediateMarkup(run.intermediate)}</td></tr>`;
   }).join("");
+}
+
+function intermediateMarkup(events) {
+  if (!events.length) return "—";
+  const latest = events[events.length - 1];
+  const items = events.map((event) => {
+    const bays = event.bays.map((bay) => `Bay ${esc(bay.bay_number)}: ${measuredKg(bay.weight_kg)} kg`).join(" · ");
+    const change = event.lossPct === null ? "" : event.lossPct < 0
+      ? ` · weight increase ${Math.abs(event.lossPct).toFixed(1)}% (review)`
+      : ` · ${event.lossPct.toFixed(1)}% lost from load`;
+    const elapsed = event.elapsedHours === null ? "" : ` · ${event.elapsedHours.toFixed(1)} h after load`;
+    return `<li>${esc(formatIntermediateTime(event.at))} EAT${elapsed} · ${measuredKg(event.totalKg)} kg${change} · ${esc(event.weather || "weather unrecorded")}<br>${bays}${event.notes ? `<br>${esc(event.notes)}` : ""}</li>`;
+  }).join("");
+  return `<details><summary>${events.length} ${events.length === 1 ? "reweigh" : "reweighs"} · latest ${measuredKg(latest.totalKg)} kg</summary><ol>${items}</ol></details>`;
+}
+
+function measuredKg(value) {
+  const number = optionalNumber(value);
+  return number === null ? "—" : number.toLocaleString("en-GB", { maximumFractionDigits: 3 });
+}
+
+function formatIntermediateTime(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Unknown time" : date.toLocaleString("en-GB", {
+    day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false,
+    timeZone: KENYA_TIME_ZONE
+  });
 }
 
 function sortRuns(col, type) {
@@ -402,7 +434,7 @@ async function refreshWeather() {
       if (els.weatherFreshness) els.weatherFreshness.textContent =
         "Consistent Mwazaro model through " + live.lastDate + " EAT";
       if (state.lastBayRows.length) {
-        state.runs = buildRuns(state.lastBayRows);
+        state.runs = buildRuns(state.lastBayRows, state.reweighEvents);
         render();
       } else renderWeather();
     } catch (error) {

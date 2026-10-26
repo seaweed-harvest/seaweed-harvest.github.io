@@ -345,7 +345,8 @@ class DryerTableRecordsStaticTest(unittest.TestCase):
         dryer_bootstrap = (ROOT / "assets/js/dryer_table_bootstrap.js").read_text(
             encoding="utf-8"
         )
-        self.assertIn("dryer_table_form.js", dryer_page)
+        self.assertIn("dryer_table_bootstrap.js", dryer_page)
+        self.assertIn('import("./dryer_table_form.js', dryer_bootstrap)
         self.assertNotIn("dryer_table_payments.js", dryer_page)
         self.assertNotIn("requireAggregatorAccess", dryer_bootstrap)
         self.assertNotIn("window.location.replace", dryer_bootstrap)

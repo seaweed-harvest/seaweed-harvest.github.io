@@ -4,12 +4,13 @@ import { DRYING_FORM_CONFIG } from "./dryer_table_config.js?v=2";
 import { fetchDryerEventPhotos } from "./dryer_photo_client.js?v=1";
 import { openPhotoUrlPreview } from "./photo_viewer.js?v=2";
 
-const RPC_NAME = "list_authenticated_seaweed_drying_ledger";
+const RPC_NAME = "list_authenticated_seaweed_drying_ledger_with_reweighs";
 const KENYA_TIME_ZONE = "Africa/Nairobi";
 
 const state = {
   profile: null,
   bayRows: [],
+  reweighEvents: [],
   observations: [],
   activeTab: "all",
   expandedGroups: new Set(),
@@ -181,6 +182,7 @@ async function loadRecords() {
     }
     const data = await response.json();
     state.bayRows = Array.isArray(data?.bay_rows) ? data.bay_rows : [];
+    state.reweighEvents = Array.isArray(data?.reweigh_events) ? data.reweigh_events : [];
     state.observations = Array.isArray(data?.observations) ? data.observations : [];
     populateTableFilters();
     renderAllRecords();
@@ -383,9 +385,12 @@ function groupContextRow(group, expanded) {
   const first = group.rows[0] || {};
   const submissionId = group.rows.find((row) => row.submission_id)?.submission_id || "";
   const observation = state.observations.find((row) => row.submission_id === submissionId) || {};
+  const reweighs = state.reweighEvents
+    .filter((event) => event.submission_id === submissionId)
+    .sort((a, b) => Date.parse(a.reweigh_at) - Date.parse(b.reweigh_at));
   const fields = [
     ["Configuration", formatDryingConfiguration(first.drying_configuration)],
-    ["Reweighs", Number(first.reweigh_count) > 0 ? String(first.reweigh_count) : ""],
+    ["Reweighs", reweighs.length ? String(reweighs.length) : ""],
     ["General observation", observation.general_observations],
     ["Working well", observation.working_well],
     ["Not working", observation.not_working]
@@ -395,8 +400,21 @@ function groupContextRow(group, expanded) {
     ? fields.map(([label, value]) => `<div class="dryer-run-summary-item"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")
     : '<div class="dryer-run-summary-item"><span>Run details</span><strong>—</strong></div>';
 
+  const measurements = reweighs.map((event) => {
+    const bays = Array.isArray(event.bays) ? event.bays : [];
+    const total = bays.reduce((sum, bay) => sum + (optionalNumber(bay.weight_kg) || 0), 0);
+    const weights = bays.map((bay) => `Bay ${escapeHtml(bay.bay_number)}: ${escapeHtml(formatMeasuredKg(bay.weight_kg))} kg`).join(" · ");
+    return `<div class="dryer-reweigh-measurement">
+      <strong>${escapeHtml(formatDateTime(event.reweigh_at))} EAT</strong>
+      ${weatherPill("Weather", event.weather)}
+      <span>${escapeHtml(formatMeasuredKg(total))} kg total across ${bays.length} ${bays.length === 1 ? "bay" : "bays"}</span>
+      <span>${weights}</span>
+      ${event.notes ? `<span>${escapeHtml(event.notes)}</span>` : ""}
+    </div>`;
+  }).join("");
+
   return `<tr class="dryer-run-summary-row" data-dryer-group-row="${escapeAttribute(group.storageKey)}"${expanded ? "" : " hidden"}>
-    <td colspan="11"><div class="dryer-run-summary-grid">${content}</div></td>
+    <td colspan="11"><div class="dryer-run-summary-grid">${content}</div>${measurements ? `<div class="dryer-reweigh-list"><h4>Intermediate measurements</h4>${measurements}</div>` : ""}</td>
   </tr>`;
 }
 
@@ -715,6 +733,11 @@ function formatKg(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return "0";
   return number.toLocaleString("en-GB", { minimumFractionDigits: number % 1 === 0 ? 0 : 1, maximumFractionDigits: 2 });
+}
+
+function formatMeasuredKg(value) {
+  const number = optionalNumber(value);
+  return number === null ? "-" : number.toLocaleString("en-GB", { maximumFractionDigits: 3 });
 }
 
 function formatWeightLoss(value) {
