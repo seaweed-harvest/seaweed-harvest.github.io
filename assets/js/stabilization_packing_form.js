@@ -686,6 +686,15 @@ async function submitBatch(event) {
       };
       const sharedChanged = Object.keys(sharedValues)
         .some((key) => !sameBatchValue(sharedValues[key], before[key]));
+      // Only apply metadata fields deliberately changed on the original form.
+      // This preserves one-off per-container notes (e.g. a late-entry explanation).
+      const originalRecord = editingBatch.rows[0];
+      const metadataChanges = {};
+      for (const key of ["packed_on", "recorded_by_name", "notes", "hydrometer_value", "hydrometer_scale", "e_coli_sample_taken"]) {
+        if (!sameBatchValue(batchValues[key], originalRecord[key])) {
+          metadataChanges[key] = batchValues[key];
+        }
+      }
       const first = BigInt(batchValues.first_carton_serial);
       const last = BigInt(batchValues.last_carton_serial);
       const removals = editingBatch.rows.filter((row) => {
@@ -706,6 +715,7 @@ async function submitBatch(event) {
           first_carton_serial: batchValues.first_carton_serial,
           last_carton_serial: batchValues.last_carton_serial,
           apply_shared: sharedChanged,
+          metadata_changes: metadataChanges,
           allow_remove: removals.length > 0,
           expected_count: editingBatch.expectedCount,
           expected_latest_updated_at: editingBatch.latest
