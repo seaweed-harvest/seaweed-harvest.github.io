@@ -52,4 +52,4 @@ The PR includes `20261026120000_dryer_reweigh_payable_activity.sql` and `2026102
 
 Do **not** merge the web changes or change the database URL until the COSME source project permits SQL deployment and backfill access. Two user-visible screens connecting does not mean both projects share storage or SQL credentials.
 
-The live Payment section previously showed 34 activity days, 13 paid and two ledger transactions (KES 7,125 work transfer and KES 1,000 phone/data advance). These figures are useful **checkpoints, not a replacement for full SQL reconciliation**. Existing paid ledger amounts and credit applications must remain untouched. Reweigh days from October must be attributed and counted on their actual Kenya dates.
+The live Payment section previously showed 34 activity days, 13 paid and two ledger transactions (KES 7,125 activity-payment transfer and KES 1,000 phone/data advance). These figures are useful **checkpoints, not a replacement for full SQL reconciliation**. Existing paid ledger amounts and credit applications must remain untouched. Reweigh days from October must be attributed and counted on their actual Kenya dates.
