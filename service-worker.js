@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v176-stock-corrections";
+const CACHE_VERSION = "seaweed-harvest-collection-v177-ledger-batch-edit";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -38,7 +38,6 @@ const APP_SHELL = [
   "./assets/css/site_water_sample.css",
   "./assets/css/stock_photos.css",
   "./assets/css/mawimbi_photo_actions.css",
-  "./assets/css/stock_corrections.css",
   "./assets/css/reef_nursery.css",
   "./assets/css/reef_nursery_wp01.css",
   "./assets/css/reef_nursery_wp02.css",
@@ -71,7 +70,6 @@ const APP_SHELL = [
   "./assets/js/process_timestamps.mjs",
   "./assets/js/suggested_input.js",
   "./assets/js/stabilization_packing_form.js",
-  "./assets/js/stock_corrections.js",
   "./assets/js/stabilization_stock_removal.js",
   "./assets/js/stabilization_stock_ledger.js",
   "./assets/js/stabilization_stock_lookup.js",

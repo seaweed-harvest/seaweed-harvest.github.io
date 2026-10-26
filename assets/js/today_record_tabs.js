@@ -62,7 +62,7 @@ function init() {
   Object.values(CATEGORY_CONFIG).forEach((config) => {
     [
       "Count", "Rows", "Status", "Actions", "SelectedCount", "StartEdit",
-      "SaveEdits", "DiscardEdits", "DeleteSelected", "SelectAll"
+      "SaveEdits", "DiscardEdits", "DeleteSelected", "SelectAll", "EditBatch"
     ].forEach((suffix) => {
       els[`${config.prefix}${suffix}`] = document.getElementById(`${config.prefix}${suffix}`);
     });
@@ -115,6 +115,7 @@ function bindCategory(config) {
   rows?.addEventListener("input", (event) => handleDraftInput(config, event));
   els[`${config.prefix}SelectAll`]?.addEventListener("change", () => toggleAll(config));
   els[`${config.prefix}StartEdit`]?.addEventListener("click", () => startEdit(config));
+  els[`${config.prefix}EditBatch`]?.addEventListener("click", () => openSelectedStockBatch());
   els[`${config.prefix}SaveEdits`]?.addEventListener("click", () => saveEdits(config));
   els[`${config.prefix}DiscardEdits`]?.addEventListener("click", () => discardEdits(config));
   els[`${config.prefix}DeleteSelected`]?.addEventListener("click", () => deleteSelected(config));
@@ -644,6 +645,29 @@ async function deleteSelected(config) {
   }
 }
 
+function selectedTodayStockBatch() {
+  const category = state.categories["stock-record"];
+  const rows = category.rows.filter((row) => category.selected.has(String(row.id)));
+  if (!rows.length || rows.some((row) => row.record_type !== "initial" || !row.batch_submission_id || !row.can_edit)) return null;
+  const batchId = rows[0].batch_submission_id;
+  return rows.every((row) => row.batch_submission_id === batchId) ? batchId : null;
+}
+
+function openSelectedStockBatch() {
+  const id = selectedTodayStockBatch();
+  if (!id || state.categories["stock-record"].editing.size) return;
+  const target = new URL("./stabilization_packing.html", window.location.href);
+  target.searchParams.set("edit_batch", id);
+  const returnTo = new URL("./records.html", window.location.href);
+  if (window.location.pathname.endsWith("/records.html")) {
+    returnTo.search = window.location.search;
+  } else {
+    returnTo.search = "?view=today&category=stock";
+  }
+  target.searchParams.set("return_to", "./records.html" + returnTo.search);
+  window.location.assign(target.href);
+}
+
 function updateActionUi(key) {
   const config = CATEGORY_CONFIG[key];
   const category = state.categories[key];
@@ -657,6 +681,12 @@ function updateActionUi(key) {
   els[`${config.prefix}StartEdit`].disabled = !category.rows.some(
     (row) => category.selected.has(String(row.id)) && row.can_edit
   );
+  const batchButton = els[`${config.prefix}EditBatch`];
+  if (batchButton) {
+    const id = key === "stock-record" && !editing ? selectedTodayStockBatch() : null;
+    batchButton.hidden = !id;
+    batchButton.disabled = !id;
+  }
   els[`${config.prefix}DeleteSelected`].hidden = editing;
   els[`${config.prefix}DeleteSelected`].disabled = !category.rows.some(
     (row) => category.selected.has(String(row.id)) && row.can_delete
