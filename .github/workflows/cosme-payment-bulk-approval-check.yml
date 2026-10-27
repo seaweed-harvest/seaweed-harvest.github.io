@@ -1,0 +1,32 @@
+name: COSME payment approval workflow
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/dryer_table_payments.js'
+      - 'dryer_table_records.html'
+      - 'service-worker.js'
+      - 'tests/dryer_payment_bulk_approval_probe.py'
+      - '.github/workflows/cosme-payment-bulk-approval-check.yml'
+
+jobs:
+  browser-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate JavaScript and Python syntax
+        run: |
+          node --check assets/js/dryer_table_payments.js
+          python -m py_compile tests/dryer_payment_bulk_approval_probe.py
+      - name: Install browser test dependency
+        run: |
+          python -m pip install playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Test phone allowance and bulk approvals
+        run: python tests/dryer_payment_bulk_approval_probe.py

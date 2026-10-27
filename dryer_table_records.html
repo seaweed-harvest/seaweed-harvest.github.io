@@ -436,6 +436,13 @@
               </div>
             </div>
 
+            <div id="dryerApprovalToolbar" class="button-row compact-actions" hidden>
+              <button id="dryerSelectAllApprovals" type="button">Select all for approval</button>
+              <span id="dryerApprovalSelectedCount" class="status-pill">0 selected for approval</span>
+              <button id="dryerClearApprovalSelection" type="button" disabled>Clear approval selection</button>
+              <button id="dryerApproveSelected" type="button" disabled>Approve selected (0)</button>
+            </div>
+
             <div class="responsive-table-wrap">
               <table class="management-table admin-data-table dryer-payment-table">
                 <thead>
@@ -523,7 +530,7 @@
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=2"></script>
   <script type="module" src="./assets/js/dryer_table_records.js?v=8"></script>
   <script type="module" src="./assets/js/dryer_table_analysis.js?v=14"></script>
-  <script type="module" src="./assets/js/dryer_table_payments.js?v=2"></script>
+  <script type="module" src="./assets/js/dryer_table_payments.js?v=3"></script>
   <script type="module" src="./assets/js/dryer_payment_ui_refinement.js?v=1"></script>
 </body>
 </html>
