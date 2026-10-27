@@ -150,9 +150,9 @@ def test():
             page.set_content(fixture_html())
             page.add_script_tag(content=fixture_js() + "\n" + source)
             page.evaluate("""async () => {
-              const controller=initialiseDryerPayments({is_protected_owner:true,
+              const controller=initialiseDryerPayments({profile:{is_protected_owner:true,
                 app_role:"system_admin",can_access_admin:true,
-                can_view_data:true,can_view_finance:true});
+                can_view_data:true,can_view_finance:true}});
               await controller.activate();
               window.__controller=controller;
             }""")
