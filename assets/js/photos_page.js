@@ -11,7 +11,7 @@ import {
   setupPhotoViewer,
   signedPhotoUrl
 } from "./photo_viewer.js?v=2";
-import { fetchDryerPhotoLibrary } from "./dryer_photo_client.js?v=1";
+import { fetchDryerPhotoLibrary } from "./dryer_photo_client.js?v=3";
 
 const PAGE_SIZE = 20;
 const COSME_SOURCES = new Set(["dryer_table", "reef_nursery"]);

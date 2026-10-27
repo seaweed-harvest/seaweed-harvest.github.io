@@ -1,5 +1,5 @@
 import { currentAccessToken } from "./auth_client.js?v=25";
-import { DRYING_FORM_CONFIG } from "./dryer_table_config.js?v=2";
+import { DRYING_FORM_CONFIG } from "./dryer_table_config.js?v=5";
 import "./dryer_analysis_weather_snapshot.js?v=1";
 import "./dryer_kmfri_2026_tide_extension.js?v=1";
 import { loadDryerModelWeather, modelWeatherTraces } from "./dryer_analysis_live_weather.js?v=5";
@@ -235,7 +235,7 @@ async function load() {
       method: "POST",
       headers: {
         apikey: DRYING_FORM_CONFIG.supabaseAnonKey,
-        Authorization: `Bearer ${DRYING_FORM_CONFIG.supabaseAnonKey}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({ p_account_access_token: token, p_limit: 5000 })

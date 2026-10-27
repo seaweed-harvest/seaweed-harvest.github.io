@@ -9,7 +9,7 @@ import {
   setupPhotoViewer,
   signedPhotoUrl
 } from "./photo_viewer_v3.js?v=1";
-import { fetchDryerPhotoLibrary } from "./dryer_photo_client.js?v=2";
+import { fetchDryerPhotoLibrary } from "./dryer_photo_client.js?v=3";
 
 const DEFAULT_PAGE_SIZE = 20;
 const PAGE_SIZE_OPTIONS = new Set([20, 40, 60]);

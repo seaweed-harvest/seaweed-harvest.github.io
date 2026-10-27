@@ -1,7 +1,7 @@
 import { currentAccessToken, requireAggregatorAccess, setupAccountControls } from "./auth_client.js?v=25";
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
-import { DRYING_FORM_CONFIG } from "./dryer_table_config.js?v=2";
-import { fetchDryerEventPhotos } from "./dryer_photo_client.js?v=1";
+import { DRYING_FORM_CONFIG } from "./dryer_table_config.js?v=5";
+import { fetchDryerEventPhotos } from "./dryer_photo_client.js?v=3";
 import { openPhotoUrlPreview } from "./photo_viewer.js?v=2";
 
 const RPC_NAME = "list_authenticated_seaweed_drying_ledger_with_reweighs";
@@ -169,7 +169,7 @@ async function loadRecords() {
       method: "POST",
       headers: {
         apikey: DRYING_FORM_CONFIG.supabaseAnonKey,
-        Authorization: `Bearer ${DRYING_FORM_CONFIG.supabaseAnonKey}`,
+        Authorization: `Bearer ${accountToken}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({

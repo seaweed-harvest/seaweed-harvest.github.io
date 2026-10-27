@@ -1,5 +1,5 @@
 import { currentAccessToken } from "./auth_client.js?v=25";
-import { DRYING_FORM_CONFIG } from "./dryer_table_config.js?v=2";
+import { DRYING_FORM_CONFIG } from "./dryer_table_config.js?v=5";
 
 const FUNCTION_URL = `${DRYING_FORM_CONFIG.supabaseUrl}/functions/v1/dryer-record-photos`;
 const REQUEST_TIMEOUT_MS = 25_000;

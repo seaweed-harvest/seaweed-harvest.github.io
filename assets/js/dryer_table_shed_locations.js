@@ -1,4 +1,4 @@
-import { DRYING_FORM_CONFIG as CONFIG } from "./dryer_table_config.js?v=2";
+import { DRYING_FORM_CONFIG as CONFIG } from "./dryer_table_config.js?v=5";
 
 export const LEGACY_DRYER_SHED_CODE = "bati-dryer-shed";
 export const DRYER_SHED_TABLES = Object.freeze([

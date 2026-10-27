@@ -1,4 +1,4 @@
-import { DRYING_FORM_CONFIG as CONFIG } from "./dryer_table_config.js?v=2";
+import { DRYING_FORM_CONFIG as CONFIG } from "./dryer_table_config.js?v=5";
 
 const recordsList = document.getElementById("recordsList");
 const recordsTable = recordsList?.closest("table");

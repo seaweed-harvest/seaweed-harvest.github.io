@@ -41,16 +41,18 @@ class DryerTableStaticTest(unittest.TestCase):
         bootstrap = (ROOT / "assets/js/dryer_table_bootstrap.js").read_text(
             encoding="utf-8"
         )
+        locations = (ROOT / "assets/js/dryer_table_shed_locations.js").read_text(
+            encoding="utf-8"
+        )
 
-        self.assertIn("setupDryerShedConfiguration", bootstrap)
-        self.assertIn('locationSelect.value === "bati-dryer-shed"', bootstrap)
-        self.assertIn('noConfigurationOption.value = "no_configuration"', bootstrap)
-        self.assertIn('configurationSelect.disabled = dryerShedSelected', bootstrap)
-        self.assertIn('nativeSet.call(configurationSelect, "no_configuration")', bootstrap)
-        self.assertIn('noConfigurationOption.hidden = !dryerShedSelected', bootstrap)
-        self.assertIn('form?.addEventListener("reset"', bootstrap)
-        self.assertIn('Object.defineProperty(locationSelect, "value"', bootstrap)
-        self.assertIn('Object.defineProperty(configurationSelect, "value"', bootstrap)
+        self.assertIn("shedLocations.setupDryerShedLocations()", bootstrap)
+        self.assertIn('SHED_CODES.has(readSelectValue(locationSelect, nativeGet))', locations)
+        self.assertIn('writeSelectValue(configurationSelect, "no_configuration", nativeSet)', locations)
+        self.assertIn('configurationSelect.disabled = shedSelected', locations)
+        self.assertIn('noConfigurationOption.hidden = !shedSelected', locations)
+        self.assertIn('form?.addEventListener("reset"', locations)
+        self.assertIn('Object.defineProperty(locationSelect, "value"', locations)
+        self.assertIn('Object.defineProperty(configurationSelect, "value"', locations)
 
     def test_dryer_shed_backend_accepts_only_no_configuration(self):
         migration = (

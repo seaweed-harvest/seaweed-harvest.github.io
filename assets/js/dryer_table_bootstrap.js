@@ -59,11 +59,11 @@ async function initializeDryerTablePage() {
       returnPage: "dryer_table.html"
     });
 
-    const shedLocations = await import("./dryer_table_shed_locations.js?v=2");
+    const shedLocations = await import("./dryer_table_shed_locations.js?v=3");
     await import("./dryer_table_open_edit.js?v=3");
-    await import("./dryer_table_form.js?v=4");
+    await import("./dryer_table_form.js?v=5");
     shedLocations.setupDryerShedLocations();
-    await import("./dryer_table_ra_name.js?v=2");
+    await import("./dryer_table_ra_name.js?v=3");
   } catch (error) {
     showAccessError(error.message || "The Dryer Table form is not available.");
   } finally {
