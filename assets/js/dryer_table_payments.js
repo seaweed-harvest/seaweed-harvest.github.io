@@ -670,6 +670,125 @@ class DryerPaymentsController {
     this.renderSelectionPanel();
   }
 
+
+  renderApprovalToolbar() {
+    const pending = this.state.activityDays.filter((day) => day.payment_status === "needs_review");
+    const selected = pending.filter((day) => this.state.selectedApprovalKeys.has(dayKey(day)));
+    if (!this.els.dryerApprovalToolbar) return;
+    this.els.dryerApprovalToolbar.hidden = pending.length === 0;
+    if (this.els.dryerApprovalSelectedCount) {
+      this.els.dryerApprovalSelectedCount.textContent = `${selected.length} of ${pending.length} selected for approval`;
+    }
+    if (this.els.dryerSelectAllApprovals) {
+      this.els.dryerSelectAllApprovals.textContent = selected.length === pending.length && selected.length
+        ? "Deselect all" : "Select all for approval";
+      this.els.dryerSelectAllApprovals.disabled = this.state.approving;
+    }
+    if (this.els.dryerClearApprovalSelection) {
+      this.els.dryerClearApprovalSelection.disabled = this.state.approving || selected.length === 0;
+    }
+    if (this.els.dryerApproveSelected) {
+      this.els.dryerApproveSelected.textContent = `Approve selected (${selected.length})`;
+      this.els.dryerApproveSelected.disabled = this.state.approving || selected.length === 0;
+    }
+  }
+
+  selectAllApprovals() {
+    if (this.state.approving) return;
+    const pending = this.state.activityDays.filter((day) => day.payment_status === "needs_review");
+    const allSelected = pending.length > 0 && pending.every((day) =>
+      this.state.selectedApprovalKeys.has(dayKey(day))
+    );
+    pending.forEach((day) => {
+      if (allSelected) this.state.selectedApprovalKeys.delete(dayKey(day));
+      else this.state.selectedApprovalKeys.add(dayKey(day));
+    });
+    this.els.dryerActivityDayRows.querySelectorAll("[data-payment-day-approve-select]").forEach((box) => {
+      const row = box.closest("[data-payment-day-row]");
+      box.checked = !!row && this.state.selectedApprovalKeys.has(
+        `${row.dataset.assistantKey}:${row.dataset.activityDate}`
+      );
+    });
+    this.renderApprovalToolbar();
+  }
+
+  async approveSelectedDays() {
+    if (this.state.approving) return;
+    const days = this.state.activityDays.filter((day) =>
+      day.payment_status === "needs_review" && this.state.selectedApprovalKeys.has(dayKey(day))
+    );
+    if (!days.length) return;
+
+    const requests = [];
+    const rows = [...this.els.dryerActivityDayRows.querySelectorAll("[data-payment-day-row]")];
+    for (const day of days) {
+      const row = rows.find((candidate) =>
+        candidate.dataset.assistantKey === day.assistant_key &&
+        candidate.dataset.activityDate === day.activity_date
+      );
+      const detail = row?.nextElementSibling;
+      const workAmount = optionalInteger(row?.querySelector("[data-payment-work-input]")?.value);
+      const phoneAmount = optionalInteger(row?.querySelector("[data-payment-phone-select]")?.value);
+      if (workAmount === null || workAmount < 0 || workAmount > 1000000 ||
+          (day.qualifies && workAmount !== nonNegativeInteger(day.contract_amount_kes))) {
+        setStatus(this.els.dryerPaymentActivityStatus,
+          `Check the work amount for ${formatDateKey(day.activity_date)} before bulk approval.`, "error");
+        row?.querySelector("[data-payment-work-input]")?.focus();
+        return;
+      }
+      if (![0, 100].includes(phoneAmount)) {
+        setStatus(this.els.dryerPaymentActivityStatus,
+          `Check the phone/data allowance for ${formatDateKey(day.activity_date)}.`, "error");
+        row?.querySelector("[data-payment-phone-select]")?.focus();
+        return;
+      }
+      requests.push({
+        key: dayKey(day),
+        payload: {
+          p_assistant_key: day.assistant_key,
+          p_activity_date: day.activity_date,
+          p_approved_work_amount_kes: workAmount,
+          p_phone_data_allowance_kes: phoneAmount,
+          p_approval_note: String(detail?.querySelector("[data-payment-note-input]")?.value || "").trim() || null
+        }
+      });
+    }
+    const workTotal = requests.reduce((sum, request) => sum + request.payload.p_approved_work_amount_kes, 0);
+    const phoneTotal = requests.reduce((sum, request) => sum + request.payload.p_phone_data_allowance_kes, 0);
+    if (!window.confirm(`Approve ${requests.length} activity days?\nWork: ${formatKes(workTotal)}\nPhone/data: ${formatKes(phoneTotal)}\n\nThis approves the days for payment, but does not record a transfer.`)) {
+      return;
+    }
+
+    this.state.approving = true;
+    this.renderApprovalToolbar();
+    this.els.dryerActivityDayRows.querySelectorAll("[data-save-payment-day]").forEach((button) => {
+      button.disabled = true;
+    });
+    let approved = 0;
+    const errors = [];
+    try {
+      for (const request of requests) {
+        setStatus(this.els.dryerPaymentActivityStatus,
+          `Approving ${approved + errors.length + 1} of ${requests.length} activity days...`);
+        try {
+          await callPaymentRpc(SAVE_DECISION_RPC, request.payload);
+          approved += 1;
+          this.state.selectedApprovalKeys.delete(request.key);
+        } catch (error) {
+          errors.push(`${request.payload.p_activity_date}: ${error?.message || String(error)}`);
+        }
+      }
+    } finally {
+      this.state.approving = false;
+      await this.loadWorkspace();
+      this.renderApprovalToolbar();
+      const message = `${approved} activity ${approved === 1 ? "day" : "days"} approved`
+        + (errors.length ? `; ${errors.length} failed: ${errors.slice(0, 3).join("; ")}` : ".")
+        + " No payment was recorded.";
+      setStatus(this.els.dryerPaymentActivityStatus, message, errors.length ? "error" : "");
+    }
+  }
+
   updateRowApprovedTotal(row) {
     if (!row) return;
     const workInput = row.querySelector("[data-payment-work-input]");
