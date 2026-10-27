@@ -1,0 +1,31 @@
+name: COSME payment mobile layout
+
+on:
+  pull_request:
+    paths:
+      - 'assets/css/dryer_payments_mobile.css'
+      - 'assets/js/dryer_table_payments.js'
+      - 'dryer_table_records.html'
+      - 'service-worker.js'
+      - 'tests/dryer_payment_mobile_layout_probe.py'
+      - '.github/workflows/cosme-payment-mobile-layout-check.yml'
+
+jobs:
+  layout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate payment JavaScript
+        run: node --check assets/js/dryer_table_payments.js
+      - name: Install browser
+        run: |
+          python -m pip install playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Verify phone widths and desktop table
+        run: python tests/dryer_payment_mobile_layout_probe.py
