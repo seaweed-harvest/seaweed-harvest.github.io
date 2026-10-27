@@ -1,5 +1,5 @@
 import { currentAccessToken } from "./auth_client.js?v=25";
-import { DRYING_FORM_CONFIG } from "./dryer_table_config.js?v=2";
+import { DRYING_FORM_CONFIG } from "./dryer_table_config.js?v=5";
 import "./dryer_analysis_weather_snapshot.js?v=1";
 
 const IS_DRYER_RECORDS = /\/dryer_table_records\.html$/.test(window.location.pathname);

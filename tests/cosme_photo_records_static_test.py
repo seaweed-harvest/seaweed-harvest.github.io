@@ -138,7 +138,7 @@ class CosmePhotoRecordsStaticTest(unittest.TestCase):
         self.assertIn('id="photoSourceTabs"', self.photos_page)
         self.assertIn('id="photoCommunityLabel">Community', self.photos_page)
         self.assertIn('id="photoTableWrap"', self.photos_page)
-        self.assertIn('src="./assets/js/photos_page.js?v=3"', self.photos_page)
+        self.assertIn('src="./assets/js/photos_page_v4.js?v=2"', self.photos_page)
         self.assertIn('photoCommunityLabel.textContent = "Location"', self.photos_script)
         self.assertIn('photoSeaweedHeading.textContent = "Photo context"', self.photos_script)
         self.assertIn("photoSourceField.hidden = true", self.photos_script)
@@ -177,12 +177,13 @@ class CosmePhotoRecordsStaticTest(unittest.TestCase):
         self.assertIn("to authenticated", migration)
         self.assertIn("from public, anon", migration)
 
-    def test_public_dryer_form_and_offline_paths_are_not_touched(self):
+    def test_public_dryer_form_remains_wired_without_photo_library_dependency(self):
         dryer_page = (ROOT / "dryer_table.html").read_text(encoding="utf-8")
         dryer_bootstrap = (ROOT / "assets/js/dryer_table_bootstrap.js").read_text(
             encoding="utf-8"
         )
-        self.assertIn("dryer_table_form.js", dryer_page)
+        self.assertIn("dryer_table_bootstrap.js", dryer_page)
+        self.assertIn("dryer_table_form.js", dryer_bootstrap)
         self.assertNotIn("dryer_photo_client.js", dryer_page)
         self.assertNotIn("dryer-record-photos", dryer_bootstrap)
         self.assertNotIn("requireAggregatorAccess", dryer_bootstrap)

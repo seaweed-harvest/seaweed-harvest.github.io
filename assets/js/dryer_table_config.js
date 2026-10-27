@@ -1,7 +1,7 @@
 export const DRYING_FORM_CONFIG = Object.freeze({
   appName: "Seaweed Harvest",
-  supabaseUrl: "https://iyoihlwtvdshtlzjdoed.supabase.co",
-  supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5b2lobHd0dmRzaHRsempkb2VkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTA4MTksImV4cCI6MjA5MjI4NjgxOX0.i3jy8WlSF72v7Ypb2ulkL12EJaDfGcDYbdiC--PgjOc",
+  supabaseUrl: "https://wwzmajhdusfyfskppupg.supabase.co",
+  supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3em1hamhkdXNmeWZza3BwdXBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MDY5MzQsImV4cCI6MjA5ODE4MjkzNH0.9W8zCF8cTjWn6ArYaJmvRNX9_wDlwsOLMDi8yh5c998",
   photoBucket: "seaweed-drying-photos",
   submitRpc: "submit_seaweed_drying_observation",
   attachPhotosRpc: "attach_seaweed_drying_photos",
@@ -19,7 +19,7 @@ export const DRYING_FORM_CONFIG = Object.freeze({
   enumeratorStorageKey: "seaweed_drying_enumerator_v1",
   languageStorageKey: "seaweed_drying_language",
   source: "seaweed_harvest_cosme",
-  clientVersion: "2026-09-21.2",
+  clientVersion: "2026-10-27.1",
   maxPhotoBytes: 8 * 1024 * 1024,
   photoTargetBytes: 850 * 1024,
   maxPhotoDimension: 1600,

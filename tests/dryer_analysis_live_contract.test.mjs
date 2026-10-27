@@ -16,7 +16,7 @@ const css = readFileSync(cssPath, "utf8");
 
 execFileSync(process.execPath, ["--check", jsPath], { stdio: "pipe" });
 
-assert.match(html, /dryer_table_analysis\.js\?v=1/, "Records page must load the live analysis module");
+assert.match(html, /dryer_table_analysis\.js\?v=14/, "Records page must load the current live analysis module");
 assert.match(js, /list_authenticated_seaweed_drying_ledger/, "Analysis must use the authenticated Dryer Table ledger RPC");
 assert.match(js, /p_account_access_token:\s*token/, "Analysis must pass the current account token to the live ledger RPC");
 assert.doesNotMatch(js, /DRYER_RUNS/, "Production analysis must not use the old static dryer-run snapshot");

@@ -1,4 +1,4 @@
-import { DRYING_FORM_CONFIG as CONFIG } from "./dryer_table_config.js?v=4";
+import { DRYING_FORM_CONFIG as CONFIG } from "./dryer_table_config.js?v=5";
 
 const packs = {
   en: {

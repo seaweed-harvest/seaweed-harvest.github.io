@@ -63,6 +63,6 @@ assert.match(js, /new ResizeObserver/, "Rotation/resize must change layout break
 assert.match(js, /els\.weather\.style\.height = mobile \?/, "Chart height follows container breakpoint");
 assert.match(css, /#dryerAnalysisWeatherChart\.dryer-weather-mobile\s*\{[\s\S]*height:\s*940px/);
 assert.match(css, /#dryerAnalysisWeatherChart\.dryer-weather-mobile-tides\s*\{[\s\S]*height:\s*1100px/);
-assert.match(html, /dryer_table_analysis\.js\?v=12/, "Fresh JS URL avoids stale cached plots");
+assert.match(html, /dryer_table_analysis\.js\?v=14/, "Fresh JS URL avoids stale cached plots");
 
 console.log("dryer_weather_mobile_layout: ok");

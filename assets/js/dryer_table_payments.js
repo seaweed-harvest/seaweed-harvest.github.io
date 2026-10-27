@@ -1,5 +1,5 @@
 import { currentAccessToken, currentProfile } from "./auth_client.js?v=25";
-import { DRYING_FORM_CONFIG } from "./dryer_table_config.js?v=2";
+import { DRYING_FORM_CONFIG } from "./dryer_table_config.js?v=5";
 import { calculateSelectedPayment } from "./dryer_payment_math.js?v=1";
 
 export { calculateSelectedPayment } from "./dryer_payment_math.js?v=1";
@@ -1043,7 +1043,7 @@ async function callPaymentRpc(name, payload = {}) {
       method: "POST",
       headers: {
         apikey: DRYING_FORM_CONFIG.supabaseAnonKey,
-        Authorization: `Bearer ${DRYING_FORM_CONFIG.supabaseAnonKey}`,
+        Authorization: `Bearer ${accountToken}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
