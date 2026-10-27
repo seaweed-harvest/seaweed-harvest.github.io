@@ -479,17 +479,17 @@ class DryerPaymentsController {
         <strong>${escapeHtml(formatDateKey(day.activity_date))}</strong>
       </td>
       <td>${escapeHtml(day.assistant_name || day.assistant_key || "—")}</td>
-      <td>${escapeHtml(
+      <td data-mobile-label="Activity">${escapeHtml(
         `${formatInteger(day.loading_count)} L / ${formatInteger(
           day.unloading_count
         )} U`
       )}</td>
-      <td>${dayQualificationPill(day)}${
+      <td data-mobile-label="Status">${dayQualificationPill(day)}${
         stale
           ? '<span class="status-pill status-muted">Records changed</span>'
           : ""
       }</td>
-      <td>
+      <td data-mobile-label="Activity pay">
         <span class="field-hint dryer-payment-reference">${escapeHtml(
           workHint
         )}</span>
@@ -499,7 +499,7 @@ class DryerPaymentsController {
           formatDateKey(day.activity_date)
         )}"${workReadonly}${controlsDisabled}>
       </td>
-      <td>
+      <td data-mobile-label="Phone/data">
         <select data-payment-phone-select aria-label="Phone and data allowance for ${escapeAttribute(
           formatDateKey(day.activity_date)
         )}"${controlsDisabled}>
@@ -508,10 +508,10 @@ class DryerPaymentsController {
           <option value="100"${phoneValue === "100" ? " selected" : ""}>KES 100</option>
         </select>
       </td>
-      <td><strong data-payment-approved-total>${
+      <td data-mobile-label="Approved total"><strong data-payment-approved-total>${
         approvedTotal === null ? "—" : escapeHtml(formatKes(approvedTotal))
       }</strong></td>
-      <td>${this.paymentStatusMarkup(day)}${
+      <td data-mobile-label="Payment">${this.paymentStatusMarkup(day)}${
         paid
           ? ""
           : `<button type="button" data-save-payment-day>${escapeHtml(
@@ -1107,17 +1107,17 @@ class DryerPaymentsController {
         }" aria-label="${expanded ? "Collapse" : "Expand"} payment">${expanded ? "▾" : "▸"}</button>
         <strong>${escapeHtml(formatDateKey(payment.payment_date))}</strong>
       </td>
-      <td>${escapeHtml(payment.assistant_name || payment.assistant_key || "—")}</td>
-      <td>${escapeHtml(
+      <td data-mobile-label="Research Assistant">${escapeHtml(payment.assistant_name || payment.assistant_key || "—")}</td>
+      <td data-mobile-label="Type">${escapeHtml(
         isAdvance ? "Phone/data advance" : "Activity payment"
       )}</td>
-      <td><strong>${escapeHtml(formatKes(payment.amount_kes))}</strong></td>
-      <td>${escapeHtml(appliedTo)}</td>
-      <td>${escapeHtml(creditMovement)}<span class="field-hint">Balance ${escapeHtml(
+      <td data-mobile-label="Transferred"><strong>${escapeHtml(formatKes(payment.amount_kes))}</strong></td>
+      <td data-mobile-label="Applied to">${escapeHtml(appliedTo)}</td>
+      <td data-mobile-label="Phone credit">${escapeHtml(creditMovement)}<span class="field-hint">Balance ${escapeHtml(
         formatKes(payment.phone_data_credit_balance_after_kes)
       )}</span></td>
-      <td>${textOrDash(payment.reference)}</td>
-      <td>${escapeHtml(payment.recorded_by_name || "—")}</td>
+      <td data-mobile-label="Reference">${textOrDash(payment.reference)}</td>
+      <td data-mobile-label="Recorded by">${escapeHtml(payment.recorded_by_name || "—")}</td>
     </tr>`;
   }
 
