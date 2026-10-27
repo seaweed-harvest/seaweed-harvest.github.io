@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v180-cosme-approve-selection";
+const CACHE_VERSION = "seaweed-harvest-collection-v181-cosme-mobile-payments";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -47,6 +47,7 @@ const APP_SHELL = [
   "./assets/css/dataset_dashboard.css",
   "./assets/css/historical_records.css",
   "./assets/css/dryer_table.css",
+  "./assets/css/dryer_payments_mobile.css",
   "./assets/css/form_manager.css",
   "./assets/images/seaweed-harvest-logo.png",
   "./assets/images/seaweed-harvest-icon-1024.png",
