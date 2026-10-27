@@ -1,0 +1,357 @@
+/*
+ * COSME Dryer Table payment workspace — narrow-screen card presentation.
+ * Desktop continues using the standard table layout without changes.
+ */
+@media (max-width: 760px) {
+  .dryer-table-records-page,
+  .dryer-table-records-page .admin-content,
+  .dryer-table-records-page .form-ledger-panel,
+  .dryer-table-records-page #dryerPaymentsPanel,
+  .dryer-table-records-page #dryerPaymentActivityPanel,
+  .dryer-table-records-page #dryerPaymentLedgerPanel {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .dryer-table-records-page #dryerPaymentsPanel,
+  .dryer-table-records-page #dryerPaymentActivityPanel,
+  .dryer-table-records-page #dryerPaymentLedgerPanel {
+    width: 100%;
+  }
+  .dryer-table-records-page #dryerPaymentActivityPanel[hidden],
+  .dryer-table-records-page #dryerPaymentLedgerPanel[hidden],
+  .dryer-table-records-page #dryerPaymentsPanel[hidden],
+  .dryer-table-records-page #dryerApprovalToolbar[hidden],
+  .dryer-table-records-page .dryer-payment-detail-row[hidden] {
+    display: none !important;
+  }
+
+  /* These used to form a wide single line, extending the whole view on phones. */
+  .dryer-table-records-page #dryerPaymentSummaryMetrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .dryer-table-records-page #dryerPaymentSummaryMetrics .status-pill {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+    font-size: .78rem;
+    padding: 7px 9px;
+    border-radius: 9px;
+  }
+  .dryer-table-records-page .dryer-payment-terms {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .dryer-table-records-page #dryerPaymentTabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    max-width: 100%;
+    gap: 4px;
+  }
+  .dryer-table-records-page #dryerPaymentTabs button {
+    width: 100%;
+    min-width: 0;
+    padding: 10px 8px;
+    font-size: .83rem;
+    white-space: normal;
+  }
+
+  /* Approval controls must remain actionable without side-scrolling. */
+  .dryer-table-records-page #dryerApprovalToolbar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+    max-width: 100%;
+    align-items: stretch;
+    margin: 4px 0 12px;
+  }
+  .dryer-table-records-page #dryerApprovalToolbar > * {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    white-space: normal;
+  }
+  .dryer-table-records-page #dryerSelectAllApprovals,
+  .dryer-table-records-page #dryerApprovalSelectedCount {
+    grid-column: 1 / -1;
+  }
+  .dryer-table-records-page #dryerApprovalSelectedCount {
+    display: block;
+    width: 100%;
+    padding: 8px 10px;
+    line-height: 1.35;
+  }
+  .dryer-table-records-page #dryerApprovalToolbar button {
+    min-height: 44px;
+    padding: 9px;
+    font-size: .78rem;
+    line-height: 1.3;
+  }
+
+  .dryer-table-records-page #dryerPaymentSelectionPanel {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 12px;
+  }
+  .dryer-table-records-page #dryerPaymentSelectionPanel .section-head,
+  .dryer-table-records-page #dryerPaymentSelectionPanel .button-row {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+  .dryer-table-records-page #dryerPaymentSelectionPanel .button-row button {
+    flex: 1 1 120px;
+    min-width: 0;
+  }
+  .dryer-table-records-page .dryer-payment-selection-grid {
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    max-width: 100%;
+  }
+  .dryer-table-records-page .dryer-payment-selection-grid input,
+  .dryer-table-records-page .dryer-advance-grid input,
+  .dryer-table-records-page .dryer-advance-grid select {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .dryer-table-records-page .dryer-advance-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 100%;
+    min-width: 0;
+  }
+  .dryer-table-records-page .dryer-advance-grid label {
+    min-width: 0;
+  }
+  .dryer-table-records-page #dryerPaymentActivityPanel .responsive-table-wrap,
+  .dryer-table-records-page #dryerPaymentLedgerPanel .responsive-table-wrap {
+    overflow-x: visible;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Replace nine and eight-column tables with compact, fully visible cards. */
+  .dryer-table-records-page .dryer-payment-table,
+  .dryer-table-records-page .dryer-payment-ledger-table,
+  .dryer-table-records-page .dryer-payment-table tbody,
+  .dryer-table-records-page .dryer-payment-ledger-table tbody {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    border: 0;
+  }
+  .dryer-table-records-page .dryer-payment-table thead,
+  .dryer-table-records-page .dryer-payment-ledger-table thead {
+    display: none;
+  }
+  .dryer-table-records-page .dryer-payment-table > tbody > tr[data-payment-day-row],
+  .dryer-table-records-page .dryer-payment-ledger-table > tbody > tr[data-payment-ledger-row] {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 10px 12px;
+    align-items: start;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin: 0 0 10px;
+    padding: 13px;
+    border: 1px solid var(--border, #c9dedb);
+    border-radius: 12px;
+    background: var(--panel, #fff);
+  }
+  .dryer-table-records-page .dryer-payment-table > tbody > tr[data-payment-day-row] > td,
+  .dryer-table-records-page .dryer-payment-ledger-table > tbody > tr[data-payment-ledger-row] > td {
+    display: block;
+    width: auto;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    background: transparent;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-size: .82rem;
+  }
+  .dryer-table-records-page .dryer-payment-table > tbody > tr[data-payment-day-row] > td::before,
+  .dryer-table-records-page .dryer-payment-ledger-table > tbody > tr[data-payment-ledger-row] > td::before {
+    display: block;
+    content: attr(data-mobile-label);
+    color: var(--text-muted, #688078);
+    font-size: .66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .035em;
+    margin-bottom: 4px;
+    line-height: 1.2;
+  }
+  .dryer-table-records-page .dryer-payment-table > tbody > tr[data-payment-day-row] > td:not([data-mobile-label])::before,
+  .dryer-table-records-page .dryer-payment-ledger-table > tbody > tr[data-payment-ledger-row] > td:not([data-mobile-label])::before {
+    display: none;
+  }
+
+  /* Approval-day card: checkbox + date; RA; activity + status; pay + allowance; total + approve. */
+  .dryer-table-records-page .dryer-payment-table [data-payment-day-row] > td:nth-child(1) { grid-column: span 2; }
+  .dryer-table-records-page .dryer-payment-table [data-payment-day-row] > td:nth-child(2) { grid-column: span 10; }
+  .dryer-table-records-page .dryer-payment-table [data-payment-day-row] > td:nth-child(3) { grid-column: 1 / -1; font-weight: 600; }
+  .dryer-table-records-page .dryer-payment-table [data-payment-day-row] > td:nth-child(n+4) { grid-column: span 6; }
+  .dryer-table-records-page .dryer-payment-table [data-payment-day-row] > td:nth-child(1) {
+    align-self: center;
+    min-height: 28px;
+  }
+  .dryer-table-records-page .dryer-payment-table [data-payment-day-row] > td:nth-child(2) {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .dryer-table-records-page .dryer-payment-table [data-payment-day-row] > td:nth-child(2) strong {
+    white-space: nowrap;
+    font-size: .95rem;
+  }
+  .dryer-table-records-page .dryer-payment-table [data-payment-day-row] > td:nth-child(3) {
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-soft, #dfeceb);
+  }
+  .dryer-table-records-page .dryer-payment-table [data-payment-day-row] > td:nth-child(8),
+  .dryer-table-records-page .dryer-payment-table [data-payment-day-row] > td:nth-child(9) {
+    padding-top: 8px;
+    border-top: 1px solid var(--border-soft, #dfeceb);
+  }
+  .dryer-table-records-page .dryer-payment-table [data-payment-day-row] > td:nth-child(9) button {
+    margin: 6px 0 0;
+    min-height: 42px;
+    width: 100%;
+    max-width: 100%;
+  }
+  .dryer-table-records-page .dryer-payment-table .selection-cell input[type="checkbox"] {
+    width: 23px;
+    height: 23px;
+    margin: 1px;
+  }
+  .dryer-table-records-page .dryer-payment-table .status-pill {
+    max-width: 100%;
+    white-space: normal;
+    line-height: 1.3;
+    font-size: .72rem;
+  }
+  .dryer-table-records-page .dryer-payment-table .dryer-payment-amount-shell {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .dryer-table-records-page .dryer-payment-table .dryer-payment-amount-input,
+  .dryer-table-records-page .dryer-payment-table select {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    box-sizing: border-box;
+    font-size: .86rem;
+  }
+  .dryer-table-records-page .dryer-payment-table .dryer-payment-reference {
+    overflow-wrap: anywhere;
+  }
+
+  /* Ledger cards: date+assistant, transaction type+amount, applied+credit, reference+owner. */
+  .dryer-table-records-page .dryer-payment-ledger-table [data-payment-ledger-row] > td:nth-child(1),
+  .dryer-table-records-page .dryer-payment-ledger-table [data-payment-ledger-row] > td:nth-child(2) {
+    grid-column: 1 / -1;
+  }
+  .dryer-table-records-page .dryer-payment-ledger-table [data-payment-ledger-row] > td:nth-child(n+3) {
+    grid-column: span 6;
+  }
+  .dryer-table-records-page .dryer-payment-ledger-table [data-payment-ledger-row] > td:nth-child(1) strong {
+    font-size: .94rem;
+  }
+
+  /* Expanded evidence / notes remain below their associated card. */
+  .dryer-table-records-page .dryer-payment-table > tbody > .dryer-payment-detail-row:not([hidden]),
+  .dryer-table-records-page .dryer-payment-ledger-table > tbody > .dryer-payment-detail-row:not([hidden]) {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    margin: -3px 0 12px;
+    border: 1px solid var(--border-soft, #dfeceb);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .dryer-table-records-page .dryer-payment-table .dryer-payment-detail-row > td,
+  .dryer-table-records-page .dryer-payment-ledger-table .dryer-payment-detail-row > td {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 12px;
+    overflow-wrap: anywhere;
+  }
+  .dryer-table-records-page .dryer-payment-detail-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+    max-width: 100%;
+    gap: 12px;
+  }
+  .dryer-table-records-page .dryer-payment-detail-grid > *,
+  .dryer-table-records-page .dryer-payment-detail-grid textarea {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .dryer-table-records-page .dryer-payment-detail-grid ul {
+    padding-left: 20px;
+    overflow-wrap: anywhere;
+  }
+  .dryer-table-records-page .dryer-payment-table > tbody > tr:not([data-payment-day-row]):not(.dryer-payment-detail-row),
+  .dryer-table-records-page .dryer-payment-ledger-table > tbody > tr:not([data-payment-ledger-row]):not(.dryer-payment-detail-row) {
+    display: block;
+    min-width: 0;
+  }
+  .dryer-table-records-page .dryer-payment-table > tbody > tr > td.empty-state,
+  .dryer-table-records-page .dryer-payment-ledger-table > tbody > tr > td.empty-state {
+    display: block;
+    width: 100%;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 360px) {
+  .dryer-table-records-page #dryerPaymentSummaryMetrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dryer-table-records-page .dryer-payment-table > tbody > tr[data-payment-day-row],
+  .dryer-table-records-page .dryer-payment-ledger-table > tbody > tr[data-payment-ledger-row] {
+    gap: 8px;
+    padding: 10px;
+  }
+  .dryer-table-records-page .dryer-payment-table [data-payment-day-row] > td:nth-child(2) strong {
+    white-space: normal;
+  }
+}
