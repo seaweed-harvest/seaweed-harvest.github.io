@@ -105,6 +105,8 @@ class DryerPaymentsController {
       assistants: [],
       activeView: "activity",
       selectedDecisionIds: new Set(),
+      selectedApprovalKeys: new Set(),
+      approving: false,
       expandedDays: new Set(),
       expandedPayments: new Set(),
       loaded: false,
@@ -131,6 +133,11 @@ class DryerPaymentsController {
       "dryerActivityDayRows",
       "dryerPaymentActivityStatus",
       "dryerPaymentSelectionPanel",
+      "dryerApprovalToolbar",
+      "dryerSelectAllApprovals",
+      "dryerClearApprovalSelection",
+      "dryerApprovalSelectedCount",
+      "dryerApproveSelected",
       "dryerPaymentSelectedCount",
       "dryerPaymentSelectedWork",
       "dryerPaymentSelectedPhone",
@@ -171,6 +178,19 @@ class DryerPaymentsController {
     });
     this.els.dryerActivityDayRows?.addEventListener("input", (event) => {
       this.updateRowApprovedTotal(event.target.closest("[data-payment-day-row]"));
+    });
+    this.els.dryerSelectAllApprovals?.addEventListener("click", () => {
+      this.selectAllApprovals();
+    });
+    this.els.dryerClearApprovalSelection?.addEventListener("click", () => {
+      this.state.selectedApprovalKeys.clear();
+      this.els.dryerActivityDayRows.querySelectorAll("[data-payment-day-approve-select]").forEach((box) => {
+        box.checked = false;
+      });
+      this.renderApprovalToolbar();
+    });
+    this.els.dryerApproveSelected?.addEventListener("click", () => {
+      void this.approveSelectedDays();
     });
     this.els.dryerRecordSelectedPayment?.addEventListener("click", () => {
       void this.recordSelectedPayment();
@@ -309,6 +329,12 @@ class DryerPaymentsController {
     [...this.state.selectedDecisionIds].forEach((id) => {
       if (!eligibleIds.has(id)) this.state.selectedDecisionIds.delete(id);
     });
+    const approvalKeys = new Set(
+      this.state.activityDays.filter((day) => day.payment_status === "needs_review").map(dayKey)
+    );
+    [...this.state.selectedApprovalKeys].forEach((key) => {
+      if (!approvalKeys.has(key)) this.state.selectedApprovalKeys.delete(key);
+    });
   }
 
   populateAssistantOptions() {
@@ -380,6 +406,7 @@ class DryerPaymentsController {
         "No dryer loading or unloading activity days are available."
       );
       this.renderSelectionPanel();
+      this.renderApprovalToolbar();
       setStatus(this.els.dryerPaymentActivityStatus, "0 activity days");
       return;
     }
@@ -391,6 +418,7 @@ class DryerPaymentsController {
     });
     this.els.dryerActivityDayRows.innerHTML = rows.join("");
     this.renderSelectionPanel();
+    this.renderApprovalToolbar();
     setStatus(
       this.els.dryerPaymentActivityStatus,
       `${this.state.activityDays.length} ${
@@ -403,14 +431,16 @@ class DryerPaymentsController {
     const decisionId = day.decision_id ? String(day.decision_id) : "";
     const selectable = isSelectableDay(day);
     const selected = selectable && this.state.selectedDecisionIds.has(decisionId);
+    const needsApproval = day.payment_status === "needs_review";
+    const approvalSelected = needsApproval && this.state.selectedApprovalKeys.has(dayKey(day));
     const paid = day.payment_status === "paid";
     const stale = day.source_changed_since_approval === true;
     const workValue = day.qualifies
       ? nonNegativeInteger(day.contract_amount_kes)
-      : optionalInteger(day.approved_work_amount_kes);
+      : (day.decision_id ? optionalInteger(day.approved_work_amount_kes) : nonNegativeInteger(day.reference_amount_kes));
     const phoneValue = day.decision_id
       ? String(nonNegativeInteger(day.phone_data_allowance_kes))
-      : "";
+      : "100";
     const approvedTotal = workValue === null || phoneValue === ""
       ? null
       : workValue + Number(phoneValue);
@@ -434,7 +464,11 @@ class DryerPaymentsController {
             )}" aria-label="Select ${escapeAttribute(
               formatDateKey(day.activity_date)
             )} for payment"${selected ? " checked" : ""}>`
-          : "—"
+          : needsApproval
+            ? `<input type="checkbox" data-payment-day-approve-select aria-label="Select ${escapeAttribute(
+                formatDateKey(day.activity_date)
+              )} for approval"${approvalSelected ? " checked" : ""}>`
+            : "—"
       }</td>
       <td>
         <button class="dryer-payment-disclosure" type="button" data-payment-day-toggle aria-expanded="${
@@ -560,6 +594,18 @@ class DryerPaymentsController {
   }
 
   handleActivityDayChange(event) {
+    const approvalCheckbox = event.target.closest("[data-payment-day-approve-select]");
+    if (approvalCheckbox) {
+      if (this.state.approving) { approvalCheckbox.checked = !approvalCheckbox.checked; return; }
+      const row = approvalCheckbox.closest("[data-payment-day-row]");
+      const key = row ? `${row.dataset.assistantKey}:${row.dataset.activityDate}` : "";
+      if (key) {
+        if (approvalCheckbox.checked) this.state.selectedApprovalKeys.add(key);
+        else this.state.selectedApprovalKeys.delete(key);
+      }
+      this.renderApprovalToolbar();
+      return;
+    }
     const checkbox = event.target.closest("[data-payment-day-select]");
     if (checkbox) {
       this.updateSelection(checkbox);
@@ -640,6 +686,7 @@ class DryerPaymentsController {
   }
 
   async saveActivityDay(button) {
+    if (this.state.approving) return;
     const row = button.closest("[data-payment-day-row]");
     const detail = row?.nextElementSibling;
     if (!row) return;
