@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Permissions - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/permissions.css?v=4">
+  <link rel="stylesheet" href="./assets/css/permissions.css?v=5">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -73,13 +73,37 @@
         </section>
       </section>
 
-      <div id="userPermissionsWorkspace" class="permission-workspace" role="tabpanel" aria-labelledby="userPermissionsTab">
+      <div id="userPermissionsWorkspace" class="permission-workspace" role="tabpanel" aria-labelledby="userPermissionsTab" hidden>
       <section class="panel">
         <div class="section-head compact"><h2>Users</h2><button id="reloadUsers" type="button">Reload</button></div>
         <form id="inviteUserForm" class="user-invite-form">
           <label>Email (optional)<input id="inviteEmail" type="email" autocomplete="email"></label>
           <label>Phone number<input id="invitePhone" type="tel" autocomplete="tel"></label>
           <label>Name<input id="inviteName" type="text" autocomplete="name" minlength="2" maxlength="100" required></label>
+          <label>Access profile
+            <select id="inviteAccessProfile">
+              <option value="collection">Collection Staff</option>
+              <option value="operations">Operations Staff</option>
+              <option value="manager">Organisation Manager</option>
+              <option value="registry">Registry Specialist</option>
+              <option value="viewer">View Only</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+          <p id="inviteProfileSummary" class="invite-profile-summary wide-field" aria-live="polite"></p>
+          <label>Community<select id="inviteCommunity"><option value="">All / not assigned</option></select></label>
+          <label id="inviteFarmerIdField" hidden>Farmer ID<input id="inviteFarmerId" type="text" inputmode="numeric" placeholder="RID4301 or 4301"></label>
+          <label id="inviteTemporaryPasswordField" hidden>Temporary password<input id="inviteTemporaryPassword" type="text" autocomplete="new-password" minlength="10"><span class="field-help">Give this to the user privately. They must change it after sign-in.</span></label>
+          <fieldset class="aggregator-access-fieldset wide-field">
+            <legend>Organisation access</legend>
+            <div id="inviteAggregators" class="aggregator-access-options"></div>
+          </fieldset>
+          <fieldset class="aggregator-access-fieldset wide-field">
+            <legend>Tide app</legend>
+            <div id="inviteTideAccess" class="aggregator-access-options"></div>
+          </fieldset>
+          <details class="user-advanced-settings wide-field" id="inviteAdvancedSettings">
+            <summary>Advanced permissions</summary>
           <label>Role
             <select id="inviteRole">
               <option value="company_admin">Company admin</option>
@@ -91,13 +115,6 @@
               <option value="read_only_auditor">Read-only auditor</option>
             </select>
           </label>
-          <label>Community<select id="inviteCommunity"><option value="">All / not assigned</option></select></label>
-          <label id="inviteFarmerIdField" hidden>Farmer ID<input id="inviteFarmerId" type="text" inputmode="numeric" placeholder="RID4301 or 4301"></label>
-          <label id="inviteTemporaryPasswordField" hidden>Temporary password<input id="inviteTemporaryPassword" type="text" autocomplete="new-password" minlength="10"><span class="field-help">Give this to the user privately. They must change it after sign-in.</span></label>
-          <fieldset class="aggregator-access-fieldset wide-field">
-            <legend>Organisation access</legend>
-            <div id="inviteAggregators" class="aggregator-access-options"></div>
-          </fieldset>
           <fieldset id="inviteDailySummaryFieldset" class="aggregator-access-fieldset wide-field">
             <legend>Daily email summary</legend>
             <div id="inviteDailySummaries" class="aggregator-access-options"></div>
@@ -115,6 +132,7 @@
             <legend>Dashboard display</legend>
             <div id="inviteDashboardPreferences" class="dashboard-preference-options"></div>
           </fieldset>
+          </details>
           <div class="button-row wide-field"><button type="submit">Send invite</button><span id="inviteStatus" class="admin-status" aria-live="polite"></span></div>
         </form>
 
@@ -124,6 +142,12 @@
             <tbody id="userDirectoryRows"></tbody>
           </table>
         </div>
+      </section>
+
+      <section id="tideOrganisationPanel" class="panel" hidden>
+        <div class="section-head compact"><h2>Tide by organisation</h2></div>
+        <div id="tideOrganisationRows" class="aggregator-access-options"></div>
+        <span id="tideOrganisationStatus" class="admin-status" aria-live="polite"></span>
       </section>
 
       <section id="applicationUsersPanel" class="panel" hidden>
@@ -212,6 +236,14 @@
           </fieldset>
           <fieldset class="permission-fieldset wide-field"><legend>Permissions</legend><div id="editPermissions" class="permission-grid"></div></fieldset>
           <fieldset class="permission-fieldset wide-field"><legend>Dashboard display</legend><div id="editDashboardPreferences" class="dashboard-preference-options"></div></fieldset>
+          <fieldset id="editScopedTideFieldset" class="aggregator-access-fieldset wide-field" hidden>
+            <legend>Tide app by organisation</legend>
+            <div id="editScopedTideAccess" class="aggregator-access-options"></div>
+            <div class="button-row">
+              <button id="saveScopedTideAccess" type="button">Save Tide access</button>
+              <span id="editScopedTideStatus" class="admin-status" aria-live="polite"></span>
+            </div>
+          </fieldset>
           <fieldset id="editApplicationAccessFieldset" class="permission-fieldset wide-field" hidden>
             <legend>Application access</legend>
             <div id="editApplicationAccess" class="application-access-options"></div>
@@ -286,7 +318,7 @@
   </dialog>
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
-  <script type="module" src="./assets/js/admin_page.js?v=35"></script>
-  <script type="module" src="./assets/js/users_page.js?v=14"></script>
+  <script type="module" src="./assets/js/admin_page.js?v=36"></script>
+  <script type="module" src="./assets/js/users_page.js?v=15"></script>
 </body>
 </html>
