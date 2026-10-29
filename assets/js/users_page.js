@@ -770,12 +770,16 @@ async function inviteUser(event) {
       }
     }
     els.inviteUserForm.reset();
+    // Clear the previous invitation's Tide selections. A subsequent staff
+    // invitation must never silently inherit another person's Tide access.
+    els.inviteTideAccess.replaceChildren();
     els.inviteAccessProfile.value = "collection";
     applyInviteAccessProfile();
     configureInviteContactMode();
     configureFarmerRoleFields("invite");
     renderAggregatorInputs("invite", defaultInviteAggregatorIds(), false,
       profileFormAccessMap("collection", defaultInviteAggregatorIds()));
+    renderInviteTideAccess();
     renderDailySummaryInputs("invite");
     await loadPageData();
     setStatus(
