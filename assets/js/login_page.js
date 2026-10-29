@@ -17,6 +17,7 @@ import {
 import { currentApplicationAccess } from "./platform_access.js?v=1";
 import { transitionTo } from "./app_transition.js";
 import { loadOfflineCollectionAccess } from "./offline_store.js";
+import { connectionErrorMessage, isConnectionError } from "./connection_status.js";
 
 const els = {};
 let activePasswordMode = "";
@@ -25,7 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
   init().catch((error) => {
     document.body.removeAttribute("data-auth-pending");
     showPanel("login");
-    setStatus(error.message || "Sign-in could not be loaded. Refresh and try again.", "error");
+    setStatus(connectionErrorMessage(error, "Sign-in could not be loaded. Refresh and try again."), "error");
   });
 });
 
@@ -152,7 +153,7 @@ async function handlePasswordUpdate(event) {
     setStatus("Password saved.");
     await routeSignedInUser();
   } catch (error) {
-    setStatus(error.message, "error");
+    setStatus(connectionErrorMessage(error), "error");
   }
 }
 
@@ -167,7 +168,7 @@ async function handleReset(event) {
     await sendPasswordReset(els.resetEmail.value.trim());
     setStatus("If the account exists, a reset link will be sent by the configured email service.");
   } catch (error) {
-    setStatus(error.message, "error");
+    setStatus(connectionErrorMessage(error), "error");
   }
 }
 
@@ -273,6 +274,7 @@ function passwordModeTitle(mode) {
 }
 
 function signInErrorMessage(error) {
+  if (isConnectionError(error)) return connectionErrorMessage(error);
   const message = String(error?.message || "").toLowerCase();
   if (message.includes("invalid login credentials") || message.includes("invalid email or password")) {
     return "Username, email, phone number or password is incorrect.";

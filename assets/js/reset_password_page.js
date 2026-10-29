@@ -5,12 +5,13 @@ import {
   routeForProfile,
   signInWithPassword
 } from "./auth_client.js?v=19";
+import { connectionErrorMessage } from "./connection_status.js";
 
 const els = {};
 let resetToken = "";
 
 document.addEventListener("DOMContentLoaded", () => {
-  init().catch((error) => showReadyError(error.message || "This password reset link could not be opened."));
+  init().catch((error) => showReadyError(connectionErrorMessage(error, "This password reset link could not be opened.")));
 });
 
 async function init() {
@@ -67,7 +68,7 @@ async function resetPassword(event) {
     window.location.replace(routeForProfile(profile));
   } catch (error) {
     els.adminResetSubmit.disabled = false;
-    setStatus(error.message || "Password could not be changed.", "error");
+    setStatus(connectionErrorMessage(error, "Password could not be changed."), "error");
   }
 }
 

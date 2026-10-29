@@ -61,6 +61,7 @@ const APP_SHELL = [
   "./assets/images/dryer/dryer-cover-reference.svg",
   "./assets/js/pwa_bootstrap.js",
   "./assets/js/auth_client.js",
+  "./assets/js/connection_status.js",
   "./assets/js/vendor/supabase-js.esm.js",
   "./assets/js/login_page.js",
   "./assets/js/collection_form.js",
