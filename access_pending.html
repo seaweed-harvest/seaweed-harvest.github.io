@@ -17,7 +17,10 @@
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/images/seaweed-harvest-apple-touch-icon.png">
   <script type="module" src="./assets/js/pwa_bootstrap.js"></script>
 </head>
-<body class="auth-page">
+<body class="auth-page" data-auth-pending>
+  <div class="auth-session-loader" role="status" aria-label="Checking account access">
+    <span class="auth-session-spinner" aria-hidden="true"></span>
+  </div>
   <header class="app-header">
     <div class="app-header-inner">
       <div><p class="eyebrow">Seaweed aggregation</p><h1>Account</h1></div>
@@ -31,6 +34,6 @@
       <p id="pendingStatus" class="form-status" aria-live="polite"></p>
     </section>
   </main>
-  <script type="module" src="./assets/js/access_pending_page.js?v=18"></script>
+  <script type="module" src="./assets/js/access_pending_page.js?v=19"></script>
 </body>
 </html>
