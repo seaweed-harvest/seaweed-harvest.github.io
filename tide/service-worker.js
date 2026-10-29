@@ -1,4 +1,4 @@
-const CACHE_VERSION = "20261025-live-kmd-weather-v1";
+const CACHE_VERSION = "20261029-scoped-tide-v2";
 const SHELL_CACHE = `seaweed-tide-planner-shell-${CACHE_VERSION}`;
 const DATA_CACHE = "seaweed-tide-planner-data-v3";
 const MAP_TILE_CACHE = "seaweed-tide-planner-map-tiles-v1";
@@ -38,7 +38,7 @@ const SHELL_ASSETS = [
   "./assets/js/observation_form.js",
   "./assets/js/offline_location_store.js",
   "./assets/js/platform_backend.js?v=20260810-platform-auth-v3",
-  "./assets/js/platform_shell.js?v=1",
+  "./assets/js/platform_shell.js?v=2",
   "./assets/js/pwa.js",
   "./assets/js/site_feedback.js",
   "./assets/js/tide_charts.js",
