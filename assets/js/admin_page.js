@@ -137,7 +137,9 @@ async function init() {
   document.addEventListener("farmer-card-updated", () => void loadAdminData());
   renderFavoriteForms(document.getElementById("adminFavoriteForms"), state.profile);
   applyDashboardPreferences(state.profile);
-  document.body.removeAttribute("data-auth-pending");
+  if (!document.body.classList.contains("users-page")) {
+    document.body.removeAttribute("data-auth-pending");
+  }
   if (!hasAdminDataView()) return;
   setDefaultControls();
   bindEvents();

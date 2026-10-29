@@ -28,7 +28,13 @@ async function initPlatformShell() {
   let grant = null;
   if (navigator.onLine) {
     grant = await accessModule.applicationAccess(TIDE_APP_KEY, true);
-    if (grant?.role) writeCachedGrant(session.user.id, grant);
+    if (grant?.scope === "organisation") {
+      // Scoped access requires an online context check. A previous global
+      // offline cache must not accidentally become a cross-organisation grant.
+      try { localStorage.removeItem(ACCESS_CACHE_KEY); } catch { /* Storage unavailable */ }
+    } else if (grant?.role) {
+      writeCachedGrant(session.user.id, grant);
+    }
   } else {
     grant = readCachedGrant(session.user.id);
   }
@@ -36,6 +42,19 @@ async function initPlatformShell() {
   if (!grant?.role) {
     if (!navigator.onLine) {
       throw new Error("Connect to the internet once to verify this account's Tide access.");
+    }
+    const { data: scopedOptions, error: optionsError } = await authModule.authClient.rpc(
+      "platform_my_scoped_app_organisations", { p_app_key: TIDE_APP_KEY }
+    );
+    if (optionsError) throw optionsError;
+    if (scopedOptions?.length === 1) {
+      await authModule.setActiveAggregator(scopedOptions[0].id);
+      window.location.reload();
+      return;
+    }
+    if (scopedOptions?.length > 1) {
+      showTideOrganisationChooser(scopedOptions, authModule);
+      return;
     }
     window.location.replace(
       `/access_pending.html?reason=${encodeURIComponent("Tide Planner is not enabled for this account.")}`,
@@ -214,6 +233,34 @@ function ensurePlatformStylesheet() {
   link.href = "./assets/css/platform_shell.css?v=1";
   link.dataset.tidePlatformShell = "true";
   document.head.append(link);
+}
+
+function showTideOrganisationChooser(organisations, authModule) {
+  document.documentElement.dataset.platformAuth = "error";
+  const panel = document.createElement("section");
+  panel.className = "platform-access-error";
+  panel.setAttribute("role", "region");
+  panel.setAttribute("aria-label", "Choose Tide organisation");
+  const title = document.createElement("strong");
+  title.textContent = "Choose Tide organisation";
+  panel.append(title);
+  organisations.forEach((organisation) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = organisation.name;
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      try {
+        await authModule.setActiveAggregator(organisation.id);
+        window.location.reload();
+      } catch (error) {
+        button.disabled = false;
+        showPlatformError(error.message || "Could not switch organisation");
+      }
+    });
+    panel.append(button);
+  });
+  document.body.prepend(panel);
 }
 
 function showPlatformError(message) {

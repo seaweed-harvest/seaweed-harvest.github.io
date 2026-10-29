@@ -95,7 +95,8 @@ body[data-auth-pending] .auth-session-loader {
   }
 }
 
-body.admin-console-page[data-auth-pending] .app-header {
+body.admin-console-page[data-auth-pending] .app-header,
+body.auth-page[data-auth-pending] .app-header {
   visibility: hidden;
 }
 

@@ -2,15 +2,20 @@ import { currentProfile, currentSession, routeForProfile, setupAccountControls }
 
 document.addEventListener("DOMContentLoaded", async () => {
   const status = document.getElementById("pendingStatus");
-  const session = await currentSession();
-  if (!session) {
-    window.location.replace("./login.html");
-    return;
-  }
-
+  const showStatus = (message, failed = false) => {
+    if (failed) document.querySelector(".auth-panel h2").textContent = "Access check failed";
+    status.textContent = message;
+    if (failed) status.dataset.status = "error";
+    document.body.removeAttribute("data-auth-pending");
+  };
   try {
+    const session = await currentSession();
+    if (!session) {
+      window.location.replace("./login.html");
+      return;
+    }
     const profile = await currentProfile(true);
-    setupAccountControls(profile, {
+    if (profile) setupAccountControls(profile, {
       container: document.querySelector(".pending-header-controls"),
       returnPage: "access_pending.html"
     });
@@ -21,9 +26,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
     }
-    status.textContent = profile?.email || session.user.email || "";
+    if (profile?.account_status === "active") {
+      document.querySelector(".auth-panel h2").textContent = "Application access";
+      document.querySelector(".auth-panel > p").textContent =
+        "This account does not have Seaweed Harvest access. Check the organisation and application selected.";
+    }
+    showStatus(profile?.email || session.user.email || "");
   } catch (error) {
-    status.textContent = error.message;
-    status.dataset.status = "error";
+    showStatus(error.message, true);
   }
 });

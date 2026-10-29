@@ -34,6 +34,42 @@ const permissionDefinitions = [
   ["can_manage_green_space", "Manage Green Space ledger", "View, edit, publish, unpublish and delete Green Space records only. This does not grant access to other Sandbox forms."]
 ];
 
+// Invitation templates only: existing account permissions are never rewritten.
+const inviteAccessProfiles = {
+  collection: {
+    role: "field_collector",
+    label: "Collection entry, records and corrections",
+    permissions: ["can_submit_collection", "can_view_dashboard", "can_view_data", "can_edit_collections"],
+    forms: ["form_intake_collection"]
+  },
+  operations: {
+    role: "field_collector",
+    label: "Collection, stock, processing, water sampling and operations",
+    permissions: [
+      "can_access_admin", "can_submit_collection", "can_view_dashboard", "can_view_registry",
+      "can_edit_registry", "can_view_map", "can_view_data", "can_edit_collections",
+      "can_view_finance", "can_manage_pricing", "can_export_data"
+    ],
+    forms: ["form_intake_collection", "form_stock_record", "form_process_record", "form_site_water_samples"]
+  },
+  manager: {
+    role: "company_admin",
+    label: "Organisation management and operational oversight",
+    forms: ["form_intake_collection", "form_stock_record", "form_process_record", "form_site_water_samples"]
+  },
+  registry: {
+    role: "registry_admin",
+    label: "Farmer registry and operational records",
+    forms: ["form_intake_collection"]
+  },
+  viewer: {
+    role: "read_only_auditor",
+    label: "Read-only dashboard and collection records",
+    permissions: ["can_access_admin", "can_view_dashboard", "can_view_registry", "can_view_map", "can_view_data"],
+    forms: ["form_intake_collection"]
+  }
+};
+
 const permissionDependencies = [
   ["can_edit_registry", "can_view_registry"],
   ["can_edit_collections", "can_view_data"],
@@ -86,6 +122,9 @@ const state = {
   organisationPermissionAccess: null,
   organisationPermissions: null,
   applicationTesters: [],
+  tideScopeOrganisations: [],
+  tideScopeError: "",
+  editingTideScope: null,
   actor: null,
   editingUser: null,
   editingApplicationAccess: null
@@ -97,7 +136,7 @@ document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   [
-    "reloadUsers", "inviteUserForm", "inviteEmail", "invitePhone", "inviteName", "inviteRole",
+    "reloadUsers", "inviteUserForm", "inviteEmail", "invitePhone", "inviteName", "inviteRole", "inviteAccessProfile", "inviteProfileSummary",
     "inviteCommunity", "inviteFarmerIdField", "inviteFarmerId", "inviteTemporaryPasswordField", "inviteTemporaryPassword", "inviteAggregators", "inviteDailySummaryFieldset", "inviteDailySummaries", "inviteFormAccessFieldset", "inviteFormAccess", "invitePermissions", "inviteDashboardPreferences", "inviteStatus", "userDirectoryRows",
     "userEditorPanel", "closeUserEditor", "editUserForm", "editUserId", "editUserEmail",
     "editUserName", "editUserRole", "editUserStatus", "editUserCommunity", "editFarmerIdField", "editFarmerId", "editAggregators", "editDailySummaryFieldset", "editDailySummaries", "editFormAccessFieldset", "editFormAccess", "editPermissions", "editDashboardPreferences",
@@ -117,12 +156,17 @@ async function init() {
     "applicationInviteExpiryField", "applicationInviteExpiry", "applicationInviteStatus",
     "applicationTesterCount", "applicationTesterRows", "applicationTesterStatus",
     "editApplicationAccessFieldset", "editApplicationAccess", "saveApplicationAccess",
-    "editApplicationAccessStatus", "saveUser"
+    "editApplicationAccessStatus", "saveUser",
+    "inviteTideAccess", "tideOrganisationPanel", "tideOrganisationRows", "tideOrganisationStatus",
+    "editScopedTideFieldset", "editScopedTideAccess", "saveScopedTideAccess", "editScopedTideStatus"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
   const access = await requireAdminAccess("can_manage_users");
   if (!access) return;
   state.actor = access.profile || await currentProfile(true);
+  if (state.actor?.app_role !== "system_admin" && !state.actor?.can_manage_admin_users) {
+    els.inviteAccessProfile.querySelector('option[value="manager"]')?.remove();
+  }
   els.userActivityPanel.hidden = !canViewUserActivity();
   els.applicationUsersPanel.hidden = !canManageApplicationAccess();
   els.editApplicationAccessFieldset.hidden = !canManageApplicationAccess();
@@ -131,13 +175,17 @@ async function init() {
   buildPermissionInputs(els.editPermissions, "edit");
   buildEditRoleOptions();
   bindEvents();
-  applyRolePreset("invite", els.inviteRole.value);
-  renderDashboardInputs("invite", els.inviteRole.value);
+  applyInviteAccessProfile();
   configureFarmerRoleFields("invite");
   configureInviteContactMode();
   configureApplicationInviteDuration();
-  await loadPageData();
-  await resumePasswordResetLink();
+  try {
+    await loadPageData();
+    await resumePasswordResetLink();
+  } finally {
+    // The admin shell leaves Users hidden until its own async bootstrap finishes.
+    document.body.removeAttribute("data-auth-pending");
+  }
 }
 
 function bindEvents() {
@@ -147,11 +195,16 @@ function bindEvents() {
   });
   els.organisationPermissionsForm.addEventListener("submit", saveOrganisationPermissions);
   els.reloadUsers.addEventListener("click", loadPageData);
+  els.tideOrganisationRows.addEventListener("change", handleTideOrganisationChange);
+  els.saveScopedTideAccess.addEventListener("click", saveScopedTideAccess);
   els.inviteEmail.addEventListener("input", () => {
     configureInviteContactMode();
     renderDailySummaryInputs("invite", readDailySummaryAggregatorIds("invite"));
   });
+  els.inviteAccessProfile.addEventListener("change", applyInviteAccessProfile);
   els.inviteRole.addEventListener("change", () => {
+    els.inviteAccessProfile.value = "custom";
+    els.inviteProfileSummary.textContent = "Custom access";
     const formAccess = readUserFormAccess("invite");
     const dailySummaryIds = readDailySummaryAggregatorIds("invite");
     applyRolePreset("invite", els.inviteRole.value);
@@ -161,7 +214,17 @@ function bindEvents() {
     renderDailySummaryInputs("invite", dailySummaryIds);
   });
   els.inviteAggregators.addEventListener("change", () => {
-    renderUserFormAccess("invite", readUserFormAccess("invite"));
+    const previous = readUserFormAccess("invite");
+    const selected = selectedAggregatorIds("invite");
+    const defaults = profileFormAccessMap(els.inviteAccessProfile.value, selected);
+    for (const id of selected) {
+      // Only newly added organisations receive the template defaults.
+      if (!els.inviteFormAccess.querySelector(`[data-user-form-access-group="${cssEscape(id)}"]`)) {
+        previous[id] = defaults[id];
+      }
+    }
+    renderUserFormAccess("invite", previous);
+    renderInviteTideAccess();
     renderDailySummaryInputs("invite", readDailySummaryAggregatorIds("invite"));
     updateOrganisationPermissionEligibility("invite");
   });
@@ -218,7 +281,10 @@ async function loadPageData() {
     const applicationUsersRequest = canManageApplicationAccess()
       ? invokePlatformAppUsers({ action: "list", app_key: "tide" })
       : Promise.resolve({ testers: [] });
-    const [usersResponse, registrationsResponse, passwordHelpResponse, activityResponse, aggregatorResponse, organisationAccessResponse, dailySummaryResponse, communities, applicationUsersResponse] = await Promise.all([
+    const tideScopeRequest = invokePlatformAppUsers({
+      action: "organisation_scopes", app_key: "tide"
+    }).catch((error) => ({ organisations: [], error: error.message || "Tide settings unavailable" }));
+    const [usersResponse, registrationsResponse, passwordHelpResponse, activityResponse, aggregatorResponse, organisationAccessResponse, dailySummaryResponse, communities, applicationUsersResponse, tideScopeResponse] = await Promise.all([
       authClient.rpc("ag_admin_user_directory"),
       authClient.rpc("ag_admin_farmer_registration_requests"),
       invokeAdminUsers({ action: "list_password_help" }),
@@ -227,7 +293,8 @@ async function loadPageData() {
       authClient.rpc("ag_admin_organisation_permission_options"),
       authClient.rpc("ag_admin_daily_summary_recipient_state"),
       selectRows(APP_CONFIG.tables.communities, "select=community_id,community_name&order=community_name.asc"),
-      applicationUsersRequest
+      applicationUsersRequest,
+      tideScopeRequest
     ]);
     if (usersResponse.error) throw usersResponse.error;
     if (registrationsResponse.error) throw registrationsResponse.error;
@@ -254,9 +321,14 @@ async function loadPageData() {
     state.organisationPermissions = null;
     state.communities = communities;
     state.applicationTesters = applicationUsersResponse.testers || [];
+    state.tideScopeOrganisations = tideScopeResponse.organisations || [];
+    state.tideScopeError = tideScopeResponse.error || "";
     await configureOrganisationPermissionAccess();
     renderCommunityOptions();
-    renderAggregatorInputs("invite", defaultInviteAggregatorIds());
+    renderAggregatorInputs("invite", defaultInviteAggregatorIds(), false,
+      profileFormAccessMap(els.inviteAccessProfile.value, defaultInviteAggregatorIds()));
+    renderInviteTideAccess();
+    renderTideOrganisationSettings();
     renderDailySummaryInputs("invite");
     renderUsers();
     renderPasswordHelp();
@@ -265,6 +337,8 @@ async function loadPageData() {
     renderApplicationTesters();
     setStatus(els.inviteStatus, "");
   } catch (error) {
+    // Make failures visible rather than leaving a blank hidden workspace.
+    selectPermissionTab("users", false);
     setStatus(els.inviteStatus, error.message, "error");
   }
 }
@@ -306,7 +380,7 @@ async function configureOrganisationPermissionAccess() {
     (organisation) => String(organisation.id) === activeId
   ) ? activeId : String(organisations[0].id);
 
-  const requestedTab = location.hash === "#users" ? "users" : "organisation";
+  const requestedTab = location.hash === "#organisation" ? "organisation" : "users";
   selectPermissionTab(requestedTab, false);
   await loadOrganisationPermissions(els.organisationPermissionsSelect.value);
 }
@@ -408,6 +482,105 @@ async function saveOrganisationPermissions(event) {
 function canViewUserActivity() {
   return state.actor?.app_role === "system_admin"
     || Boolean(state.actor?.can_manage_users && state.actor?.can_view_user_activity);
+}
+
+
+function readInviteTideAccess() {
+  return [...els.inviteTideAccess.querySelectorAll("[data-invite-tide]:checked")]
+    .map((input) => input.value);
+}
+function renderInviteTideAccess() {
+  const selected = new Set(selectedAggregatorIds("invite").map(String));
+  const previouslyChecked = new Set(readInviteTideAccess());
+  const orgs = state.tideScopeOrganisations.filter((org) => selected.has(String(org.id)));
+  els.inviteTideAccess.innerHTML = orgs.length
+    ? orgs.map((org) =>
+      '<label class="aggregator-access-option"><input type="checkbox" data-invite-tide value="' +
+      escapeHtml(org.id) + '"' + (org.enabled && previouslyChecked.has(org.id) ? ' checked' : '') +
+      (!org.enabled ? ' disabled' : '') + '> ' + escapeHtml(org.name) +
+      (!org.enabled ? ' · Unavailable' : '') + '</label>'
+    ).join("")
+    : '<span class="admin-status">No organisations selected.</span>';
+}
+function renderTideOrganisationSettings() {
+  const canEdit = state.actor?.app_role === "system_admin"
+    || state.actor?.is_protected_owner === true
+    || (state.actor?.can_manage_settings && state.actor?.can_manage_users);
+  const orgs = state.tideScopeOrganisations;
+  els.tideOrganisationPanel.hidden = !orgs.length || !canEdit;
+  els.tideOrganisationRows.innerHTML = orgs.map((org) =>
+    '<label class="aggregator-access-option"><input type="checkbox" data-tide-org-enabled value="' +
+    escapeHtml(org.id) + '"' + (org.enabled ? ' checked' : '') +
+    (canEdit ? '' : ' disabled') + '> ' + escapeHtml(org.name) + '</label>'
+  ).join("");
+  setStatus(els.tideOrganisationStatus, state.tideScopeError || "");
+}
+async function handleTideOrganisationChange(event) {
+  const checkbox = event.target.closest("[data-tide-org-enabled]");
+  if (!checkbox) return;
+  const previous = !checkbox.checked;
+  checkbox.disabled = true;
+  try {
+    await invokePlatformAppUsers({
+      action: "set_organisation_enabled",
+      organisation_id: checkbox.value, enabled: checkbox.checked
+    });
+    const org = state.tideScopeOrganisations.find((row) => row.id === checkbox.value);
+    if (org) org.enabled = checkbox.checked;
+    setStatus(els.tideOrganisationStatus, "Saved.");
+    renderInviteTideAccess();
+  } catch (error) {
+    checkbox.checked = previous;
+    setStatus(els.tideOrganisationStatus, error.message || "Tide setting failed", "error");
+  } finally {
+    checkbox.disabled = false;
+  }
+}
+function renderEditScopedTide(user) {
+  const scope = state.editingTideScope;
+  const orgs = scope?.organisations || [];
+  els.editScopedTideFieldset.hidden = !orgs.length || Boolean(scope?.error);
+  const isGlobal = scope?.global_access === true;
+  const memberIds = new Set((user?.aggregator_ids || []).map(String));
+  els.editScopedTideAccess.innerHTML =
+    (isGlobal
+      ? '<p class="admin-status">Global Tide access is already active for this user. Organisation switches do not revoke global access.</p>'
+      : '') +
+    orgs.filter((org) => memberIds.has(String(org.id))).map((org) =>
+      '<label class="aggregator-access-option"><input type="checkbox" data-edit-scoped-tide value="' +
+      escapeHtml(org.id) + '"' + (org.granted ? ' checked' : '') +
+      (!org.enabled && !org.granted ? ' disabled' : '') + '> ' +
+      escapeHtml(org.name) + (!org.enabled ? ' · Unavailable' : '') + '</label>'
+    ).join("");
+  els.saveScopedTideAccess.disabled = !els.editScopedTideAccess.querySelector("[data-edit-scoped-tide]");
+  setStatus(els.editScopedTideStatus, scope?.error || "");
+}
+async function saveScopedTideAccess() {
+  if (!state.editingUser || !state.editingTideScope) return;
+  const orgs = state.editingTideScope.organisations || [];
+  const selected = new Set(
+    [...els.editScopedTideAccess.querySelectorAll("[data-edit-scoped-tide]:checked")]
+      .map((input) => input.value)
+  );
+  els.saveScopedTideAccess.disabled = true;
+  try {
+    for (const org of orgs) {
+      const input = [...els.editScopedTideAccess.querySelectorAll("[data-edit-scoped-tide]")]
+        .find((row) => row.value === org.id);
+      if (!input || selected.has(org.id) === org.granted) continue;
+      await invokePlatformAppUsers({
+        action: "set_scoped_access", user_id: state.editingUser.id,
+        organisation_id: org.id, enabled: selected.has(org.id)
+      });
+      org.granted = selected.has(org.id);
+    }
+    setStatus(els.editScopedTideStatus, "Tide access saved.");
+  } catch (error) {
+    setStatus(els.editScopedTideStatus, error.message || "Tide access could not be saved.", "error");
+    // Keep the editor available for correction or retry.
+  } finally {
+    els.saveScopedTideAccess.disabled = false;
+  }
 }
 
 function canManageApplicationAccess() {
@@ -566,6 +739,7 @@ async function inviteUser(event) {
   setStatus(els.inviteStatus, usesEmailInvite ? "Sending invite..." : "Creating phone account...");
   try {
     const permissions = readPermissions("invite");
+    const requestedTide = readInviteTideAccess();
     const result = await invokeAdminUsers({
       action: "invite",
       email: els.inviteEmail.value.trim(),
@@ -584,20 +758,34 @@ async function inviteUser(event) {
     if (permissions.can_export_backups) {
       await setBackupExportPermission(result.user_id, true);
     }
+    const failedTideOrganisations = [];
+    for (const organisationId of requestedTide) {
+      try {
+        await invokePlatformAppUsers({
+          action: "set_scoped_access", user_id: result.user_id,
+          organisation_id: organisationId, enabled: true
+        });
+      } catch (error) {
+        failedTideOrganisations.push(organisationId);
+      }
+    }
     els.inviteUserForm.reset();
-    els.inviteRole.value = "company_admin";
+    els.inviteAccessProfile.value = "collection";
+    applyInviteAccessProfile();
     configureInviteContactMode();
     configureFarmerRoleFields("invite");
-    applyRolePreset("invite", "company_admin");
-    renderDashboardInputs("invite", "company_admin");
-    renderAggregatorInputs("invite", defaultInviteAggregatorIds());
+    renderAggregatorInputs("invite", defaultInviteAggregatorIds(), false,
+      profileFormAccessMap("collection", defaultInviteAggregatorIds()));
     renderDailySummaryInputs("invite");
     await loadPageData();
     setStatus(
       els.inviteStatus,
-      result.account_setup === "temporary_password"
-        ? "Phone account created. Give the temporary password to the user privately."
-        : "Invite sent."
+      failedTideOrganisations.length
+        ? "Account created, but Tide access was not saved for all organisations. Edit the user to retry."
+        : result.account_setup === "temporary_password"
+          ? "Phone account created. Give the temporary password to the user privately."
+          : "Invite sent.",
+      failedTideOrganisations.length ? "error" : undefined
     );
   } catch (error) {
     setStatus(els.inviteStatus, error.message, "error");
@@ -770,17 +958,21 @@ async function handleUserTableClick(event) {
 
   setStatus(els.editUserMessage, "Loading user access...");
   try {
-    const [formAccessResponse, applicationAccessResponse] = await Promise.all([
+    const [formAccessResponse, applicationAccessResponse, tideScopeResponse] = await Promise.all([
       authClient.rpc("ag_admin_user_form_access", { p_user_id: user.id }),
       canManageApplicationAccess() && user.email
         ? authClient.rpc("ag_admin_user_app_access", { p_user_id: user.id })
-        : Promise.resolve({ data: {}, error: null })
+        : Promise.resolve({ data: {}, error: null }),
+      invokePlatformAppUsers({
+        action: "organisation_scopes", app_key: "tide", user_id: user.id
+      }).catch((error) => ({ error: error.message, organisations: [] }))
     ]);
     if (formAccessResponse.error) throw formAccessResponse.error;
     if (applicationAccessResponse.error) throw applicationAccessResponse.error;
 
     state.editingUser = user;
     state.editingApplicationAccess = applicationAccessResponse.data || {};
+    state.editingTideScope = tideScopeResponse;
     els.editUserId.value = user.id;
     els.editUserEmail.value = user.email || user.phone || "";
     els.editUserName.value = user.display_name || "";
@@ -807,6 +999,7 @@ async function handleUserTableClick(event) {
     renderDashboardInputs("edit", user.app_role, user.dashboard_preferences);
     renderApplicationAccess(user);
     setStatus(els.editUserMessage, "");
+    renderEditScopedTide(user);
     configurePlatformOnlyEditor(user);
     els.userEditorPanel.hidden = false;
     els.userEditorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1344,6 +1537,42 @@ function formatDailySummaryAccess(user) {
     .filter((row) => selected.has(String(row.id)))
     .map((row) => row.aggregator_code);
   return names.length ? names.join(", ") : "-";
+}
+
+function profileFormAccessMap(profileKey, organisationIds = []) {
+  const profile = inviteAccessProfiles[profileKey];
+  if (!profile) return {};
+  const forms = new Set(profile.forms);
+  return Object.fromEntries(organisationIds.map((id) => {
+    const organisation = state.aggregators.find((row) => String(row.id) === String(id));
+    return [String(id), Object.fromEntries(organisationCapabilityDefinitions.forms.map(([key]) => [
+      key, forms.has(key) && Boolean(organisation?.capabilities?.[key])
+    ]))];
+  }));
+}
+
+function applyInviteAccessProfile() {
+  const key = els.inviteAccessProfile.value;
+  const profile = inviteAccessProfiles[key];
+  if (!profile) {
+    els.inviteProfileSummary.textContent = "Custom access";
+    return;
+  }
+  if (profile.role === "company_admin"
+      && state.actor?.app_role !== "system_admin"
+      && !state.actor?.can_manage_admin_users) {
+    els.inviteAccessProfile.value = "collection";
+    return applyInviteAccessProfile();
+  }
+  els.inviteRole.value = profile.role;
+  els.inviteProfileSummary.textContent = profile.label;
+  const enabled = profile.permissions
+    ? Object.fromEntries(permissionDefinitions.map(([permission]) => [permission, profile.permissions.includes(permission)]))
+    : rolePreset(profile.role);
+  writePermissions("invite", enabled);
+  renderDashboardInputs("invite", profile.role);
+  configureFarmerRoleFields("invite");
+  renderUserFormAccess("invite", profileFormAccessMap(key, selectedAggregatorIds("invite")));
 }
 
 function applyRolePreset(prefix, role) {
