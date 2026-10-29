@@ -3,6 +3,7 @@ import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=20
 import { formatWeightPerLine } from "./reef_nursery_site_capture_math.js?v=1";
 import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=2";
 import { createSampleStagePhotoController } from "./reef_sample_rope_stage_photos.js?v=1";
+import { connectionErrorMessage, isConnectionError, readWithDeadline } from "./connection_status.js";
 
 const PHOTO_BUCKET = "reef-seaweed-record-photos";
 const MAX_SOURCE_PHOTO_BYTES = 25 * 1024 * 1024;
@@ -31,6 +32,7 @@ const HEALTH_OBSERVATIONS = Object.freeze([
 ]);
 
 const els = {};
+let startupInFlight = false;
 const state = {
   context: null,
   sites: [],
@@ -56,11 +58,26 @@ if (document.readyState === "loading") {
 
 async function init() {
   const form = document.getElementById("reefSeaweedForm");
-  if (!form || form.dataset.siteCaptureProduction === "true") return;
+  if (!form || form.dataset.siteCaptureProduction === "true" || startupInFlight) return;
+  startupInFlight = true;
+  const accessStatus = document.getElementById("reefAccessStatus");
+  const startupStatus = document.getElementById("reefSiteCaptureStatus");
+  const retry = document.getElementById("reefRetryConnection");
+  if (accessStatus) accessStatus.textContent = "Opening form…";
+  if (startupStatus) {
+    startupStatus.textContent = "Connecting to the online service…";
+    startupStatus.dataset.status = "";
+  }
+  if (retry) {
+    retry.hidden = true;
+    retry.disabled = true;
+    retry.onclick = () => init();
+  }
 
   try {
-    const context = await rpc("ag_reef_site_capture_workspace_context");
+    const context = await readWithDeadline((signal) => rpc("ag_reef_site_capture_workspace_context", {}, signal));
     if (!context?.allowed) {
+      if (accessStatus) accessStatus.textContent = "Access unavailable";
       const gate = document.getElementById("reefAccessGate");
       if (gate) {
         gate.hidden = false;
@@ -81,11 +98,18 @@ async function init() {
     document.body.removeAttribute("data-auth-pending");
   } catch (error) {
     document.body.removeAttribute("data-auth-pending");
+    if (accessStatus) accessStatus.textContent = isConnectionError(error) ? "Connection unavailable" : "Form could not open";
     const status = document.getElementById("reefSiteCaptureStatus") || document.getElementById("reefSeaweedStatus");
     if (status) {
-      status.textContent = error.message || "Seaweed Data Collection could not be opened.";
+      status.textContent = connectionErrorMessage(error, "Seaweed Data Collection could not be opened.");
       status.dataset.status = "error";
     }
+    if (retry && form.dataset.siteCaptureProduction !== "true") {
+      retry.hidden = false;
+      retry.disabled = false;
+    }
+  } finally {
+    startupInFlight = false;
   }
 }
 
@@ -95,8 +119,8 @@ async function configureStandaloneShell() {
   const status = document.getElementById("reefAccessStatus");
   const signIn = document.getElementById("reefSignInAction");
   const authenticated = state.context?.access_mode === "authenticated";
-  const session = authenticated ? await currentSession() : null;
-  const profile = session?.user ? await currentProfile() : null;
+  const session = authenticated ? await readWithDeadline(() => currentSession()) : null;
+  const profile = session?.user ? await readWithDeadline(() => currentProfile(true)) : null;
   populateAppSidebar(sidebar, {
     profile,
     dashboardHref: authenticated ? "./home.html" : "./login.html?return=reef_nursery_seaweed_data.html",
@@ -1303,8 +1327,9 @@ function openSeaweedWorkspace() {
   document.getElementById("reefSeaweedTab")?.click();
 }
 
-async function rpc(name, args = {}) {
-  const { data, error } = await authClient.rpc(name, args);
+async function rpc(name, args = {}, signal = null) {
+  const request = authClient.rpc(name, args);
+  const { data, error } = await (signal ? request.abortSignal(signal) : request);
   if (error) throw error;
   return Array.isArray(data) ? data[0] || {} : data;
 }
