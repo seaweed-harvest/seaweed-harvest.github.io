@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v181-cosme-mobile-payments";
+const CACHE_VERSION = "seaweed-harvest-collection-v182-permissions-tide";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
