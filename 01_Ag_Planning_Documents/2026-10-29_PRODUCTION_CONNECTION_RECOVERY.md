@@ -96,3 +96,26 @@ new API proxies, password resets and permission changes are not proposed fixes.
 - A read-only database call confirms the public nursery workspace is allowed.
 - `auth_client.js`, configuration, offline storage/sync, navigation, Supabase,
   automation controls and workflows are byte-for-byte unchanged by the patch.
+
+## Network isolation and release-check repair
+
+The user confirmed the same PC works after connecting to their phone hotspot.
+The PC now has a single default gateway (172.20.10.1). Auth health/settings, login
+and recovery OPTIONS preflights, and the public workspace RPC all return HTTP 200
+with valid CORS responses for the production origin. The workspace returns ten
+sites. Chrome opens the patched local public form and the existing signed-in
+production form successfully. No authentication credential was entered or reset.
+
+This confirms the incident follows the original Wi-Fi path. Competing original
+gateways are a concrete configuration defect to investigate; the precise router
+or ISP fault has not been proven. The hotspot restores service without changing
+accounts, application permissions or PC security settings.
+
+Production PR #117 initially passed four application checks. Its two payment
+browser checks failed before executing tests because Playwright 1.56 does not
+support the new `ubuntu-latest` image (Ubuntu 26.04). Pin only those two existing
+jobs to `ubuntu-24.04`, supported by the installed browser-test package. This is a
+necessary release-check environment repair under the user's requested tests and
+deployment scope. Job permissions, triggers, credentials and tests are unchanged.
+This supersedes the earlier prediction that workflows would remain untouched.
+The source repository does not contain these two production-only jobs.
