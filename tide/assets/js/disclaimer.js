@@ -6,7 +6,7 @@ const PLATFORM_HOSTED = window.location.pathname === "/tide"
 if (PLATFORM_HOSTED) {
   // Under seaweed-harvest.com/tide, Tide shares the platform login/account shell
   // and the canonical Seaweed Harvest suggestion widget implementation.
-  import("./platform_shell.js?v=1");
+  import("./platform_shell.js?v=2");
   import("/assets/js/site_feedback.js?v=8");
 } else {
   // Keep the standalone/legacy Tide source runnable during migration.
