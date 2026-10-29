@@ -249,3 +249,30 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Keep the everyday invitation short; advanced grants remain available on demand. */
+.user-invite-form > .user-advanced-settings {
+  grid-column: 1 / -1;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.user-advanced-settings > summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+}
+.user-advanced-settings > label,
+.user-advanced-settings > fieldset {
+  margin-top: 12px;
+}
+.user-advanced-settings > fieldset {
+  min-width: 0;
+}
+.invite-profile-summary {
+  margin: 0;
+  color: var(--text-muted, var(--muted));
+  font-size: 0.86rem;
+}
