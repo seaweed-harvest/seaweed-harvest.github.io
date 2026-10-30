@@ -156,6 +156,39 @@
   <main class="app-shell admin-shell admin-layout">
     <aside id="backupSidebar" class="admin-sidebar" aria-label="Application menu"></aside>
     <section class="admin-content">
+      <section id="fullBackupArchive" class="panel admin-page-section backup-panel" hidden aria-labelledby="archiveHeading">
+        <h2 id="archiveHeading">Full backup and photo archive</h2>
+        <p>Owner only · All organisations. Save originals directly to your chosen folder or external drive. Existing matching files are reused.</p>
+        <p id="archiveReadiness" class="field-hint"></p>
+        <div class="header-actions" style="flex-wrap:wrap;gap:8px">
+          <button id="archiveFolder" type="button">Choose archive folder</button>
+          <button id="archiveRefresh" type="button">Refresh inventory</button>
+          <button id="archiveSnapshot" type="button">Save application records</button>
+          <button id="archiveDatabase" type="button" disabled>Queue full database backup</button>
+        </div>
+        <p id="archiveFolderLabel">No archive folder selected.</p>
+        <p id="archiveStatus" class="backup-export-status" style="text-align:left;max-width:none" role="status" aria-live="polite">Loading archive inventory…</p>
+        <div id="archiveDatabaseJobs"></div>
+        <div class="header-actions" style="flex-wrap:wrap;gap:12px">
+          <label>Bucket <select id="archiveBucket"><option value="">All photo/file buckets</option></select></label>
+          <label>Created on or before <input id="archiveBefore" type="date"></label>
+        </div>
+        <p id="archiveTotals"></p>
+        <div class="header-actions" style="flex-wrap:wrap;gap:8px">
+          <button id="archiveSave" type="button">Archive matching originals</button>
+          <button id="archiveVerify" type="button">Verify selected local files</button>
+          <button id="archiveCleanup" type="button" disabled>Review clearing selected cloud originals</button>
+          <button id="archiveRestore" type="button">Restore selected originals</button>
+          <button id="archiveRepairPreview" type="button">Repair missing previews</button>
+        </div>
+        <p class="field-hint">Cleanup requires a fresh read-back verification and an explicit confirmation. Records remain; image originals are replaced with small labelled previews. Keep the archive folder and its seaweed-archive.json manifest together.</p>
+        <div class="responsive-table-wrap" style="max-height:520px;overflow:auto">
+          <table class="management-table admin-data-table backup-table">
+            <thead><tr><th><input id="archiveSelectAll" type="checkbox" aria-label="Select matching originals"></th><th>Bucket</th><th>Original reference</th><th>Size</th><th>Cloud status</th><th>Local archive</th></tr></thead>
+            <tbody id="archiveRows"></tbody>
+          </table>
+        </div>
+      </section>
       <section id="backupSummaryPanel" class="panel admin-page-section backup-panel" aria-labelledby="backupSummaryHeading" aria-busy="true">
         <div class="today-records-heading form-ledger-heading">
           <div>
@@ -296,6 +329,7 @@
     </section>
   </main>
 
-  <script type="module" src="./assets/js/admin_backups_summary.js?v=4"></script>
+  <script type="module" src="./assets/js/admin_backups_summary.js?v=5"></script>
 </body>
 </html>
+
