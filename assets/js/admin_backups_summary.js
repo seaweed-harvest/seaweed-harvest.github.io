@@ -5,6 +5,7 @@ import {
   setupAccountControls
 } from "./auth_client.js?v=25";
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
+import { mountFullBackupArchive } from "./full_backup_archive.js?v=1";
 
 const ACTIVE_DATASET_KEYS = Object.freeze([
   "intake",
@@ -57,6 +58,10 @@ async function init() {
     setupAppNavigation({ profile: access.profile, sidebar, dashboardHref });
     bindEvents();
     document.body.removeAttribute("data-auth-pending");
+
+    if (access.profile?.is_protected_owner === true) {
+      mountFullBackupArchive({ client: authClient, profile: access.profile });
+    }
 
     const dashboard = await loadSummary();
     const storedJobId = readStoredJobId();
@@ -718,3 +723,4 @@ function numberValue(value) {
 function delay(milliseconds) {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }
+
