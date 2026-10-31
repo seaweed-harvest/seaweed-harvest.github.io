@@ -71,6 +71,7 @@ function clearPrivateState() {
   nurseryGrowthPanel.clear();
   el("rows").replaceChildren();
   el("activityCards").replaceChildren();
+  el("metricsConnectionStatus").replaceChildren();
   el("app").hidden = true;
   el("accessRole").textContent = "Access unavailable";
   el("releaseCaption").textContent = "";
@@ -392,6 +393,31 @@ function updateCategorySummary() {
   summary.title = count ? [...selectedCategories].join(", ") : "Show every category";
   summary.classList.toggle("has-selection", count > 0);
 }
+/** Never imply that frozen Mawimbi or Aggregation Hub claims are connected. */
+function renderConnectionStatus() {
+  const root = el("metricsConnectionStatus");
+  root.replaceChildren();
+  const statuses = [
+    ["Solar Drying Tables", Boolean(currentDryerMetrics),
+     currentDryerMetrics ? "5 current calculations" : "Current feed unavailable"],
+    ["Offshore Nursery", Boolean(currentRopeCoverage || nurseryGrowthPanel.isConnected()),
+     nurseryGrowthPanel.isConnected() ? "Sample-rope coverage and growth" :
+     currentRopeCoverage ? "Sample-rope coverage only" : "Current feed unavailable"],
+    ["Mawimbi", false, "Historical reference only"],
+    ["Aggregation Hub", false, "Historical reference only"]
+  ];
+  for (const [name,connected,note] of statuses) {
+    const line = document.createElement("div");
+    line.className = "metrics-connection-item";
+    const title = document.createElement("strong");
+    title.textContent = name;
+    const status = document.createElement("span");
+    status.className = connected ? "metrics-connection-live" : "metrics-connection-reference";
+    status.textContent = note;
+    line.append(title,status);
+    root.append(line);
+  }
+}
 function renderColumnChoices() {
   const options = el("columnOptions");
   options.replaceChildren();
@@ -585,6 +611,7 @@ async function reloadAndRecheck() {
   await loadReleases();
   await loadRelease(previousVersion);
   await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics(),nurseryGrowthPanel.refresh()]);
+  renderConnectionStatus();
   el("app").hidden = false;
 }
 for (const button of document.querySelectorAll(".metrics-tabs .tab")) {
