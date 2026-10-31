@@ -677,3 +677,32 @@
 @media(max-width:900px){
   .cosme-metrics-page .metrics-stock-qc-coverage {grid-template-columns:repeat(2,minmax(0,1fr));}
 }
+
+/* Mawimbi manual provenance review. No inferred link is marked confirmed. */
+.cosme-metrics-page .metrics-link-summary{
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:9px 0 10px;
+}
+.cosme-metrics-page .metrics-link-count{
+ background:var(--panel-soft);border:1px solid var(--border-soft);
+ border-radius:7px;padding:10px;display:grid;gap:4px;min-width:0;
+}
+.cosme-metrics-page .metrics-link-count span{color:var(--text-sec);font-size:.73rem;}
+.cosme-metrics-page .metrics-link-count strong{font-size:1.18rem;font-variant-numeric:tabular-nums;}
+.cosme-metrics-page .metrics-link-rows{
+ max-height:460px;overflow:auto;padding:6px 10px;
+}
+.cosme-metrics-page .metrics-link-row{
+ border-bottom:1px solid var(--border-soft);padding:10px 2px;display:grid;gap:5px;
+}
+.cosme-metrics-page .metrics-link-row:last-child{border-bottom:0;}
+.cosme-metrics-page .metrics-link-row-header{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;}
+.cosme-metrics-page .metrics-link-row-header strong{font-size:.79rem;}
+.cosme-metrics-page .metrics-link-row p{font-size:.74rem;margin:0;}
+.cosme-metrics-page .metrics-link-confirmed{color:#0b7551;font-weight:650;}
+.cosme-metrics-page .metrics-link-controls{display:flex;align-items:end;flex-wrap:wrap;gap:8px;}
+.cosme-metrics-page .metrics-link-controls label{flex:1 1 275px;display:grid;gap:4px;font-size:.72rem;color:var(--text-sec);}
+.cosme-metrics-page .metrics-link-controls input{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:6px;background:var(--panel);color:var(--text);}
+.cosme-metrics-page .metrics-link-action{font-size:.73rem;min-height:35px;padding:7px 10px;white-space:normal;}
+.cosme-metrics-page .metrics-link-action:disabled{opacity:.6;cursor:wait;}
+.cosme-metrics-page .metrics-link-save-error{color:#a12b2b;font-size:.77rem;padding:8px 0;margin:0;}
+@media(max-width:750px){.cosme-metrics-page .metrics-link-summary{grid-template-columns:repeat(2,minmax(0,1fr));}}
