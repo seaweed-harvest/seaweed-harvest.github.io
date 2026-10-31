@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Project Metrics — Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/cosme_metrics.css?v=1">
+  <link rel="stylesheet" href="./assets/css/cosme_metrics.css?v=2">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./favicon.ico" sizes="any">
   <link rel="icon" href="./assets/images/seaweed-harvest-icon-192.png" type="image/png" sizes="192x192">
@@ -64,6 +64,13 @@
               <label>Activity
                 <select id="activity"><option value="">All activities</option></select>
               </label>
+              <div class="metrics-category-control">
+                <span class="metrics-filter-label">Category</span>
+                <details class="metrics-columns metrics-category-menu" id="categoryMenu">
+                  <summary id="categorySummary" role="button" aria-label="Filter metrics by category">All categories</summary>
+                  <div class="metrics-column-options metrics-category-options" id="categoryOptions" aria-label="Select categories"></div>
+                </details>
+              </div>
               <label class="metrics-check"><input type="checkbox" id="featured">Top Picks</label>
               <details class="metrics-columns" id="columnMenu">
                 <summary role="button">Columns</summary>
@@ -106,6 +113,6 @@
       <dl id="detail"></dl>
     </div>
   </div>
-  <script type="module" src="./assets/js/cosme_metrics_page.js?v=2"></script>
+  <script type="module" src="./assets/js/cosme_metrics_page.js?v=3"></script>
 </body>
 </html>
