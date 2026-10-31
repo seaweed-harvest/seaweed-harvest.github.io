@@ -491,3 +491,48 @@
 @media (max-width:600px) {
   .cosme-metrics-page .metrics-current-comparison {grid-template-columns:1fr;}
 }
+
+/* Current dryer results are distinct from the frozen, evidence-backed V0.1 release. */
+.cosme-metrics-page .metrics-dryer-comparison-wrap {
+  width:100%;
+  overflow-x:auto;
+  border:1px solid var(--border-soft);
+  border-radius:7px;
+}
+.cosme-metrics-page .metrics-dryer-comparison {
+  border-collapse:collapse;
+  width:100%;
+  min-width:510px;
+  font-size:.8rem;
+}
+.cosme-metrics-page .metrics-dryer-comparison th,
+.cosme-metrics-page .metrics-dryer-comparison td {
+  padding:8px 10px;
+  border-bottom:1px solid var(--border-soft);
+  vertical-align:middle;
+}
+.cosme-metrics-page .metrics-dryer-comparison thead th {
+  background:var(--panel-soft);
+  text-align:right;
+  color:var(--text-sec);
+  font-size:.75rem;
+}
+.cosme-metrics-page .metrics-dryer-comparison thead th:first-child {
+  text-align:left;
+}
+.cosme-metrics-page .metrics-dryer-comparison tbody th {
+  font-weight:500;
+  text-align:left;
+}
+.cosme-metrics-page .metrics-dryer-comparison tbody td {
+  text-align:right;
+  font-weight:650;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.cosme-metrics-page .metrics-dryer-comparison .metrics-current-verified-value {
+  color:#0b7551;
+}
+.cosme-metrics-page .metrics-dryer-comparison tr:last-child > * {
+  border-bottom:0;
+}

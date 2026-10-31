@@ -33,6 +33,8 @@ let visible = [];
 let lastFocus = null;
 let access = null;
 let currentRopeCoverage = null;
+let currentDryerMetrics = null;
+let currentDryerError = "";
 let currentCoverageError = "";
 let initializedNavigation = false;
 let sortKey = "id";
@@ -63,6 +65,7 @@ function setStatus(message, error = false, show = true) {
 function clearPrivateState() {
   all = []; visible = []; current = null; access = null;
   currentRopeCoverage = null; currentCoverageError = "";
+  currentDryerMetrics = null; currentDryerError = "";
   el("rows").replaceChildren();
   el("activityCards").replaceChildren();
   el("app").hidden = true;
@@ -177,6 +180,7 @@ function render() {
   renderCategoryChoices();
   renderHeadlines();
   renderCurrentRopeCoverage();
+  renderCurrentDryerMetrics();
   renderRows();
 }
 function renderHeadlines() {
@@ -248,6 +252,84 @@ function renderCurrentRopeCoverage() {
     new Date(currentRopeCoverage.source_updated_at).toLocaleString() : "unknown";
   add(container,"p","Source last updated: "+lastDate+" · Queried: "+
     new Date(currentRopeCoverage.queried_at).toLocaleString(),
+    "metrics-small-note");
+}
+
+/** Independently authorised live aggregate. Never mutates a published metric. */
+async function loadCurrentDryerMetrics() {
+  currentDryerMetrics = null;
+  currentDryerError = "";
+  try {
+    const {data,error} = await authClient.rpc("cosme_metrics_live_dryer_metrics");
+    if(error) throw error;
+    const required=["SDT-0063","SDT-0064","SDT-0065","SDT-0066"];
+    const validCount=value=>Number.isSafeInteger(value)&&value>=0;
+    const validWeight=value=>typeof value==="number"&&Number.isFinite(value)&&value>=0;
+    if(!data?.can_view || data.status!=="current"
+      || !Array.isArray(data.metric_ids)
+      || required.some(id=>!data.metric_ids.includes(id))
+      || !validCount(data.completed_cycles)
+      || !validCount(data.completed_bays)
+      || !validCount(data.excluded_completed)
+      || !validWeight(data.wet_kg)
+      || !validWeight(data.final_kg)
+      || data.final_kg>data.wet_kg
+      || !Number.isFinite(Date.parse(data.queried_at))
+      || (data.source_updated_at && !Number.isFinite(Date.parse(data.source_updated_at)))){
+      throw new Error("Current dryer measurements could not be validated.");
+    }
+    currentDryerMetrics = data;
+  } catch {
+    currentDryerError = "Current dryer measurements are unavailable.";
+  }
+  renderCurrentDryerMetrics();
+}
+const DRYER_COMPARE = [
+  {id:"SDT-0063",key:"completed_cycles",unit:"cycles"},
+  {id:"SDT-0064",key:"completed_bays",unit:"bay records"},
+  {id:"SDT-0065",key:"wet_kg",unit:"kg"},
+  {id:"SDT-0066",key:"final_kg",unit:"kg"}
+];
+function renderCurrentDryerMetrics() {
+  const parent = el("currentDryerMetrics");
+  parent.replaceChildren();
+  const sources = DRYER_COMPARE.map(item=>({
+    ...item, metric:all.find(m=>m.id===item.id)
+  }));
+  if(sources.some(x=>!x.metric))return;
+  const panel = add(parent,"section","","metrics-current-panel");
+  const heading = add(panel,"div","","metrics-current-heading");
+  add(heading,"h4","COSME drying-table results");
+  if(!currentDryerMetrics){
+    add(panel,"p",currentDryerError||"Reading current dryer records…","metrics-small-note");
+    return;
+  }
+  const tableWrap=add(panel,"div","","metrics-dryer-comparison-wrap");
+  const table=add(tableWrap,"table","","metrics-dryer-comparison");
+  const thead=add(table,"thead");
+  const headingRow=add(thead,"tr");
+  for(const label of ["Metric","Published "+(current?.version||"release"),"Current · Verified"]){
+    const th=add(headingRow,"th",label);
+    th.scope="col";
+  }
+  const tbody=add(table,"tbody");
+  for(const item of sources){
+    const row=add(tbody,"tr");
+    const name=add(row,"th",item.metric.title);
+    name.scope="row";
+    const historical=displayMetricValue(item.metric.value,item.metric.unit).full;
+    add(row,"td",historical);
+    const latest=displayMetricValue(currentDryerMetrics[item.key],item.unit).full;
+    add(row,"td",latest,"metrics-current-verified-value");
+  }
+  add(panel,"p",
+    "Completed, confirmed Bati COSME tables only (not Dryer Shed). All bays require at least 12 hours drying and weight reduction; intermediate reweighs are not added. "+
+    currentDryerMetrics.excluded_completed+" completed records excluded by these checks.",
+    "metrics-small-note");
+  const modified=currentDryerMetrics.source_updated_at ?
+    new Date(currentDryerMetrics.source_updated_at).toLocaleString():"Unknown";
+  add(panel,"p","Source last updated: "+modified+" · Queried: "+
+    new Date(currentDryerMetrics.queried_at).toLocaleString(),
     "metrics-small-note");
 }
 function renderCategoryChoices() {
@@ -417,6 +499,19 @@ function openMetric(metric, button) {
     ["Data", metric.dataKind],
     ["Value type", metric.valueType],
     ...(financialContext(metric) ? [["Financial context", financialContext(metric).caveat]] : []),
+
+    ...(currentDryerMetrics && DRYER_COMPARE.some(x=>x.id===metric.id) ? (()=>{
+      const item=DRYER_COMPARE.find(x=>x.id===metric.id);
+      return [
+        ["Current measured value",displayMetricValue(currentDryerMetrics[item.key],item.unit).full],
+        ["Current calculation scope",currentDryerMetrics.scope],
+        ["Current inclusion/exclusion",currentDryerMetrics.definition],
+        ["Completed records excluded",currentDryerMetrics.excluded_completed],
+        ["Current source updated",currentDryerMetrics.source_updated_at ?
+          new Date(currentDryerMetrics.source_updated_at).toLocaleString() : "Unknown"],
+        ["Current calculation checked",new Date(currentDryerMetrics.queried_at).toLocaleString()]
+      ];
+    })() : []),
     ...(metric.id === "ON-0054" && currentRopeCoverage ? [
       ["Current coverage",currentRopeCoverage.rope_count+" ropes across "+currentRopeCoverage.site_count+" sites"],
       ["Current calculation","Active COSME rope positions with an initial weight; soft-deleted entries excluded"],
@@ -483,7 +578,7 @@ async function reloadAndRecheck() {
     [current.major, current.minor] : null;
   await loadReleases();
   await loadRelease(previousVersion);
-  await loadCurrentRopeCoverage();
+  await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics()]);
   el("app").hidden = false;
 }
 for (const button of document.querySelectorAll(".metrics-tabs .tab")) {
