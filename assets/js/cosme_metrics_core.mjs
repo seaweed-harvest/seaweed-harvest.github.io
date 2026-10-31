@@ -37,7 +37,7 @@ export function selectMetrics(metrics,{query="",activity="",verification="",feat
 export function sourceLabel(metric) {
   if(metric?.liveValidated===true) return "Live";
   const src=String(metric?.source||"").toLowerCase();
-  if(/seaweed harvest.*snapshot|seaweed harvest\\s*\\/.*reviewed|seaweed harvest\\s*;|sample rope data \\(reviewed/.test(src)) return "Snapshot";
+  if (src.includes("snapshot") || (src.includes("seaweed harvest") && src.includes("reviewed"))) return "Snapshot";
   return "Reference";
 }
 export function safeCsvCell(value) {
