@@ -165,6 +165,11 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+  // Private metrics must never enter the offline cache. HTML is only a shell;
+  // the actual released values are fetched via authenticated Supabase RPCs.
+  if (url.origin === self.location.origin
+      && (url.pathname.endsWith("/cosme_metrics.html")
+          || url.pathname.startsWith("/api/cosme_metrics/"))) return;
   const request = event.request;
   if (request.method !== "GET") return;
 
