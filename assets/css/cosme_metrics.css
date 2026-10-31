@@ -636,3 +636,18 @@
 @media(max-width:760px) {
   .cosme-metrics-page .metrics-connection-list {grid-template-columns:1fr;}
 }
+
+/* Mawimbi live summary: two operational ledgers, never treated as matched batches. */
+.cosme-metrics-page .metrics-mawimbi-summary {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 10px;
+  margin: 10px 0 13px;
+}
+.cosme-metrics-page .metrics-mawimbi-intro { margin: 0; }
+.cosme-metrics-page .metrics-mawimbi-table { min-width: 800px; }
+.cosme-metrics-page .metrics-mawimbi-table tbody th { white-space: nowrap; font-weight: 650; }
+.cosme-metrics-page .metrics-mawimbi-table tbody td { font-variant-numeric: tabular-nums; }
+@media(max-width:680px) {
+  .cosme-metrics-page .metrics-mawimbi-summary { grid-template-columns: 1fr; }
+}
