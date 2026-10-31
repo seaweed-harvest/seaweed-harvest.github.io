@@ -80,6 +80,7 @@ test("corrupt local original stops cleanup before a preview or delete request", 
     byte_size: 8,
     archive: {
       id: "archive",
+      object_version: "v1",
       relative_path: "photos/sha",
       sha256: "a".repeat(64),
       byte_size: 8,
@@ -134,6 +135,7 @@ test("corrupt local original stops cleanup before a preview or delete request", 
 
 function memoryFolder() {
   const files=new Map();
+  const writers=new Set();
   const missing=()=>Object.assign(new Error('Missing'),{name:'NotFoundError'});
   function dir(prefix='') { return {
     name:'SeaweedArchive',
@@ -142,16 +144,20 @@ function memoryFolder() {
       const path=prefix+name;
       if(!create && !files.has(path)) throw missing();
       return {async getFile(){if(!files.has(path))throw missing();return files.get(path)},
-        async createWritable(){let pending;return {async write(value){pending=value instanceof Blob?value:new Blob([value])},
-          async close(){files.set(path,pending)},async abort(){}}}};
+        async createWritable(){
+          assert.equal(writers.has(path),false,'Concurrent writers for '+path);
+          writers.add(path);
+          let pending;return {async write(value){pending=value instanceof Blob?value:new Blob([value])},
+            async close(){await new Promise(resolve=>setTimeout(resolve,1));files.set(path,pending);writers.delete(path)},
+            async abort(){writers.delete(path)}}}};
     }
   }; }
   return {root:dir(),files};
 }
-async function backupFixture(existingFolder) {
+async function backupFixture(existingFolder, photoNames = ['one','two']) {
   const {hashBlob}=await import('../../assets/js/archive_files.mjs');
   const a='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',b='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
-  const rows=await Promise.all(['one','two'].map(async(name,i)=>{
+  const rows=await Promise.all(photoNames.map(async(name,i)=>{
     const data=new Blob([name]);const hash=await hashBlob(data);
     return {object_id:String(i),object_version:'v1',bucket_id:'photos',object_path:name+'.jpg',byte_size:data.size,
       archive:{id:String(i),object_id:String(i),object_version:'v1',sha256:hash,byte_size:data.size,
@@ -254,5 +260,119 @@ test('including photos permits a valid records backup when the organisation has 
   f.q('archiveSave').click();await settled();
   assert.match(f.q('archiveStatus').textContent,/Records saved and verified/);
   assert.equal(JSON.parse(await f.files.get('seaweed-archive.json').text()).snapshots.at(-1).photos_requested,true);
+});
+
+test('photo transfers overlap up to eight at a time and all verified entries survive ordered manifest writes',async()=>{
+  const names=Array.from({length:9},(_,i)=>'photo-'+i);
+  const f=await backupFixture(undefined,names),previous=globalThis.fetch;
+  let active=0,peak=0,downloads=0;
+  globalThis.fetch=async url=>{
+    active++;downloads++;peak=Math.max(peak,active);
+    await new Promise(resolve=>setTimeout(resolve,15));
+    active--;
+    return new Response(names[Number(url.split('/').at(-1))]);
+  };
+  try {
+    change(f.q('archiveIncludePhotos'),true);f.q('archiveSave').click();await settled();
+    assert.equal(peak,8);assert.equal(downloads,9);
+    assert.match(f.q('archiveStatus').textContent,/9 saved, 0 already verified, 0 skipped, 0 failed/);
+    const manifest=JSON.parse(await f.files.get('seaweed-archive.json').text());
+    assert.equal(manifest.files.length,9);
+    assert.equal(new Set(manifest.files.map(r=>r.object_id)).size,9);
+    assert.equal(f.q('archiveProgress').value,9);
+    for(let i=0;i<names.length;i++)assert.equal(await f.files.get('photos/'+names[i]+'.jpg').text(),names[i]);
+  }finally{globalThis.fetch=previous}
+});
+test('first-time photos reuse their initial preparation URL instead of preparing twice',async()=>{
+  const f=await backupFixture(undefined,['one']),previous=globalThis.fetch;
+  const archive=f.rows[0].archive;delete f.rows[0].archive;
+  const invoke=f.client.functions.invoke;let prepares=0;
+  f.client.functions.invoke=async(name,options)=>{
+    if(options.body.action==='prepare'){prepares++;return {data:{archive,signed_url:'https://synthetic.test/0'}}}
+    return invoke(name,options);
+  };
+  globalThis.fetch=async()=>new Response('one');
+  try{
+    change(f.q('archiveIncludePhotos'),true);f.q('archiveSave').click();await settled();
+    assert.equal(prepares,1);assert.match(f.q('archiveStatus').textContent,/1 saved/);
+  }finally{globalThis.fetch=previous}
+});
+test('photos sharing a content-addressed path have one writer and one download',async()=>{
+  const f=await backupFixture(),previous=globalThis.fetch;let downloads=0;
+  f.rows[1].archive.sha256=f.rows[0].archive.sha256;
+  f.rows[1].archive.relative_path=f.rows[0].archive.relative_path;
+  globalThis.fetch=async()=>{downloads++;await new Promise(resolve=>setTimeout(resolve,5));return new Response('one')};
+  try{
+    change(f.q('archiveIncludePhotos'),true);f.q('archiveSave').click();await settled();
+    assert.equal(downloads,1);
+    assert.match(f.q('archiveStatus').textContent,/1 saved, 1 already verified, 0 skipped, 0 failed/);
+    assert.equal(JSON.parse(await f.files.get('seaweed-archive.json').text()).files.length,2);
+  }finally{globalThis.fetch=previous}
+});
+test('a newer version returned by initial preparation never downloads into the captured backup',async()=>{
+  const f=await backupFixture(undefined,['one']),previous=globalThis.fetch;let downloads=0;
+  const archive={...f.rows[0].archive,object_version:'new-version'};delete f.rows[0].archive;
+  const invoke=f.client.functions.invoke;
+  f.client.functions.invoke=async(name,options)=>options.body.action==='prepare'
+    ? {data:{archive,signed_url:'https://synthetic.test/0'}}:invoke(name,options);
+  globalThis.fetch=async()=>{downloads++;return new Response('one')};
+  try{
+    change(f.q('archiveIncludePhotos'),true);f.q('archiveSave').click();await settled();
+    assert.equal(downloads,0);assert.match(f.q('archiveStatus').textContent,/1 failed/);
+    assert.equal(JSON.parse(await f.files.get('seaweed-archive.json').text()).files.length,0);
+  }finally{globalThis.fetch=previous}
+});
+
+test('Stop safely finishes active files, checkpoints progress and resumes without redownloading verified copies',async()=>{
+  const names=Array.from({length:20},(_,i)=>'stop-photo-'+i);
+  const f=await backupFixture(undefined,names),previous=globalThis.fetch;
+  let release,downloads=0;
+  const gate=new Promise(resolve=>{release=resolve});
+  globalThis.fetch=async url=>{downloads++;await gate;return new Response(names[Number(url.split('/').at(-1))])};
+  try{
+    change(f.q('archiveIncludePhotos'),true);f.q('archiveSave').click();
+    const deadline=Date.now()+2000;
+    while(downloads<8 && Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,2));
+    assert.equal(downloads,8);
+    const leaving=new window.Event('beforeunload',{cancelable:true});window.dispatchEvent(leaving);
+    assert.equal(leaving.defaultPrevented,true);
+    assert.equal(f.q('archiveStop').disabled,false);
+    f.q('archiveStop').click();release();await settled();
+    assert.equal(downloads,8);assert.match(f.q('archiveStatus').textContent,/Stopped safely/);
+    assert.equal(f.q('archiveSave').textContent,'Resume backup');
+    let manifest=JSON.parse(await f.files.get('seaweed-archive.json').text());
+    assert.equal(manifest.files.length,8);assert.equal(manifest.snapshots.at(-1).status,'stopped');
+    assert.equal(manifest.snapshots.at(-1).photo_results.pending,12);
+    f.q('archiveSave').click();await settled();
+    assert.equal(downloads,20);
+    assert.match(f.q('archiveStatus').textContent,/12 saved, 8 already verified, 0 skipped, 0 failed/);
+    manifest=JSON.parse(await f.files.get('seaweed-archive.json').text());
+    assert.equal(manifest.files.length,20);assert.equal(manifest.snapshots.at(-1).status,'complete');
+    const finished=new window.Event('beforeunload',{cancelable:true});window.dispatchEvent(finished);
+    assert.equal(finished.defaultPrevented,false);
+  }finally{release();globalThis.fetch=previous}
+});
+test('large photos respect the byte budget instead of downloading eight large files together',async()=>{
+  const f=await backupFixture(undefined,['large-one','large-two','large-three']),previous=globalThis.fetch;
+  const blob=new Blob([new Uint8Array(20*1024*1024)]);
+  const {hashBlob}=await import('../../assets/js/archive_files.mjs');const sha=await hashBlob(blob);
+  for(const row of f.rows){row.byte_size=blob.size;row.archive.byte_size=blob.size;row.archive.sha256=sha}
+  let active=0,peak=0;
+  globalThis.fetch=async()=>{active++;peak=Math.max(peak,active);await new Promise(resolve=>setTimeout(resolve,5));active--;return new Response(blob)};
+  try{
+    change(f.q('archiveIncludePhotos'),true);f.q('archiveSave').click();await settled();
+    assert.equal(peak,1);assert.match(f.q('archiveStatus').textContent,/3 saved, 0 already verified, 0 skipped, 0 failed/);
+  }finally{globalThis.fetch=previous}
+});
+test('normal backups omit redundant server receipts but explicit local verification still records fresh receipts',async()=>{
+  const f=await backupFixture(),previous=globalThis.fetch;
+  globalThis.fetch=async url=>new Response(url.endsWith('/0')?'one':'two');
+  try{
+    change(f.q('archiveIncludePhotos'),true);f.q('archiveSave').click();await settled();
+    assert.equal(f.calls.includes('verify_local'),false);
+    f.q('archiveVerify').click();await settled();
+    assert.equal(f.calls.filter(x=>x==='verify_local').length,2);
+    assert.match(f.q('archiveStatus').textContent,/2 local originals read and verified/);
+  }finally{globalThis.fetch=previous}
 });
 

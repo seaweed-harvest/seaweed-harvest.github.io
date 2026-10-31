@@ -175,11 +175,13 @@
         </fieldset>
         <p class="field-hint">All organisations includes shared and unassigned data. Choosing individual organisations includes their linked records and shared reference settings.</p>
         <label><input id="archiveIncludePhotos" type="checkbox"> Include photos</label>
-        <p class="field-hint">Existing photos are checked and identical copies are skipped.</p>
+        <p class="field-hint">Up to eight photos download at a time, with a limit on simultaneous file sizes. Existing photos are checked and identical copies are skipped.</p>
+        <p class="field-hint">Keep this page open and your computer awake until finished. You can use another tab. Closing or leaving this page interrupts the backup; choose the same folder to resume.</p>
         <p class="field-hint">Records and photos export. Account passwords and full database recovery are not included.</p>
         <div class="header-actions" style="flex-wrap:wrap;gap:8px">
           <button id="archiveFolder" type="button">Choose archive folder</button>
           <button id="archiveSave" type="button">Back up</button>
+          <button id="archiveStop" type="button" disabled>Stop safely</button>
           <button id="archiveRefresh" type="button">Refresh inventory / retry</button>
         </div>
         <p id="archiveFolderLabel">No archive folder selected.</p>
@@ -357,7 +359,7 @@
     </section>
   </main>
 
-  <script type="module" src="./assets/js/admin_backups_summary.js?v=7"></script>
+  <script type="module" src="./assets/js/admin_backups_summary.js?v=8"></script>
 </body>
 </html>
 
