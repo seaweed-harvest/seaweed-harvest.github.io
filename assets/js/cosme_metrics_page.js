@@ -155,7 +155,7 @@ async function loadRelease(version = null) {
     return;
   }
   all = normalizeReleaseItems(data.items).map((m) => ({
-    ...m, theme:metricCategory(m.theme), publishedFeatured:m.featured,
+    ...m, theme:metricCategory(m.theme,m.id), publishedFeatured:m.featured,
     dataKind: sourceLabel(m), valueType: metricValueType(m), liveValidated: false
   }));
   el("releaseCaption").textContent = data.version + " · " +

@@ -115,9 +115,8 @@ revoke execution of the new set endpoint if necessary and revert the frontend
 commit. Preserve V0.2, selection events and immutable historical evidence. No
 business-record deletion, source-document edit or grant change is included.
 
-The current frontend implements this API contract but must not be deployed before
-the approved backend exists. Merge/deployment is a separate human approval gate
-under AGENTS.md even after protected implementation is approved.
+Merge/deployment is a separate human approval gate under AGENTS.md even after
+protected implementation is approved.
 
 ## Frontend validation completed
 
@@ -134,3 +133,43 @@ far left. Stars now have a dedicated narrow leading column and a 24 × 24 px
 control (17 px glyph). Browser measurement of the complete 327-row proposal
 confirmed every row is 34 px high. Long values and titles stay on one line with
 full content in tooltips/details. Overview cards may wrap their explanatory text.
+
+## Approved backend and data work completed
+
+The owner approved the documented database work and reviewed import in this chat.
+Applied migration `20261031191412_cosme_shared_top_picks.sql`; its timestamp matches
+the server-recorded migration. The migration is additive and does not change
+existing policies, grants, auth functions, business records or historical values.
+
+Synthetic transaction tests passed for owner/editor writes, reader views, reader
+write denial, anonymous execution denial, expired/inactive grants, suspended
+profiles, no-grant users, actual authenticated and anon roles, direct table denial,
+unknown/wrong-release IDs, invalid values/versions, stale revisions, audit identity,
+audit immutability, historical selection isolation and the unchanged V0.1 payload
+fingerprint. All fixture identities, grants, releases and writes rolled back.
+
+The complete content import was first rehearsed and rolled back. The authorised
+apply then appended V0.2 and selected it as current: 327 items, 16 Top Picks,
+reporting cut-off 30 October. Content SHA-256:
+`1cc7ff0e5fe9c7bbd6afbbed08b2729a509ce6c651fc02fef971cf0307095778`.
+All 302 original imported payloads are preserved. V0.1 remains 302 items with its
+original recorded SHA and payload fingerprint. The private import and review
+artifacts are outside the public website repository.
+
+Security advisors were compared before and after. The two new private RLS tables
+produce the expected informational no-policy notices; clients have no schema/table
+access. The two authenticated-only definer RPCs produce the expected inventory
+entries. There are no new anonymous-executable functions or mutable search paths.
+Existing unrelated advisory findings are unchanged.
+
+User refinement: all Value cells now align left. Numeric lists retain units
+(`17, 20, 18 minutes / bale`), as do numeric comparisons, approximate ranges,
+fractions, and quantities such as “Up to 7 days” and “At least 50 m”. Display-only
+formatting preserves stored values and the original CSV value/unit fields.
+Browser measurement confirms all 327 rows are 34 px tall and all Value cells align
+left. At a 390 px viewport the page fits; only the single-line table scrolls
+horizontally. Original title/theme/source details remain available.
+
+Frontend release remains pending human merge/publish approval. The existing live
+frontend can already read the authorised new V0.2 register; the new editable stars
+and display improvements require the reviewed frontend release.

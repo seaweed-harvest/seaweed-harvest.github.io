@@ -35,8 +35,10 @@
 }
 .cosme-metrics-page .metrics-content {
   min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
 }
+.cosme-metrics-page #app { min-width: 0; }
 .cosme-metrics-page .metrics-head {
   display: flex;
   align-items: start;
@@ -250,7 +252,7 @@
   text-decoration: none;
 }
 .cosme-metrics-page .metrics-table .metric-open:hover { text-decoration: underline; }
-.cosme-metrics-page .metrics-table td[data-col="value"] { font-weight: 700; color: var(--text); }
+.cosme-metrics-page .metrics-table td[data-col="value"] { font-weight: 700; color: var(--text); text-align: left; }
 .cosme-metrics-page .metrics-type {
   font-size: .72rem;
   color: var(--text-muted);
@@ -412,7 +414,7 @@
   cursor: default;
 }
 .cosme-metrics-page .metrics-table td[data-col="value"].metrics-number {
-  text-align: right;
+  text-align: left;
   font-variant-numeric: tabular-nums;
 }
 .cosme-metrics-page .metrics-value-main {

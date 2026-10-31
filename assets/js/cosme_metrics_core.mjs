@@ -64,8 +64,24 @@ function formattedNumber(number){
 /** Format only clearly numeric expressions. Preserve original precision and text. */
 function numericExpression(raw){
   const text=String(raw??"").trim();
-  const bounded=/^(~|≈|≤|≥|<|>)\s*([+-]?\d[\d,]*(?:\.\d+)?)$/.exec(text);
-  if(bounded)return bounded[1]+formattedNumber(bounded[2]);
+  const verbal=/^(Up to|At least|Less than|More than)\s+([+-]?\d[\d,]*(?:\.\d+)?)$/i.exec(text);
+  if(verbal)return verbal[1]+" "+formattedNumber(verbal[2]);
+  const paired=/^([+-]?\d[\d,]*(?:\.\d+)?)\s*(\/|of|and)\s*([+-]?\d[\d,]*(?:\.\d+)?)$/i.exec(text);
+  if(paired)return formattedNumber(paired[1])+" "+paired[2]+" "+formattedNumber(paired[3]);
+  // A comma followed by whitespace separates measurements, not thousands.
+  const series=text.split(/,\s+/);
+  if(series.length>1&&series.every(p=>/^[+-]?\d[\d,]*(?:\.\d+)?$/.test(p))){
+    return series.map(formattedNumber).join(", ");
+  }
+  const comparison=text.split(/\s+vs\.?\s+/i);
+  if(comparison.length===2&&comparison.every(p=>/^[+-]?\d[\d,]*(?:\.\d+)?$/.test(p))){
+    return comparison.map(formattedNumber).join(" vs ");
+  }
+  const bounded=/^(~|≈|≤|≥|<|>)\s*(.+)$/.exec(text);
+  if(bounded){
+    const expression=numericExpression(bounded[2]);
+    if(expression!==null)return bounded[1]+expression;
+  }
   if(/^[+-]?\d[\d,]*(?:\.\d+)?$/.test(text))return formattedNumber(text);
   const range=/^([+-]?\d[\d,]*(?:\.\d+)?)\s*[-–—]\s*([+-]?\d[\d,]*(?:\.\d+)?)$/.exec(text);
   if(range)return formattedNumber(range[1])+"–"+formattedNumber(range[2]);
@@ -195,7 +211,8 @@ export const METRIC_CATEGORIES = Object.freeze({
   "Impact & learning":["Impact"]
 });
 /** Group labels for display while preserving the exact imported theme separately. */
-export function metricCategory(theme){
+export function metricCategory(theme,id=""){
+  if(["SDT-0018","SDT-0050","SDT-0051"].includes(id))return "Cost & funding";
   const label=String(theme||"").trim();
   return Object.entries(METRIC_CATEGORIES).find(([category,originals])=>
     category===label||originals.some(original=>original.toLowerCase()===label.toLowerCase()))?.[0]||"Other";
