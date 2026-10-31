@@ -11,7 +11,7 @@ import {
 // Column choices persist locally; neither workbook data nor grants do.
 const el = (id) => document.getElementById(id);
 const ACTIVITY_ORDER = ["Solar Drying Tables", "Offshore Nursery", "Aggregation Hub", "Mawimbi"];
-const STORAGE_KEY = "seaweed_ag:cosme_metric_columns_v1";
+const STORAGE_KEY = "seaweed_ag:cosme_metric_columns_v2";
 const COLUMN_DEFS = [
   { key: "title", label: "Metric", weight: 28 },
   { key: "activity", label: "Activity", weight: 15 },
@@ -25,7 +25,7 @@ const COLUMN_DEFS = [
   { key: "verification", label: "Evidence", weight: 11 },
   { key: "asOf", label: "As of", weight: 16 }
 ];
-const DEFAULT_COLUMNS = ["title", "activity", "theme", "value", "unit"];
+const DEFAULT_COLUMNS = ["title", "activity", "theme", "value"];
 let all = [];
 let current = null;
 let visible = [];
@@ -297,7 +297,7 @@ function renderRows() {
       const cell = document.createElement("td");
       cell.dataset.col = col.key;
       const value = String(metric[col.key] ?? "");
-      const formatted = col.key === "value" ? displayMetricValue(metric.value, metric.unit) : null;
+      const formatted = col.key === "value" ? displayMetricValue(metric.value, selectedColumns.has("unit") ? "" : metric.unit) : null;
       if (formatted?.numeric || formatted?.missing) cell.classList.add("metrics-number");
       cell.title = formatted ? formatted.full : value;
       if (col.key === "title") {
