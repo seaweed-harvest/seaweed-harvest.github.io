@@ -363,6 +363,7 @@ function openMetric(metric, button) {
     ["Unit / basis", metric.unit],
     ["Data", metric.dataKind],
     ["Value type", metric.valueType],
+    ["Financial context", financialContext(metric)?.caveat || ""],
     ["Claim basis", metric.basis],
     ["Evidence state", metric.verification],
     ["Original workbook evidence", metric.originalEvidence],
