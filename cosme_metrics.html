@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Project Metrics — Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/cosme_metrics.css?v=6">
+  <link rel="stylesheet" href="./assets/css/cosme_metrics.css?v=7">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./favicon.ico" sizes="any">
   <link rel="icon" href="./assets/images/seaweed-harvest-icon-192.png" type="image/png" sizes="192x192">
@@ -49,6 +49,11 @@
         </nav>
         <section id="overview">
           <div id="activityCards" class="metrics-summary-grid"></div>
+          <div class="metrics-panel metrics-connections-panel">
+            <h3>Data connections</h3>
+            <p class="metrics-small-note">Current calculations are separate from the published register. Activities without a verified connection still show their historical references.</p>
+            <div id="metricsConnectionStatus" class="metrics-connection-list" aria-live="polite"></div>
+          </div>
           <div class="metrics-panel metrics-headlines-panel">
             <div class="metrics-headline-heading"><div><h3>Headline metrics</h3><p class="metrics-small-note">Selected figures from the frozen V0.1 release. Types describe the figures, not real-time updates.</p></div><span id="headlineCount" class="metrics-count"></span></div>
             <div id="headlineGroups" class="metrics-headline-groups"></div>
@@ -120,6 +125,6 @@
       <dl id="detail"></dl>
     </div>
   </div>
-  <script type="module" src="./assets/js/cosme_metrics_page.js?v=8"></script>
+  <script type="module" src="./assets/js/cosme_metrics_page.js?v=9"></script>
 </body>
 </html>
