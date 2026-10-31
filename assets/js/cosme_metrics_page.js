@@ -6,7 +6,7 @@ import {
   normalizeReleaseItems, selectMetrics, exportSelectedCsv,
   parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, headlineMetrics, financialContext, currentDryerWeightReduction
 } from "./cosme_metrics_core.mjs";
-import { createNurseryGrowthPanel } from "./cosme_nursery_growth.mjs?v=1";
+import { createNurseryGrowthPanel } from "./cosme_nursery_growth.mjs?v=2";
 
 // The COSME register only reads the access-controlled, frozen release RPCs.
 // Column choices persist locally; neither workbook data nor grants do.
