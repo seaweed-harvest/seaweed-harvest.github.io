@@ -8,12 +8,14 @@ import {
 } from "./cosme_metrics_core.mjs";
 import { createNurseryGrowthPanel } from "./cosme_nursery_growth.mjs?v=2";
 import { createMawimbiOperationsPanel } from "./cosme_mawimbi_operations.mjs?v=1";
+import { createMawimbiStockQcPanel } from "./cosme_mawimbi_stock_qc.mjs?v=1";
 
 // The COSME register only reads the access-controlled, frozen release RPCs.
 // Column choices persist locally; neither workbook data nor grants do.
 const el = (id) => document.getElementById(id);
 const nurseryGrowthPanel = createNurseryGrowthPanel(authClient,el("currentNurseryGrowth"));
 const mawimbiPanel = createMawimbiOperationsPanel(authClient,el("currentMawimbiOperations"));
+const mawimbiQcPanel = createMawimbiStockQcPanel(authClient,el("currentMawimbiStockQc"));
 const ACTIVITY_ORDER = ["Solar Drying Tables", "Offshore Nursery", "Aggregation Hub", "Mawimbi"];
 const STORAGE_KEY = "seaweed_ag:cosme_metric_columns_v2";
 const COLUMN_DEFS = [
@@ -72,6 +74,7 @@ function clearPrivateState() {
   currentDryerMetrics = null; currentDryerError = "";
   nurseryGrowthPanel.clear();
   mawimbiPanel.clear();
+  mawimbiQcPanel.clear();
   el("rows").replaceChildren();
   el("activityCards").replaceChildren();
   el("metricsConnectionStatus").replaceChildren();
@@ -406,8 +409,11 @@ function renderConnectionStatus() {
     ["Offshore Nursery", Boolean(currentRopeCoverage || nurseryGrowthPanel.isConnected()),
      nurseryGrowthPanel.isConnected() ? "Sample-rope coverage and growth" :
      currentRopeCoverage ? "Sample-rope coverage only" : "Current feed unavailable"],
-    ["Mawimbi", mawimbiPanel.isConnected(), mawimbiPanel.isConnected() ?
-      "Finalised wet collections and processing sessions" : "Historical reference only / owner-only feed"],
+    ["Mawimbi", mawimbiPanel.isConnected() || mawimbiQcPanel.isConnected(),
+      mawimbiPanel.isConnected() && mawimbiQcPanel.isConnected() ?
+        "Collection, processing and stock QC records" :
+      mawimbiPanel.isConnected() ? "Collection and processing records" :
+      mawimbiQcPanel.isConnected() ? "Stock QC records only" : "Reference only / owner-only feed"],
     ["Aggregation Hub", false, "Historical reference only"]
   ];
   for (const [name,connected,note] of statuses) {
@@ -534,6 +540,11 @@ function openMetric(metric, button) {
     ["Unit / basis", metric.unit],
     ["Data", metric.dataKind],
     ["Value type", metric.valueType],
+    ...(mawimbiQcPanel.metricContext(metric.id) ? [
+      ["Current MAWIMBI stock record counts",mawimbiQcPanel.metricContext(metric.id).value],
+      ["Current scope",mawimbiQcPanel.metricContext(metric.id).description],
+      ["QC completeness","Not verified: recorded inputs are not calibrated batch QC outcomes"]
+    ] : []),
     ...(mawimbiPanel.metricContext(metric.id) ? [
       ["Current MAWIMBI aggregate",mawimbiPanel.metricContext(metric.id).value],
       ["Current scope",mawimbiPanel.metricContext(metric.id).description],
@@ -619,7 +630,7 @@ async function reloadAndRecheck() {
     [current.major, current.minor] : null;
   await loadReleases();
   await loadRelease(previousVersion);
-  await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics(),nurseryGrowthPanel.refresh(),mawimbiPanel.refresh()]);
+  await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics(),nurseryGrowthPanel.refresh(),mawimbiPanel.refresh(),mawimbiQcPanel.refresh()]);
   renderConnectionStatus();
   el("app").hidden = false;
 }
