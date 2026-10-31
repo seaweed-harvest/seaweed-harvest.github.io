@@ -116,6 +116,7 @@
 
     .archive-organisation-options { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 8px; }
     .archive-advanced { margin-top: 24px; }
+    .backup-page [hidden] { display: none !important; }
     #archiveProgress { width: 100%; margin: 12px 0; }
     @media (max-width: 760px) {
       .backup-export-head {
@@ -159,6 +160,12 @@
   <main class="app-shell admin-shell admin-layout">
     <aside id="backupSidebar" class="admin-sidebar" aria-label="Application menu"></aside>
     <section class="admin-content">
+      <section id="backupConnection" class="panel backup-panel" aria-labelledby="backupConnectionHeading">
+        <h2 id="backupConnectionHeading">Back up Seaweed Harvest</h2>
+        <p id="backupConnectionStatus" role="status" aria-live="polite">Checking your account and backup access…</p>
+        <button id="backupConnectionRetry" type="button" hidden>Retry connection</button>
+        <noscript>Enable JavaScript to load backup controls.</noscript>
+      </section>
       <section id="fullBackupArchive" class="panel admin-page-section backup-panel" hidden aria-labelledby="archiveHeading">
         <h2 id="archiveHeading">Back up records and photos</h2>
         <p>Choose organisations, optionally include photos, then save to a folder on your computer or external drive.</p>
@@ -173,6 +180,7 @@
         <div class="header-actions" style="flex-wrap:wrap;gap:8px">
           <button id="archiveFolder" type="button">Choose archive folder</button>
           <button id="archiveSave" type="button">Back up</button>
+          <button id="archiveRefresh" type="button">Refresh inventory / retry</button>
         </div>
         <p id="archiveFolderLabel">No archive folder selected.</p>
         <p id="archiveStatus" class="backup-export-status" style="text-align:left;max-width:none" role="status" aria-live="polite">Loading archive inventory…</p>
@@ -198,7 +206,6 @@
           <img id="archivePreviewImage" alt="Selected backup photo" style="display:block;max-width:80vw;max-height:70vh;margin-top:12px">
         </dialog>
         <details class="archive-advanced"><summary>Advanced recovery tools</summary>
-          <button id="archiveRefresh" type="button">Refresh inventory</button>
           <p id="archiveReadiness" class="field-hint"></p>
           <button id="archiveDatabase" type="button" disabled>Queue full database backup</button>
           <div id="archiveDatabaseJobs"></div>
@@ -208,7 +215,7 @@
           <button id="archiveRepairPreview" type="button">Repair missing previews</button>
         </details>
       </section>
-      <details id="legacyBackup" open><summary>Mawimbi ZIP export</summary>
+      <details id="legacyBackup" hidden><summary>Mawimbi ZIP export</summary>
       <section id="backupSummaryPanel" class="panel admin-page-section backup-panel" aria-labelledby="backupSummaryHeading" aria-busy="true">
         <div class="today-records-heading form-ledger-heading">
           <div>
@@ -350,7 +357,8 @@
     </section>
   </main>
 
-  <script type="module" src="./assets/js/admin_backups_summary.js?v=6"></script>
+  <script type="module" src="./assets/js/admin_backups_summary.js?v=7"></script>
 </body>
 </html>
+
 
