@@ -260,6 +260,29 @@
         </form>
       </section>
 
+      <section id="mcpAccessPanel" class="panel user-editor-panel" hidden>
+        <div class="section-head compact">
+          <div><h2>ChatGPT access</h2><p id="mcpAccessAccount" class="compact-note"></p></div>
+          <button id="closeMcpAccess" type="button">Close</button>
+        </div>
+        <p class="field-help">Separate, read-only access. Website permissions stay unchanged.</p>
+        <label class="checkbox-option"><input id="mcpAccessEnabled" type="checkbox"> Allow ChatGPT connection</label>
+        <fieldset class="aggregator-access-fieldset wide-field">
+          <legend>Organisations ChatGPT can read</legend>
+          <div id="mcpAccessOrganisations" class="aggregator-access-options">
+            <label><input type="checkbox" value="COSME"> COSME</label>
+            <label><input type="checkbox" value="MAWIMBI"> Mawimbi</label>
+            <label><input type="checkbox" value="BATI"> Bati</label>
+            <label><input type="checkbox" value="SANDBOX"> Green Space Sandbox</label>
+          </div>
+        </fieldset>
+        <div class="button-row">
+          <button id="saveMcpAccess" type="button">Save ChatGPT access</button>
+          <a href="./connect_chatgpt.html">Connection instructions</a>
+          <span id="mcpAccessStatus" class="admin-status" aria-live="polite"></span>
+        </div>
+      </section>
+
       <section class="panel">
         <div class="section-head compact"><h2>Account Registrations</h2><span id="farmerRegistrationCount" class="status-pill">0 pending</span></div>
         <div class="responsive-table-wrap compact-data-table-wrap">
@@ -319,6 +342,6 @@
 
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=1"></script>
   <script type="module" src="./assets/js/admin_page.js?v=36"></script>
-  <script type="module" src="./assets/js/users_page.js?v=15"></script>
+  <script type="module" src="./assets/js/users_page.js?v=16"></script>
 </body>
 </html>
