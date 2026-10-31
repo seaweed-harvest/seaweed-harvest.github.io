@@ -116,6 +116,13 @@
 
     .archive-organisation-options { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 8px; }
     .archive-advanced { margin-top: 24px; }
+    .archive-summary { margin: 18px 0; }
+    .archive-summary table { width: 100%; border-collapse: collapse; }
+    .archive-summary th, .archive-summary td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--border, #dce7e5); }
+    .archive-summary th:not(:first-child), .archive-summary td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+    #archiveSummaryTotals { font-weight: 700; }
+    #archiveLedgerDetails { margin-top: 8px; }
+    #archiveHistory, #archivePhotoSummary { margin: 8px 0; }
     .backup-page [hidden] { display: none !important; }
     #archiveProgress { width: 100%; margin: 12px 0; }
     @media (max-width: 760px) {
@@ -167,17 +174,18 @@
         <noscript>Enable JavaScript to load backup controls.</noscript>
       </section>
       <section id="fullBackupArchive" class="panel admin-page-section backup-panel" hidden aria-labelledby="archiveHeading">
-        <h2 id="archiveHeading">Back up records and photos</h2>
-        <p>Choose organisations, optionally include photos, then save to a folder on your computer or external drive.</p>
+        <h2 id="archiveHeading">Back up Seaweed Harvest</h2>
         <fieldset><legend>Organisations</legend>
           <label><input id="archiveAllOrganisations" type="checkbox" checked> All organisations</label>
           <div id="archiveOrganisations" class="archive-organisation-options"></div>
         </fieldset>
-        <p class="field-hint">All organisations includes shared and unassigned data. Choosing individual organisations includes their linked records and shared reference settings.</p>
         <label><input id="archiveIncludePhotos" type="checkbox"> Include photos</label>
-        <p class="field-hint">Up to eight photos download at a time, with a limit on simultaneous file sizes. Existing photos are checked and identical copies are skipped.</p>
-        <p class="field-hint">Keep this page open and your computer awake until finished. You can use another tab. Closing or leaving this page interrupts the backup; choose the same folder to resume.</p>
-        <p class="field-hint">Records and photos export. Account passwords and full database recovery are not included.</p>
+        <section id="archiveSummary" class="archive-summary" aria-label="Backup summary" aria-live="polite">
+          <p id="archiveSummaryTotals">Loading summary…</p>
+          <table id="archiveSummaryTable"><thead id="archiveSummaryHead"></thead><tbody id="archiveSummaryRows"></tbody></table>
+          <details id="archiveLedgerDetails" hidden><summary>View ledger breakdown</summary><div id="archiveLedgerBreakdown"></div></details>
+          <p id="archivePhotoSummary"></p>
+        </section>
         <div class="header-actions" style="flex-wrap:wrap;gap:8px">
           <button id="archiveFolder" type="button">Choose archive folder</button>
           <button id="archiveSave" type="button">Back up</button>
@@ -185,8 +193,12 @@
           <button id="archiveRefresh" type="button">Refresh inventory / retry</button>
         </div>
         <p id="archiveFolderLabel">No archive folder selected.</p>
+        <p id="archiveHistory" class="field-hint">Choose an archive folder to see its last completed backup.</p>
         <p id="archiveStatus" class="backup-export-status" style="text-align:left;max-width:none" role="status" aria-live="polite">Loading archive inventory…</p>
+        <p id="archiveRunningHint" class="field-hint" hidden>Keep this tab open.</p>
         <progress id="archiveProgress" value="0" max="1" hidden aria-label="Backup progress"></progress>
+        <details id="archiveAdvanced" class="archive-advanced"><summary>Advanced</summary>
+        <details id="archivePhotoDetails"><summary>Choose individual photos</summary>
         <div id="archivePhotoOptions" hidden>
         <div class="header-actions" style="flex-wrap:wrap;gap:12px">
           <label>Photo source <select id="archiveBucket"><option value="">All photo sources</option></select></label>
@@ -203,11 +215,12 @@
           </table>
         </div>
         </div>
+        </details>
         <dialog id="archivePhotoPreview" aria-label="Photo preview">
           <button id="archiveClosePreview" type="button">Close preview</button>
           <img id="archivePreviewImage" alt="Selected backup photo" style="display:block;max-width:80vw;max-height:70vh;margin-top:12px">
         </dialog>
-        <details class="archive-advanced"><summary>Advanced recovery tools</summary>
+        <details class="archive-advanced"><summary>Recovery tools</summary>
           <p id="archiveReadiness" class="field-hint"></p>
           <button id="archiveDatabase" type="button" disabled>Queue full database backup</button>
           <div id="archiveDatabaseJobs"></div>
@@ -215,6 +228,7 @@
           <button id="archiveCleanup" type="button" disabled>Review clearing selected cloud originals</button>
           <button id="archiveRestore" type="button">Restore selected originals</button>
           <button id="archiveRepairPreview" type="button">Repair missing previews</button>
+        </details>
         </details>
       </section>
       <details id="legacyBackup" hidden><summary>Mawimbi ZIP export</summary>
@@ -359,7 +373,7 @@
     </section>
   </main>
 
-  <script type="module" src="./assets/js/admin_backups_summary.js?v=8"></script>
+  <script type="module" src="./assets/js/admin_backups_summary.js?v=9"></script>
 </body>
 </html>
 

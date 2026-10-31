@@ -125,7 +125,6 @@ test("corrupt local original stops cleanup before a preview or delete request", 
   await mountFullBackupArchive({ client, profile: owner });
   q("archiveFolder").click();
   await settled();
-  document.querySelector("input[data-archive-key]").checked = true;
   q("archiveCleanup").click();
   await settled();
   assert.match(q("archiveStatus").textContent, /failed verification/);
@@ -135,6 +134,7 @@ test("corrupt local original stops cleanup before a preview or delete request", 
 
 function memoryFolder() {
   const files=new Map();
+  const writes=new Map();
   const writers=new Set();
   const missing=()=>Object.assign(new Error('Missing'),{name:'NotFoundError'});
   function dir(prefix='') { return {
@@ -145,6 +145,7 @@ function memoryFolder() {
       if(!create && !files.has(path)) throw missing();
       return {async getFile(){if(!files.has(path))throw missing();return files.get(path)},
         async createWritable(){
+          writes.set(path,(writes.get(path)||0)+1);
           assert.equal(writers.has(path),false,'Concurrent writers for '+path);
           writers.add(path);
           let pending;return {async write(value){pending=value instanceof Blob?value:new Blob([value])},
@@ -152,7 +153,7 @@ function memoryFolder() {
             async abort(){writers.delete(path)}}}};
     }
   }; }
-  return {root:dir(),files};
+  return {root:dir(),files,writes};
 }
 async function backupFixture(existingFolder, photoNames = ['one','two']) {
   const {hashBlob}=await import('../../assets/js/archive_files.mjs');
@@ -169,6 +170,9 @@ async function backupFixture(existingFolder, photoNames = ['one','two']) {
       :body.action==='prepare'?{archive:rows.find(r=>r.object_id===body.object_id).archive,signed_url:'https://synthetic.test/'+body.object_id}: {ok:true}}));
   const folder=existingFolder ?? memoryFolder();fixture.dom.window.showDirectoryPicker=async()=>folder.root;
   await mountFullBackupArchive({client:fixture.client,profile:owner});
+  // Most legacy photo-selection tests exercise the optional advanced picker.
+  fixture.q('archivePhotoDetails').open=true;
+  fixture.q('archivePhotoDetails').dispatchEvent(new window.Event('toggle'));
   fixture.q('archiveFolder').click();await settled();
   return {...fixture,...folder,rows,a,b};
 }
@@ -178,7 +182,10 @@ test('one backup button saves selected organisation records without photos by de
   const checkbox=document.querySelector('[data-organisation-id="'+f.a+'"]');
   change(checkbox,true);await settled();
   assert.equal(f.q('archiveAllOrganisations').checked,false);
+  change(f.q('archiveIncludePhotos'),true);
+  f.q('archivePhotoDetails').dispatchEvent(new window.Event('toggle'));
   assert.equal(document.querySelectorAll('[data-archive-key]').length,1);
+  change(f.q('archiveIncludePhotos'),false);
   f.q('archiveSave').click();await settled();
   const request=f.bodies.find(b=>b.action==='export_data');
   assert.deepEqual(request.organisation_ids,[f.a]);
@@ -374,5 +381,39 @@ test('normal backups omit redundant server receipts but explicit local verificat
     assert.equal(f.calls.filter(x=>x==='verify_local').length,2);
     assert.match(f.q('archiveStatus').textContent,/2 local originals read and verified/);
   }finally{globalThis.fetch=previous}
+});
+
+test('normal summary is compact, updates with selection and only creates individual-photo rows on demand',async()=>{
+  const a='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',b='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  const orgs=[{id:a,name:'Org A',record_count:12,photo_count:1,ledgers:[{table:'collections',record_count:12}]},
+    {id:b,name:'Org B',record_count:3,photo_count:0,ledgers:[{table:'ag_process_records',record_count:3}]}];
+  const f=setup(body=>({objects:[{object_id:'photo',object_version:'v1',object_path:'one.jpg',bucket_id:'photos',byte_size:5}],
+    organisations:orgs,summary:{record_count:body.organisation_ids?12:17,ledgers:body.organisation_ids?orgs[0].ledgers:[...orgs[0].ledgers,...orgs[1].ledgers],
+      organisations:body.organisation_ids?[orgs[0]]:orgs,shared:body.organisation_ids?null:{name:'Shared / unassigned',record_count:2,photo_count:0,ledgers:[{table:'seaweed_drying_submissions',record_count:2}]}}}));
+  await mountFullBackupArchive({client:f.client,profile:owner});
+  assert.match(f.q('archiveSummaryTotals').textContent,/17 ledger records/);
+  assert.match(f.q('archiveSummaryRows').textContent,/Org A.*12.*1.*Org B.*3.*0.*Shared \/ unassigned.*2/s);
+  change(f.q('archiveIncludePhotos'),true);
+  assert.equal(document.querySelectorAll('[data-archive-key]').length,0);
+  assert.match(f.q('archivePhotoSummary').textContent,/1 photos/);
+  change(document.querySelector('[data-organisation-id="'+a+'"]'),true);await settled();
+  assert.equal(f.q('archiveSummaryHead').textContent,'LedgerRecords');
+  assert.equal(f.q('archiveSummaryRows').textContent,'Collections12');
+  assert.equal(f.q('archiveLedgerDetails').hidden,true);
+  f.q('archivePhotoDetails').open=true;f.q('archivePhotoDetails').dispatchEvent(new window.Event('toggle'));
+  assert.equal(document.querySelectorAll('[data-archive-key]').length,1);
+});
+test('existing-file reuse batches checkpoints instead of committing the manifest after every file',async()=>{
+  const names=Array.from({length:48},(_,i)=>'saved-'+i),f=await backupFixture(undefined,names);
+  for(let i=0;i<names.length;i++)f.files.set('photos/'+names[i]+'.jpg',new Blob([names[i]]));
+  const before=f.writes.get('seaweed-archive.json')||0;
+  change(f.q('archiveIncludePhotos'),true);f.q('archiveSave').click();await settled();
+  assert.match(f.q('archiveStatus').textContent,/48 already verified/);
+  assert.equal(f.calls.includes('prepare'),false);
+  assert.ok(f.writes.get('seaweed-archive.json')-before<=6,'Reuse should checkpoint in batches');
+  const manifest=JSON.parse(await f.files.get('seaweed-archive.json').text());
+  assert.equal(manifest.files.length,48);assert.ok(manifest.snapshots.at(-1).completed_at);
+  assert.match(f.q('archiveHistory').textContent,/Last completed in this folder.*records and photos/);
+  assert.equal(f.q('archiveRunningHint').hidden,true);
 });
 
