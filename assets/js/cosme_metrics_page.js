@@ -4,7 +4,7 @@ import {
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=16";
 import {
   normalizeReleaseItems, selectMetrics, exportSelectedCsv,
-  parseReleaseVersion, sourceLabel, displayMetricValue
+  parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, headlineMetrics
 } from "./cosme_metrics_core.mjs";
 
 // The COSME register only reads the access-controlled, frozen release RPCs.
@@ -19,6 +19,7 @@ const COLUMN_DEFS = [
   { key: "value", label: "Value", weight: 23 },
   { key: "unit", label: "Unit", weight: 12 },
   { key: "dataKind", label: "Data", weight: 10 },
+  { key: "valueType", label: "Value type", weight: 14 },
   { key: "id", label: "Metric ID", weight: 11 },
   { key: "source", label: "Source", weight: 27 },
   { key: "note", label: "Notes", weight: 25 },
@@ -116,7 +117,7 @@ async function loadRelease(version = null) {
     return;
   }
   all = normalizeReleaseItems(data.items).map((m) => ({
-    ...m, dataKind: sourceLabel(m), liveValidated: false
+    ...m, dataKind: sourceLabel(m), valueType: metricValueType(m), liveValidated: false
   }));
   el("releaseCaption").textContent = data.version + " · " +
     (data.published_at ? new Date(data.published_at).toLocaleDateString() : "");
@@ -171,7 +172,30 @@ function render() {
     cards.append(button);
   }
   renderCategoryChoices();
+  renderHeadlines();
   renderRows();
+}
+function renderHeadlines() {
+  const items = headlineMetrics(all);
+  el("headlineCount").textContent = items.length + " selected";
+  const root = el("headlineGroups");
+  root.replaceChildren();
+  for (const activity of ACTIVITY_ORDER) {
+    const selected = items.filter(m => m.activity === activity);
+    if (!selected.length) continue;
+    const section = add(root,"section","","metrics-headline-group");
+    add(section,"h4",activity);
+    const grid = add(section,"div","","metrics-headline-grid");
+    for (const metric of selected) {
+      const button = add(grid,"button","","metrics-headline-card");
+      button.type = "button";
+      const formatted = displayMetricValue(metric.value, metric.unit);
+      add(button,"span",metric.title,"metrics-headline-label");
+      add(button,"strong",formatted.full,"metrics-headline-value");
+      add(button,"span",metric.valueType,"metrics-headline-type");
+      button.addEventListener("click",()=>openMetric(metric,button));
+    }
+  }
 }
 function renderCategoryChoices() {
   const options = el("categoryOptions");
@@ -338,6 +362,7 @@ function openMetric(metric, button) {
     ["Value", metric.value],
     ["Unit / basis", metric.unit],
     ["Data", metric.dataKind],
+    ["Value type", metric.valueType],
     ["Claim basis", metric.basis],
     ["Evidence state", metric.verification],
     ["Original workbook evidence", metric.originalEvidence],
