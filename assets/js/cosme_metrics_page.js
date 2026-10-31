@@ -4,7 +4,7 @@ import {
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=16";
 import {
   normalizeReleaseItems, selectMetrics, exportSelectedCsv,
-  parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, headlineMetrics, financialContext
+  parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, headlineMetrics, financialContext, currentDryerWeightReduction
 } from "./cosme_metrics_core.mjs";
 
 // The COSME register only reads the access-controlled, frozen release RPCs.
@@ -278,7 +278,9 @@ async function loadCurrentDryerMetrics() {
       || (data.source_updated_at && !Number.isFinite(Date.parse(data.source_updated_at)))){
       throw new Error("Current dryer measurements could not be validated.");
     }
-    currentDryerMetrics = data;
+    const reduction=currentDryerWeightReduction(data);
+    if(reduction === null) throw new Error("Current dryer mass ratio is invalid.");
+    currentDryerMetrics = {...data, wet_weight_reduction_pct:reduction};
   } catch {
     currentDryerError = "Current dryer measurements are unavailable.";
   }
@@ -288,7 +290,8 @@ const DRYER_COMPARE = [
   {id:"SDT-0063",key:"completed_cycles",unit:"cycles"},
   {id:"SDT-0064",key:"completed_bays",unit:"bay records"},
   {id:"SDT-0065",key:"wet_kg",unit:"kg"},
-  {id:"SDT-0066",key:"final_kg",unit:"kg"}
+  {id:"SDT-0066",key:"final_kg",unit:"kg"},
+  {id:"SDT-0022",key:"wet_weight_reduction_pct",unit:"%"}
 ];
 function renderCurrentDryerMetrics() {
   const parent = el("currentDryerMetrics");
@@ -324,7 +327,7 @@ function renderCurrentDryerMetrics() {
   }
   add(panel,"p",
     "Completed, confirmed Bati COSME tables only (not Dryer Shed). All bays require at least 12 hours drying and weight reduction; intermediate reweighs are not added. "+
-    currentDryerMetrics.excluded_completed+" completed records excluded by these checks.",
+    currentDryerMetrics.excluded_completed+" completed records excluded by these checks. Wet-weight reduction is not measured final moisture content.",
     "metrics-small-note");
   const modified=currentDryerMetrics.source_updated_at ?
     new Date(currentDryerMetrics.source_updated_at).toLocaleString():"Unknown";
