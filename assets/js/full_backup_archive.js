@@ -10,6 +10,7 @@ import {
   verifyFile,
   writeManifest,
 } from "./archive_files.mjs";
+import { LEDGER_LABELS, recordedPhotoCounts, lastCompletedBackup } from "./backup_summary.mjs";
 
 const PHOTO_DOWNLOAD_CONCURRENCY = 8;
 const PHOTO_IN_FLIGHT_BYTES = 32 * 1024 * 1024;
@@ -109,6 +110,8 @@ export function mountFullBackupArchive({ client, profile }) {
       !state.inventory?.database_runner_enabled;
     q("archiveFolder").disabled = state.busy || !window.showDirectoryPicker;
     q("archiveStop").disabled = !state.backupRunning || state.stopRequested;
+    q("archiveStop").hidden = !state.backupRunning;
+    q("archiveRunningHint").hidden = !state.backupRunning;
     if (!window.showDirectoryPicker) {
       q("archiveFolderLabel").textContent =
         "Local archive verification requires desktop Chrome or Edge with folder access.";
@@ -130,10 +133,12 @@ export function mountFullBackupArchive({ client, profile }) {
     q("archiveSelectAll").checked = rows.length > 0 && count === rows.length;
     q("archiveSelectAll").indeterminate = count > 0 && count < rows.length;
   }
-  function render() {
+  function renderPhotoRows() {
     const tbody = q("archiveRows");
     tbody.replaceChildren();
+    if (!q("archivePhotoDetails").open || !q("archiveIncludePhotos").checked) return;
     const rows = matching();
+    const savedFiles = new Map((state.manifest?.files ?? []).map(f => [photoKey(f), f]));
     for (const row of rows) {
       const tr = document.createElement("tr"),
         pick = document.createElement("input");
@@ -144,14 +149,13 @@ export function mountFullBackupArchive({ client, profile }) {
         if (pick.checked) state.selectedPhotos.add(photoKey(row));
         else state.selectedPhotos.delete(photoKey(row));
         syncSelectAll();
+        renderSummary();
       });
       pick.setAttribute("aria-label", `Select ${row.object_path}`);
       const first = document.createElement("td");
       first.append(pick);
       tr.append(first);
-      const saved = state.manifest?.files.find((f) =>
-        photoKey(f) === photoKey(row)
-      );
+      const saved = savedFiles.get(photoKey(row));
       for (
         const text of [
           sourceName(row.bucket_id),
@@ -182,6 +186,64 @@ export function mountFullBackupArchive({ client, profile }) {
       }
       tbody.append(tr);
     }
+  }
+  function tableRow(values, header = false) {
+    const row = document.createElement("tr");
+    for (const text of values) {
+      const cell = document.createElement(header ? "th" : "td");
+      if (header) cell.scope = "col";
+      cell.textContent = String(text);
+      row.append(cell);
+    }
+    return row;
+  }
+  function renderSummary() {
+    const scope = organisationIds(), summary = state.inventory?.summary;
+    const valid = state.scopeKey === JSON.stringify(scope);
+    const rows = q("archiveSummaryRows"), head = q("archiveSummaryHead"), details = q("archiveLedgerBreakdown");
+    rows.replaceChildren(); head.replaceChildren(); details.replaceChildren();
+    const single = scope?.length === 1;
+    q("archiveLedgerDetails").hidden = single || !valid || !summary;
+    q("archiveSummaryTable").hidden = !valid || !summary;
+    q("archiveSummaryTotals").textContent = !valid ? "Select organisations and refresh the summary."
+      : summary ? `${Number(summary.record_count || 0).toLocaleString()} ${summary.overlapping_records ? "unique " : ""}ledger records` : "Records ready. Summary unavailable.";
+    if (valid && summary) {
+      head.append(tableRow(single ? ["Ledger", "Records"] : ["Organisation", "Records", "Photos"], true));
+      if (single) {
+        for (const l of summary.ledgers ?? []) if (Number(l.record_count)) rows.append(tableRow([LEDGER_LABELS[l.table] ?? l.table, Number(l.record_count).toLocaleString()]));
+      } else {
+        if (summary.overlapping_records) {
+          const note = document.createElement("p");
+          note.textContent = "Some ledger entries are linked to more than one organisation. The total counts each entry once.";
+          details.append(note);
+        }
+        const organisations = [...(summary.organisations ?? [])];
+        if (summary.shared && (summary.shared.record_count || summary.shared.photo_count)) organisations.push(summary.shared);
+        for (const org of organisations) {
+          rows.append(tableRow([org.name, Number(org.record_count || 0).toLocaleString(), Number(org.photo_count || 0).toLocaleString()]));
+          const section = document.createElement("section"), name = document.createElement("strong"), list = document.createElement("table");
+          name.textContent = org.name; section.append(name);
+          for (const l of org.ledgers ?? []) if (Number(l.record_count)) list.append(tableRow([LEDGER_LABELS[l.table] ?? l.table, Number(l.record_count).toLocaleString()]));
+          section.append(list); details.append(section);
+        }
+      }
+    }
+    const photos = selected(), available = state.rows.length;
+    const coverage = recordedPhotoCounts(photos, state.manifest);
+    const include = q("archiveIncludePhotos").checked;
+    q("archivePhotoSummary").textContent = !valid ? "" : include
+      ? `${photos.length.toLocaleString()} photos${photos.length !== available ? ` selected of ${available.toLocaleString()}` : ""} · ${bytes(photos.reduce((n,r) => n + Number(r.byte_size),0))}` +
+        (state.manifest ? ` · ${coverage.newOrChanged.toLocaleString()} new or changed · ${coverage.recorded.toLocaleString()} already recorded` : "")
+      : `${available.toLocaleString()} photos available`;
+    const previous = lastCompletedBackup(state.manifest, scope);
+    q("archiveHistory").textContent = !state.manifest ? "Choose an archive folder to see its last completed backup."
+      : !previous ? "No completed backup for this selection in this folder."
+      : `Last completed in this folder: ${new Date(previous.completed_at || previous.captured_at).toLocaleString()} · ${previous.organisation_ids == null ? "All organisations" : `${previous.organisation_ids.length} organisation${previous.organisation_ids.length === 1 ? "" : "s"}`} · ${previous.photos_requested ? `records and photos (${previous.expected_photo_versions?.length ?? 0})` : "records only"}`;
+  }
+  function render() {
+    renderSummary();
+    renderPhotoRows();
+    const rows = matching();
     q("archiveTotals").textContent = `${rows.length} matching photos - ${bytes(rows.reduce((n,r) => n + Number(r.byte_size),0))}`;
     if (state.inventory?.missing_photo_references) q("archiveTotals").append(
       ` ${state.inventory.missing_photo_references} linked photo references are missing or ambiguous in cloud storage.`);
@@ -217,10 +279,11 @@ export function mountFullBackupArchive({ client, profile }) {
     say("Reading the current archive inventory…");
     const scope = organisationIds();
     if (scope !== null && !scope.length) {
-      state.rows = []; render(); say("Choose at least one organisation or All organisations."); return;
+      state.scopeKey = undefined; state.rows = []; render(); say("Choose at least one organisation or All organisations."); return;
     }
     state.scopeKey = undefined;
     state.rows = []; state.selectedPhotos.clear();
+    renderSummary();
     q("archiveRows").replaceChildren();
     state.inventory = await api({ action: "inventory", organisation_ids: scope });
     state.scopeKey = JSON.stringify(scope);
@@ -248,7 +311,7 @@ export function mountFullBackupArchive({ client, profile }) {
     ) q("archiveBucket").append(new Option(sourceName(bucket), bucket));
     q("archiveBucket").value = previous;
     render();
-    say("Inventory loaded. No files have been deleted.");
+    say("Ready.");
   }
   async function prepared(row) {
     if (row.archive) return row.archive;
@@ -295,20 +358,26 @@ export function mountFullBackupArchive({ client, profile }) {
       }
       inFlightBytes += size;
     }
-    let manifestQueue = Promise.resolve();
+    let manifestQueue = Promise.resolve(), pendingChanges = 0;
     const pathLocks = new Map();
-    // Photo transfers overlap; manifest mutations and writes remain ordered.
-    const commitManifest = (change) => {
+    // Each local file is still read back and hashed. Checkpoint the manifest in
+    // small batches so reuse checks don't wait for a disk commit per photo.
+    const flushManifest = (force = false) => {
       const task = manifestQueue.then(async () => {
-        change();
+        if (!force && !pendingChanges) return;
+        pendingChanges = 0;
         await writeManifest(state.root, state.manifest);
       });
       manifestQueue = task.catch(() => {});
       return task;
     };
+    const commitManifest = (change) => {
+      change(); pendingChanges++;
+      return pendingChanges >= 16 ? flushManifest() : Promise.resolve();
+    };
     const progress = () => {
       q("archiveProgress").value = completed;
-      say(`${state.stopRequested ? "Stopping after active files. " : ""}Photos: ${completed} of ${rows.length} complete — ${counts.saved} saved, ${counts.reused} reused, ${counts.skipped} skipped, ${counts.failed} failed (up to ${PHOTO_DOWNLOAD_CONCURRENCY} at a time).`);
+      say(`${state.stopRequested ? "Stopping after active files. " : ""}Checking / saving photos: ${completed} / ${rows.length} · ${counts.reused} reused · ${counts.saved} added · ${counts.skipped} skipped · ${counts.failed} failed`);
     };
     async function savePhoto(row) {
       const key = photoKey(row);
@@ -379,6 +448,7 @@ export function mountFullBackupArchive({ client, profile }) {
         try { await savePhoto(row); } finally { releaseBytes(size); }
       }
     }));
+    await flushManifest(true);
     counts.pending = rows.length - completed;
     return counts;
   }
@@ -389,6 +459,8 @@ export function mountFullBackupArchive({ client, profile }) {
     state.backupRunning = true;
     state.stopRequested = false;
     q("archiveStop").disabled = false;
+    q("archiveStop").hidden = false;
+    q("archiveRunningHint").hidden = false;
     q("archiveSave").textContent = "Back up";
     try {
     const photos = q("archiveIncludePhotos").checked ? selected() : [];
@@ -398,7 +470,9 @@ export function mountFullBackupArchive({ client, profile }) {
     const snapshot = await saveSnapshot(scope,photos,q("archiveIncludePhotos").checked);
     const counts = await archiveSelected(photos);
     snapshot.photo_results = counts;
-    snapshot.status = counts.pending ? "stopped" : counts.failed || counts.skipped ? "incomplete" : "complete";
+    snapshot.status = counts.pending ? "stopped" : counts.failed || counts.skipped || (snapshot.photos_requested && snapshot.missing_linked_photo_references) ? "incomplete" : "complete";
+    snapshot.finished_at = new Date().toISOString();
+    if (snapshot.status === "complete") snapshot.completed_at = snapshot.finished_at;
     await writeManifest(state.root,state.manifest);
     render();
     q("archiveProgress").value = counts.pending ? Math.max(0, photos.length - counts.pending) : q("archiveProgress").max;
@@ -416,6 +490,8 @@ export function mountFullBackupArchive({ client, profile }) {
     } finally {
       state.backupRunning = false;
       q("archiveStop").disabled = true;
+      q("archiveStop").hidden = true;
+      q("archiveRunningHint").hidden = true;
     }
   }
   async function cleanup() {
@@ -530,13 +606,12 @@ export function mountFullBackupArchive({ client, profile }) {
         mode: "readwrite",
       });
       state.manifest = await readManifest(state.root, ref);
+      state.manifest.snapshots ??= [];
       await writeManifest(state.root, state.manifest);
       q("archiveFolderLabel").textContent =
         `Selected folder: ${state.root.name}`;
       render();
-      say(
-        "Archive folder selected. Existing originals will be checked and reused.",
-      );
+      say("Ready.");
     }),
   );
   q("archiveClosePreview").addEventListener("click", () => {
@@ -636,6 +711,8 @@ export function mountFullBackupArchive({ client, profile }) {
         sha256: hash,
         byte_size: blob.size,
         captured_at: snapshot.captured_at,
+        status: "running",
+        ledger_record_count: state.inventory?.summary?.record_count ?? null,
         database_recovery_complete: false,
         organisation_ids: scope,
         photos_requested: photosRequested,
@@ -666,7 +743,8 @@ export function mountFullBackupArchive({ client, profile }) {
     render();
   });
   q("archiveAllOrganisations").addEventListener("change", run(refresh));
-  q("archiveIncludePhotos").addEventListener("change",setReadiness);
+  q("archiveIncludePhotos").addEventListener("change",render);
+  q("archivePhotoDetails").addEventListener("toggle",renderPhotoRows);
   if (!window.showDirectoryPicker) {
     say(
       "Local read-back verification requires a folder-capable desktop browser such as Chrome or Edge.",

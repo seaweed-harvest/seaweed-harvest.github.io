@@ -40,7 +40,7 @@ class SimpleMawimbiBackupSummaryStaticTest(unittest.TestCase):
 
     def test_page_uses_the_shared_header_and_current_module(self):
         self.assertIn('src="./assets/js/pwa_bootstrap.js"', self.page)
-        self.assertIn('src="./assets/js/admin_backups_summary.js?v=8"', self.page)
+        self.assertIn('src="./assets/js/admin_backups_summary.js?v=9"', self.page)
         self.assertIn('<a href="./collection.html">Collection</a>', self.page)
         self.assertIn('<a href="./home.html">Home</a>', self.page)
         self.assertIn('id="backupConnectionStatus" role="status" aria-live="polite"', self.page)
