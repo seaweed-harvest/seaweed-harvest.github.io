@@ -356,10 +356,28 @@ function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
     { label: "Pricing Matrix", href: "./admin_pricing.html", permission: "can_view_finance", capability: "tool_pricing" },
     { label: "SMS Settings", href: "./admin_seaweedke.html", permission: "can_manage_sms_settings", capability: "tool_sms" }
   ]);
-  if (tools.length) {
+  // The COSME register uses a dedicated server-side grant, not ordinary
+  // organisation/admin permissions. Check only when COSME is active and do not
+  // expose this link to ungranted accounts.
+  const cosmeActive = Boolean(profile) && activeAggregatorCode(profile) === "COSME";
+  if (tools.length || cosmeActive) {
     const group = drawerGroup("Tools", tools, currentFile);
     group.classList.add("app-nav-desktop-only");
     drawer.append(group);
+    if (cosmeActive) {
+      void import("./auth_client.js?v=25")
+        .then(({ authClient }) => authClient.rpc("cosme_metrics_my_access"))
+        .then(({ data, error }) => {
+          if (error || !data?.can_view || !group.isConnected) return;
+          const target = group.querySelector(".admin-menu-group-links");
+          target?.append(navigationLink({
+            label: "Project Metrics", href: "./cosme_metrics.html"
+          }, currentFile));
+          group.hidden = false;
+          if (currentFile === "cosme_metrics.html") group.open = true;
+        })
+        .catch(() => {});
+    }
   }
 }
 
