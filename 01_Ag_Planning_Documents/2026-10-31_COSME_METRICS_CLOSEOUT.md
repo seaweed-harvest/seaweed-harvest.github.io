@@ -128,3 +128,9 @@ They now assert the current safety/connection contracts. Syntax and whitespace
 checks pass. Synthetic browser checks cover shared save/readback, a second reader
 session, read-only reader stars, keyboard deselection while filtered, and historical
 selection isolation. No live business data was written by these checks.
+
+User refinement: keep every register row on one line, with a modest star at the
+far left. Stars now have a dedicated narrow leading column and a 24 × 24 px
+control (17 px glyph). Browser measurement of the complete 327-row proposal
+confirmed every row is 34 px high. Long values and titles stay on one line with
+full content in tooltips/details. Overview cards may wrap their explanatory text.

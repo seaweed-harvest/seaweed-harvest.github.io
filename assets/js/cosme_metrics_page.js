@@ -514,10 +514,13 @@ function renderRows() {
   // More selected columns get horizontal room rather than squeezing each cell.
   const minimum = cols.reduce((width, col) =>
     width + (col.key === "title" ? 220 :
-      col.key === "value" || col.key === "source" || col.key === "note" ? 170 : 108), 0);
+      col.key === "value" || col.key === "source" || col.key === "note" ? 170 : 108), 42);
   table.style.minWidth = String(Math.max(660, minimum)) + "px";
   table.querySelector("colgroup")?.remove();
   const group = document.createElement("colgroup");
+  const starColumn=document.createElement("col");
+  starColumn.style.width="42px";
+  group.append(starColumn);
   const totalWeight = cols.reduce((sum, column) => sum + column.weight, 0);
   for (const col of cols) {
     const node = document.createElement("col");
@@ -527,6 +530,8 @@ function renderRows() {
   table.prepend(group);
   const head = el("metricHead");
   head.replaceChildren();
+  const pickHead=add(head,"th","★","metrics-pick-cell");
+  pickHead.scope="col";pickHead.setAttribute("aria-label","Shared Top Pick");
   for (const column of cols) {
     const th = document.createElement("th");
     th.scope = "col";
@@ -550,6 +555,10 @@ function renderRows() {
   const fragment = document.createDocumentFragment();
   for (const metric of visible) {
     const row = document.createElement("tr");
+    const pickCell=add(row,"td","","metrics-pick-cell");
+    const star=add(pickCell,"button","");
+    star.type="button";configureStar(star,metric);
+    star.addEventListener("click",()=>togglePick(metric.id));
     for (const col of cols) {
       const cell = document.createElement("td");
       cell.dataset.col = col.key;
@@ -558,16 +567,13 @@ function renderRows() {
       if (formatted?.numeric || formatted?.missing) cell.classList.add("metrics-number");
       cell.title = formatted ? formatted.full : value;
       if (col.key === "title") {
-        const star=document.createElement("button");
-        star.type="button";configureStar(star,metric);
-        star.addEventListener("click",()=>togglePick(metric.id));
         const button = document.createElement("button");
         button.type = "button";
         button.className = "metric-open";
         button.textContent = value;
         button.title = value + " · open details";
         button.addEventListener("click", () => openMetric(metric, button));
-        cell.append(star,button);
+        cell.append(button);
       } else if (col.key === "dataKind") {
         add(cell, "span", value, "metrics-type" + (value === "Live" ? " is-live" : ""));
       } else if (col.key === "value") {
