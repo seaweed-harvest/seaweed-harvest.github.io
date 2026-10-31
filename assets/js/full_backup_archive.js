@@ -11,6 +11,9 @@ import {
   writeManifest,
 } from "./archive_files.mjs";
 
+const PHOTO_DOWNLOAD_CONCURRENCY = 8;
+const PHOTO_IN_FLIGHT_BYTES = 32 * 1024 * 1024;
+
 export function mountFullBackupArchive({ client, profile }) {
   if (
     profile?.account_status !== "active" || profile.is_protected_owner !== true
@@ -26,6 +29,8 @@ export function mountFullBackupArchive({ client, profile }) {
     inventory: null,
     rows: [],
     busy: false,
+    backupRunning: false,
+    stopRequested: false,
     selectedPhotos: new Set(),
     results: new Map(),
     scopeKey: undefined,
@@ -103,6 +108,7 @@ export function mountFullBackupArchive({ client, profile }) {
     q("archiveDatabase").disabled = state.busy ||
       !state.inventory?.database_runner_enabled;
     q("archiveFolder").disabled = state.busy || !window.showDirectoryPicker;
+    q("archiveStop").disabled = !state.backupRunning || state.stopRequested;
     if (!window.showDirectoryPicker) {
       q("archiveFolderLabel").textContent =
         "Local archive verification requires desktop Chrome or Edge with folder access.";
@@ -276,12 +282,53 @@ export function mountFullBackupArchive({ client, profile }) {
   }
   async function archiveSelected(rows) {
     const counts = { saved: 0, reused: 0, skipped: 0, failed: 0 };
-    for (const [index, row] of rows.entries()) {
-      q("archiveProgress").value = index;
-      say(`Saving photo ${index + 1} of ${rows.length}: ${row.object_path}`);
+    let next = 0, completed = 0, inFlightBytes = 0;
+    const byteWaiters = new Set();
+    const releaseBytes = (size) => {
+      inFlightBytes -= size;
+      for (const resolve of byteWaiters) resolve();
+      byteWaiters.clear();
+    };
+    async function reserveBytes(size) {
+      while (inFlightBytes + size > PHOTO_IN_FLIGHT_BYTES) {
+        await new Promise(resolve => byteWaiters.add(resolve));
+      }
+      inFlightBytes += size;
+    }
+    let manifestQueue = Promise.resolve();
+    const pathLocks = new Map();
+    // Photo transfers overlap; manifest mutations and writes remain ordered.
+    const commitManifest = (change) => {
+      const task = manifestQueue.then(async () => {
+        change();
+        await writeManifest(state.root, state.manifest);
+      });
+      manifestQueue = task.catch(() => {});
+      return task;
+    };
+    const progress = () => {
+      q("archiveProgress").value = completed;
+      say(`${state.stopRequested ? "Stopping after active files. " : ""}Photos: ${completed} of ${rows.length} complete — ${counts.saved} saved, ${counts.reused} reused, ${counts.skipped} skipped, ${counts.failed} failed (up to ${PHOTO_DOWNLOAD_CONCURRENCY} at a time).`);
+    };
+    async function savePhoto(row) {
       const key = photoKey(row);
+      let unlock, path, lock;
       try {
-        const a = await prepared(row);
+        // The first preparation already returns a signed URL. Reuse it for this
+        // transfer; never cache signed URLs across backup runs.
+        const initial = row.archive ? null : await api({ action: "prepare", object_id: row.object_id });
+        const a = row.archive ?? initial.archive;
+        if (a.object_version !== row.object_version || Number(a.byte_size) !== Number(row.byte_size)) {
+          throw new Error("Cloud photo changed; refresh and retry");
+        }
+        row.archive = a;
+        path = a.relative_path;
+        const previous = pathLocks.get(path) ?? Promise.resolve();
+        lock = new Promise(resolve => { unlock = resolve; });
+        pathLocks.set(path, lock);
+        // Identical content can share an archive path. Never open two writers
+        // for that path; the next photo will verify and reuse the first copy.
+        await previous;
         let exists = false, reuse = false;
         try {
           await verifyFile(state.root, a.relative_path, a.sha256, a.byte_size);
@@ -292,35 +339,58 @@ export function mountFullBackupArchive({ client, profile }) {
         }
         if (exists && !q("archiveReplaceExisting").checked) {
           counts.skipped++; state.results.set(key, "Skipped: existing copy differs");
-          state.manifest.files = state.manifest.files.filter((f) => photoKey(f) !== key);
-          await writeManifest(state.root,state.manifest);
-          continue;
+          await commitManifest(() => {
+            state.manifest.files = state.manifest.files.filter((f) => photoKey(f) !== key);
+          });
+          return;
         }
         if (!reuse) {
           if (a.cloud_state === "archived") throw new Error("Original is no longer in cloud storage");
-          const result = await api({ action: "prepare", object_id: row.object_id });
+          const result = initial ?? await api({ action: "prepare", object_id: row.object_id });
           if (result.archive.sha256 !== a.sha256 || result.archive.object_version !== a.object_version) {
             throw new Error("Cloud photo changed; refresh and retry");
           }
           const response = await fetch(result.signed_url, { cache: "no-store" });
           await saveVerified(state.root,a.relative_path,await downloadArchiveBlob(response),a.sha256,a.byte_size);
         }
-        rememberPhoto(state.manifest,row,a);
-        await writeManifest(state.root,state.manifest);
-        await receipt(a);
+        await commitManifest(() => rememberPhoto(state.manifest,row,a));
+        // The read-back checksum and durable local manifest prove this backup.
+        // Fresh server receipts are issued by verifyRow immediately before
+        // cleanup/restore; sending one per normal download adds a round trip
+        // without replacing that required fresh verification.
         counts[reuse ? "reused" : "saved"]++;
         state.results.set(key,reuse ? "Already verified; skipped download" : "Saved and verified");
       } catch {
         counts.failed++; state.results.set(key,"Failed; select and retry");
+      } finally {
+        unlock?.();
+        if (pathLocks.get(path) === lock) pathLocks.delete(path);
+        completed++;
+        progress();
       }
     }
-    q("archiveProgress").value = rows.length;
+    progress();
+    await Promise.all(Array.from({ length: Math.min(PHOTO_DOWNLOAD_CONCURRENCY, rows.length) }, async () => {
+      while (!state.stopRequested && next < rows.length) {
+        const row = rows[next++];
+        const size = Math.min(PHOTO_IN_FLIGHT_BYTES, Math.max(1, Number(row.byte_size) || PHOTO_IN_FLIGHT_BYTES));
+        await reserveBytes(size);
+        if (state.stopRequested) { releaseBytes(size); return; }
+        try { await savePhoto(row); } finally { releaseBytes(size); }
+      }
+    }));
+    counts.pending = rows.length - completed;
     return counts;
   }
   async function backUp() {
     folder();
     const scope = organisationIds();
     if (scope !== null && !scope.length) throw new Error("Choose at least one organisation");
+    state.backupRunning = true;
+    state.stopRequested = false;
+    q("archiveStop").disabled = false;
+    q("archiveSave").textContent = "Back up";
+    try {
     const photos = q("archiveIncludePhotos").checked ? selected() : [];
     q("archiveProgress").hidden = false;
     q("archiveProgress").max = Math.max(1,photos.length);
@@ -328,15 +398,25 @@ export function mountFullBackupArchive({ client, profile }) {
     const snapshot = await saveSnapshot(scope,photos,q("archiveIncludePhotos").checked);
     const counts = await archiveSelected(photos);
     snapshot.photo_results = counts;
+    snapshot.status = counts.pending ? "stopped" : counts.failed || counts.skipped ? "incomplete" : "complete";
     await writeManifest(state.root,state.manifest);
     render();
-    q("archiveProgress").value = q("archiveProgress").max;
+    q("archiveProgress").value = counts.pending ? Math.max(0, photos.length - counts.pending) : q("archiveProgress").max;
+    if (counts.pending) {
+      q("archiveSave").textContent = "Resume backup";
+      say(`Stopped safely. Records saved; ${counts.saved} photos saved, ${counts.reused} reused, ${counts.failed} failed, ${counts.skipped} skipped, ${counts.pending} not started. Resume with the same folder; verified photos will be reused.`);
+      return;
+    }
     say((snapshot.photos_requested
       ? `Records saved and verified. Photos: ${counts.saved} saved, ${counts.reused} already verified, ${counts.skipped} skipped, ${counts.failed} failed.`
       : "Records saved and verified. Photos were not included.") +
       (counts.skipped || counts.failed ? " Re-select those photos and retry; replacement requires the checkbox." : "") +
       (snapshot.photos_requested && snapshot.missing_linked_photo_references ? ` ${snapshot.missing_linked_photo_references} linked photo references are unavailable.` : ""),
       counts.skipped + counts.failed > 0 || (snapshot.photos_requested && snapshot.missing_linked_photo_references > 0));
+    } finally {
+      state.backupRunning = false;
+      q("archiveStop").disabled = true;
+    }
   }
   async function cleanup() {
     folder();
@@ -465,6 +545,17 @@ export function mountFullBackupArchive({ client, profile }) {
   q("archivePhotoPreview").addEventListener("close", () => q("archivePreviewImage").removeAttribute("src"));
   q("archiveRefresh").addEventListener("click", run(refresh));
   q("archiveSave").addEventListener("click", run(backUp));
+  q("archiveStop").addEventListener("click", () => {
+    if (!state.backupRunning) return;
+    state.stopRequested = true;
+    q("archiveStop").disabled = true;
+    say("Stopping safely: finishing active files and saving progress. Keep this page open until stopped.");
+  });
+  window.addEventListener("beforeunload", event => {
+    if (!state.backupRunning) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
   q("archiveVerify").addEventListener(
     "click",
     run(async () => {

@@ -5,7 +5,7 @@ import {
   setupAccountControls
 } from "./auth_client.js?v=25";
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
-import { mountFullBackupArchive } from "./full_backup_archive.js?v=3";
+import { mountFullBackupArchive } from "./full_backup_archive.js?v=4";
 import { readBackupAccess } from "./backup_connection.mjs";
 
 const ACTIVE_DATASET_KEYS = Object.freeze([
