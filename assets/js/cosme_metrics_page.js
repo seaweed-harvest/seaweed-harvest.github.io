@@ -4,7 +4,7 @@ import {
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=16";
 import {
   normalizeReleaseItems, selectMetrics, exportSelectedCsv,
-  parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, headlineMetrics
+  parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, headlineMetrics, financialContext
 } from "./cosme_metrics_core.mjs";
 
 // The COSME register only reads the access-controlled, frozen release RPCs.
