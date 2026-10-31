@@ -214,7 +214,16 @@ async function routeSignedInUser(options = {}) {
     ? await currentApplicationAccess(true).catch(() => ({}))
     : {};
 
-  const canUseRequestedPage = requestedApp
+  // COSME Metrics has its own private, server-authoritative grant. It must not
+  // depend on broader admin, dashboard, organisation membership or export flags.
+  const metricsRequested = requestedFile === "cosme_metrics.html";
+  const metricsAccess = (metricsRequested || (!requested && profile?.app_role === "platform_user"))
+    ? await authClient.rpc("cosme_metrics_my_access").then(({ data, error }) =>
+        error ? false : Boolean(data?.can_view)
+      ).catch(() => false)
+    : false;
+
+  const canUseRequestedPage = metricsRequested ? metricsAccess : requestedApp
     ? Boolean(applications?.[requestedApp])
     : requestedFile === "my_details.html"
       || requestedFile === "report_subscriptions.html"
@@ -234,7 +243,18 @@ async function routeSignedInUser(options = {}) {
     return;
   }
 
-  const destination = requested && canUseRequestedPage ? `./${requestedPage}` : routeForProfile(profile);
+  if (!requested && profile?.app_role === "platform_user" && !metricsAccess) {
+    const { error } = await authClient.auth.signOut({ scope: "local" });
+    if (error) throw error;
+    window.location.replace("./index.html?account=platform_only");
+    return;
+  }
+
+  const destination = requested && canUseRequestedPage
+    ? `./${requestedPage}`
+    : (!requested && metricsAccess && profile?.app_role === "platform_user"
+      ? "./cosme_metrics.html"
+      : routeForProfile(profile));
 
   if (options.animate === false) {
     window.location.replace(destination);
