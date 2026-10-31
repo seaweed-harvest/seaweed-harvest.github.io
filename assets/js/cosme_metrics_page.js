@@ -9,6 +9,7 @@ import {
 import { createNurseryGrowthPanel } from "./cosme_nursery_growth.mjs?v=2";
 import { createMawimbiOperationsPanel } from "./cosme_mawimbi_operations.mjs?v=1";
 import { createMawimbiStockQcPanel } from "./cosme_mawimbi_stock_qc.mjs?v=1";
+import { createMawimbiTraceabilityPanel } from "./cosme_mawimbi_traceability.mjs?v=1";
 
 // The COSME register only reads the access-controlled, frozen release RPCs.
 // Column choices persist locally; neither workbook data nor grants do.
@@ -16,6 +17,7 @@ const el = (id) => document.getElementById(id);
 const nurseryGrowthPanel = createNurseryGrowthPanel(authClient,el("currentNurseryGrowth"));
 const mawimbiPanel = createMawimbiOperationsPanel(authClient,el("currentMawimbiOperations"));
 const mawimbiQcPanel = createMawimbiStockQcPanel(authClient,el("currentMawimbiStockQc"));
+const traceabilityPanel = createMawimbiTraceabilityPanel(authClient,el("currentMawimbiTraceability"));
 const ACTIVITY_ORDER = ["Solar Drying Tables", "Offshore Nursery", "Aggregation Hub", "Mawimbi"];
 const STORAGE_KEY = "seaweed_ag:cosme_metric_columns_v2";
 const COLUMN_DEFS = [
@@ -75,6 +77,7 @@ function clearPrivateState() {
   nurseryGrowthPanel.clear();
   mawimbiPanel.clear();
   mawimbiQcPanel.clear();
+  traceabilityPanel.clear();
   el("rows").replaceChildren();
   el("activityCards").replaceChildren();
   el("metricsConnectionStatus").replaceChildren();
@@ -630,7 +633,8 @@ async function reloadAndRecheck() {
     [current.major, current.minor] : null;
   await loadReleases();
   await loadRelease(previousVersion);
-  await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics(),nurseryGrowthPanel.refresh(),mawimbiPanel.refresh(),mawimbiQcPanel.refresh()]);
+  el("currentMawimbiTraceability").hidden = grant.role !== "owner";
+  await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics(),nurseryGrowthPanel.refresh(),mawimbiPanel.refresh(),mawimbiQcPanel.refresh(),...(grant.role === "owner" ? [traceabilityPanel.refresh()] : [])]);
   renderConnectionStatus();
   el("app").hidden = false;
 }
