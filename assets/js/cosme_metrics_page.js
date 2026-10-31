@@ -25,7 +25,7 @@ const COLUMN_DEFS = [
   { key: "verification", label: "Evidence", weight: 11 },
   { key: "asOf", label: "As of", weight: 16 }
 ];
-const DEFAULT_COLUMNS = ["title", "activity", "theme", "value", "unit", "dataKind"];
+const DEFAULT_COLUMNS = ["title", "activity", "theme", "value", "unit"];
 let all = [];
 let current = null;
 let visible = [];
