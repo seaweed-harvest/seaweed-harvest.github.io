@@ -4,16 +4,23 @@ import {
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=16";
 import {
   normalizeReleaseItems, selectMetrics, exportSelectedCsv,
-  parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, headlineMetrics, financialContext, currentDryerWeightReduction
-} from "./cosme_metrics_core.mjs";
+  parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, headlineMetrics, financialContext, currentDryerWeightReduction, metricCategory
+} from "./cosme_metrics_core.mjs?v=2";
+import { createSharedPicks } from "./cosme_metrics_picks.mjs?v=1";
 import { createNurseryGrowthPanel } from "./cosme_nursery_growth.mjs?v=2";
 import { createMawimbiOperationsPanel } from "./cosme_mawimbi_operations.mjs?v=1";
 import { createMawimbiStockQcPanel } from "./cosme_mawimbi_stock_qc.mjs?v=1";
 import { createMawimbiTraceabilityPanel } from "./cosme_mawimbi_traceability.mjs?v=1";
 
-// The COSME register only reads the access-controlled, frozen release RPCs.
-// Column choices persist locally; neither workbook data nor grants do.
+// Published values remain immutable. Shared picks are a separate authorised layer.
+// Only column choices persist locally; metric data and picks never do.
 const el = (id) => document.getElementById(id);
+const sharedPicks=createSharedPicks(authClient,()=>{
+  all=sharedPicks.apply(all);
+  el("picksStatus").textContent=sharedPicks.message();
+  el("picksStatusRegister").textContent=sharedPicks.message();
+  render();
+});
 const nurseryGrowthPanel = createNurseryGrowthPanel(authClient,el("currentNurseryGrowth"));
 const mawimbiPanel = createMawimbiOperationsPanel(authClient,el("currentMawimbiOperations"));
 const mawimbiQcPanel = createMawimbiStockQcPanel(authClient,el("currentMawimbiStockQc"));
@@ -49,6 +56,8 @@ let sortKey = "id";
 let sortDirection = "asc";
 let selectedColumns = loadColumns();
 let selectedCategories = new Set();
+let detailMetricId=null;
+let releaseLoad=0;
 
 function loadColumns() {
   try {
@@ -71,6 +80,9 @@ function setStatus(message, error = false, show = true) {
   node.hidden = !show;
 }
 function clearPrivateState() {
+  releaseLoad++;
+  sharedPicks.clear();
+  detailMetricId=null;
   all = []; visible = []; current = null; access = null;
   currentRopeCoverage = null; currentCoverageError = "";
   currentDryerMetrics = null; currentDryerError = "";
@@ -80,6 +92,10 @@ function clearPrivateState() {
   traceabilityPanel.clear();
   el("rows").replaceChildren();
   el("activityCards").replaceChildren();
+  el("headlineGroups").replaceChildren();
+  el("detail").replaceChildren();
+  el("metricTitle").textContent="";
+  el("headlineCount").textContent="";
   el("metricsConnectionStatus").replaceChildren();
   el("app").hidden = true;
   el("accessRole").textContent = "Access unavailable";
@@ -124,9 +140,12 @@ async function loadReleases() {
   }
 }
 async function loadRelease(version = null) {
+  const request=++releaseLoad;
+  sharedPicks.clear();
   const params = version ? { p_major: version[0], p_minor: version[1] } : {};
   const { data, error } = await authClient.rpc("cosme_metrics_get_release", params);
   if (error) throw error;
+  if(request!==releaseLoad) return;
   current = data;
   if (data?.status !== "published") {
     all = [];
@@ -136,7 +155,8 @@ async function loadRelease(version = null) {
     return;
   }
   all = normalizeReleaseItems(data.items).map((m) => ({
-    ...m, dataKind: sourceLabel(m), valueType: metricValueType(m), liveValidated: false
+    ...m, theme:metricCategory(m.theme,m.id), publishedFeatured:m.featured,
+    dataKind: sourceLabel(m), valueType: metricValueType(m), liveValidated: false
   }));
   el("releaseCaption").textContent = data.version + " · " +
     (data.published_at ? new Date(data.published_at).toLocaleDateString() : "");
@@ -146,6 +166,7 @@ async function loadRelease(version = null) {
   el("version").value = String(data.major) + "." + String(data.minor);
   setStatus("", false, false);
   render();
+  await sharedPicks.load(data,all);
 }
 function tab(name) {
   for (const button of document.querySelectorAll(".metrics-tabs .tab")) {
@@ -195,25 +216,57 @@ function render() {
   renderCurrentRopeCoverage();
   renderCurrentDryerMetrics();
   renderRows();
+  const detailMetric=all.find(m=>m.id===detailMetricId);
+  if(detailMetric){
+    configureStar(el("detailStar"),detailMetric);
+    const detailSelection=el("detail").querySelector("[data-shared-selection]");
+    if(detailSelection) detailSelection.textContent=detailMetric.featured?"Yes":"No";
+  }
+}
+function configureStar(button,metric){
+  button.className="metrics-star";
+  button.dataset.metricStar=metric.id;
+  button.textContent=metric.featured?"★":"☆";
+  button.setAttribute("aria-pressed",String(metric.featured));
+  button.setAttribute("aria-label",(metric.featured?"Remove ":"Add ")+metric.title+
+    (metric.featured?" from":" to")+" shared Top Picks");
+  button.title=sharedPicks.editable()?button.getAttribute("aria-label"):sharedPicks.message();
+  button.disabled=!sharedPicks.editable();
+  button.setAttribute("aria-busy",String(sharedPicks.busy(metric.id)));
+}
+async function togglePick(id,context="rows"){
+  await sharedPicks.toggle(id);
+  const root=context==="detail"?el("detailStar"):el(context);
+  const target=context==="detail"?root:[...root.querySelectorAll("[data-metric-star]")].find(b=>b.dataset.metricStar===id);
+  if(target&&!target.disabled) target.focus();
+  else el("featured").focus();
 }
 function renderHeadlines() {
   const items = headlineMetrics(all);
   el("headlineCount").textContent = items.length + " selected";
   const root = el("headlineGroups");
   root.replaceChildren();
-  for (const activity of ACTIVITY_ORDER) {
+  if(!items.length) add(root,"p","No shared Top Picks selected. Open All metrics and select a star.","metrics-small-note");
+  for (const activity of [...new Set([...ACTIVITY_ORDER,...items.map(m=>m.activity)])]) {
     const selected = items.filter(m => m.activity === activity);
     if (!selected.length) continue;
     const section = add(root,"section","","metrics-headline-group");
     add(section,"h4",activity);
     const grid = add(section,"div","","metrics-headline-grid");
     for (const metric of selected) {
-      const button = add(grid,"button","","metrics-headline-card");
+      const card=add(grid,"div","","metrics-headline-card");
+      const star=add(card,"button","");
+      star.type="button";configureStar(star,metric);
+      star.addEventListener("click",()=>togglePick(metric.id,"headlineGroups"));
+      const button = add(card,"button","","metrics-headline-open");
       button.type = "button";
       const formatted = displayMetricValue(metric.value, metric.unit);
       add(button,"span",metric.title,"metrics-headline-label");
-      add(button,"strong",formatted.full,"metrics-headline-value");
-      add(button,"span",metric.valueType,"metrics-headline-type");
+      const headlineValue=formatted.missing&&metric.valueState==="not_established"?"Not established":formatted.full;
+      add(button,"strong",headlineValue,"metrics-headline-value");
+      if(metric.valueType!==headlineValue) add(button,"span",metric.valueType,"metrics-headline-type");
+      add(card,"p",metric.asOf,"metrics-small-note");
+      if(metric.note) add(card,"p",metric.note,"metrics-small-note");
       button.addEventListener("click",()=>openMetric(metric,button));
     }
   }
@@ -461,10 +514,13 @@ function renderRows() {
   // More selected columns get horizontal room rather than squeezing each cell.
   const minimum = cols.reduce((width, col) =>
     width + (col.key === "title" ? 220 :
-      col.key === "value" || col.key === "source" || col.key === "note" ? 170 : 108), 0);
+      col.key === "value" || col.key === "source" || col.key === "note" ? 170 : 108), 42);
   table.style.minWidth = String(Math.max(660, minimum)) + "px";
   table.querySelector("colgroup")?.remove();
   const group = document.createElement("colgroup");
+  const starColumn=document.createElement("col");
+  starColumn.style.width="42px";
+  group.append(starColumn);
   const totalWeight = cols.reduce((sum, column) => sum + column.weight, 0);
   for (const col of cols) {
     const node = document.createElement("col");
@@ -474,6 +530,8 @@ function renderRows() {
   table.prepend(group);
   const head = el("metricHead");
   head.replaceChildren();
+  const pickHead=add(head,"th","★","metrics-pick-cell");
+  pickHead.scope="col";pickHead.setAttribute("aria-label","Shared Top Pick");
   for (const column of cols) {
     const th = document.createElement("th");
     th.scope = "col";
@@ -497,6 +555,10 @@ function renderRows() {
   const fragment = document.createDocumentFragment();
   for (const metric of visible) {
     const row = document.createElement("tr");
+    const pickCell=add(row,"td","","metrics-pick-cell");
+    const star=add(pickCell,"button","");
+    star.type="button";configureStar(star,metric);
+    star.addEventListener("click",()=>togglePick(metric.id));
     for (const col of cols) {
       const cell = document.createElement("td");
       cell.dataset.col = col.key;
@@ -531,6 +593,8 @@ function renderRows() {
   el("empty").hidden = visible.length > 0;
 }
 function openMetric(metric, button) {
+  detailMetricId=metric.id;
+  configureStar(el("detailStar"),metric);
   lastFocus = button;
   el("metricTitle").textContent = metric.title;
   const details = el("detail");
@@ -538,7 +602,9 @@ function openMetric(metric, button) {
   const fields = [
     ["Metric ID", metric.id],
     ["Activity", metric.activity],
-    ["Category (original theme)", metric.theme],
+    ["Category", metric.theme],
+    ["Original workbook theme", metric.originalTheme],
+    ["Shared Top Pick", metric.featured?"Yes":"No"],
     ["Value", metric.value],
     ["Unit / basis", metric.unit],
     ["Data", metric.dataKind],
@@ -586,7 +652,8 @@ function openMetric(metric, button) {
   ];
   for (const [label, value] of fields) {
     add(details, "dt", label);
-    add(details, "dd", value);
+    const dd=add(details, "dd", value);
+    if(label==="Shared Top Pick") dd.dataset.sharedSelection="";
   }
   // These are navigation links to operational ledgers, not live calculations.
   const source = String(metric.source || "").toLowerCase();
@@ -609,6 +676,7 @@ function openMetric(metric, button) {
   el("close").focus();
 }
 function closeMetric() {
+  detailMetricId=null;
   el("veil").classList.remove("open");
   lastFocus?.focus();
 }
@@ -665,6 +733,10 @@ el("reset").addEventListener("click", () => {
   renderRows();
 });
 el("exportCsv").addEventListener("click", exportCsv);
+el("detailStar").addEventListener("click",()=>togglePick(detailMetricId,"detail"));
+for(const id of ["reloadPicks","reloadPicksRegister"]) el(id).addEventListener("click",async()=>{
+  if(current?.status==="published") await sharedPicks.load(current,all);
+});
 el("selectVersion").addEventListener("click", async () => {
   const version = parseReleaseVersion(el("version").value);
   if (!version) {

@@ -30,7 +30,8 @@ test("ensures overview reports missing organisational connections rather than in
  const page=readFileSync(new URL("../assets/js/cosme_metrics_page.js",import.meta.url),"utf8");
  const growthSource=readFileSync(new URL("../assets/js/cosme_nursery_growth.mjs",import.meta.url),"utf8");
  assert.match(html,/id="metricsConnectionStatus"/);
- assert.match(page,/Mawimbi", false, "Historical reference only"/);
+ assert.match(page,/mawimbiPanel\.isConnected\(\) \|\| mawimbiQcPanel\.isConnected\(\)/);
+ assert.match(page,/Reference only \/ owner-only feed/);
  assert.match(page,/Aggregation Hub", false, "Historical reference only"/);
  assert.match(growthSource,/cosme_metrics_live_nursery_quality/);
  assert.match(growthSource,/Flags do not change recorded weights/);

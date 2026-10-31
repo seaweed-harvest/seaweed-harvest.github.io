@@ -9,6 +9,15 @@ test("formats monetary values without rewriting the source",()=>{
   assert.equal(displayMetricValue("450 × 450 × 700","mm (L × W × H)").full,"450 × 450 × 700 mm");
   assert.equal(displayMetricValue("100-105","kg").full,"100–105 kg");
   assert.equal(displayMetricValue("66.9","%").full,"66.9%");
+  assert.equal(displayMetricValue("~500","kg/hour").full,"~500 kg/hour");
+  assert.equal(displayMetricValue("≥10","years").full,"≥10 years");
+  assert.equal(displayMetricValue("17, 20, 18","minutes / bale").full,"17, 20, 18 minutes / bale");
+  assert.equal(displayMetricValue("3.07 vs 3.70","days").full,"3.07 vs 3.70 days");
+  assert.equal(displayMetricValue("~15 × 1.5","m").full,"~15 × 1.5 m");
+  assert.equal(displayMetricValue("At least 50","m").full,"At least 50 m");
+  assert.equal(displayMetricValue("Up to 7","days").full,"Up to 7 days");
+  assert.equal(displayMetricValue("3 of 20","groups").full,"3 of 20 groups");
+  assert.equal(displayMetricValue("2.3 and 3.0","m at survey low tide").full,"2.3 and 3.0 m at survey low tide");
   assert.equal(displayMetricValue(null,"KES").full,"Not recorded");
   assert.equal(displayMetricValue("Pallets; 1 manual stacker","handling equipment").full,"Pallets; 1 manual stacker");
 });

@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Project Metrics — Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/cosme_metrics.css?v=10">
+  <link rel="stylesheet" href="./assets/css/cosme_metrics.css?v=11">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./favicon.ico" sizes="any">
   <link rel="icon" href="./assets/images/seaweed-harvest-icon-192.png" type="image/png" sizes="192x192">
@@ -55,7 +55,9 @@
             <div id="metricsConnectionStatus" class="metrics-connection-list" aria-live="polite"></div>
           </div>
           <div class="metrics-panel metrics-headlines-panel">
-            <div class="metrics-headline-heading"><div><h3>Headline metrics</h3><p class="metrics-small-note">Selected figures from the frozen V0.1 release. Types describe the figures, not real-time updates.</p></div><span id="headlineCount" class="metrics-count"></span></div>
+            <div class="metrics-headline-heading"><div><h3>Project Top Picks</h3><p class="metrics-small-note">Shared starred metrics from the selected release, with their evidence dates and limits. Open a figure for its source.</p></div><span id="headlineCount" class="metrics-count"></span></div>
+            <p id="picksStatus" class="metrics-small-note" role="status">Loading shared Top Picks…</p>
+            <button id="reloadPicks" class="metrics-button" type="button">Reload shared selection</button>
             <div id="headlineGroups" class="metrics-headline-groups"></div>
             <div id="currentDryerMetrics" class="metrics-current-coverage" aria-live="polite"></div>
             <div id="currentNurseryCoverage" class="metrics-current-coverage" aria-live="polite"></div>
@@ -87,6 +89,7 @@
                 </details>
               </div>
               <label class="metrics-check"><input type="checkbox" id="featured">Top Picks</label>
+              <button id="reloadPicksRegister" type="button" class="metrics-button">Reload selection</button>
               <details class="metrics-columns" id="columnMenu">
                 <summary role="button">Columns</summary>
                 <div id="columnOptions" class="metrics-column-options" aria-label="Visible columns"></div>
@@ -95,6 +98,7 @@
               <button id="exportCsv" type="button" class="metrics-button primary">Export CSV</button>
             </div>
             <div id="count" class="metrics-count" aria-live="polite"></div>
+            <p id="picksStatusRegister" class="metrics-small-note" role="status">Loading shared Top Picks…</p>
             <div class="metrics-table-wrap responsive-table-wrap">
               <table class="management-table metrics-table">
                 <thead><tr id="metricHead"></tr></thead>
@@ -102,7 +106,7 @@
               </table>
             </div>
             <p id="empty" class="metrics-small-note" hidden>No matching metrics.</p>
-            <p class="metrics-small-note">Values shown are from the selected release. A green Live marker is reserved for individually validated connections to current Seaweed Harvest records.</p>
+            <p class="metrics-small-note">Stars select the shared project Top Picks for every reader. Owners and editors can change the current release’s selection. Categories group related themes; details retain the original labels. Values shown are from the selected release. A green Live marker is reserved for individually validated connections to current Seaweed Harvest records.</p>
           </div>
         </section>
         <section id="history" hidden>
@@ -123,11 +127,12 @@
     <div class="metrics-detail-panel">
       <div class="metrics-detail-top">
         <div><p class="eyebrow">Metric details</p><h2 id="metricTitle"></h2></div>
+        <button type="button" id="detailStar" class="metrics-star" disabled aria-label="Shared Top Pick">☆</button>
         <button type="button" id="close" class="metrics-button">Close</button>
       </div>
       <dl id="detail"></dl>
     </div>
   </div>
-  <script type="module" src="./assets/js/cosme_metrics_page.js?v=13"></script>
+  <script type="module" src="./assets/js/cosme_metrics_page.js?v=14"></script>
 </body>
 </html>
