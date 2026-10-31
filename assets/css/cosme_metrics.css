@@ -651,3 +651,29 @@
 @media(max-width:680px) {
   .cosme-metrics-page .metrics-mawimbi-summary { grid-template-columns: 1fr; }
 }
+
+/* Mawimbi initial stock & QC field-presence diagnostics. Not batch QC certification. */
+.cosme-metrics-page .metrics-stock-qc-coverage {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 8px;
+  margin: 9px 0 12px;
+}
+.cosme-metrics-page .metrics-stock-qc-field {
+  display: grid;
+  gap: 4px;
+  padding: 9px 10px;
+  background: var(--panel-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+}
+.cosme-metrics-page .metrics-stock-qc-field strong {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: clamp(.85rem,1.3vw,1.02rem);
+}
+.cosme-metrics-page .metrics-stock-qc-table {min-width: 760px;}
+.cosme-metrics-page .metrics-stock-qc-table tbody th {white-space:nowrap;}
+@media(max-width:900px){
+  .cosme-metrics-page .metrics-stock-qc-coverage {grid-template-columns:repeat(2,minmax(0,1fr));}
+}
