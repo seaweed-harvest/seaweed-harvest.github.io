@@ -416,11 +416,11 @@ function openMetric(metric, button) {
     ["Unit / basis", metric.unit],
     ["Data", metric.dataKind],
     ["Value type", metric.valueType],
-    ["Financial context", financialContext(metric)?.caveat || ""],
+    ...(financialContext(metric) ? [["Financial context", financialContext(metric).caveat]] : []),
     ...(metric.id === "ON-0054" && currentRopeCoverage ? [
       ["Current coverage",currentRopeCoverage.rope_count+" ropes across "+currentRopeCoverage.site_count+" sites"],
       ["Current calculation","Active COSME rope positions with an initial weight; soft-deleted entries excluded"],
-      ["Current source modified",new Date(currentRopeCoverage.source_updated_at).toLocaleString()],
+      ["Current source modified",currentRopeCoverage.source_updated_at ? new Date(currentRopeCoverage.source_updated_at).toLocaleString() : "Unknown"],
       ["Current value checked",new Date(currentRopeCoverage.queried_at).toLocaleString()]
     ] : []),
     ["Claim basis", metric.basis],
