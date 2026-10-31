@@ -19,7 +19,7 @@ test("four frozen dryer metrics remain separate from current aggregation",()=>{
 test("metrics endpoint is owner-gated and validated before display",()=>{
   assert.match(page,/authClient\.rpc\("cosme_metrics_live_dryer_metrics"\)/);
   assert.match(page,/const grant = await requireMetrics\(\)/);
-  assert.match(page,/data\.can_view/);
+  assert.match(page,/!data\?\.can_view/);
   assert.match(page,/data\.excluded_completed/);
   assert.match(page,/source_updated_at/);
   assert.match(page,/queried_at/);
@@ -28,5 +28,5 @@ test("comparison is responsive and visible in the Overview",()=>{
   assert.match(html,/id="currentDryerMetrics"/);
   assert.match(css,/metrics-dryer-comparison-wrap/);
   assert.match(css,/overflow-x:auto/);
-  assert.match(html,/cosme_metrics_page\.js\?v=6/);
+  assert.match(html,/cosme_metrics_page\.js\?v=\d+/);
 });

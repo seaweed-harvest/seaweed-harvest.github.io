@@ -6,6 +6,7 @@ export function normalizeReleaseItems(items) {
       id:String(record.metric_id||""),
       activity:String(raw.activity||original.sheet||"Unassigned"),
       theme:String(raw.theme||original.theme||""),
+      originalTheme:String(original.theme||raw.theme||""),
       title:String(raw.title||original.metric||"Untitled metric"),
       value:raw.value===null||raw.value===undefined?String(original.value??""):String(raw.value),
       unit:String(raw.unit??original.unit??""),
@@ -63,6 +64,8 @@ function formattedNumber(number){
 /** Format only clearly numeric expressions. Preserve original precision and text. */
 function numericExpression(raw){
   const text=String(raw??"").trim();
+  const bounded=/^(~|≈|≤|≥|<|>)\s*([+-]?\d[\d,]*(?:\.\d+)?)$/.exec(text);
+  if(bounded)return bounded[1]+formattedNumber(bounded[2]);
   if(/^[+-]?\d[\d,]*(?:\.\d+)?$/.test(text))return formattedNumber(text);
   const range=/^([+-]?\d[\d,]*(?:\.\d+)?)\s*[-–—]\s*([+-]?\d[\d,]*(?:\.\d+)?)$/.exec(text);
   if(range)return formattedNumber(range[1])+"–"+formattedNumber(range[2]);
@@ -102,6 +105,7 @@ export function displayMetricValue(value,unit=""){
 /** A workbook citation to Harvest data is historical, never proof of a live link. */
 export function sourceLabel(metric) {
   if(metric?.liveValidated===true) return "Live";
+  if(metric?.sourceMode==="Report snapshot") return "Snapshot";
   const src=String(metric?.source||"").toLowerCase();
   if (src.includes("snapshot") || (src.includes("seaweed harvest") && src.includes("reviewed"))) return "Snapshot";
   return "Reference";
@@ -115,8 +119,8 @@ export function safeCsvCell(value) {
   return '"'+s.replace(/"/g,'""')+'"';
 }
 export function exportSelectedCsv(metrics,version) {
-  const header=["Metric ID","Activity","Theme","Metric","Value","Unit","Verification","Source","Note","Published Version"];
-  const rows=metrics.map(m=>[m.id,m.activity,m.theme,m.title,m.value,m.unit,m.verification,m.source,m.note,version||""]);
+  const header=["Metric ID","Activity","Theme","Metric","Value","Unit","Verification","Source","Note","Published Version","Top Pick","Original theme","As of","Claim basis"];
+  const rows=metrics.map(m=>[m.id,m.activity,m.theme,m.title,m.value,m.unit,m.verification,m.source,m.note,version||"",m.featured?"Yes":"No",m.originalTheme??m.theme,m.asOf,m.basis]);
   return "\uFEFF"+[header,...rows].map(row=>row.map(safeCsvCell).join(",")).join("\r\n");
 }
 
@@ -169,21 +173,32 @@ export function financialContext(metric){
   return FINANCIAL_REVIEW[metric?.id] || null;
 }
 
-export const HEADLINE_IDS = Object.freeze([
-  "SDT-0063","SDT-0022","SDT-0065",
-  "ON-0054","ON-0056","ON-0057",
-  "AGH-0029","AGH-0060","AGH-0031",
-  "MAW-0049","MAW-0050","MAW-0053"
-]);
 export function metricValueType(metric) {
+  if(metric?.basis && !["Reference","Reference / pending review"].includes(metric.basis)) return metric.basis;
   if (Object.hasOwn(FINANCIAL_REVIEW,metric?.id)) return FINANCIAL_REVIEW[metric.id].type;
   if (Object.hasOwn(CURATED,metric?.id)) return CURATED[metric.id];
   // Avoid inferring actual expenditure from a financial category alone.
   return "Not classified";
 }
 export function headlineMetrics(metrics) {
-  const lookup=new Map(metrics.map(m=>[m.id,m]));
-  return HEADLINE_IDS.map(id=>lookup.get(id)).filter(Boolean);
+  return metrics.filter(m=>m.featured);
+}
+
+export const METRIC_CATEGORIES = Object.freeze({
+  "Community & need":["Need","Farming"],
+  "Baseline":["Baseline"],
+  "Design & capacity":["Original Design","Final Design","Grant Scope","Original Design - 2025","2026 Design & Operating Basis","Design - V1.3 Table (March, 2026)","Design Targets - May 2025"],
+  "Delivery & deployment":["Deployment","Delivery","Installation","Build / Assembly"],
+  "Cost & funding":["Financial"],
+  "Performance & evidence":["Performance","Verification","Trial Data - Sep–Oct 2026","Verification - KMFRI Earlier Trial","Verification - Early Prototype","Verification - Datalog","Verification - Perth Datalog","Verification - Manual Monitoring"],
+  "Operations & maintenance":["Maintenance"],
+  "Impact & learning":["Impact"]
+});
+/** Group labels for display while preserving the exact imported theme separately. */
+export function metricCategory(theme){
+  const label=String(theme||"").trim();
+  return Object.entries(METRIC_CATEGORIES).find(([category,originals])=>
+    category===label||originals.some(original=>original.toLowerCase()===label.toLowerCase()))?.[0]||"Other";
 }
 
 /**
