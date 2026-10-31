@@ -127,7 +127,8 @@ const state = {
   editingTideScope: null,
   actor: null,
   editingUser: null,
-  editingApplicationAccess: null
+  editingApplicationAccess: null,
+  editingMcpUser: null
 };
 const els = {};
 const pendingPasswordResetUserKey = "seaweed-pending-password-reset-user";
@@ -158,7 +159,9 @@ async function init() {
     "editApplicationAccessFieldset", "editApplicationAccess", "saveApplicationAccess",
     "editApplicationAccessStatus", "saveUser",
     "inviteTideAccess", "tideOrganisationPanel", "tideOrganisationRows", "tideOrganisationStatus",
-    "editScopedTideFieldset", "editScopedTideAccess", "saveScopedTideAccess", "editScopedTideStatus"
+    "editScopedTideFieldset", "editScopedTideAccess", "saveScopedTideAccess", "editScopedTideStatus",
+    "mcpAccessPanel", "mcpAccessAccount", "mcpAccessEnabled", "mcpAccessOrganisations",
+    "closeMcpAccess", "saveMcpAccess", "mcpAccessStatus"
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
   const access = await requireAdminAccess("can_manage_users");
@@ -270,6 +273,11 @@ function bindEvents() {
   els.applicationTesterRows.addEventListener("click", handleApplicationTesterClick);
   els.editApplicationAccess.addEventListener("change", handleApplicationAccessChange);
   els.saveApplicationAccess.addEventListener("click", saveApplicationAccess);
+  els.closeMcpAccess.addEventListener("click", () => {
+    els.mcpAccessPanel.hidden = true;
+    state.editingMcpUser = null;
+  });
+  els.saveMcpAccess.addEventListener("click", saveMcpAccess);
 }
 
 async function loadPageData() {
@@ -888,7 +896,10 @@ function renderUsers() {
       <td class="row-actions">${user.is_protected_owner
         ? '<span class="protected-owner-label" title="This owner account cannot be edited or removed">Protected owner</span>'
         : `<button type="button" data-edit-user="${escapeHtml(user.id)}">Edit</button>`}
-        <button type="button" data-password-reset-link="${escapeHtml(user.id)}"${canCreatePasswordResetLink(user) ? "" : " disabled"}>${user.email ? "Email reset" : "Reset link"}</button></td>
+        <button type="button" data-password-reset-link="${escapeHtml(user.id)}"${canCreatePasswordResetLink(user) ? "" : " disabled"}>${user.email ? "Email reset" : "Reset link"}</button>
+        ${state.actor?.is_protected_owner === true
+          ? `<button type="button" data-mcp-access="${escapeHtml(user.id)}">ChatGPT access</button>`
+          : ""}</td>
     </tr>
   `).join("") : '<tr><td colspan="11">No users yet.</td></tr>';
 }
@@ -950,6 +961,11 @@ function renderActivity() {
 }
 
 async function handleUserTableClick(event) {
+  const mcpButton = event.target.closest("[data-mcp-access]");
+  if (mcpButton) {
+    await openMcpAccess(mcpButton.dataset.mcpAccess);
+    return;
+  }
   const resetButton = event.target.closest("[data-password-reset-link]");
   if (resetButton) {
     createPasswordResetLink(resetButton.dataset.passwordResetLink);
@@ -1009,6 +1025,59 @@ async function handleUserTableClick(event) {
     els.userEditorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
     setStatus(els.inviteStatus, error.message, "error");
+  }
+}
+
+async function openMcpAccess(userId) {
+  if (state.actor?.is_protected_owner !== true) return;
+  const user = state.users.find((item) => item.id === userId);
+  if (!user) return;
+  state.editingMcpUser = user;
+  els.userEditorPanel.hidden = true;
+  els.mcpAccessPanel.hidden = false;
+  els.mcpAccessAccount.textContent = user.display_name || user.email || "Selected user";
+  els.mcpAccessEnabled.disabled = true;
+  els.saveMcpAccess.disabled = true;
+  setStatus(els.mcpAccessStatus, "Loading...");
+  try {
+    const access = await invokeAdminUsers({ action: "mcp_access_get", user_id: user.id });
+    if (state.editingMcpUser?.id !== user.id) return;
+    els.mcpAccessEnabled.checked = access.enabled === true;
+    const selected = new Set(access.organisation_codes || []);
+    els.mcpAccessOrganisations.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+      input.checked = selected.has(input.value);
+    });
+    setStatus(els.mcpAccessStatus, "");
+    els.mcpAccessEnabled.disabled = false;
+    els.saveMcpAccess.disabled = false;
+    els.mcpAccessPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (error) {
+    setStatus(els.mcpAccessStatus, error.message || "Could not load ChatGPT access", "error");
+  }
+}
+
+async function saveMcpAccess() {
+  const user = state.editingMcpUser;
+  if (!user || state.actor?.is_protected_owner !== true) return;
+  const enabled = els.mcpAccessEnabled.checked;
+  const organisation_codes = [...els.mcpAccessOrganisations.querySelectorAll('input:checked')]
+    .map((input) => input.value);
+  if (enabled && !organisation_codes.length) {
+    setStatus(els.mcpAccessStatus, "Choose at least one organisation.", "error");
+    return;
+  }
+  els.saveMcpAccess.disabled = true;
+  setStatus(els.mcpAccessStatus, "Saving...");
+  try {
+    const result = await invokeAdminUsers({
+      action: "mcp_access_set", user_id: user.id, enabled, organisation_codes
+    });
+    els.mcpAccessEnabled.checked = result.enabled;
+    setStatus(els.mcpAccessStatus, result.enabled ? "ChatGPT access saved." : "ChatGPT access disabled.");
+  } catch (error) {
+    setStatus(els.mcpAccessStatus, error.message || "Could not save ChatGPT access.", "error");
+  } finally {
+    els.saveMcpAccess.disabled = false;
   }
 }
 
