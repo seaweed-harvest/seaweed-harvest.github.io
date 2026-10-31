@@ -5,7 +5,8 @@ import {
   setupAccountControls
 } from "./auth_client.js?v=25";
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
-import { mountFullBackupArchive } from "./full_backup_archive.js?v=2";
+import { mountFullBackupArchive } from "./full_backup_archive.js?v=3";
+import { readBackupAccess } from "./backup_connection.mjs";
 
 const ACTIVE_DATASET_KEYS = Object.freeze([
   "intake",
@@ -29,15 +30,27 @@ const state = {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("backupConnectionRetry")?.addEventListener("click", () => void init());
   void init();
 });
 
 async function init() {
   cacheElements();
   setLoadingState();
+  const connection = document.getElementById("backupConnection");
+  const connectionStatus = document.getElementById("backupConnectionStatus");
+  const retry = document.getElementById("backupConnectionRetry");
+  if (connection) connection.hidden = false;
+  if (retry) retry.hidden = true;
+  if (connectionStatus) connectionStatus.textContent = "Checking your account and backup access…";
+  let accessReady = false;
 
   try {
-    const access = await requireAuthenticatedAccount("admin_backups.html");
+    const access = await readBackupAccess(() => requireAuthenticatedAccount("admin_backups.html"), {
+      onRetry: () => {
+        if (connectionStatus) connectionStatus.textContent = "Connection interrupted. Retrying account verification…";
+      }
+    });
     if (!access) return;
 
     const allowed = access.profile?.account_status === "active"
@@ -58,11 +71,16 @@ async function init() {
     setupAppNavigation({ profile: access.profile, sidebar, dashboardHref });
     bindEvents();
     document.body.removeAttribute("data-auth-pending");
+    accessReady = true;
+    if (connection) connection.hidden = true;
 
     if (access.profile?.is_protected_owner === true) {
-      mountFullBackupArchive({ client: authClient, profile: access.profile });
+      await mountFullBackupArchive({ client: authClient, profile: access.profile });
+      return;
     }
 
+    const legacy = document.getElementById("legacyBackup");
+    if (legacy) { legacy.hidden = false; legacy.open = true; }
     const dashboard = await loadSummary();
     const storedJobId = readStoredJobId();
     const serverJob = dashboard?.latest_attempt;
@@ -79,7 +97,13 @@ async function init() {
     }
   } catch (error) {
     document.body.removeAttribute("data-auth-pending");
-    renderError(error);
+    if (accessReady && document.getElementById("legacyBackup")?.hidden === false) {
+      renderError(error);
+    } else {
+      if (connection) connection.hidden = false;
+      if (connectionStatus) connectionStatus.textContent = `${accessReady ? "Backup controls" : "Account verification"} could not finish. ${error?.message || "Connection unavailable."} Check your internet connection and retry. No backup has started.`;
+      if (retry) retry.hidden = false;
+    }
   }
 }
 
@@ -723,4 +747,5 @@ function numberValue(value) {
 function delay(milliseconds) {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }
+
 

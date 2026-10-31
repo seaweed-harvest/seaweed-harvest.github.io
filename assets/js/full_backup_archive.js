@@ -53,6 +53,11 @@ export function mountFullBackupArchive({ client, profile }) {
       try {
         message = (await error.context.json()).error || message;
       } catch {}
+      const status = Number(error?.context?.status || error?.status || 0);
+      if (status === 401) throw new Error("Your session has expired. Sign in again, then retry the backup.");
+      if (!status && /fetch|network|load failed|send.*request/i.test(message || "")) {
+        throw new Error("Cannot reach the backup service. Check your internet connection, then use Refresh inventory / retry.");
+      }
       throw new Error(message || "Archive service unavailable");
     }
     return data;
@@ -317,7 +322,6 @@ export function mountFullBackupArchive({ client, profile }) {
     const scope = organisationIds();
     if (scope !== null && !scope.length) throw new Error("Choose at least one organisation");
     const photos = q("archiveIncludePhotos").checked ? selected() : [];
-    if (q("archiveIncludePhotos").checked && !photos.length) throw new Error("Select photos or turn off Include photos");
     q("archiveProgress").hidden = false;
     q("archiveProgress").max = Math.max(1,photos.length);
     q("archiveProgress").value = 0;
@@ -608,3 +612,4 @@ async function makePreview(file) {
     "Could not create a small preview. Cloud original was retained.",
   );
 }
+
