@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>COSME Project Metrics — Seaweed Harvest</title>
+<link rel="icon" href="./favicon.ico">
+<style>
+:root{font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;background:#f3f7f7;color:#18313b}
+*{box-sizing:border-box}body{margin:0}button,input,select{font:inherit}button{cursor:pointer}
+:focus-visible{outline:3px solid #1785a0;outline-offset:2px}
+header{border-bottom:1px solid #d7e3e5;background:#fff;padding:17px max(20px,calc((100vw - 1150px)/2));display:flex;justify-content:space-between;align-items:center;gap:15px}
+header a{color:#176578;text-decoration:none;font-weight:700}header button{background:transparent;border:1px solid #9cb5bc;border-radius:7px;padding:7px 10px}
+main{max-width:1190px;padding:22px;margin:auto}h1{font-size:clamp(25px,4vw,33px);margin:0 0 5px}h2{font-size:19px;margin:0 0 15px}
+small,.muted{color:#5b747d}.eyebrow{letter-spacing:.1em;text-transform:uppercase;font-size:11px;font-weight:800;color:#54717a}
+.page-intro{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:18px}.card{border:1px solid #dbe5e7;border-radius:11px;background:#fff;padding:19px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.activity-card{text-align:left;min-height:155px;display:flex;flex-direction:column;gap:10px}.activity-card:hover{border-color:#31859a}.big{font-size:27px;font-weight:760}
+.tabs{display:flex;gap:6px;border-bottom:1px solid #d3dfe2;margin:17px 0;flex-wrap:wrap;padding-bottom:8px}.tab{border:0;background:transparent;padding:9px 13px;border-radius:7px;color:#355561}.tab[aria-selected=true]{background:#165b6b;color:white}
+.toolbar{display:flex;flex-wrap:wrap;align-items:end;gap:9px;margin-bottom:13px}.field{display:flex;flex-direction:column;gap:4px;min-width:135px}.search{flex:1;min-width:240px}label{font-size:12px;font-weight:650}
+input,select{padding:10px 12px;border:1px solid #b6c9cd;border-radius:6px;min-height:42px;background:white;color:#18313b}input[type=checkbox]{min-height:unset}
+.check{display:flex;align-items:center;gap:7px;padding-bottom:10px}.btn{border:1px solid #14596a;background:#14596a;color:white;border-radius:7px;padding:10px 12px}.btn.alt{background:white;color:#14596a;border-color:#b6c9cd}
+.table-wrap{overflow-x:auto}.table{border-collapse:collapse;width:100%;min-width:820px}.table th,.table td{text-align:left;vertical-align:top;padding:11px 10px;border-bottom:1px solid #e6ecee}.table th{background:#f8fafb;color:#516a74;font-size:12px}.table td:nth-child(4){font-weight:700}
+.metric-open{border:0;background:transparent;color:#095a72;text-decoration:underline;text-underline-offset:3px;font-weight:650;text-align:left;padding:0}
+.state{display:inline-block;border-radius:5px;background:#f0f3f4;color:#35545c;padding:2px 7px;font-size:12px}
+.label{font-weight:650;color:#385966;font-size:12px}.status{border-left:3px solid #0d809e;padding:15px;background:#e9f5f8;border-radius:5px;margin:15px 0}.status.error{border-color:#b44545;background:#fff0ed}.status[hidden]{display:none}
+.panel-veil{position:fixed;inset:0;background:#123a477f;display:none;justify-content:flex-end;z-index:40}
+.panel-veil.open{display:flex}.panel{width:min(570px,100%);background:white;height:100%;padding:24px;overflow-y:auto;box-shadow:-8px 0 30px #1235}
+.panel-top{display:flex;justify-content:space-between;align-items:flex-start;gap:15px}dl{display:grid;grid-template-columns:145px 1fr;gap:9px 14px}dt{color:#53707a}dd{margin:0;overflow-wrap:anywhere;white-space:pre-wrap}section[hidden]{display:none!important}footer{font-size:12px;color:#63767e;margin:22px 0}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.page-intro{flex-direction:column}.toolbar>*{flex-grow:1}}
+@media(max-width:560px){.grid{grid-template-columns:1fr}main{padding:13px}header{padding:12px}dl{grid-template-columns:1fr}.panel{padding:16px}}
+</style></head>
+<body>
+<header><a href="./login.html">Seaweed Harvest · COSME</a><button id="signOut" hidden>Sign out</button></header>
+<main>
+<div class="page-intro"><div><div class="eyebrow">COSME / Project reference</div><h1>Project Metrics</h1><div class="muted">Evidence-backed metrics with preserved publication history</div></div><div><div id="accessRole" class="label">Checking access…</div><div id="releaseCaption" class="muted"></div></div></div>
+<div id="status" class="status" role="status">Checking your metrics access…</div>
+<div id="app" hidden>
+<nav class="tabs" aria-label="Metrics views"><button data-tab="overview" class="tab" aria-selected="true">Overview</button><button data-tab="register" class="tab" aria-selected="false">All metrics</button><button data-tab="history" class="tab" aria-selected="false">Releases</button></nav>
+<section id="overview"><div class="grid" id="activityCards"></div><div class="card" style="margin-top:14px"><h2>Published reference</h2><p>Values shown here belong to the selected published release. Changes to operational data do not alter an old release. Where evidence is uncertain or not measured, that distinction remains visible.</p><button id="openRegister" class="btn">Explore all metrics</button></div></section>
+<section id="register" hidden><div class="card"><div class="toolbar">
+<div class="field search"><label for="search">Search metrics, notes and evidence</label><input id="search" type="search" autocomplete="off" placeholder="Search all published metrics"></div>
+<div class="field"><label for="activity">Activity</label><select id="activity"><option value="">All activities</option></select></div>
+<div class="field"><label for="verification">Verification</label><select id="verification"><option value="">All states</option></select></div>
+<div class="field"><label for="sort">Sort</label><select id="sort"><option value="id">Metric ID</option><option value="title">Metric title</option><option value="activity">Activity</option></select></div>
+<label class="check"><input id="featured" type="checkbox"> Top Picks</label>
+<button class="btn alt" id="reset">Clear filters</button><button class="btn" id="exportCsv">Export selected CSV</button>
+</div><div id="count" class="muted" aria-live="polite"></div><div class="table-wrap"><table class="table"><thead><tr><th>Metric</th><th>Activity</th><th>Theme</th><th>Value</th><th>Unit</th><th>Evidence</th></tr></thead><tbody id="rows"></tbody></table></div><p id="empty" class="muted" hidden>No matching metrics. Clear or change your filters.</p></div></section>
+<section id="history" hidden><div class="card"><h2>Published releases</h2><p>Every release contains its complete frozen metrics and cited evidence. There are no live calculations in this initial reference.</p><div class="toolbar"><div class="field"><label for="version">Choose published version</label><select id="version"></select></div><button class="btn alt" id="selectVersion">Open selected release</button></div><p id="historyInfo" class="muted"></p></div></section>
+</div>
+<footer>Private COSME reference · No access is inherited from operational organisation membership. Exports contain the selected authorised release only.</footer>
+</main>
+<div id="veil" class="panel-veil" role="dialog" aria-modal="true" aria-labelledby="metricTitle"><div class="panel"><div class="panel-top"><div><span class="eyebrow">Published metric</span><h2 id="metricTitle"></h2></div><button class="btn alt" id="close">Close</button></div><dl id="detail"></dl></div></div>
+<script type="module" src="./assets/js/cosme_metrics_page.js?v=1"></script>
+</body></html>
