@@ -18,6 +18,7 @@ export function mountFullBackupArchive({ client, profile }) {
   const host = document.getElementById("fullBackupArchive");
   if (!host) return;
   host.hidden = false;
+  document.getElementById("legacyBackup").open = false;
   const q = (id) => host.querySelector(`#${id}`);
   const state = {
     root: null,
@@ -25,12 +26,19 @@ export function mountFullBackupArchive({ client, profile }) {
     inventory: null,
     rows: [],
     busy: false,
+    selectedPhotos: new Set(),
+    results: new Map(),
+    scopeKey: undefined,
   };
   const ref = new URL(client.supabaseUrl).hostname.split(".")[0];
   const say = (text, error = false) => {
     q("archiveStatus").textContent = text;
     q("archiveStatus").dataset.status = error ? "error" : "";
   };
+  const sourceName = (bucket) => ({ "collection-photos":"Collections", "process-record-photos":"Process records",
+    "reef-nursery-photos":"Reef nursery", "reef-seaweed-record-photos":"Reef monitoring",
+    "green-space-photos":"Green spaces", "seaweed-drying-photos":"Drying trials",
+    "site-feedback-photos":"Site feedback" })[bucket] ?? bucket;
   const bytes = (n) =>
     new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(
       Number(n) / 1e6,
@@ -80,9 +88,11 @@ export function mountFullBackupArchive({ client, profile }) {
         "archiveVerify",
         "archiveRestore",
         "archiveRepairPreview",
-        "archiveSnapshot",
       ]
     ) q(id).disabled = noFolder;
+    const scope = organisationIds();
+    q("archiveSave").disabled = noFolder || (scope !== null && !scope.length) || state.scopeKey !== JSON.stringify(scope);
+    q("archivePhotoOptions").hidden = !q("archiveIncludePhotos").checked;
     q("archiveCleanup").disabled = noFolder ||
       !state.inventory?.cleanup_enabled;
     q("archiveDatabase").disabled = state.busy ||
@@ -93,6 +103,8 @@ export function mountFullBackupArchive({ client, profile }) {
         "Local archive verification requires desktop Chrome or Edge with folder access.";
     }
   }
+  const organisationIds = () => q("archiveAllOrganisations").checked ? null
+    : [...host.querySelectorAll("input[data-organisation-id]:checked")].map((e) => e.dataset.organisationId);
   const matching = () =>
     state.rows.filter((row) =>
       (!q("archiveBucket").value ||
@@ -100,14 +112,13 @@ export function mountFullBackupArchive({ client, profile }) {
       (!q("archiveBefore").value ||
         String(row.created_at ?? "").slice(0, 10) <= q("archiveBefore").value)
     );
-  const selected = () => {
-    const keys = new Set(
-      [...host.querySelectorAll("input[data-archive-key]:checked")].map((e) =>
-        e.dataset.archiveKey
-      ),
-    );
-    return matching().filter((r) => keys.has(photoKey(r)));
-  };
+  const selected = () => matching().filter((r) => state.selectedPhotos.has(photoKey(r)));
+  function syncSelectAll() {
+    const rows = matching(), count = selected().length;
+    q("archiveSelectionCount").textContent = `${count} of ${rows.length} matching photos selected`;
+    q("archiveSelectAll").checked = rows.length > 0 && count === rows.length;
+    q("archiveSelectAll").indeterminate = count > 0 && count < rows.length;
+  }
   function render() {
     const tbody = q("archiveRows");
     tbody.replaceChildren();
@@ -117,6 +128,12 @@ export function mountFullBackupArchive({ client, profile }) {
         pick = document.createElement("input");
       pick.type = "checkbox";
       pick.dataset.archiveKey = photoKey(row);
+      pick.checked = state.selectedPhotos.has(photoKey(row));
+      pick.addEventListener("change", () => {
+        if (pick.checked) state.selectedPhotos.add(photoKey(row));
+        else state.selectedPhotos.delete(photoKey(row));
+        syncSelectAll();
+      });
       pick.setAttribute("aria-label", `Select ${row.object_path}`);
       const first = document.createElement("td");
       first.append(pick);
@@ -126,30 +143,38 @@ export function mountFullBackupArchive({ client, profile }) {
       );
       for (
         const text of [
-          row.bucket_id,
-          row.object_path,
+          sourceName(row.bucket_id),
+          row.object_path.split("/").at(-1),
           bytes(row.byte_size),
           row.archive?.cloud_state === "archived"
             ? "Original archived"
             : row.archive?.cloud_state === "deleting"
             ? "Cleanup pending"
             : "Original in cloud",
-          saved
-            ? "In selected archive; verify before clearing"
-            : "Not verified in selected archive",
+          state.results.get(photoKey(row)) ?? (saved ? "Saved; will verify before skipping" : "Not yet saved"),
         ]
       ) {
         const td = document.createElement("td");
         td.textContent = text;
         tr.append(td);
       }
+      tr.children[2].title = row.object_path;
+      if (row.archive?.cloud_state !== "archived") {
+        const preview = document.createElement("button");
+        preview.type = "button"; preview.textContent = "View photo";
+        preview.addEventListener("click",run(async () => {
+          const result = await api({ action: "prepare", object_id: row.object_id });
+          q("archivePreviewImage").src = result.signed_url;
+          q("archivePhotoPreview").showModal();
+        }));
+        tr.children[2].append(" ",preview);
+      }
       tbody.append(tr);
     }
-    q("archiveTotals").textContent = `${rows.length} matching originals · ${
-      bytes(rows.reduce((n, r) => n + Number(r.byte_size), 0))
-    }. Current cloud files and previews: ${
-      bytes(state.inventory?.cloud_file_bytes ?? 0)
-    }. Small previews are retained after image cleanup.`;
+    q("archiveTotals").textContent = `${rows.length} matching photos - ${bytes(rows.reduce((n,r) => n + Number(r.byte_size),0))}`;
+    if (state.inventory?.missing_photo_references) q("archiveTotals").append(
+      ` ${state.inventory.missing_photo_references} linked photo references are missing or ambiguous in cloud storage.`);
+    syncSelectAll();
     const jobs = q("archiveDatabaseJobs");
     jobs.replaceChildren();
     for (const job of state.inventory?.database_jobs ?? []) {
@@ -179,15 +204,37 @@ export function mountFullBackupArchive({ client, profile }) {
   }
   async function refresh() {
     say("Reading the current archive inventory…");
-    state.inventory = await api({ action: "inventory" });
+    const scope = organisationIds();
+    if (scope !== null && !scope.length) {
+      state.rows = []; render(); say("Choose at least one organisation or All organisations."); return;
+    }
+    state.scopeKey = undefined;
+    state.rows = []; state.selectedPhotos.clear();
+    q("archiveRows").replaceChildren();
+    state.inventory = await api({ action: "inventory", organisation_ids: scope });
+    state.scopeKey = JSON.stringify(scope);
+    const choices = q("archiveOrganisations");
+    choices.replaceChildren();
+    for (const org of state.inventory.organisations ?? []) {
+      const label = document.createElement("label"), input = document.createElement("input");
+      input.type = "checkbox"; input.dataset.organisationId = org.id;
+      input.checked = scope?.includes(org.id) ?? false;
+      input.addEventListener("change", () => {
+        q("archiveAllOrganisations").checked = false;
+        void run(refresh)();
+      });
+      label.append(input, " ", org.name || org.code); choices.append(label);
+    }
     state.rows = state.inventory.objects ?? [];
+    state.selectedPhotos = new Set(state.rows.map(photoKey));
+    state.results.clear();
     const previous = q("archiveBucket").value;
     q("archiveBucket").replaceChildren(
-      new Option("All photo/file buckets", ""),
+      new Option("All photo sources", ""),
     );
     for (
       const bucket of [...new Set(state.rows.map((r) => r.bucket_id))].sort()
-    ) q("archiveBucket").append(new Option(bucket, bucket));
+    ) q("archiveBucket").append(new Option(sourceName(bucket), bucket));
     q("archiveBucket").value = previous;
     render();
     say("Inventory loaded. No files have been deleted.");
@@ -222,53 +269,70 @@ export function mountFullBackupArchive({ client, profile }) {
     await receipt(a);
     return { a, file };
   }
-  async function archiveMatching() {
-    folder();
-    const rows = matching();
-    let done = 0;
-    for (const row of rows) {
-      say(`Archiving ${++done}/${rows.length}: ${row.object_path}`);
-      const a = await prepared(row);
-      let file;
+  async function archiveSelected(rows) {
+    const counts = { saved: 0, reused: 0, skipped: 0, failed: 0 };
+    for (const [index, row] of rows.entries()) {
+      q("archiveProgress").value = index;
+      say(`Saving photo ${index + 1} of ${rows.length}: ${row.object_path}`);
+      const key = photoKey(row);
       try {
-        file = await verifyFile(
-          state.root,
-          a.relative_path,
-          a.sha256,
-          a.byte_size,
-        );
-      } catch (e) {
-        if (
-          e.name !== "NotFoundError" &&
-          !e.message.startsWith("Local file failed")
-        ) throw e;
-        if (a.cloud_state === "archived") {
-          throw new Error(
-            `Local original missing or damaged: ${row.object_path}. It cannot be downloaded from its cloud preview.`,
-          );
+        const a = await prepared(row);
+        let exists = false, reuse = false;
+        try {
+          await verifyFile(state.root, a.relative_path, a.sha256, a.byte_size);
+          reuse = true;
+        } catch (error) {
+          if (error.name !== "NotFoundError" && !error.message.startsWith("Local file failed")) throw error;
+          exists = error.name !== "NotFoundError";
         }
-        const result = await api({
-          action: "prepare",
-          object_id: row.object_id,
-        });
-        const response = await fetch(result.signed_url, { cache: "no-store" });
-        if (!response.ok) throw new Error("Original download failed");
-        file = await saveVerified(
-          state.root,
-          a.relative_path,
-          await downloadArchiveBlob(response),
-          a.sha256,
-          a.byte_size,
-        );
+        if (exists && !q("archiveReplaceExisting").checked) {
+          counts.skipped++; state.results.set(key, "Skipped: existing copy differs");
+          state.manifest.files = state.manifest.files.filter((f) => photoKey(f) !== key);
+          await writeManifest(state.root,state.manifest);
+          continue;
+        }
+        if (!reuse) {
+          if (a.cloud_state === "archived") throw new Error("Original is no longer in cloud storage");
+          const result = await api({ action: "prepare", object_id: row.object_id });
+          if (result.archive.sha256 !== a.sha256 || result.archive.object_version !== a.object_version) {
+            throw new Error("Cloud photo changed; refresh and retry");
+          }
+          const response = await fetch(result.signed_url, { cache: "no-store" });
+          await saveVerified(state.root,a.relative_path,await downloadArchiveBlob(response),a.sha256,a.byte_size);
+        }
+        rememberPhoto(state.manifest,row,a);
+        await writeManifest(state.root,state.manifest);
+        await receipt(a);
+        counts[reuse ? "reused" : "saved"]++;
+        state.results.set(key,reuse ? "Already verified; skipped download" : "Saved and verified");
+      } catch {
+        counts.failed++; state.results.set(key,"Failed; select and retry");
       }
-      rememberPhoto(state.manifest, row, a);
-      await writeManifest(state.root, state.manifest);
-      await receipt(a);
     }
+    q("archiveProgress").value = rows.length;
+    return counts;
+  }
+  async function backUp() {
+    folder();
+    const scope = organisationIds();
+    if (scope !== null && !scope.length) throw new Error("Choose at least one organisation");
+    const photos = q("archiveIncludePhotos").checked ? selected() : [];
+    if (q("archiveIncludePhotos").checked && !photos.length) throw new Error("Select photos or turn off Include photos");
+    q("archiveProgress").hidden = false;
+    q("archiveProgress").max = Math.max(1,photos.length);
+    q("archiveProgress").value = 0;
+    const snapshot = await saveSnapshot(scope,photos,q("archiveIncludePhotos").checked);
+    const counts = await archiveSelected(photos);
+    snapshot.photo_results = counts;
+    await writeManifest(state.root,state.manifest);
     render();
-    say(
-      `Saved and read-back verified ${rows.length} originals in ${state.root.name}. Existing matching files were reused; cloud originals remain unchanged.`,
-    );
+    q("archiveProgress").value = q("archiveProgress").max;
+    say((snapshot.photos_requested
+      ? `Records saved and verified. Photos: ${counts.saved} saved, ${counts.reused} already verified, ${counts.skipped} skipped, ${counts.failed} failed.`
+      : "Records saved and verified. Photos were not included.") +
+      (counts.skipped || counts.failed ? " Re-select those photos and retry; replacement requires the checkbox." : "") +
+      (snapshot.photos_requested && snapshot.missing_linked_photo_references ? ` ${snapshot.missing_linked_photo_references} linked photo references are unavailable.` : ""),
+      counts.skipped + counts.failed > 0 || (snapshot.photos_requested && snapshot.missing_linked_photo_references > 0));
   }
   async function cleanup() {
     folder();
@@ -391,8 +455,12 @@ export function mountFullBackupArchive({ client, profile }) {
       );
     }),
   );
+  q("archiveClosePreview").addEventListener("click", () => {
+    q("archivePhotoPreview").close();
+  });
+  q("archivePhotoPreview").addEventListener("close", () => q("archivePreviewImage").removeAttribute("src"));
   q("archiveRefresh").addEventListener("click", run(refresh));
-  q("archiveSave").addEventListener("click", run(archiveMatching));
+  q("archiveSave").addEventListener("click", run(backUp));
   q("archiveVerify").addEventListener(
     "click",
     run(async () => {
@@ -449,33 +517,40 @@ export function mountFullBackupArchive({ client, profile }) {
       say("Missing previews repaired; local originals retained.");
     }),
   );
-  q("archiveSnapshot").addEventListener(
-    "click",
-    run(async () => {
+  async function saveSnapshot(scope,photos,photosRequested) {
       folder();
-      say("Capturing all organisations’ application records…");
-      const snapshot = await api({ action: "export_data" });
+      say("Saving selected application records...");
+      const snapshot = await api({ action: "export_data", organisation_ids: scope });
+      const captured = new Map((snapshot.photo_inventory ?? []).map((p) => [photoKey(p),p]));
+      for (const row of photos) {
+        const expected = captured.get(photoKey(row));
+        if (!expected || expected.bucket_id !== row.bucket_id || expected.object_path !== row.object_path || Number(expected.byte_size) !== Number(row.byte_size)) {
+          throw new Error("Photos changed since the inventory loaded. Refresh inventory, review your selection and retry.");
+        }
+      }
       const blob = new Blob([JSON.stringify(snapshot)], {
           type: "application/json",
         }),
         hash = await hashBlob(blob);
       const path = `snapshots/${
         new Date().toISOString().replaceAll(":", "-")
-      }.json`;
+      }-${crypto.randomUUID()}.json`;
       await saveVerified(state.root, path, blob, hash, blob.size);
-      state.manifest.snapshots.push({
+      const entry = {
         relative_path: path,
         sha256: hash,
         byte_size: blob.size,
         captured_at: snapshot.captured_at,
         database_recovery_complete: false,
-      });
+        organisation_ids: scope,
+        photos_requested: photosRequested,
+        expected_photo_versions: photos.map((r) => captured.get(photoKey(r))),
+        missing_linked_photo_references: snapshot.missing_photo_references ?? 0,
+      };
+      state.manifest.snapshots.push(entry);
       await writeManifest(state.root, state.manifest);
-      say(
-        "Operational snapshot saved and verified. Full database recovery still requires a verified database dump.",
-      );
-    }),
-  );
+      return entry;
+  }
   q("archiveDatabase").addEventListener(
     "click",
     run(async () => {
@@ -488,13 +563,15 @@ export function mountFullBackupArchive({ client, profile }) {
   );
   q("archiveBucket").addEventListener("change", render);
   q("archiveBefore").addEventListener("change", render);
-  q("archiveSelectAll").addEventListener(
-    "change",
-    () =>
-      host.querySelectorAll("input[data-archive-key]").forEach((e) =>
-        e.checked = q("archiveSelectAll").checked
-      ),
-  );
+  q("archiveSelectAll").addEventListener("change", () => {
+    for (const row of matching()) {
+      if (q("archiveSelectAll").checked) state.selectedPhotos.add(photoKey(row));
+      else state.selectedPhotos.delete(photoKey(row));
+    }
+    render();
+  });
+  q("archiveAllOrganisations").addEventListener("change", run(refresh));
+  q("archiveIncludePhotos").addEventListener("change",setReadiness);
   if (!window.showDirectoryPicker) {
     say(
       "Local read-back verification requires a folder-capable desktop browser such as Chrome or Edge.",
