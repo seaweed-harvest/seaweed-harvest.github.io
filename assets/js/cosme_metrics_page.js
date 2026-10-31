@@ -4,7 +4,7 @@ import {
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=16";
 import {
   normalizeReleaseItems, selectMetrics, exportSelectedCsv,
-  parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, headlineMetrics
+  parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, headlineMetrics, financialContext
 } from "./cosme_metrics_core.mjs";
 
 // The COSME register only reads the access-controlled, frozen release RPCs.
@@ -32,6 +32,8 @@ let current = null;
 let visible = [];
 let lastFocus = null;
 let access = null;
+let currentRopeCoverage = null;
+let currentCoverageError = "";
 let initializedNavigation = false;
 let sortKey = "id";
 let sortDirection = "asc";
@@ -60,6 +62,7 @@ function setStatus(message, error = false, show = true) {
 }
 function clearPrivateState() {
   all = []; visible = []; current = null; access = null;
+  currentRopeCoverage = null; currentCoverageError = "";
   el("rows").replaceChildren();
   el("activityCards").replaceChildren();
   el("app").hidden = true;
@@ -173,6 +176,7 @@ function render() {
   }
   renderCategoryChoices();
   renderHeadlines();
+  renderCurrentRopeCoverage();
   renderRows();
 }
 function renderHeadlines() {
@@ -196,6 +200,55 @@ function renderHeadlines() {
       button.addEventListener("click",()=>openMetric(metric,button));
     }
   }
+}
+
+/** An additional current, access-controlled aggregate; never overwrite V0.1. */
+async function loadCurrentRopeCoverage() {
+  currentRopeCoverage = null;
+  currentCoverageError = "";
+  try {
+    const {data,error} = await authClient.rpc("cosme_metrics_live_rope_coverage");
+    if(error) throw error;
+    if(!data?.can_view || data.metric_id !== "ON-0054"
+       || !Number.isSafeInteger(data.rope_count) || data.rope_count < 0
+       || !Number.isSafeInteger(data.site_count) || data.site_count < 0
+       || !Number.isFinite(Date.parse(data.queried_at))
+       || (data.source_updated_at && !Number.isFinite(Date.parse(data.source_updated_at)))){
+      throw new Error("The current nursery dataset could not be verified.");
+    }
+    currentRopeCoverage = data;
+  } catch {
+    currentCoverageError = "Current nursery coverage is unavailable.";
+  }
+  renderCurrentRopeCoverage();
+}
+function renderCurrentRopeCoverage() {
+  const parent = el("currentNurseryCoverage");
+  parent.replaceChildren();
+  const source = all.find(metric => metric.id === "ON-0054");
+  if(!source) return;
+  const container = add(parent,"section","","metrics-current-panel");
+  const heading = add(container,"div","","metrics-current-heading");
+  add(heading,"h4","Nursery sample-rope coverage");
+  const originalVersion = current?.version || "selected release";
+  if(!currentRopeCoverage){
+    add(container,"p",currentCoverageError || "Reading current coverage…","metrics-small-note");
+    return;
+  }
+  const cards = add(container,"div","","metrics-current-comparison");
+  const old = add(cards,"div","","metrics-current-side");
+  add(old,"span","Published " + originalVersion,"metrics-current-label");
+  add(old,"strong",source.value || "Not recorded");
+  add(old,"span","Historical workbook figure","metrics-current-note");
+  const latest = add(cards,"div","","metrics-current-side");
+  add(latest,"span","Current · Verified aggregate","metrics-current-label metrics-current-verified");
+  add(latest,"strong",currentRopeCoverage.rope_count+" ropes / "+currentRopeCoverage.site_count+" sites");
+  add(latest,"span","Active COSME rope positions with initial weight; deleted rows excluded","metrics-current-note");
+  const lastDate = currentRopeCoverage.source_updated_at ?
+    new Date(currentRopeCoverage.source_updated_at).toLocaleString() : "unknown";
+  add(container,"p","Source last updated: "+lastDate+" · Queried: "+
+    new Date(currentRopeCoverage.queried_at).toLocaleString(),
+    "metrics-small-note");
 }
 function renderCategoryChoices() {
   const options = el("categoryOptions");
@@ -363,6 +416,13 @@ function openMetric(metric, button) {
     ["Unit / basis", metric.unit],
     ["Data", metric.dataKind],
     ["Value type", metric.valueType],
+    ...(financialContext(metric) ? [["Financial context", financialContext(metric).caveat]] : []),
+    ...(metric.id === "ON-0054" && currentRopeCoverage ? [
+      ["Current coverage",currentRopeCoverage.rope_count+" ropes across "+currentRopeCoverage.site_count+" sites"],
+      ["Current calculation","Active COSME rope positions with an initial weight; soft-deleted entries excluded"],
+      ["Current source modified",currentRopeCoverage.source_updated_at ? new Date(currentRopeCoverage.source_updated_at).toLocaleString() : "Unknown"],
+      ["Current value checked",new Date(currentRopeCoverage.queried_at).toLocaleString()]
+    ] : []),
     ["Claim basis", metric.basis],
     ["Evidence state", metric.verification],
     ["Original workbook evidence", metric.originalEvidence],
@@ -423,6 +483,7 @@ async function reloadAndRecheck() {
     [current.major, current.minor] : null;
   await loadReleases();
   await loadRelease(previousVersion);
+  await loadCurrentRopeCoverage();
   el("app").hidden = false;
 }
 for (const button of document.querySelectorAll(".metrics-tabs .tab")) {
