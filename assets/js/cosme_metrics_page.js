@@ -6,10 +6,12 @@ import {
   normalizeReleaseItems, selectMetrics, exportSelectedCsv,
   parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, headlineMetrics, financialContext, currentDryerWeightReduction
 } from "./cosme_metrics_core.mjs";
+import { createNurseryGrowthPanel } from "./cosme_nursery_growth.mjs?v=1";
 
 // The COSME register only reads the access-controlled, frozen release RPCs.
 // Column choices persist locally; neither workbook data nor grants do.
 const el = (id) => document.getElementById(id);
+const nurseryGrowthPanel = createNurseryGrowthPanel(authClient,el("currentNurseryGrowth"));
 const ACTIVITY_ORDER = ["Solar Drying Tables", "Offshore Nursery", "Aggregation Hub", "Mawimbi"];
 const STORAGE_KEY = "seaweed_ag:cosme_metric_columns_v2";
 const COLUMN_DEFS = [
@@ -66,6 +68,7 @@ function clearPrivateState() {
   all = []; visible = []; current = null; access = null;
   currentRopeCoverage = null; currentCoverageError = "";
   currentDryerMetrics = null; currentDryerError = "";
+  nurseryGrowthPanel.clear();
   el("rows").replaceChildren();
   el("activityCards").replaceChildren();
   el("app").hidden = true;
@@ -581,7 +584,7 @@ async function reloadAndRecheck() {
     [current.major, current.minor] : null;
   await loadReleases();
   await loadRelease(previousVersion);
-  await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics()]);
+  await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics(),nurseryGrowthPanel.refresh()]);
   el("app").hidden = false;
 }
 for (const button of document.querySelectorAll(".metrics-tabs .tab")) {

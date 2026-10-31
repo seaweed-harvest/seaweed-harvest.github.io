@@ -536,3 +536,64 @@
 .cosme-metrics-page .metrics-dryer-comparison tr:last-child > * {
   border-bottom:0;
 }
+
+/* Matched-rope nursery growth: two comparative summaries, detailed sites on demand. */
+.cosme-metrics-page .metrics-nursery-growth-intro { margin: 0 0 11px; }
+.cosme-metrics-page .metrics-growth-summary {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.cosme-metrics-page .metrics-growth-summary-card {
+  min-width: 0;
+  padding: 11px 13px;
+  background: var(--panel-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.cosme-metrics-page .metrics-growth-key {
+  font-variant-numeric: tabular-nums;
+  color: #0b7551;
+  font-size: clamp(1.15rem,1.7vw,1.45rem);
+  font-weight: 750;
+}
+.cosme-metrics-page .metrics-growth-sgr {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-sec);
+  font-size: .76rem;
+  font-weight: 600;
+}
+.cosme-metrics-page .metrics-growth-details {
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  margin-bottom: 10px;
+}
+.cosme-metrics-page .metrics-growth-details > summary {
+  cursor: pointer;
+  color: var(--accent);
+  background: var(--panel-soft);
+  padding: 10px 12px;
+  border-radius: 7px;
+  font-size: .82rem;
+  font-weight: 700;
+}
+.cosme-metrics-page .metrics-growth-details[open] > summary {
+  border-bottom: 1px solid var(--border-soft);
+  border-radius: 7px 7px 0 0;
+}
+.cosme-metrics-page .metrics-growth-details .metrics-dryer-comparison-wrap {
+  border: 0;
+  border-radius: 0 0 7px 7px;
+}
+.cosme-metrics-page .metrics-growth-table {min-width: 810px;}
+.cosme-metrics-page .metrics-growth-table thead th,
+.cosme-metrics-page .metrics-growth-table tbody th {white-space:nowrap;}
+.cosme-metrics-page .metrics-growth-table tbody th {font-weight:650;}
+.cosme-metrics-page .metrics-growth-table tbody td:nth-child(2) {font-weight:450; color:var(--text-sec);}
+@media(max-width:640px) {
+  .cosme-metrics-page .metrics-growth-summary {grid-template-columns: 1fr;}
+}
