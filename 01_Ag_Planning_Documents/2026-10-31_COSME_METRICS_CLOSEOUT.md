@@ -7,6 +7,11 @@ Repository: seaweed-harvest/seaweed-harvest.github.io, base live/main
 `ce2fa57ab4eac746823c6042c2a8fc197efd2cf3`.
 Branch: `work/cosme-metrics-closeout-20261031`.
 
+Base refreshed before review to live/main
+`751352c066c6cb685476c0a2eee7139cbcd63d25`. The intervening main changes affect
+only admin_users.html and assets/js/users_page.js; no overlap with this scope.
+Draft PR: https://github.com/seaweed-harvest/seaweed-harvest.github.io/pull/141.
+
 The reader needs report-supported outcomes, consistent themes, and one shared set
 of starred metrics driving the overview, filter and export. The current hardcoded
 headline list differs from the workbook Top Picks and overemphasises quotations.
