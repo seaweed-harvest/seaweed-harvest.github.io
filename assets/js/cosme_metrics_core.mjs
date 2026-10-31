@@ -23,12 +23,22 @@ export function normalizeReleaseItems(items) {
     };
   });
 }
-export function selectMetrics(metrics,{query="",activity="",verification="",featured=false,sort="id"}={}) {
+export function selectMetrics(metrics,{query="",activity="",verification="",featured=false,sort="id",direction="asc"}={}) {
   const q=String(query).toLocaleLowerCase().trim();
   const filtered=metrics.filter(m=>(!activity||m.activity===activity)&&(!verification||m.verification===verification)&&(!featured||m.featured)&&
     (!q||[m.id,m.title,m.note,m.source,m.value,m.theme].join(" ").toLocaleLowerCase().includes(q)));
-  const sortKey=["id","title","activity"].includes(sort)?sort:"id";
-  return filtered.sort((a,b)=>String(a[sortKey]).localeCompare(String(b[sortKey]),undefined,{numeric:true}));
+  const allowed=["id","title","activity","theme","value","unit","source","note","verification","asOf","dataKind"];
+  const sortKey=allowed.includes(sort)?sort:"id";
+  const multiplier=direction==="desc"?-1:1;
+  return filtered.sort((a,b)=>multiplier*(String(a[sortKey]??"").localeCompare(String(b[sortKey]??""),undefined,{numeric:true,sensitivity:"base"})
+    ||String(a.id).localeCompare(String(b.id),undefined,{numeric:true})));
+}
+/** A workbook citation to Harvest data is historical, never proof of a live link. */
+export function sourceLabel(metric) {
+  if(metric?.liveValidated===true) return "Live";
+  const src=String(metric?.source||"").toLowerCase();
+  if(/seaweed harvest.*snapshot|seaweed harvest\\s*\\/.*reviewed|seaweed harvest\\s*;|sample rope data \\(reviewed/.test(src)) return "Snapshot";
+  return "Reference";
 }
 export function safeCsvCell(value) {
   let s=String(value??"");
