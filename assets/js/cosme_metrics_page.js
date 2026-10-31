@@ -287,6 +287,23 @@ function openMetric(metric, button) {
     add(details, "dt", label);
     add(details, "dd", value);
   }
+  // These are navigation links to operational ledgers, not live calculations.
+  const source = String(metric.source || "").toLowerCase();
+  let relatedHref = "";
+  if (metric.activity === "Solar Drying Tables" && source.includes("seaweed harvest")) {
+    relatedHref = "./dryer_table_records.html";
+  } else if (metric.activity === "Offshore Nursery" && source.includes("seaweed harvest")) {
+    relatedHref = "./reef_seaweed_records.html";
+  }
+  if (relatedHref) {
+    add(details, "dt", "Related records");
+    const value = document.createElement("dd");
+    const link = document.createElement("a");
+    link.href = relatedHref;
+    link.textContent = "Open source ledger";
+    value.append(link);
+    details.append(value);
+  }
   el("veil").classList.add("open");
   el("close").focus();
 }
