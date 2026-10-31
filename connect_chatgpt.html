@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Connect ChatGPT | Seaweed Harvest</title>
+  <link rel="icon" href="./favicon.ico">
+  <link rel="stylesheet" href="./assets/css/ag.css">
+  <style>
+    .connect-shell{max-width:680px;margin:6vh auto;padding:1rem}
+    .connect-brand{display:flex;align-items:center;gap:12px;margin-bottom:1.25rem}
+    .connect-brand img{width:48px;height:48px;object-fit:contain}
+    .connect-card{padding:clamp(1rem,4vw,2rem)}
+    .connect-steps{margin:1.4rem 0;padding-left:1.4rem}
+    .connect-steps li{padding-left:.35rem;margin:.85rem 0;line-height:1.55}
+    .connect-url{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;padding:.9rem;background:var(--surface-muted,#f2f6f5);border-radius:10px}
+    .connect-url code{min-width:0;overflow-wrap:anywhere;flex:1;font-size:.87rem}
+    .connect-status{margin:1rem 0}
+    .connect-actions{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+    .connect-actions a{display:inline-block}
+    .connect-card button{cursor:pointer}
+    @media(max-width:540px){.connect-url{flex-direction:column;align-items:stretch}}
+  </style>
+</head>
+<body class="auth-page">
+  <main class="connect-shell">
+    <div class="connect-brand">
+      <img src="./assets/images/seaweed-harvest-icon-192.png" alt="">
+      <span><strong>Seaweed Harvest</strong></span>
+    </div>
+    <section class="panel connect-card" aria-labelledby="connectTitle">
+      <h1 id="connectTitle">Connect to ChatGPT</h1>
+      <p>Ask ChatGPT about your Seaweed Harvest records and photos.</p>
+      <p id="mcpConnectionStatus" class="connect-status" role="status" aria-live="polite">Checking access…</p>
+      <ol class="connect-steps">
+        <li>In <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">ChatGPT</a>, open <strong>Settings → Plugins</strong> and choose <strong>Add custom MCP server</strong>.</li>
+        <li>Paste this server URL and select <strong>OAuth</strong>.</li>
+        <li>Choose <strong>Connect</strong>, sign in with your Seaweed Harvest account and press <strong>Allow read-only access</strong>.</li>
+      </ol>
+      <div class="connect-url">
+        <code id="mcpServerUrl">https://seaweed-harvest-mcp-staging.seaweed-harvest.workers.dev/mcp</code>
+        <button id="copyMcpUrl" type="button" disabled>Copy URL</button>
+      </div>
+      <p id="mcpCopyStatus" class="field-help" aria-live="polite"></p>
+      <p><strong>Available organisations:</strong> <span id="mcpOrganisations">—</span></p>
+      <div class="connect-actions">
+        <a id="mcpAdminLink" href="./admin_users.html" hidden>Manage ChatGPT access</a>
+        <a href="./index.html">Seaweed Harvest home</a>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="./assets/js/connect_chatgpt.js"></script>
+</body>
+</html>
