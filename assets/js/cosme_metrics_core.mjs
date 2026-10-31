@@ -139,6 +139,36 @@ const CURATED = Object.freeze({
   "AGH-0029":"Estimate","AGH-0031":"Historical budget","AGH-0060":"Purchase order",
   "MAW-0049":"Funding cap","MAW-0050":"Quotation","MAW-0053":"Quotation"
 });
+
+// Explicit classifications transcribed from frozen source notes. They describe
+// the document/value basis, NEVER confirmation that money was actually paid.
+// This is presentation metadata; original release JSON remains unchanged.
+export const FINANCIAL_REVIEW = Object.freeze({
+  "AGH-0029":{type:"Working estimate",caveat:"Working BoQ; differs from the PDF amount and is not reconciled expenditure."},
+  "AGH-0030":{type:"Quotation",caveat:"Carpenter quotation; delivery and payment are not confirmed."},
+  "AGH-0031":{type:"Historical budget",caveat:"Previously listed allocation; current approval and expenditure are not verified."},
+  "AGH-0032":{type:"Actuals unavailable",caveat:"No reconciled final cost ledger; do not sum quotes, BoQ and purchase orders."},
+  "AGH-0033":{type:"Not calculated",caveat:"Requires actual operating costs and verified processed tonnes."},
+  "AGH-0060":{type:"Purchase order",caveat:"PO amount; delivery, acceptance and settlement not established."},
+  "MAW-0049":{type:"Funding cap",caveat:"Maximum agreement amount, not confirmed eligible expenditure."},
+  "MAW-0050":{type:"Supplier quotations",caveat:"Combined quotations; not confirmed expenditure or final amount paid."},
+  "MAW-0051":{type:"Planned allocation",caveat:"Agreement annex allocation; press cost-sharing wording still requires reconciliation."},
+  "MAW-0052":{type:"Planned co-financing",caveat:"Planned RO co-financing, not verified cash payment."},
+  "MAW-0053":{type:"Quotation",caveat:"Powered-press quotation; cost-share and payment not confirmed."},
+  "MAW-0054":{type:"Quotation",caveat:"Frame repair quotation for six frames."},
+  "MAW-0055":{type:"Quotation",caveat:"Powered conversion quotation; not confirmed as paid."},
+  "MAW-0056":{type:"Invoice",caveat:"Invoice amount; invoice alone does not prove payment."},
+  "MAW-0057":{type:"Invoice",caveat:"RO instalment invoices; bank settlement not independently confirmed."},
+  "MAW-0058":{type:"Quotation",caveat:"Separate facilitation quotation; check overlap and budget eligibility."},
+  "MAW-0059":{type:"Historical unit cost",caveat:"Derived from a prior purchased-water invoice, not current RO operating cost."},
+  "ON-0051":{type:"Invoice",caveat:"Prototype supplier invoice; includes materials and logistics, not confirmed payment."},
+  "ON-0052":{type:"Invoice",caveat:"Three-raft supplier invoice; mooring/logistics included, concrete blocks excluded."},
+  "ON-0053":{type:"Invoice-derived average",caveat:"Rounded invoice total divided by three; not a standalone per-raft fabrication cost."}
+});
+export function financialContext(metric){
+  return FINANCIAL_REVIEW[metric?.id] || null;
+}
+
 export const HEADLINE_IDS = Object.freeze([
   "SDT-0063","SDT-0022","SDT-0065",
   "ON-0054","ON-0056","ON-0057",
@@ -146,6 +176,7 @@ export const HEADLINE_IDS = Object.freeze([
   "MAW-0049","MAW-0050","MAW-0053"
 ]);
 export function metricValueType(metric) {
+  if (Object.hasOwn(FINANCIAL_REVIEW,metric?.id)) return FINANCIAL_REVIEW[metric.id].type;
   if (Object.hasOwn(CURATED,metric?.id)) return CURATED[metric.id];
   // Avoid inferring actual expenditure from a financial category alone.
   return "Not classified";
