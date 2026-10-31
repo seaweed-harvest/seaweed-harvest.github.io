@@ -450,3 +450,44 @@
 @media(max-width:600px) {
   .cosme-metrics-page .metrics-headline-grid {grid-template-columns:1fr;}
 }
+
+/* The current aggregate is additional, never a replacement for released figures. */
+.cosme-metrics-page .metrics-current-coverage {margin-top: 14px;}
+.cosme-metrics-page .metrics-current-panel {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 11px 12px;
+  background: var(--panel);
+}
+.cosme-metrics-page .metrics-current-heading h4 {margin: 0 0 9px; font-size: .85rem;}
+.cosme-metrics-page .metrics-current-comparison {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 10px;
+}
+.cosme-metrics-page .metrics-current-side {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  background: var(--panel-soft);
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+.cosme-metrics-page .metrics-current-label {
+  font-size: .74rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.cosme-metrics-page .metrics-current-verified {color: #0b7551;}
+.cosme-metrics-page .metrics-current-verified::before {content: "● "; }
+.cosme-metrics-page .metrics-current-side strong {
+  font-size: clamp(.94rem, 1.55vw, 1.16rem);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.cosme-metrics-page .metrics-current-note {color: var(--text-muted);font-size: .73rem;}
+@media (max-width:600px) {
+  .cosme-metrics-page .metrics-current-comparison {grid-template-columns:1fr;}
+}
