@@ -185,3 +185,13 @@ export function headlineMetrics(metrics) {
   const lookup=new Map(metrics.map(m=>[m.id,m]));
   return HEADLINE_IDS.map(id=>lookup.get(id)).filter(Boolean);
 }
+
+/**
+ * Current wet-weight reduction derived from one validated wet/final run cohort.
+ * This is loss of recorded wet mass, NOT independently measured moisture content.
+ */
+export function currentDryerWeightReduction(summary) {
+  const wet=summary?.wet_kg, final=summary?.final_kg;
+  if(!Number.isFinite(wet)||!Number.isFinite(final)||wet<=0||final<0||final>wet) return null;
+  return Math.round(((wet-final)/wet)*10000)/100;
+}
