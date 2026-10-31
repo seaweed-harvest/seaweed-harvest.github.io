@@ -597,3 +597,42 @@
 @media(max-width:640px) {
   .cosme-metrics-page .metrics-growth-summary {grid-template-columns: 1fr;}
 }
+
+/* Data connection overview: status text, not a misleading application-wide Live flag. */
+.cosme-metrics-page .metrics-connections-panel {
+  margin-top: 12px;
+}
+.cosme-metrics-page .metrics-connections-panel h3 {
+  margin: 0 0 4px;
+  font-size: .96rem;
+}
+.cosme-metrics-page .metrics-connections-panel > p { margin: 0 0 10px; }
+.cosme-metrics-page .metrics-connection-list {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap: 0 18px;
+}
+.cosme-metrics-page .metrics-connection-item {
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:8px;
+  border-top:1px solid var(--border-soft);
+  padding:8px 0;
+  font-size:.79rem;
+}
+.cosme-metrics-page .metrics-connection-item strong {font-size:.79rem; font-weight:650;}
+.cosme-metrics-page .metrics-connection-item span {text-align:right; font-size:.75rem;}
+.cosme-metrics-page .metrics-connection-live {color:#0b7551; font-weight:650;}
+.cosme-metrics-page .metrics-connection-reference {color:var(--text-muted);}
+.cosme-metrics-page .metrics-quality-table {min-width:700px;}
+.cosme-metrics-page .metrics-quality-table tbody th {white-space:nowrap;}
+.cosme-metrics-page .metrics-quality-table tbody td:last-child {
+  text-align:left;
+  font-weight:500;
+  white-space:nowrap;
+  color:var(--text-sec);
+}
+@media(max-width:760px) {
+  .cosme-metrics-page .metrics-connection-list {grid-template-columns:1fr;}
+}
