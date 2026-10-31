@@ -198,6 +198,11 @@ function renderRows() {
   });
   const cols = COLUMN_DEFS.filter((column) => selectedColumns.has(column.key));
   const table = el("metricHead").closest("table");
+  // More selected columns get horizontal room rather than squeezing each cell.
+  const minimum = cols.reduce((width, col) =>
+    width + (col.key === "title" ? 220 :
+      col.key === "value" || col.key === "source" || col.key === "note" ? 170 : 108), 0);
+  table.style.minWidth = String(Math.max(660, minimum)) + "px";
   table.querySelector("colgroup")?.remove();
   const group = document.createElement("colgroup");
   const totalWeight = cols.reduce((sum, column) => sum + column.weight, 0);
