@@ -67,10 +67,14 @@ async function init(){
     status(allow?"Approving…":"Denying…");
     try{
       const action=allow?"approveAuthorization":"denyAuthorization";
-      const {data:result,error:actionError}=await authClient.auth.oauth[action](id);
+      // Let this page validate and perform the only browser redirect.
+      // Supabase's default auto-redirect can leave a native loopback
+      // authorization page showing "Approving…" while the client completes.
+      const {data:result,error:actionError}=await authClient.auth.oauth[action](id,{skipBrowserRedirect:true});
       if(actionError||!result?.redirect_url)throw Error(actionError?.message||"Could not complete authorization");
       const redirect=approvedRedirect(result.redirect_url,registered);
       if(!redirect)throw Error("The destination did not match the approved registered callback.");
+      status(allow?"Opening your connected app…":"Returning to your connected app…");
       location.assign(redirect);
     }catch(error){
       status(error.message||"Authorization failed.");
