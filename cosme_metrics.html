@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Project Metrics — Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/cosme_metrics.css?v=2">
+  <link rel="stylesheet" href="./assets/css/cosme_metrics.css?v=3">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./favicon.ico" sizes="any">
   <link rel="icon" href="./assets/images/seaweed-harvest-icon-192.png" type="image/png" sizes="192x192">
@@ -49,7 +49,11 @@
         </nav>
         <section id="overview">
           <div id="activityCards" class="metrics-summary-grid"></div>
-          <div class="metrics-panel" style="margin-top:10px">
+          <div class="metrics-panel metrics-headlines-panel">
+            <div class="metrics-headline-heading"><div><h3>Headline metrics</h3><p class="metrics-small-note">Selected figures from the frozen V0.1 release. Types describe the figures, not real-time updates.</p></div><span id="headlineCount" class="metrics-count"></span></div>
+            <div id="headlineGroups" class="metrics-headline-groups"></div>
+          </div>
+          <div class="metrics-panel metrics-about-panel">
             <h3>About this register</h3>
             <p class="metrics-small-note">Select an activity to explore its metrics. Open any figure for its full definition, workbook source, original ID and publication details. Historical versions remain unchanged.</p>
             <button id="openRegister" class="metrics-button primary" type="button">Explore all metrics</button>
@@ -113,6 +117,6 @@
       <dl id="detail"></dl>
     </div>
   </div>
-  <script type="module" src="./assets/js/cosme_metrics_page.js?v=3"></script>
+  <script type="module" src="./assets/js/cosme_metrics_page.js?v=4"></script>
 </body>
 </html>

@@ -387,3 +387,66 @@
 @media (max-width: 600px) {
   .cosme-metrics-page .metrics-category-control { min-width: 135px; }
 }
+
+/* Stage 2: a deliberately small scorecard, not another copy of all 80 Top Picks. */
+.cosme-metrics-page .metrics-headlines-panel { margin-top: 12px; }
+.cosme-metrics-page .metrics-about-panel { margin-top: 12px; }
+.cosme-metrics-page .metrics-headline-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.cosme-metrics-page .metrics-headline-heading h3 { margin: 0 0 2px; font-size: 1rem; }
+.cosme-metrics-page .metrics-headline-heading p { margin: 0; }
+.cosme-metrics-page .metrics-headline-groups { display: grid; gap: 13px; }
+.cosme-metrics-page .metrics-headline-group h4 {
+  margin: 0 0 6px;
+  font-size: .81rem;
+  color: var(--text-sec);
+}
+.cosme-metrics-page .metrics-headline-grid {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 9px;
+}
+.cosme-metrics-page .metrics-headline-card {
+  min-width: 0;
+  min-height: 91px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+}
+.cosme-metrics-page .metrics-headline-label {
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: .77rem;
+  color: var(--text-sec);
+}
+.cosme-metrics-page .metrics-headline-value {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: clamp(.95rem,1.25vw,1.16rem);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.cosme-metrics-page .metrics-headline-type {
+  font-size: .69rem;
+  color: var(--text-muted);
+}
+@media(max-width:1120px) {
+  .cosme-metrics-page .metrics-headline-grid {grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@media(max-width:600px) {
+  .cosme-metrics-page .metrics-headline-grid {grid-template-columns:1fr;}
+}
