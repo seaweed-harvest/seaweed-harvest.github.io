@@ -140,6 +140,7 @@ export function createMawimbiTraceabilityPanel(authClient,target){
  }
  async function refresh(reopen=false){
    const wasOpen=reopen||target.querySelector(".metrics-traceability-review")?.open;
+   const previousScroll=target.querySelector(".metrics-link-rows")?.scrollTop||0;
    data=null;errorText="";
    try{
      const {data:result,error}=await authClient.rpc("cosme_metrics_mawimbi_traceability_review");
@@ -151,6 +152,8 @@ export function createMawimbiTraceabilityPanel(authClient,target){
    if(wasOpen){
      const details=target.querySelector(".metrics-traceability-review");
      if(details)details.open=true;
+     const scrollArea=target.querySelector(".metrics-link-rows");
+     if(scrollArea)scrollArea.scrollTop=previousScroll;
    }
  }
  return {clear,refresh,render,isConnected};
