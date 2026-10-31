@@ -298,6 +298,7 @@ function renderRows() {
       cell.dataset.col = col.key;
       const value = String(metric[col.key] ?? "");
       const formatted = col.key === "value" ? displayMetricValue(metric.value, metric.unit) : null;
+      if (formatted?.numeric || formatted?.missing) cell.classList.add("metrics-number");
       cell.title = formatted ? formatted.full : value;
       if (col.key === "title") {
         const button = document.createElement("button");
