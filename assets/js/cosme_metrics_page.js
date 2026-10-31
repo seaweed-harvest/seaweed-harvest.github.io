@@ -7,11 +7,13 @@ import {
   parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, headlineMetrics, financialContext, currentDryerWeightReduction
 } from "./cosme_metrics_core.mjs";
 import { createNurseryGrowthPanel } from "./cosme_nursery_growth.mjs?v=2";
+import { createMawimbiOperationsPanel } from "./cosme_mawimbi_operations.mjs?v=1";
 
 // The COSME register only reads the access-controlled, frozen release RPCs.
 // Column choices persist locally; neither workbook data nor grants do.
 const el = (id) => document.getElementById(id);
 const nurseryGrowthPanel = createNurseryGrowthPanel(authClient,el("currentNurseryGrowth"));
+const mawimbiPanel = createMawimbiOperationsPanel(authClient,el("currentMawimbiOperations"));
 const ACTIVITY_ORDER = ["Solar Drying Tables", "Offshore Nursery", "Aggregation Hub", "Mawimbi"];
 const STORAGE_KEY = "seaweed_ag:cosme_metric_columns_v2";
 const COLUMN_DEFS = [
@@ -69,6 +71,7 @@ function clearPrivateState() {
   currentRopeCoverage = null; currentCoverageError = "";
   currentDryerMetrics = null; currentDryerError = "";
   nurseryGrowthPanel.clear();
+  mawimbiPanel.clear();
   el("rows").replaceChildren();
   el("activityCards").replaceChildren();
   el("metricsConnectionStatus").replaceChildren();
@@ -403,7 +406,8 @@ function renderConnectionStatus() {
     ["Offshore Nursery", Boolean(currentRopeCoverage || nurseryGrowthPanel.isConnected()),
      nurseryGrowthPanel.isConnected() ? "Sample-rope coverage and growth" :
      currentRopeCoverage ? "Sample-rope coverage only" : "Current feed unavailable"],
-    ["Mawimbi", false, "Historical reference only"],
+    ["Mawimbi", mawimbiPanel.isConnected(), mawimbiPanel.isConnected() ?
+      "Finalised wet collections and processing sessions" : "Historical reference only / owner-only feed"],
     ["Aggregation Hub", false, "Historical reference only"]
   ];
   for (const [name,connected,note] of statuses) {
@@ -530,6 +534,11 @@ function openMetric(metric, button) {
     ["Unit / basis", metric.unit],
     ["Data", metric.dataKind],
     ["Value type", metric.valueType],
+    ...(mawimbiPanel.metricContext(metric.id) ? [
+      ["Current MAWIMBI aggregate",mawimbiPanel.metricContext(metric.id).value],
+      ["Current scope",mawimbiPanel.metricContext(metric.id).description],
+      ["Live aggregate status","Separate from the frozen V0.1 value; payment and batch linkage not verified"]
+    ] : []),
     ...(financialContext(metric) ? [["Financial context", financialContext(metric).caveat]] : []),
 
     ...(currentDryerMetrics && DRYER_COMPARE.some(x=>x.id===metric.id) ? (()=>{
@@ -610,7 +619,7 @@ async function reloadAndRecheck() {
     [current.major, current.minor] : null;
   await loadReleases();
   await loadRelease(previousVersion);
-  await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics(),nurseryGrowthPanel.refresh()]);
+  await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics(),nurseryGrowthPanel.refresh(),mawimbiPanel.refresh()]);
   renderConnectionStatus();
   el("app").hidden = false;
 }
