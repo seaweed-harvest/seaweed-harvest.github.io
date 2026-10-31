@@ -130,3 +130,27 @@ export function parseReleaseVersion(value) {
   const version=[Number(match[1]),Number(match[2])];
   return version.every(Number.isSafeInteger)?version:null;
 }
+
+/** Presentation-only metadata: do not overwrite the immutable original release. */
+const CURATED = Object.freeze({
+  "SDT-0022":"Measured","SDT-0023":"Measured","SDT-0063":"Measured",
+  "SDT-0064":"Measured","SDT-0065":"Measured","SDT-0066":"Measured",
+  "ON-0054":"Snapshot","ON-0056":"Measured","ON-0057":"Measured","ON-0058":"Measured",
+  "AGH-0029":"Estimate","AGH-0031":"Historical budget","AGH-0060":"Purchase order",
+  "MAW-0049":"Funding cap","MAW-0050":"Quotation","MAW-0053":"Quotation"
+});
+export const HEADLINE_IDS = Object.freeze([
+  "SDT-0063","SDT-0022","SDT-0065",
+  "ON-0054","ON-0056","ON-0057",
+  "AGH-0029","AGH-0060","AGH-0031",
+  "MAW-0049","MAW-0050","MAW-0053"
+]);
+export function metricValueType(metric) {
+  if (Object.hasOwn(CURATED,metric?.id)) return CURATED[metric.id];
+  // Avoid inferring actual expenditure from a financial category alone.
+  return "Not classified";
+}
+export function headlineMetrics(metrics) {
+  const lookup=new Map(metrics.map(m=>[m.id,m]));
+  return HEADLINE_IDS.map(id=>lookup.get(id)).filter(Boolean);
+}
