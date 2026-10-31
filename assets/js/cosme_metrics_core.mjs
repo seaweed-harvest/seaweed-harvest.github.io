@@ -23,16 +23,82 @@ export function normalizeReleaseItems(items) {
     };
   });
 }
-export function selectMetrics(metrics,{query="",activity="",verification="",featured=false,sort="id",direction="asc"}={}) {
+/** Filtering operates only on the previously authorised frozen register. */
+export function selectMetrics(metrics,{
+  query="",activity="",verification="",featured=false,categories=[],sort="id",direction="asc"
+}={}) {
   const q=String(query).toLocaleLowerCase().trim();
-  const filtered=metrics.filter(m=>(!activity||m.activity===activity)&&(!verification||m.verification===verification)&&(!featured||m.featured)&&
-    (!q||[m.id,m.title,m.note,m.source,m.value,m.theme].join(" ").toLocaleLowerCase().includes(q)));
+  const selected=new Set(Array.isArray(categories)?categories:[]);
+  const filtered=metrics.filter(m=>
+    (!activity||m.activity===activity)
+    &&(!verification||m.verification===verification)
+    &&(!featured||m.featured)
+    &&(!selected.size||selected.has(m.theme))
+    &&(!q||[m.id,m.title,m.note,m.source,m.value,m.unit,m.theme].join(" ").toLocaleLowerCase().includes(q))
+  );
   const allowed=["id","title","activity","theme","value","unit","source","note","verification","asOf","dataKind"];
   const sortKey=allowed.includes(sort)?sort:"id";
-  const multiplier=direction==="desc"?-1:1;
-  return filtered.sort((a,b)=>multiplier*(String(a[sortKey]??"").localeCompare(String(b[sortKey]??""),undefined,{numeric:true,sensitivity:"base"})
-    ||String(a.id).localeCompare(String(b.id),undefined,{numeric:true})));
+  const sign=direction==="desc"?-1:1;
+  return filtered.sort((a,b)=>{
+    if(sortKey==="value"){
+      const aEmpty=!String(a.value??"").trim();
+      const bEmpty=!String(b.value??"").trim();
+      if(aEmpty!==bEmpty)return aEmpty?1:-1; // Missing values always last.
+      const aNumber=sortableMetricNumber(a.value),bNumber=sortableMetricNumber(b.value);
+      if(aNumber!==null&&bNumber!==null&&aNumber!==bNumber)return sign*(aNumber-bNumber);
+      if((aNumber===null)!==(bNumber===null))return aNumber===null?1:-1;
+    }
+    const cmp=String(a[sortKey]??"").localeCompare(String(b[sortKey]??""),undefined,{numeric:sortKey!=="value",sensitivity:"base"});
+    return sign*cmp||String(a.id).localeCompare(String(b.id),undefined,{numeric:true});
+  });
 }
+
+function formattedNumber(number){
+  const original=String(number);
+  const match=/^([+-]?)(\d+)(\.\d+)?$/.exec(original.replace(/,/g,""));
+  if(!match)return original;
+  return match[1]+match[2].replace(/\B(?=(\d{3})+(?!\d))/g,",")+(match[3]||"");
+}
+
+/** Format only clearly numeric expressions. Preserve original precision and text. */
+function numericExpression(raw){
+  const text=String(raw??"").trim();
+  if(/^[+-]?\d[\d,]*(?:\.\d+)?$/.test(text))return formattedNumber(text);
+  const range=/^([+-]?\d[\d,]*(?:\.\d+)?)\s*[-–—]\s*([+-]?\d[\d,]*(?:\.\d+)?)$/.exec(text);
+  if(range)return formattedNumber(range[1])+"–"+formattedNumber(range[2]);
+  const parts=text.split(/\s*[×]\s*/);
+  if(parts.length>1&&parts.length<=4&&parts.every(p=>/^[+-]?\d[\d,]*(?:\.\d+)?$/.test(p))){
+    return parts.map(formattedNumber).join(" × ");
+  }
+  return null;
+}
+function sortableMetricNumber(value){
+  const raw=String(value??"").trim();
+  if(/^[+-]?\d[\d,]*(?:\.\d+)?$/.test(raw))return Number(raw.replace(/,/g,""));
+  const range=/^([+-]?\d[\d,]*(?:\.\d+)?)\s*[-–—]\s*[+-]?\d[\d,]*(?:\.\d+)?$/.exec(raw);
+  if(range)return Number(range[1].replace(/,/g,""));
+  return null;
+}
+
+/** Display-only value formatting; does not alter frozen values or CSV exports. */
+export function displayMetricValue(value,unit=""){
+  const raw=String(value??"").trim();
+  const originalUnit=String(unit??"").trim();
+  if(!raw)return {value:"—",unit:"",full:"Not recorded",missing:true,numeric:false};
+  const numeric=numericExpression(raw);
+  if(numeric===null)return {value:raw,unit:"",full:raw,missing:false,numeric:false};
+  const currency=/^(KES|CAD|AUD|USD|GBP|EUR)(?:\s*\/\s*(.+))?$/i.exec(originalUnit);
+  if(currency){
+    const code=currency[1].toUpperCase();
+    const suffix=currency[2]?" / "+currency[2].trim():"";
+    return {value:code+" "+numeric,unit:suffix,full:code+" "+numeric+suffix,missing:false,numeric:true};
+  }
+  if(originalUnit==="%")return {value:numeric+"%",unit:"",full:numeric+"%",missing:false,numeric:true};
+  // Keep dimensional labels in Details while preserving a tidy inline unit.
+  const unitCompact=originalUnit.replace(/^(mm|cm|m)\s*\(L\s*[×x]\s*W\s*[×x]\s*H\)$/i,"$1");
+  return {value:numeric,unit:unitCompact,full:numeric+(unitCompact?" "+unitCompact:""),missing:false,numeric:true};
+}
+
 /** A workbook citation to Harvest data is historical, never proof of a live link. */
 export function sourceLabel(metric) {
   if(metric?.liveValidated===true) return "Live";

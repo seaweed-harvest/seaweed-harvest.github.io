@@ -4,18 +4,18 @@ import {
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=16";
 import {
   normalizeReleaseItems, selectMetrics, exportSelectedCsv,
-  parseReleaseVersion, sourceLabel
+  parseReleaseVersion, sourceLabel, displayMetricValue
 } from "./cosme_metrics_core.mjs";
 
 // The COSME register only reads the access-controlled, frozen release RPCs.
 // Column choices persist locally; neither workbook data nor grants do.
 const el = (id) => document.getElementById(id);
 const ACTIVITY_ORDER = ["Solar Drying Tables", "Offshore Nursery", "Aggregation Hub", "Mawimbi"];
-const STORAGE_KEY = "seaweed_ag:cosme_metric_columns_v1";
+const STORAGE_KEY = "seaweed_ag:cosme_metric_columns_v2";
 const COLUMN_DEFS = [
   { key: "title", label: "Metric", weight: 28 },
   { key: "activity", label: "Activity", weight: 15 },
-  { key: "theme", label: "Theme", weight: 12 },
+  { key: "theme", label: "Category", weight: 12 },
   { key: "value", label: "Value", weight: 23 },
   { key: "unit", label: "Unit", weight: 12 },
   { key: "dataKind", label: "Data", weight: 10 },
@@ -25,7 +25,7 @@ const COLUMN_DEFS = [
   { key: "verification", label: "Evidence", weight: 11 },
   { key: "asOf", label: "As of", weight: 16 }
 ];
-const DEFAULT_COLUMNS = ["title", "activity", "theme", "value", "unit"];
+const DEFAULT_COLUMNS = ["title", "activity", "theme", "value"];
 let all = [];
 let current = null;
 let visible = [];
@@ -35,6 +35,7 @@ let initializedNavigation = false;
 let sortKey = "id";
 let sortDirection = "asc";
 let selectedColumns = loadColumns();
+let selectedCategories = new Set();
 
 function loadColumns() {
   try {
@@ -169,7 +170,62 @@ function render() {
     });
     cards.append(button);
   }
+  renderCategoryChoices();
   renderRows();
+}
+function renderCategoryChoices() {
+  const options = el("categoryOptions");
+  options.replaceChildren();
+  const activity = el("activity").value;
+  const featured = el("featured").checked;
+  const counts = new Map();
+  for (const metric of all) {
+    if (activity && metric.activity !== activity) continue;
+    if (featured && !metric.featured) continue;
+    const category = metric.theme || "Uncategorised";
+    counts.set(category, (counts.get(category) || 0) + 1);
+  }
+  // Remove selections that cannot match the current activity / featured scope.
+  selectedCategories = new Set([...selectedCategories].filter((name) => counts.has(name)));
+  const reset = document.createElement("button");
+  reset.type = "button";
+  reset.className = "metrics-category-clear";
+  reset.textContent = "All categories";
+  reset.disabled = selectedCategories.size === 0;
+  reset.addEventListener("click", () => {
+    selectedCategories.clear();
+    renderCategoryChoices();
+    renderRows();
+  });
+  options.append(reset);
+  for (const [category, count] of [...counts].sort(([a],[b]) => a.localeCompare(b, undefined, {numeric:true}))) {
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = selectedCategories.has(category);
+    input.addEventListener("change", () => {
+      if (input.checked) selectedCategories.add(category);
+      else selectedCategories.delete(category);
+      updateCategorySummary();
+      renderRows();
+    });
+    const name = document.createElement("span");
+    name.textContent = category;
+    const number = document.createElement("small");
+    number.textContent = String(count);
+    number.className = "metrics-category-count";
+    label.append(input, name, number);
+    options.append(label);
+  }
+  updateCategorySummary();
+}
+function updateCategorySummary() {
+  const summary = el("categorySummary");
+  const count = selectedCategories.size;
+  summary.textContent = count === 0 ? "All categories" :
+    count === 1 ? [...selectedCategories][0] : count + " categories";
+  summary.title = count ? [...selectedCategories].join(", ") : "Show every category";
+  summary.classList.toggle("has-selection", count > 0);
 }
 function renderColumnChoices() {
   const options = el("columnOptions");
@@ -193,7 +249,7 @@ function renderColumnChoices() {
 function renderRows() {
   const query = el("search").value.trim().toLocaleLowerCase();
   visible = selectMetrics(all, {
-    query, activity: el("activity").value,
+    query, activity: el("activity").value, categories: [...selectedCategories],
     featured: el("featured").checked, sort: sortKey, direction: sortDirection
   });
   const cols = COLUMN_DEFS.filter((column) => selectedColumns.has(column.key));
@@ -241,7 +297,9 @@ function renderRows() {
       const cell = document.createElement("td");
       cell.dataset.col = col.key;
       const value = String(metric[col.key] ?? "");
-      cell.title = value;
+      const formatted = col.key === "value" ? displayMetricValue(metric.value, selectedColumns.has("unit") ? "" : metric.unit) : null;
+      if (formatted?.numeric || formatted?.missing) cell.classList.add("metrics-number");
+      cell.title = formatted ? formatted.full : value;
       if (col.key === "title") {
         const button = document.createElement("button");
         button.type = "button";
@@ -252,6 +310,9 @@ function renderRows() {
         cell.append(button);
       } else if (col.key === "dataKind") {
         add(cell, "span", value, "metrics-type" + (value === "Live" ? " is-live" : ""));
+      } else if (col.key === "value") {
+        add(cell, "span", formatted.value, formatted.missing ? "metrics-value-missing" : "metrics-value-main");
+        if (formatted.unit) add(cell, "span", formatted.unit, "metrics-value-unit");
       } else {
         cell.textContent = value;
       }
@@ -273,7 +334,7 @@ function openMetric(metric, button) {
   const fields = [
     ["Metric ID", metric.id],
     ["Activity", metric.activity],
-    ["Theme", metric.theme],
+    ["Category (original theme)", metric.theme],
     ["Value", metric.value],
     ["Unit / basis", metric.unit],
     ["Data", metric.dataKind],
@@ -342,18 +403,27 @@ async function reloadAndRecheck() {
 for (const button of document.querySelectorAll(".metrics-tabs .tab")) {
   button.addEventListener("click", () => tab(button.dataset.tab));
 }
-for (const name of ["search", "activity", "featured"]) {
-  el(name).addEventListener("input", renderRows);
-}
+el("search").addEventListener("input", renderRows);
+el("activity").addEventListener("change", () => {
+  renderCategoryChoices();
+  renderRows();
+});
+el("featured").addEventListener("change", () => {
+  renderCategoryChoices();
+  renderRows();
+});
 el("openRegister").addEventListener("click", () => tab("register"));
 el("reset").addEventListener("click", () => {
   el("search").value = "";
   el("activity").value = "";
   el("featured").checked = false;
+  selectedCategories.clear();
+  el("categoryMenu").open = false;
   sortKey = "id"; sortDirection = "asc";
   selectedColumns = new Set(DEFAULT_COLUMNS);
   saveColumns();
   renderColumnChoices();
+  renderCategoryChoices();
   renderRows();
 });
 el("exportCsv").addEventListener("click", exportCsv);
@@ -374,8 +444,10 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && el("veil").classList.contains("open")) closeMetric();
 });
 document.addEventListener("click", (event) => {
-  const menu = el("columnMenu");
-  if (menu.open && !menu.contains(event.target)) menu.open = false;
+  for (const id of ["columnMenu", "categoryMenu"]) {
+    const menu = el(id);
+    if (menu.open && !menu.contains(event.target)) menu.open = false;
+  }
 });
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden && access) {
