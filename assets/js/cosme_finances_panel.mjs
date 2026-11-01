@@ -107,7 +107,7 @@ function sourceLineTable(lines,p,showDates=false){
       line.source_row||null].filter(Boolean).join(" · ");
     if(info)add(details,"small","finance-mobile-item-meta",info);
     add(item,"strong","finance-mobile-item-cost",
-      line.amount==null?"—":money(line.amount,p.currency));
+      amountOrNull(line.amount)===null?"—":money(line.amount,p.currency));
     if(line.source_url&&/^https:\/\//.test(line.source_url)){
       const link=add(details,"a","finance-mobile-source","Source");
       link.href=line.source_url;link.target="_blank";link.rel="noopener noreferrer";
@@ -320,6 +320,7 @@ export function createCosmeFinancesPanel(authClient,root){
       const mobile=projectMobileReference(group);
       const mobileInfo=add(summary,"span","finance-group-mobile");
       const first=add(mobileInfo,"span","finance-group-mobile-main");
+      add(first,"span","finance-mobile-total-label","Total");
       add(first,"strong","finance-group-mobile-total",mobile.total);
       add(first,"span","finance-group-mobile-status",mobile.status);
       const supporting=[mobile.quantity,mobile.perUnit].filter(Boolean).join(" · ");
