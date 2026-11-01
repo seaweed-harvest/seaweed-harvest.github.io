@@ -18,7 +18,10 @@ export function verifiedLiveValue(id, {dryer=null, coverage=null}={}) {
   const field = DRYER_FIELDS[id];
   if (field && dryer?.can_view === true && dryer.status === "current" &&
       validTime(dryer.queried_at) && Array.isArray(dryer.metric_ids) &&
-      dryer.metric_ids.includes(id)) {
+      (id === "SDT-0022"
+        ? ["SDT-0063","SDT-0064","SDT-0065","SDT-0066"].every(
+            required=>dryer.metric_ids.includes(required))
+        : dryer.metric_ids.includes(id))) {
     const value = dryer[field[0]];
     if (typeof value !== "number" || !Number.isFinite(value) || value < 0)
       return null;
