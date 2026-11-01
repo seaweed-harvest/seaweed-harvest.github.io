@@ -5,7 +5,7 @@ import {
 } from "./auth_client.js?v=25";
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
 
-import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=3";
+import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=4";
 import { initializeSampleRopeDataTable } from "./reef_sample_rope_data_table.js?v=4";
 import { createNurseryRecordsAnalysis } from "./reef_nursery_analysis.mjs?v=2";
 
