@@ -73,3 +73,12 @@ User supplied two further sources for the **Bati dry seaweed aggregation centre*
 - The two are different **dated scope/proposal stages**, not additive transactions. Show under the same Aggregation Hub activity and separate version/date labels. A numeric July–August comparison needs scope qualification; do not infer a like-for-like overspend.
 - Updated **private** staging dataset: 9 source files, 15 draft cost packages, 557 source-referenced items (+2 sources, +2 packages, +88 rows). SQL import draft remains outside GitHub with all packages `draft`. Original PDF personal contact details remain in the source, never copied to public assets.
 - Also found and corrected a preexisting truncated `rate_currency` column/check in the proposed migration. Still requires a transaction rehearsal and role-based security tests. **No production import, publication or migration authorised by adding files.**
+
+## Timeline integration and migration cleanup (2026-11-01)
+- Merged the existing Timeline production/main commit `d984b6dd60a9b2a97c659694f6da3c397eb5d4a3` into Finance draft branch. Preserved Timeline UI, refresh/clear data logic, and added Finance tab after Timeline.
+- Combined page JavaScript parses, both tab/section IDs appear once, the Finance panel loads lazily only after existing COSME Metrics access is confirmed, and the previously merged Timeline remains intact.
+- Repaired an accidentally repeated DDL portion in the proposed private migration. Single source/package/line/allocation table, read RPC and immutability trigger function definitions; single PostgREST reload; four private tables enable RLS.
+- Nine focused financial calculation tests and seven static/contract checks passed in isolated JavaScript harness; the new contract test checks against duplicated DDL before any rollout.
+- Read-only production inspection confirms the existing `cosme_metrics.caller_role()` predicate uses active non-expired grants, active profiles and enabled COSME project; Finance RPC calls this same function. The new finance tables and RPC are absent from production.
+- Latest draft PR #145 is mergeable against main, but remains in protected review Lane C. The private source import is still NOT applied; all fifteen proposed packages retain `draft` in private staging.
+- **Still missing**: full native repo tests, authenticated desktop/mobile browser checks, a SQL transaction rollback rehearsal and positive/negative RLS tests. Do not merge or deploy finance migration or the draft import without the remaining gates and explicit release approval.
