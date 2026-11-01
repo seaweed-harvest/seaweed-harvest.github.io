@@ -1,0 +1,28 @@
+# COSME Finances — project cost references and expense regrouping
+Date: 1 Nov 2026. Requested following owner review of compact Finance v2. Changes staged on `feature/cosme-finances-reference-and-expenses-20261101`. Manual deployment remains disabled in `.automation/app-map.yml`.
+
+## Project costs and estimates
+- Default all major project headings to collapsed, Timeline-style single-row summaries, with detail rows expandable separately. Preserve open state across refreshes.
+- Solar Drying Tables: headline **KES 247,150/table** from owner-confirmed V1.3 PLAN actual KES 2,471,500 for ten tables; the source PLAN quote remains available. Historic Mwazaro shed & store full tender BoQ **KES 2,641,401.20** is a clearly flagged *Reference* row inside Drying Tables, never part of a table-price average.
+- Offshore Nursery: headline **KES 270,467.20/raft** partial *future repeat-build estimate*, sheet `Future raft estimate` in uploaded `26.10 - Offshore Nursery - Close Out BoQ(1).xlsx`. Four raft batch **KES 1,081,868.80**. Seven priced categories: frame 250,932.80, fabrication 233,200, mooring 312,736, anchor materials 40,000, freight 125,000, travel/accommodation 65,000, site support 55,000. This excludes anchor casting labour, additional fittings, marine deployment, cultivation lines/seed, local haulage, tools/training/monitoring; rates are historical, not current supplier quotes. The separate final LM/Cascadia and LM/PLAN invoices are evidence of historical procurement, *not* clean future repeat costs.
+- Aggregation Hub: headline **KES 3,831,250**, Eng. Tom August 2026 proposal. Contains KES 2,561,000 works/equipment and KES 1,270,250 proposed supervision/logistics; do not add another KES 640,250, which is already part of latter.
+- Mawimbi: headline **≈ CAD 10,000** owner planning reference, visibly labelled approximate and not calculated from the KES asset records. Detailed RO, QC and press values keep their original KES and review statuses.
+
+## Expense register
+Source: uploaded `25.08 - Project Procurement.xlsx`, sheet `Expenses` rows 3–257 (255 entries). Original file SHA-256 `5bcedefac27f0f8aa20ce3dd0b9f800aa33ad6bd8a2a7a764797125aeb1cd1e3`; matches the existing Finance source. Amounts already converted to CAD in the original workbook; no new FX transformation. No source record or amount is modified.
+
+Activity presentation grouping: **Travel; Data Loggers; Solar Drying Tables; Aggregation Hub; Offshore Nursery; Project / Other**. Travel includes the existing travel expenses and Travel/M-PESA charges; Data Loggers includes Controller - Electronics and Solar Fan & Wind Sensing; Aggregation includes sorting-table deposits, baler inspection labour, and Bati power assessment; Solar includes welding equipment, greenhouse installation, and explicit dryer-related charges; Storage Containers/Supplies remain Project / Other. Existing project allocations carry through. Ambiguous GL `5956 COSME Kenyan Contractors` is an accounting label, *not* an activity. Rows 53/54 have insufficient expense text to prove which project; do not silently assign.
+
+Preview grouping of all 255 source rows: Travel 73 rows ≈ CAD 17,322.29; Solar Drying Tables 96 ≈ CAD 9,782.91; Data Loggers 44 ≈ CAD 4,285.45; Project/Other 27 ≈ CAD 1,864.12; Offshore Nursery 10 ≈ CAD 1,661.23; Aggregation Hub 5 ≈ CAD 1,031.58. Rounding at category level; underlying CAD 35,947.578119 is preserved exactly. The global source contains a negative credit, not an additional expense.
+
+**Root-cause fix for duplicated item names:** Finance's initial import used original worksheet column E (generic Expense) and omitted P (`Description / Items`). Introduce a private `cosme_metrics.finance_expense_context` keyed by existing finance line ID, with original product / detailed P item text, RLS and no client table grant. Extend the existing owner/editor/reader-guarded read RPC to expose the descriptions to authorised COSME users. The private 255-row import is in `/mnt/data/COSME_finance_expense_item_context_PRIVATE.sql` and must never be committed to public GitHub. 93 of the 255 rows have a specific P-column item text; otherwise retain existing source wording/supplier note; do not invent details.
+
+## Validation and rollout
+- New future raft package is staged in Supabase as `publication_status='draft'`, seven priced component rows, one source with the uploaded file SHA-256 `c7302c01ad0bc1fa92593c55d641ed3092b8afd0d3ba32fc580f9b21cf7bdff8`. No change to 17 published packages.
+- Expense projection and project reference functions passed 6 focused tests, plus existing Finance unit/compact tests (total 21 isolated JavaScript tests). Unchanged data doesn't rebuild open rows.
+- Private context migration passed rollback-only transaction, including owner-visible item detail and denial to an ungranted account; post rollback table does not exist in production.
+- Before release: native repository tests; signed-in desktop/mobile checks; confirm exact 255 line join, package totals and unique row IDs; apply the private context migration, load source details, and publish the future nursery estimate; deploy reviewed frontend and verify access and sums. Do not overwrite immutable records or treat estimates as paid. Do not merge pending private metadata into public files.
+
+## Remaining optional attribution reviews
+- GL `5956 COSME Kenyan Contractors` has a mix of actual dryer labour and aggregation work, but rows 53 (Dzitenge, CAD 16.18) and 54 (electrician, CAD 10.83) lack specific descriptions. Their source receipts would be needed to allocate with confidence.
+- Several general software (GitHub, GPT) and shipping/hand tools can be shared across activities; leave in Project/Other pending identification.
