@@ -7,7 +7,7 @@ const page=read("../assets/js/cosme_metrics_page.js");
 const html=read("../cosme_metrics.html");
 const module=read("../assets/js/cosme_metrics_timeline.mjs");
 const css=read("../assets/css/cosme_metrics_timeline.css");
-const sql=read("../supabase/migrations/20261101123000_cosme_metrics_timeline_extended.sql");
+const sql=read("../supabase/migrations/20261101124500_cosme_timeline_milestones_and_personal_markers.sql");
 
 test("Timeline remains in the existing, authenticated COSME Metrics page",()=>{
   assert.match(html,/data-tab="timeline"[^>]*>Timeline<\/button>/);
@@ -25,6 +25,7 @@ test("Timeline has five activity families and six consolidated event types",()=>
   for(const name of ["Solar Drying Tables","Offshore Nursery","Aggregation Hub","Mawimbi","Programme"]){
     assert.ok(TIMELINE_ACTIVITIES[name].icon);
   }
+  assert.equal(TIMELINE_ACTIVITIES.Mawimbi.icon,"🌿");
   assert.equal(timelineType("Meeting"),"Planning & decisions");
   assert.equal(timelineType("Fabrication"),"Design & fabrication");
   assert.equal(timelineType("Installation"),"Installation & deployment");
@@ -59,6 +60,23 @@ test("SQL keeps COSME grant checks, old metric anchors and source-separated trav
   assert.match(sql,/2025-05-19/);
   assert.match(sql,/2025-08-13/);
   assert.match(sql,/2026-02-04/);
+  assert.match(sql,/Bosun — COSME contractor agreement signed/);
+  assert.match(sql,/Bosun — COSME engineering work began/);
+  assert.match(sql,/Bosun — arrived in Canada/);
+  assert.match(sql,/Bosun — departed Canada/);
+  assert.match(sql,/January nursery raft inspection — Matt field visit/);
+  assert.match(sql,/January nursery raft installation and seeding/);
+  assert.match(sql,/Funzi dryer RA cover and ventilation trials/);
+  assert.match(sql,/Shangani dryer RA cover and ventilation trials/);
+  assert.match(sql,/2026-02-07/);
+  assert.match(sql,/2026-02-16/);
+  assert.match(sql,/2026-02-10/);
+  assert.match(sql,/2026-02-18/);
+  const eventRows=[...sql.matchAll(/\\('\d{4}-\d{2}-\d{2}'::date/g)];
+  assert.equal(eventRows.length,44);
+  assert.match(sql,/\('2025-07-23'::date,null::date/);
+  assert.match(sql,/\('2025-11-26'::date,null::date/);
+  assert.doesNotMatch(sql,/\('2025-07-23'::date,'2025-11-26'::date/);
 });
 test("Mobile drawer and calendar keep keyboard and responsive safeguards",()=>{
   assert.match(module,/document\.removeEventListener\?\./);
