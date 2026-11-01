@@ -78,7 +78,7 @@ export function activityGroups(packages) {
     entries: entries.sort((a,b)=>String(b.source?.source_date||"").localeCompare(String(a.source?.source_date||""))||
       String(b.version||"").localeCompare(String(a.version||""),undefined,{numeric:true}))
   })).sort((a,b)=>{
-    const rank=name=>({ "Solar Drying Tables":0, "Solar Drying Shed & Store":1, "Offshore Nursery":2, "Aggregation Hub":3, "Mawimbi":4 })[name]??3;
+    const rank=name=>({ "Solar Drying Tables":0, "Solar Drying Shed & Store":1, "Offshore Nursery":2, "Aggregation Hub":3, "Mawimbi":4 })[name]??99;
     return rank(a.name)-rank(b.name)||a.name.localeCompare(b.name);
   });
 }
