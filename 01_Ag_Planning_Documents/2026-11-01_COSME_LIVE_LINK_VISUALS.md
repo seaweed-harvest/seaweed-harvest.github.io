@@ -67,9 +67,11 @@ The owner approved proceeding and asked for automatically updated live values
 on 1 November 2026. The update is implemented in the same review branch with
 a pure overlay adapter and explicit published/live display states.
 
-Review checks: 10 focused logic/static tests pass in a sandboxed JavaScript
-test harness; source-page, core and adapter syntax compile; CSS braces are
-balanced; no protected paths changed. Actual diff is eight files and more
+Review checks: 38 existing metrics tests and 10 new logic/static tests pass
+in an isolated JavaScript test harness; source-page, core and adapter syntax
+compile; CSS braces are balanced; no protected paths changed. GitHub reported
+no CI statuses/workflow runs for the branch. Browser layout and actual project
+Node test command were not executed from this chat environment. Actual diff is eight files and more
 than 400 changed lines, so Lane B review rather than Lane A applies.
 Still required before merge/deployment: the repository's complete existing
 test suite, browser layout and keyboard probes (desktop and narrow/mobile),
