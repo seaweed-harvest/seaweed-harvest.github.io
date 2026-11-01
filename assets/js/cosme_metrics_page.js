@@ -15,6 +15,7 @@ import { createMawimbiStockQcPanel } from "./cosme_mawimbi_stock_qc.mjs?v=1";
 import { createMawimbiTraceabilityPanel } from "./cosme_mawimbi_traceability.mjs?v=1";
 import { createMetricsTimeline } from "./cosme_metrics_timeline.mjs?v=3";
 import { createCosmeFinancesPanel } from "./cosme_finances_panel.mjs?v=2";
+import { createOperationalIndicators } from "./cosme_operational_indicators.mjs?v=1";
 
 // Published values remain immutable. Shared picks are a separate authorised layer.
 // Only column choices persist locally; metric data and picks never do.
@@ -62,6 +63,8 @@ let access = null;
 let currentRopeCoverage = null;
 let currentDryerMetrics = null;
 let currentDryerError = "";
+let operationalIndicators = [];
+let operationalIndicatorsError = "";
 let currentCoverageError = "";
 let initializedNavigation = false;
 let sortKey = "id";
@@ -103,6 +106,7 @@ function clearPrivateState() {
   prefersLiveValues=true;
   currentRopeCoverage = null; currentCoverageError = "";
   currentDryerMetrics = null; currentDryerError = "";
+  operationalIndicators = []; operationalIndicatorsError = "";
   nurseryGrowthPanel.clear();
   mawimbiPanel.clear();
   mawimbiQcPanel.clear();
@@ -205,6 +209,8 @@ function isLatestRelease() {
     String(current.major)+"."+String(current.minor)===latestReleaseKey;
 }
 function currentStatus(metric) {
+  if(metric.operationalLive) return {kind:"live", source:metric.liveCurrent.source,
+    currentValue:metric.liveCurrent};
   return liveStatus(metric.id,{
     dryer:currentDryerMetrics,coverage:currentRopeCoverage,
     mawimbiContext:id=>mawimbiPanel.metricContext(id)||mawimbiQcPanel.metricContext(id)
@@ -212,7 +218,7 @@ function currentStatus(metric) {
 }
 function metricDisplay(metric) {
   return displayValue(metric,currentStatus(metric),
-    el("showLiveValues").checked,isLatestRelease());
+    metric.operationalLive || el("showLiveValues").checked,isLatestRelease());
 }
 function currentLinkSource(metric) {
   return currentStatus(metric).source;
@@ -470,7 +476,7 @@ function renderCategoryChoices() {
   const activity = el("activity").value;
   const featured = el("featured").checked;
   const counts = new Map();
-  for (const metric of populatedMetrics(all)) {
+  for (const metric of [...populatedMetrics(all),...(isLatestRelease()?operationalIndicators:[])]) {
     if (activity && metric.activity !== activity) continue;
     if (featured && !metric.featured) continue;
     const category = metric.theme || "Uncategorised";
@@ -568,7 +574,7 @@ function renderColumnChoices() {
 }
 function renderRows() {
   const query = el("search").value.trim().toLocaleLowerCase();
-  const populated=populatedMetrics(all);
+  const populated=[...populatedMetrics(all),...(isLatestRelease()?operationalIndicators:[])];
   const linkedCount=populated.filter(metric=>Boolean(currentLinkSource(metric))).length;
   const liveCount=populated.filter(metric=>currentStatus(metric).kind==="live").length;
   // Sorting and text search use the displayed current figure, not an unseen
@@ -693,7 +699,7 @@ function renderRows() {
   }
   tbody.append(fragment);
   el("count").textContent = visible.length + " of " + populated.length +
-    " metrics · " + liveCount + " current calculations · " +
+    " metrics ("+operationalIndicators.length+" live operational indicators) · " + liveCount + " current calculations · " +
     (linkedCount-liveCount) + " linked data sources";
   el("liveValueNotice").textContent = !isLatestRelease() ?
     "Historical release · showing published values only." :
@@ -781,7 +787,7 @@ function openMetric(metric, button, keepFocus=false) {
     ["As of", metric.asOf],
     ["Source", metric.source],
     ["Notes", metric.note],
-    ["Published in", current?.version || ""]
+    ["Published in", metric.operationalLive ? "Live operational indicator (not in frozen release)" : (current?.version || "")]
   ];
   for (const [label, value] of fields) {
     if(value===""||value===undefined||value===null)continue;
@@ -833,6 +839,22 @@ function exportCsv() {
   link.click();
   URL.revokeObjectURL(url);
 }
+async function loadOperationalIndicators() {
+  operationalIndicators=[];
+  operationalIndicatorsError="";
+  try {
+    const {data,error}=await authClient.rpc("cosme_metrics_live_operational_overview");
+    if(error)throw error;
+    if(!data || data.can_view!==true || data.status!=="current")
+      throw Error("Operational aggregates unavailable");
+    operationalIndicators=createOperationalIndicators(data);
+    if(!operationalIndicators.length)throw Error("No validated operational indicators");
+  } catch {
+    operationalIndicators=[];
+    operationalIndicatorsError="Live operational indicators unavailable; published metrics are unchanged.";
+  }
+}
+
 async function reloadAndRecheck() {
   const grant = await requireMetrics();
   if (!grant) return;
@@ -846,7 +868,7 @@ async function reloadAndRecheck() {
   await loadReleases();
   await loadRelease(previousVersion);
   el("currentMawimbiTraceability").hidden = grant.role !== "owner";
-  await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics(),nurseryGrowthPanel.refresh(),mawimbiPanel.refresh(),mawimbiQcPanel.refresh(),timelinePanel.load(),...(grant.role === "owner" ? [traceabilityPanel.refresh()] : [])]);
+  await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics(),loadOperationalIndicators(),nurseryGrowthPanel.refresh(),mawimbiPanel.refresh(),mawimbiQcPanel.refresh(),timelinePanel.load(),...(grant.role === "owner" ? [traceabilityPanel.refresh()] : [])]);
   renderConnectionStatus();
   el("app").hidden = false;
   if (financesLoaded) financesPanel.load();
@@ -894,14 +916,14 @@ async function refreshLiveFeeds() {
   button.disabled=true;
   liveRefreshInFlight=(async()=>{
     try {
-      await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics(),
+      await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics(),loadOperationalIndicators(),
         nurseryGrowthPanel.refresh(),mawimbiPanel.refresh(),mawimbiQcPanel.refresh()]);
       renderConnectionStatus();
       renderHeadlines();
       renderRows();
       if(detailMetricId && el("veil").classList.contains("open")){
         // A stale detail should never suggest its opened value remains current.
-        const metric=all.find(m=>m.id===detailMetricId);
+        const metric=[...all,...operationalIndicators].find(m=>m.id===detailMetricId);
         if(metric)openMetric(metric,lastFocus,true);
       }
     } finally { button.disabled=false; liveRefreshInFlight=null; }
