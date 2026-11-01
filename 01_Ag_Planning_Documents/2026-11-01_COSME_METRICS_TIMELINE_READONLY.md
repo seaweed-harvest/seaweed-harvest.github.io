@@ -36,3 +36,11 @@ Lane C: small SQL SECURITY DEFINER API function in protected `supabase/**` path;
 - PR branch is based on the newest main metrics version (preserves mobile menu, live-value overlays and register updates); verified GitHub mergeability.
 - This environment cannot clone the repository for a native Node test run or launch a real authenticated desktop/mobile browser probe; those are outstanding review gates.
 - No production migration or merge was applied; the public SQL RPC is still absent until an separately approved apply.
+
+## Follow-on code review and interaction regression (1 November 2026)
+- Rechecked PR #144 against main: mergeable, zero commits behind, no changes to existing Metrics live-value code or access controls.
+- A new synthetic DOM interaction test revealed a calendar defect: entries without `end_date` were incorrectly treated as indefinitely active. Corrected daily and monthly logic to use `end_date || start_date`.
+- Activity/type/year filtering now changes the calendar to a month with matching events.
+- Expanded the interaction regression to cover single-day versus multi-day display, insecure source URLs, authorised-release metric links, year/month navigation, and cleanup on sign-out.
+- Five targeted checks passed in the available JavaScript V8 harness (4 static integration/security/data-contract checks; 1 asynchronous UI-interaction check), and syntax parsing passed. This is not a substitute for a full Node CI or authenticated browser verification.
+- GitHub has no CI statuses or PR-triggered workflow runs on this branch; production apply and merge remain gated until normal runner/browser checks and the separate owner production approval.
