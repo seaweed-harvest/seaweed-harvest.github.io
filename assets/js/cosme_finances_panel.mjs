@@ -210,7 +210,19 @@ export function createCosmeFinancesPanel(authClient,root){
     const list=add(root,"div","finance-register");
     tableHeader(list);
     const groups=activityGroups(selected);
+    const stageOrder={
+      "v11-asbuilt":10,"v12-design":20,"v12-funzi-asbuilt":30,
+      "v13-design":40,"v13-plan-10":50,
+      "nursery-v12-rough-materials":10,"LM-C":20,"LM-P":21
+    };
     for(const group of groups){
+      if(!isExpense && group.name==="Solar Drying Tables"){
+        group.entries.sort((a,b)=>(stageOrder[a.package_key]??99)-(stageOrder[b.package_key]??99));
+      } else if(!isExpense && group.name==="Offshore Nursery"){
+        group.entries.sort((a,b)=>(stageOrder[a.package_key]??99)-(stageOrder[b.package_key]??99));
+      } else if(!isExpense && group.name==="Aggregation Hub"){
+        group.entries.sort((a,b)=>String(a.source?.source_date||a.version).localeCompare(String(b.source?.source_date||b.version)));
+      }
       if(!isExpense){
         add(list,"div","finance-section-title",group.name);
       }
