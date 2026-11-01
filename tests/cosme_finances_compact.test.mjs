@@ -11,7 +11,7 @@ const panelSource=read("../assets/js/cosme_finances_panel.mjs");
 test("Finance uses matching Metrics/Timeline shell with two compact internal views",()=>{
   assert.match(page,/data-tab="finances"/);
   assert.match(page,/cosme_finances\.css\?v=4/);
-  assert.match(main,/cosme_finances_panel\.mjs\?v=4/);
+  assert.match(main,/cosme_finances_panel\.mjs\?v=5/);
   assert.match(panelSource,/Project costs & estimates/);
   assert.match(panelSource,/Expense register/);
   assert.match(panelSource,/Filter finance activity/);
@@ -158,3 +158,14 @@ test("Source metadata supplies installation dates and project BOM tables omit pe
  assert.ok(nodes.some(n=>n.className.includes("metrics-toolbar")));
  assert.doesNotMatch(page,/data-tab="current"/);
 });
+
+ test("Component breakdown preserves payments and avoids duplicate ledger costs",async()=>{
+  fakeDom();const root=new FakeNode("div"),data=payload();
+  data.packages[0].report={itemisation:{items:[{description:"Synthetic component A",quantity:2,unit:"units",amount:1000000,source_row:"Quote 1",source_url:"https://example.com/source"},{description:"Synthetic component B",amount:1471500,source_row:"Quote 2"}]}};
+  await createCosmeFinancesPanel({rpc:async()=>({data})},root).load();
+  const nodes=[];const walk=n=>{nodes.push(n);n.children.forEach(walk)};walk(root);
+  assert.ok(nodes.some(n=>n.tag==="td"&&n.textContent==="Synthetic component A"));
+  assert.ok(nodes.some(n=>n.tag==="td"&&n.textContent==="Steel pipes"),"original payment evidence retained");
+  assert.ok(nodes.some(n=>n.tag==="details"&&n.dataset.financeKey==="payments:p1"&&!n.open));
+  assert.ok(nodes.some(n=>n.tag==="a"&&n.href==="https://example.com/source"));
+ });
