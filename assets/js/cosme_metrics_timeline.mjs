@@ -162,6 +162,14 @@ export function createMetricsTimeline(authClient, root, openMetric) {
     render();
   }
 
+  function applyFilter() {
+    selectedDay = "";
+    // Calendar filters should show a month containing relevant milestones.
+    const latest = filters().at(-1);
+    if (latest) month = latest.start_date.slice(0, 7);
+    render();
+  }
+
   function render() {
     root.replaceChildren();
     if (!loaded) {
@@ -182,11 +190,11 @@ export function createMetricsTimeline(authClient, root, openMetric) {
     const types = [...new Set(milestones.map((m) => m.type))].sort();
     const years = [...new Set(milestones.map((m) => m.start_date.slice(0,4)))].sort().reverse();
     select(controls, "Activity", [["","All activities"], ...activities.map((a) => [a,activityName(a)])],
-      activity, (value) => { activity=value; selectedDay=""; render(); });
+      activity, (value) => { activity=value; applyFilter(); });
     select(controls, "Type", [["","All types"],...types.map((t)=>[t,t])],
-      type, (value) => { type=value; selectedDay=""; render(); });
+      type, (value) => { type=value; applyFilter(); });
     select(controls, "Year", [["","All years"], ...years.map((y)=>[y,y])],
-      year, (value) => { year=value; selectedDay=""; render(); });
+      year, (value) => { year=value; applyFilter(); });
     const views = make("div", "metrics-timeline-switch");
     for (const [key,label] of [["timeline","Timeline"],["calendar","Calendar"]]) {
       const button = make("button", "metrics-button" + (view===key?" selected":""),label);
