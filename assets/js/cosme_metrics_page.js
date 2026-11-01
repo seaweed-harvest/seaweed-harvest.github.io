@@ -5,9 +5,9 @@ import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=17
 import {
   normalizeReleaseItems, selectMetrics,
   parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, financialContext, currentDryerWeightReduction, metricCategory
-} from "./cosme_metrics_core.mjs?v=2";
+} from "./cosme_metrics_core.mjs?v=3";
 import { createSharedPicks } from "./cosme_metrics_picks.mjs?v=1";
-import { liveStatus, displayValue, exportMetricViewCsv } from "./cosme_metrics_live_values.mjs?v=1";
+import { liveStatus, displayValue, exportMetricViewCsv } from "./cosme_metrics_live_values.mjs?v=2";
 import { populatedMetrics, concisePickStatus, metricEvidence } from "./cosme_metrics_presentation.js?v=1";
 import { createNurseryGrowthPanel } from "./cosme_nursery_growth.mjs?v=4";
 import { createMawimbiOperationsPanel } from "./cosme_mawimbi_operations.mjs?v=1";
@@ -16,6 +16,7 @@ import { createMawimbiTraceabilityPanel } from "./cosme_mawimbi_traceability.mjs
 import { createMetricsTimeline } from "./cosme_metrics_timeline.mjs?v=3";
 import { createCosmeFinancesPanel } from "./cosme_finances_panel.mjs?v=6";
 import { createOperationalIndicators } from "./cosme_operational_indicators.mjs?v=2";
+import { metricDisplayName, withMetricPresentation } from "./cosme_metrics_labels.mjs?v=1";
 
 // Published values remain immutable. Shared picks are a separate authorised layer.
 // Only column choices persist locally; metric data and picks never do.
@@ -69,7 +70,7 @@ let operationalIndicators = [];
 let operationalIndicatorsError = "";
 let currentCoverageError = "";
 let initializedNavigation = false;
-let sortKey = "id";
+let sortKey = "metricType";
 let sortDirection = "asc";
 let selectedColumns = loadColumns();
 let selectedCategories = new Set();
@@ -112,12 +113,12 @@ function renderHiddenMetricMenu(){
     add(list,"p","No hidden metrics.","metrics-small-note");
     return;
   }
-  for(const metric of hidden.sort((a,b)=>a.title.localeCompare(b.title))){
+  for(const metric of hidden.sort((a,b)=>metricDisplayName(a).localeCompare(metricDisplayName(b)))){
     const item=add(list,"div","","metrics-hidden-item");
-    const label=add(item,"span",metric.title);
+    const label=add(item,"span",metricDisplayName(metric));
     label.title=metric.id;
     const button=add(item,"button","Restore","metrics-button");
-    button.type="button";button.setAttribute("aria-label","Restore "+metric.title);
+    button.type="button";button.setAttribute("aria-label","Restore "+metricDisplayName(metric));
     button.addEventListener("click",()=>restoreMetric(metric.id));
   }
 }
@@ -379,7 +380,7 @@ function configureStar(button,metric){
   button.dataset.metricStar=metric.id;
   button.textContent=metric.featured?"★":"☆";
   button.setAttribute("aria-pressed",String(metric.featured));
-  button.setAttribute("aria-label",(metric.featured?"Remove ":"Add ")+metric.title+
+  button.setAttribute("aria-label",(metric.featured?"Remove ":"Add ")+metricDisplayName(metric)+
     (metric.featured?" from":" to")+" shared Top Picks");
   button.title=sharedPicks.editable()?button.getAttribute("aria-label"):sharedPicks.message();
   button.disabled=Boolean(metric.operationalLive)||!sharedPicks.editable();
@@ -523,7 +524,7 @@ function renderCurrentDryerMetrics() {
   const tbody=add(table,"tbody");
   for(const item of sources){
     const row=add(tbody,"tr");
-    const name=add(row,"th",item.metric.title);
+    const name=add(row,"th",metricDisplayName(item.metric));
     name.scope="row";
     const historical=displayMetricValue(item.metric.value,item.metric.unit).full;
     add(row,"td",historical);
@@ -646,7 +647,13 @@ function renderColumnChoices() {
 function renderMobileRows(){
   const list=el("mobileMetricList");
   const fragment=document.createDocumentFragment();
+  let previousType="";
   for(const metric of visible){
+    const typeKey=metric.activity+" · "+metric.metricType;
+    if(sortKey==="metricType" && typeKey!==previousType){
+      add(fragment,"h3",typeKey,"metrics-group-label");
+      previousType=typeKey;
+    }
     const status=currentStatus(metric);
     const overlay=metricDisplay(metric);
     const formatted=displayMetricValue(overlay.value,overlay.unit);
@@ -661,10 +668,10 @@ function renderMobileRows(){
     if(!metric.operationalLive)star.addEventListener("click",()=>togglePick(metric.id));
     const open=add(card,"button","","metrics-mobile-card-open");
     open.type="button";
-    open.setAttribute("aria-label",metric.title+" · "+formatted.full+" · open metric details");
+    open.setAttribute("aria-label",(metric.displayTitle||metric.title)+" · "+formatted.full+" · open metric details");
     open.addEventListener("click",()=>openMetric(metric,open));
     const body=add(open,"span","","metrics-mobile-card-body");
-    add(body,"span",metric.title,"metrics-mobile-card-title");
+    add(body,"span",metric.displayTitle||metric.title,"metrics-mobile-card-title");
     const meta=add(body,"span","","metrics-mobile-card-meta");
     add(meta,"span",metric.activity||"Project metric","metrics-mobile-card-activity");
     add(meta,"span",state,"metrics-mobile-status"+
@@ -683,12 +690,13 @@ function renderRows() {
   // Sorting and text search use the displayed current figure, not an unseen
   // frozen number, while keeping the original metric values intact.
   const displayRows=populated.filter(metric=>!hiddenMetricIds.has(metric.id)).map(metric=>({
-    ...metric,liveDisplayValue:metricDisplay(metric).value
+    ...withMetricPresentation(metric),liveDisplayValue:metricDisplay(metric).value
   }));
   visible = selectMetrics(displayRows, {
     query, activity: el("activity").value, categories: [...selectedCategories],
     featured: el("featured").checked, sort: sortKey, direction: sortDirection
   });
+  el("sortChoice").value=["metricType","title","id"].includes(sortKey)?sortKey:"column";
   if(el("linkedOnly").checked) visible=visible.filter(metric=>Boolean(currentLinkSource(metric)));
   if(!isLatestRelease())mobileLiveOnly=false;
   if(mobileLiveOnly)visible=visible.filter(metric=>currentStatus(metric).kind==="live");
@@ -739,7 +747,15 @@ function renderRows() {
   const tbody = el("rows");
   tbody.replaceChildren();
   const fragment = document.createDocumentFragment();
+  let previousType="";
   for (const metric of visible) {
+    const typeKey=metric.activity+" · "+metric.metricType;
+    if(sortKey==="metricType" && typeKey!==previousType){
+      const groupRow=add(fragment,"tr","","metrics-type-row");
+      const groupCell=add(groupRow,"td",typeKey);
+      groupCell.colSpan=cols.length+1;
+      previousType=typeKey;
+    }
     const row = document.createElement("tr");
     const status=currentStatus(metric);
     const linkSource=status.source;
@@ -755,7 +771,8 @@ function renderRows() {
     for (const col of cols) {
       const cell = document.createElement("td");
       cell.dataset.col = col.key;
-      const value = String(col.key==="unit" ? overlay.unit :
+      const value = String(col.key==="title" ? metric.displayTitle||metric.title :
+        col.key==="unit" ? overlay.unit :
         col.key==="asOf" && overlay.state==="Live" ?
           new Date(overlay.sourceUpdatedAt || overlay.checkedAt).toLocaleString() :
         col.key==="dataKind" && status.kind!=="published" ? overlay.state :
@@ -768,7 +785,7 @@ function renderRows() {
         const hideButton=add(cell,"button","×","metrics-hide-action");
         hideButton.type="button";
         hideButton.title="Hide from my metrics view";
-        hideButton.setAttribute("aria-label","Hide "+metric.title);
+        hideButton.setAttribute("aria-label","Hide "+(metric.displayTitle||metric.title));
         hideButton.addEventListener("click",()=>hideMetric(metric.id));
       } else if (col.key === "title") {
         const button = document.createElement("button");
@@ -794,7 +811,7 @@ function renderRows() {
       } else if (col.key === "value") {
         const button=add(cell,"button","","metrics-value-open");
         button.type="button";
-        button.setAttribute("aria-label",metric.title+" · "+formatted.full+" · details");
+        button.setAttribute("aria-label",(metric.displayTitle||metric.title)+" · "+formatted.full+" · details");
         button.addEventListener("click",()=>openMetric(metric,button));
         add(button, "span", formatted.value, "metrics-value-main");
         if (formatted.unit) add(button, "span", formatted.unit, "metrics-value-unit");
@@ -827,7 +844,7 @@ function openMetric(metric, button, keepFocus=false) {
   detailMetricId=metric.id;
   configureStar(el("detailStar"),metric);
   if(!keepFocus) lastFocus = button;
-  el("metricTitle").textContent = metric.title;
+  el("metricTitle").textContent = metricDisplayName(metric);
   const details = el("detail");
   details.replaceChildren();
   const metadata=el("metricMetadata");
@@ -844,6 +861,7 @@ function openMetric(metric, button, keepFocus=false) {
   }
   const fields = [
     ["Metric ID", metric.id],
+    ...(metricDisplayName(metric)!==metric.title ? [["Original metric name",metric.title]] : []),
     ["Activity", metric.activity],
     ["Category", metric.theme],
     ["Original workbook theme", metric.originalTheme],
@@ -1026,6 +1044,11 @@ el("mobileTopPicks").addEventListener("click",()=>{
   renderCategoryChoices();
   renderRows();
 });
+el("sortChoice").addEventListener("change",()=>{
+  sortKey=el("sortChoice").value;
+  sortDirection="asc";
+  renderRows();
+});
 el("search").addEventListener("input", renderRows);
 el("activity").addEventListener("change", () => {
   renderCategoryChoices();
@@ -1051,7 +1074,7 @@ el("reset").addEventListener("click", () => {
   mobileLiveOnly=false;
   selectedCategories.clear();
   el("categoryMenu").open = false;
-  sortKey = "id"; sortDirection = "asc";
+  sortKey = "metricType"; sortDirection = "asc";
   selectedColumns = new Set(DEFAULT_COLUMNS);
   saveColumns();
   renderColumnChoices();

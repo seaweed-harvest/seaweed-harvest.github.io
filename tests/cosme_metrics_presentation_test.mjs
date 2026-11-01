@@ -44,9 +44,11 @@ test('overview is separate from current feeds and has no explanatory footer or s
   assert.ok(!overview.includes('currentDryerMetrics'));
   assert.ok(!html.includes('About this register'));
   assert.ok(!html.includes('Stars select the shared project Top Picks for every reader.'));
-  const headlines=page.split('function renderHeadlines()')[1].split('async function loadCurrentRopeCoverage')[0];
-  assert.ok(!headlines.includes('configureStar'));
-  assert.ok(!headlines.includes('metric.note'));
+  const cards=page.split('const cards = el("activityCards");')[1].split('renderCategoryChoices();')[0];
+  assert.ok(cards);
+  assert.ok(!cards.includes('configureStar'));
+  assert.ok(!cards.includes('metric.note'));
+  assert.match(page,/function renderRegisterSummary\(\)/);
   assert.match(page,/metrics-value-open/);
   assert.match(page,/metricEvidence/);
   assert.match(html,/<details class="metrics-record-details"><summary>Record details<\/summary><dl id="metricMetadata">/);
