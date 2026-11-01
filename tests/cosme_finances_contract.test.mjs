@@ -20,9 +20,9 @@ test("Source-backed read-only panel exposes no financial mutations",()=>{
   assert.match(panel,/authClient\.rpc\("cosme_finance_read"\)/);
   assert.doesNotMatch(panel,/\.insert\(|\.update\(|\.delete\(|authClient\.rpc\("cosme_finance_write"/);
   assert.match(panel,/line\.entry_date/);
-  assert.match(panel,/line\.reconciliation_status/);
-  assert.match(panel,/line\.included_in_total/);
-  assert.match(panel,/excluded from subtotal|Excluded from subtotal/);
+  assert.match(panel,/reconciliation_status/);
+  assert.match(panel,/included_in_total/);
+  assert.match(panel,/source items excluded from totals/);
 });
 test("Sensitive finance tables remain private with explicit metrics-grant RPC",()=>{
   for(const table of ["finance_sources","finance_packages","finance_lines","finance_allocations"]){
@@ -41,13 +41,13 @@ test("Sensitive finance tables remain private with explicit metrics-grant RPC",(
 test("No source financial data is hard-coded in publicly fetched frontend assets",()=>{
   assert.doesNotMatch(panel,/2471500|199708|1966 MOI|G2W-2026/);
   assert.doesNotMatch(app,/2471500|199708|1966 MOI|G2W-2026/);
-  assert.match(panel,/No reviewed cost packages are published yet/);
+  assert.match(panel,/No matching cost records/);
 });
 test("Mobile drilldowns are usable without navigation or horizontal page overflow",()=>{
   assert.match(panel,/createElement\(tag\)/);
-  assert.match(panel,/node\("details","finance-category"/);
-  assert.match(panel,/node\("details","finance-subcategory"/);
-  assert.match(css,/max-width:650px/);
+  assert.match(panel,/add\(box,"details","finance-category"/);
+  assert.match(panel,/add\(detail,"details","finance-subcategory"/);
+  assert.match(css,/max-width:580px/);
   assert.match(css,/overflow-x:auto/);
   assert.match(css,/:focus-visible/);
 });
@@ -70,4 +70,11 @@ test("Private COSME Finance migration has exactly one copy of every DDL object",
     assert.equal([...migration.matchAll(def)].length,1,fn+" DDL must be unique");
   }
   assert.equal([...migration.matchAll(/notify pgrst,'reload schema';/g)].length,1);
+});
+
+test("Authorised finance RPC adds source package keys for owner-approved project classifications",()=>{
+  const patch=read("../supabase/migrations/20261101160000_cosme_finance_read_package_keys.sql");
+  assert.match(patch,/'package_key',p.package_key/);
+  assert.match(patch,/v_role is null or v_role not in/);
+  assert.match(patch,/revoke all on function public.cosme_finance_read\(\) from public,anon/);
 });
