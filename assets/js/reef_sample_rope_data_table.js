@@ -1,4 +1,4 @@
-import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=4";
+import { nurserySiteDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=5";
 
 // Read-only aggregation of the currently saved Sample Rope Register cycles.
 // Site discovery comes from the existing scoped context RPC, not a hardcoded list.
@@ -37,7 +37,7 @@ export function flattenActiveRopeRegisters(registers) {
         row.week_2_kg, row.week_4_kg, row.week_6_kg
       ].some(value => value !== null && value !== undefined && value !== ""))
       .map(row => ({
-        site: mkwiroRaftDisplayLabel(site.site_code, site.site_name)
+        site: nurserySiteDisplayLabel(site.site_code, site.site_name)
           || [site.site_code, site.site_name ? `(${site.site_name})` : ""].filter(Boolean).join(" "),
         site_code: site.site_code,
         location: site.location || "",
@@ -221,7 +221,7 @@ export function initializeSampleRopeDataTable({ authClient, root }) {
     els.siteChoices.innerHTML = state.availableSites.length
       ? state.availableSites.map(site => {
         const code = site.site_code;
-        const label = mkwiroRaftDisplayLabel(code, site.site_name)
+        const label = nurserySiteDisplayLabel(code, site.site_name)
           || [code, site.site_name ? `(${site.site_name})` : ""].filter(Boolean).join(" ");
         const checked = state.selectedSites === null || state.selectedSites.has(code);
         return `<label><input type="checkbox" data-rope-site="${safe(code)}" ${checked ? "checked" : ""}> <span>${safe(label)}</span></label>`;
