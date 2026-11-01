@@ -33,6 +33,7 @@ test("Sensitive finance tables remain private with explicit metrics-grant RPC",(
   assert.match(migration,/cosme_metrics\.caller_role\(\)/);
   assert.match(migration,/\(select auth\.uid\(\)\) is null/);
   assert.match(migration,/v_role not in \('owner','editor','reader'\)/);
+  assert.match(migration,/v_role is null or v_role not in/);
   assert.match(migration,/revoke all on function public\.cosme_finance_read\(\) from public,anon;/);
   assert.match(migration,/grant execute on function public\.cosme_finance_read\(\) to authenticated;/);
   assert.doesNotMatch(migration,/grant (select|all) on .*finance_.* to anon/i);
