@@ -106,6 +106,7 @@ function clearPrivateState() {
   el("accessRole").textContent = "Access unavailable";
   el("releaseCaption").textContent = "";
   el("veil").classList.remove("open");
+  el("metricsStickyScroll").hidden = true;
 }
 async function requireMetrics() {
   if (!navigator.onLine) throw new Error("Connect to the internet to open project metrics.");
@@ -175,12 +176,43 @@ async function loadRelease(version = null) {
   render();
   await sharedPicks.load(data,all);
 }
+/**
+ * A live-link marker means a validated aggregate is currently available.
+ * The value displayed in All Metrics remains the immutable release value.
+ * A source citation, or an unrelated live analysis, is not enough.
+ */
+function currentLinkSource(metric) {
+  if(currentDryerMetrics && DRYER_COMPARE.some(item=>item.id===metric.id))
+    return "COSME drying-table records";
+  if(currentRopeCoverage && metric.id==="ON-0054")
+    return "COSME nursery sample-rope register";
+  if(mawimbiPanel.metricContext(metric.id))
+    return "Authorised Mawimbi collection and processing aggregate";
+  if(mawimbiQcPanel.metricContext(metric.id))
+    return "Authorised Mawimbi stock QC aggregate";
+  return "";
+}
+function syncStickyScrollbar() {
+  const wrap=el("metricScrollArea"), bar=el("metricsStickyScroll");
+  const rect=wrap.getBoundingClientRect();
+  const active=!el("app").hidden && !el("register").hidden
+    && rect.top<window.innerHeight && rect.bottom>0
+    && wrap.scrollWidth>wrap.clientWidth+2;
+  bar.hidden=!active;
+  if(!active)return;
+  const left=Math.max(0,rect.left), right=Math.min(window.innerWidth,rect.right);
+  bar.style.left=left+"px";
+  bar.style.width=Math.max(0,right-left)+"px";
+  el("metricsStickyWidth").style.width=wrap.scrollWidth+"px";
+  if(bar.scrollLeft!==wrap.scrollLeft)bar.scrollLeft=wrap.scrollLeft;
+}
 function tab(name) {
   for (const button of document.querySelectorAll(".metrics-tabs .tab")) {
     button.setAttribute("aria-selected", String(button.dataset.tab === name));
   }
   for (const view of ["overview", "register", "current", "history"]) el(view).hidden = view !== name;
   if (name === "register") renderRows();
+  requestAnimationFrame(syncStickyScrollbar);
 }
 function add(parent, tag, value, className = "") {
   const node = document.createElement(tag);
@@ -506,10 +538,12 @@ function renderColumnChoices() {
 function renderRows() {
   const query = el("search").value.trim().toLocaleLowerCase();
   const populated=populatedMetrics(all);
+  const linkedCount=populated.filter(metric=>Boolean(currentLinkSource(metric))).length;
   visible = selectMetrics(populated, {
     query, activity: el("activity").value, categories: [...selectedCategories],
     featured: el("featured").checked, sort: sortKey, direction: sortDirection
   });
+  if(el("linkedOnly").checked) visible=visible.filter(metric=>Boolean(currentLinkSource(metric)));
   const cols = COLUMN_DEFS.filter((column) => selectedColumns.has(column.key));
   const table = el("metricHead").closest("table");
   // More selected columns get horizontal room rather than squeezing each cell.
@@ -556,6 +590,11 @@ function renderRows() {
   const fragment = document.createDocumentFragment();
   for (const metric of visible) {
     const row = document.createElement("tr");
+    const linkSource=currentLinkSource(metric);
+    if(linkSource) {
+      row.classList.add("metrics-live-linked");
+      row.title="Verified current-data link: "+linkSource+". Displayed value is from the selected published release.";
+    }
     const pickCell=add(row,"td","","metrics-pick-cell");
     const star=add(pickCell,"button","");
     star.type="button";configureStar(star,metric);
@@ -573,6 +612,13 @@ function renderRows() {
         button.className = "metric-open";
         button.textContent = value;
         button.title = value + " · open details";
+        if(linkSource) {
+          button.classList.add("has-current-link");
+          button.replaceChildren();
+          add(button,"span",value,"metric-title-text");
+          add(button,"span","● Live link","metrics-live-mark");
+          button.title = value+" · linked to "+linkSource+" (published value remains frozen)";
+        }
         button.addEventListener("click", () => openMetric(metric, button));
         cell.append(button);
       } else if (col.key === "dataKind") {
@@ -592,8 +638,10 @@ function renderRows() {
     fragment.append(row);
   }
   tbody.append(fragment);
-  el("count").textContent = visible.length + " of " + populated.length + " metrics";
+  el("count").textContent = visible.length + " of " + populated.length +
+    " metrics · " + linkedCount + " with verified live links this session";
   el("empty").hidden = visible.length > 0;
+  requestAnimationFrame(syncStickyScrollbar);
 }
 function openMetric(metric, button) {
   detailMetricId=metric.id;
@@ -623,6 +671,8 @@ function openMetric(metric, button) {
     ["Value", metric.value],
     ["Unit / basis", metric.unit],
     ["Data", metric.dataKind],
+    ...(currentLinkSource(metric) ? [["Current data link",currentLinkSource(metric)+
+      " · the published value above is frozen; see Current data for the latest calculation"]] : []),
     ["Value type", metric.valueType],
     ...(mawimbiQcPanel.metricContext(metric.id) ? [
       ["Current MAWIMBI stock record counts",mawimbiQcPanel.metricContext(metric.id).value],
@@ -722,6 +772,7 @@ async function reloadAndRecheck() {
   await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics(),nurseryGrowthPanel.refresh(),mawimbiPanel.refresh(),mawimbiQcPanel.refresh(),...(grant.role === "owner" ? [traceabilityPanel.refresh()] : [])]);
   renderConnectionStatus();
   el("app").hidden = false;
+  renderRows();
 }
 for (const button of document.querySelectorAll(".metrics-tabs .tab")) {
   button.addEventListener("click", () => tab(button.dataset.tab));
@@ -735,11 +786,13 @@ el("featured").addEventListener("change", () => {
   renderCategoryChoices();
   renderRows();
 });
+el("linkedOnly").addEventListener("change", renderRows);
 el("openRegister").addEventListener("click", () => tab("register"));
 el("reset").addEventListener("click", () => {
   el("search").value = "";
   el("activity").value = "";
   el("featured").checked = false;
+  el("linkedOnly").checked = false;
   selectedCategories.clear();
   el("categoryMenu").open = false;
   sortKey = "id"; sortDirection = "asc";
@@ -750,6 +803,20 @@ el("reset").addEventListener("click", () => {
   renderRows();
 });
 el("exportCsv").addEventListener("click", exportCsv);
+const metricScrollArea=el("metricScrollArea");
+const stickyScroll=el("metricsStickyScroll");
+metricScrollArea.addEventListener("scroll",()=>{
+  if(stickyScroll.scrollLeft!==metricScrollArea.scrollLeft)
+    stickyScroll.scrollLeft=metricScrollArea.scrollLeft;
+},{passive:true});
+stickyScroll.addEventListener("scroll",()=>{
+  if(metricScrollArea.scrollLeft!==stickyScroll.scrollLeft)
+    metricScrollArea.scrollLeft=stickyScroll.scrollLeft;
+},{passive:true});
+window.addEventListener("scroll",syncStickyScrollbar,{passive:true});
+window.addEventListener("resize",syncStickyScrollbar,{passive:true});
+if("ResizeObserver" in window)
+  new ResizeObserver(()=>requestAnimationFrame(syncStickyScrollbar)).observe(metricScrollArea);
 el("detailStar").addEventListener("click",()=>togglePick(detailMetricId,"detail"));
 for(const id of ["reloadPicks","reloadPicksRegister"]) el(id).addEventListener("click",async()=>{
   if(current?.status==="published") await sharedPicks.load(current,all);
