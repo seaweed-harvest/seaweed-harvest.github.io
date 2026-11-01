@@ -90,7 +90,7 @@ function costSections(p){
       "; itemised total differs by "+money(diff,p.currency)+
       ". Source total shown above.");
   }
-  if(p.reconciliation_status!=="verified")
+  if(p.reconciliation_status!=="verified" && (p.summary.control===null || p.summary.reconciled))
     add(box,"p","finance-detail-flag","Some source details need checking; cost is indicative, not confirmed spend.");
   if(unitCount>1)
     add(box,"p","finance-detail-context","Full "+unitCount+"-"+(p.unit_label||"unit")+" order: "+money(totalOf(p),p.currency)+". Per-unit equivalent shown in register.");
