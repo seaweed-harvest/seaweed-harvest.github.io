@@ -111,3 +111,239 @@
 }
 
 .cosme-metrics-page .finance-date{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+
+/* Finance mobile UX: lightweight source-only presentation. No amounts are recomputed here. */
+.cosme-metrics-page .finance-mobile-toggle,
+.cosme-metrics-page .finance-mobile-lines,
+.cosme-metrics-page .finance-group-mobile {display:none}
+.cosme-metrics-page .finance-actions {display:flex;align-items:end;gap:9px;flex-wrap:wrap}
+.cosme-metrics-page #finances summary {list-style:none}
+.cosme-metrics-page #finances summary::-webkit-details-marker {display:none}
+@media (max-width:700px) {
+  .cosme-metrics-page .finance-toolbar {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    grid-template-areas:
+      "mode mode"
+      "search search"
+      "toggle-filters toggle-actions"
+      "filter-panel filter-panel"
+      "action-panel action-panel";
+    align-items:stretch;
+    column-gap:8px;row-gap:8px;
+    margin-bottom:11px;
+    min-width:0;
+  }
+  .cosme-metrics-page .finance-toolbar .finance-view-tabs {
+    grid-area:mode;
+    display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    width:100%;gap:0;
+    border:1px solid var(--border);border-radius:9px;overflow:hidden;
+    margin:0;
+  }
+  .cosme-metrics-page .finance-view-tabs .metrics-button {
+    width:100%;min-width:0;min-height:42px;
+    font-size:.76rem;line-height:1.2;padding:8px 7px;
+    border:0;border-radius:0;text-align:center;
+  }
+  .cosme-metrics-page .finance-view-tabs .metrics-button + .metrics-button {border-left:1px solid var(--border)}
+  .cosme-metrics-page .finance-toolbar .metrics-search {
+    grid-area:search;min-width:0;width:100%;margin:0;
+  }
+  .cosme-metrics-page .finance-toolbar .metrics-search input {
+    min-height:44px;max-width:100%;width:100%;
+  }
+  .cosme-metrics-page .finance-mobile-toggle {
+    display:flex;justify-content:space-between;align-items:center;
+    background:var(--panel);color:var(--text);border:1px solid var(--border);
+    min-height:42px;min-width:0;padding:8px 12px;font-size:.79rem;font-weight:650;
+    border-radius:8px;
+  }
+  .cosme-metrics-page .finance-mobile-toggle:after {content:"⌄";font-size:1.06rem;line-height:1}
+  .cosme-metrics-page .finance-mobile-toggle[aria-expanded="true"] {
+    color:var(--accent);background:var(--accent-soft);border-color:var(--accent);
+  }
+  .cosme-metrics-page .finance-filters-toggle {grid-area:toggle-filters}
+  .cosme-metrics-page .finance-actions-toggle {grid-area:toggle-actions}
+  .cosme-metrics-page .finance-toolbar .finance-filters {
+    grid-area:filter-panel;display:none;
+    width:100%;min-width:0;padding:9px;
+    border:1px solid var(--border);border-radius:9px;
+    background:var(--panel-soft);
+    grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;
+  }
+  .cosme-metrics-page .finance-toolbar .finance-filters.is-open {display:grid}
+  .cosme-metrics-page .finance-toolbar .finance-filters label {
+    min-width:0;flex:none;width:100%;font-size:.71rem;
+  }
+  .cosme-metrics-page .finance-toolbar .finance-filters select {
+    min-height:42px;min-width:0;width:100%;font-size:.77rem;
+  }
+  .cosme-metrics-page .finance-toolbar .finance-actions {
+    grid-area:action-panel;
+    display:none;grid-template-columns:repeat(2,minmax(0,1fr));
+    min-width:0;gap:8px;padding:9px;
+    border:1px solid var(--border);border-radius:9px;
+    background:var(--panel-soft);
+  }
+  .cosme-metrics-page .finance-toolbar .finance-actions.is-open {display:grid}
+  .cosme-metrics-page .finance-actions .metrics-button {
+    min-width:0;min-height:42px;margin:0;width:100%;
+    white-space:normal;font-size:.76rem;line-height:1.25;
+  }
+  .cosme-metrics-page .finance-group-summary {
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    grid-template-areas:"name" "mobile" "date";
+    gap:4px;min-height:75px;
+    padding:10px 36px 10px 12px;
+    background:var(--panel-soft);
+  }
+  .cosme-metrics-page .finance-group-summary:before {content:none}
+  .cosme-metrics-page .finance-group-summary:after {
+    content:"⌄";position:absolute;right:12px;top:13px;
+    color:var(--accent);font-size:1.14rem;line-height:1;
+    transform:rotate(-90deg);transition:transform .14s ease;
+  }
+  .cosme-metrics-page .finance-project-group[open]>.finance-group-summary:after {transform:rotate(0deg)}
+  .cosme-metrics-page .finance-group-name {
+    grid-area:name;white-space:normal;overflow:visible;
+    text-overflow:clip;font-size:.9rem;line-height:1.3;
+  }
+  .cosme-metrics-page .finance-group-cost,
+  .cosme-metrics-page .finance-group-note {display:none}
+  .cosme-metrics-page .finance-group-date {
+    grid-area:date;font-size:.71rem;white-space:normal;line-height:1.35;
+  }
+  .cosme-metrics-page .finance-group-mobile {
+    grid-area:mobile;display:grid;gap:4px;min-width:0;
+  }
+  .cosme-metrics-page .finance-group-mobile-main {
+    display:flex;gap:7px;align-items:center;flex-wrap:wrap;min-width:0;
+  }
+  .cosme-metrics-page .finance-mobile-total-label {
+    color:var(--text-sec);font-size:.73rem;
+  }
+  .cosme-metrics-page .finance-group-mobile-total {
+    color:var(--text);font-size:1rem;line-height:1.3;
+    font-weight:750;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;
+  }
+  .cosme-metrics-page .finance-group-mobile-status {
+    display:inline-block;padding:2px 6px;border-radius:5px;
+    background:var(--panel);border:1px solid var(--border);
+    color:var(--text-sec);font-size:.67rem;font-weight:650;
+  }
+  .cosme-metrics-page .finance-group-mobile-unit,
+  .cosme-metrics-page .finance-group-mobile-context {
+    color:var(--text-sec);font-size:.72rem;line-height:1.3;
+    overflow-wrap:anywhere;
+  }
+  .cosme-metrics-page .finance-project-group>.finance-register-item {padding-left:0}
+  .cosme-metrics-page .finance-row {
+    grid-template-columns:minmax(0,1fr) minmax(0,auto);
+    grid-template-areas:
+      "stage status"
+      "total total"
+      "unit unit"
+      "date basis";
+    gap:4px 8px;align-items:start;
+    padding:10px 32px 10px 12px;min-height:70px;
+    position:relative;
+  }
+  .cosme-metrics-page .finance-register-item>summary.finance-row:after {
+    right:11px;top:13px;transform:rotate(0deg);content:"⌄";
+    font-size:1.04rem;
+  }
+  .cosme-metrics-page .finance-register-item[open]>summary.finance-row:after {
+    content:"⌄";transform:rotate(180deg);
+  }
+  .cosme-metrics-page .finance-row .finance-stage {
+    grid-area:stage;overflow:visible;text-overflow:clip;white-space:normal;
+    font-size:.8rem;line-height:1.35;min-width:0;
+  }
+  .cosme-metrics-page .finance-row .finance-row-status {
+    grid-area:status;white-space:normal;font-size:.69rem;
+    line-height:1.3;text-align:right;overflow-wrap:anywhere;
+  }
+  .cosme-metrics-page .finance-row .finance-row-total {
+    grid-area:total;white-space:normal;text-align:left;
+    font-size:.91rem;font-weight:750;overflow-wrap:anywhere;
+  }
+  .cosme-metrics-page .finance-row .finance-row-total:before {
+    content:"Package total · ";font-size:.71rem;font-weight:400;color:var(--text-sec);
+  }
+  .cosme-metrics-page .finance-row .finance-row-unit {
+    grid-area:unit;white-space:normal;text-align:left;
+    font-size:.74rem;font-weight:600;color:var(--text-sec);
+  }
+  .cosme-metrics-page .finance-row .finance-row-unit:not(.is-empty):before {
+    content:"Unit cost · ";font-weight:400;
+  }
+  .cosme-metrics-page .finance-row .finance-row-unit.is-empty {display:none}
+  .cosme-metrics-page .finance-row .finance-date {
+    grid-area:date;text-align:left;font-size:.72rem;white-space:normal;
+    overflow:visible;
+  }
+  .cosme-metrics-page .finance-row .finance-basis {
+    grid-area:basis;text-align:right;font-size:.72rem;white-space:normal;
+  }
+  .cosme-metrics-page .finance-detail-body {
+    padding:8px 10px 10px;gap:5px;
+  }
+  .cosme-metrics-page .finance-category {
+    border:0;border-radius:0;
+    border-bottom:1px solid var(--border-soft);
+  }
+  .cosme-metrics-page .finance-category-line,
+  .cosme-metrics-page .finance-subcategory-line {
+    min-height:42px;padding:7px 6px;
+    font-size:.76rem;line-height:1.25;
+  }
+  .cosme-metrics-page .finance-category-line {background:transparent}
+  .cosme-metrics-page .finance-category-line,
+  .cosme-metrics-page .finance-subcategory-line {
+    position:relative;padding-right:24px;
+  }
+  .cosme-metrics-page .finance-category-line:after,
+  .cosme-metrics-page .finance-subcategory-line:after {
+    content:"⌄";position:absolute;right:5px;top:50%;
+    transform:translateY(-50%) rotate(-90deg);
+    color:var(--accent);font-size:1rem;
+  }
+  .cosme-metrics-page .finance-category[open]>.finance-category-line:after,
+  .cosme-metrics-page .finance-subcategory[open]>.finance-subcategory-line:after {
+    transform:translateY(-50%) rotate(0deg);
+  }
+  .cosme-metrics-page .finance-subcategory {
+    margin:0 0 0 9px;
+  }
+  .cosme-metrics-page .finance-line-scroll {overflow:visible;max-width:100%}
+  .cosme-metrics-page .finance-line-table {display:none}
+  .cosme-metrics-page .finance-mobile-lines {display:grid;min-width:0}
+  .cosme-metrics-page .finance-mobile-line {
+    display:grid;grid-template-columns:minmax(0,1fr) max-content;
+    align-items:start;gap:10px;
+    padding:8px 3px;
+    border-bottom:1px solid var(--border-soft);
+    color:var(--text);font-size:.76rem;
+  }
+  .cosme-metrics-page .finance-mobile-line:last-child {border-bottom:0}
+  .cosme-metrics-page .finance-mobile-item {
+    min-width:0;display:grid;gap:2px;overflow-wrap:anywhere;
+  }
+  .cosme-metrics-page .finance-mobile-item-name {line-height:1.35}
+  .cosme-metrics-page .finance-mobile-item-meta {
+    color:var(--text-muted);font-size:.65rem;line-height:1.25;
+  }
+  .cosme-metrics-page .finance-mobile-item-cost {
+    white-space:nowrap;font-size:.76rem;font-variant-numeric:tabular-nums;
+    text-align:right;
+  }
+  .cosme-metrics-page .finance-mobile-source {font-size:.7rem;color:var(--accent)}
+}
+@media(max-width:360px){
+ .cosme-metrics-page .finance-toolbar .finance-filters.is-open {grid-template-columns:minmax(0,1fr)}
+ .cosme-metrics-page .finance-mobile-line {grid-template-columns:minmax(0,1fr)}
+ .cosme-metrics-page .finance-mobile-item-cost {text-align:left}
+}

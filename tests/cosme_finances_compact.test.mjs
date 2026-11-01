@@ -10,8 +10,8 @@ const panelSource=read("../assets/js/cosme_finances_panel.mjs");
 
 test("Finance uses matching Metrics/Timeline shell with two compact internal views",()=>{
   assert.match(page,/data-tab="finances"/);
-  assert.match(page,/cosme_finances\.css\?v=4/);
-  assert.match(main,/cosme_finances_panel\.mjs\?v=5/);
+  assert.match(page,/cosme_finances\.css\?v=5/);
+  assert.match(main,/cosme_finances_panel\.mjs\?v=6/);
   assert.match(panelSource,/Project costs & estimates/);
   assert.match(panelSource,/Expense register/);
   assert.match(panelSource,/Filter finance activity/);
