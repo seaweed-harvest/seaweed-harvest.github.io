@@ -301,6 +301,20 @@
     font-size:.76rem;line-height:1.25;
   }
   .cosme-metrics-page .finance-category-line {background:transparent}
+  .cosme-metrics-page .finance-category-line,
+  .cosme-metrics-page .finance-subcategory-line {
+    position:relative;padding-right:24px;
+  }
+  .cosme-metrics-page .finance-category-line:after,
+  .cosme-metrics-page .finance-subcategory-line:after {
+    content:"⌄";position:absolute;right:5px;top:50%;
+    transform:translateY(-50%) rotate(-90deg);
+    color:var(--accent);font-size:1rem;
+  }
+  .cosme-metrics-page .finance-category[open]>.finance-category-line:after,
+  .cosme-metrics-page .finance-subcategory[open]>.finance-subcategory-line:after {
+    transform:translateY(-50%) rotate(0deg);
+  }
   .cosme-metrics-page .finance-subcategory {
     margin:0 0 0 9px;
   }
