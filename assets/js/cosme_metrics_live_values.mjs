@@ -79,7 +79,7 @@ export function exportMetricViewCsv(metrics, version, statusOf, showCurrent, lat
   const rows=metrics.map(metric=>{
     const state=displayValue(metric,statusOf(metric),showCurrent,latestRelease);
     return [metric.id,metric.activity,metric.theme,metric.title,state.value,state.unit,
-      state.state,state.publishedValue,state.publishedUnit,state.checkedAt||"",
+      state.state,metric.operationalLive?"":state.publishedValue,metric.operationalLive?"":state.publishedUnit,state.checkedAt||"",
       state.sourceUpdatedAt||"",version||"",metric.source,metric.note];
   });
   return "\uFEFF"+[header,...rows].map(row=>row.map(safeCsvCell).join(",")).join("\r\n");
