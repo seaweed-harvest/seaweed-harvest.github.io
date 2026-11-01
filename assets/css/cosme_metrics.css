@@ -873,3 +873,29 @@
   .cosme-metrics-page .metrics-activity-card { min-height: 98px; padding: 11px; }
   .cosme-metrics-page .metrics-activity-card .metrics-big { font-size: 1.2rem; }
 }
+
+/* Only equivalent, validated calculations receive the green Live treatment.
+   Related Mawimbi data uses a distinct neutral-linked treatment. */
+.cosme-metrics-page .metrics-table tbody tr.metrics-data-linked > td { background: #f2f7fa; }
+.cosme-metrics-page .metrics-table tbody tr.metrics-data-linked:hover > td { background: #e8f1f7; }
+.cosme-metrics-page .metrics-table tbody tr.metrics-data-linked > td:first-child {
+  box-shadow: inset 3px 0 0 #5f8297;
+}
+.cosme-metrics-page .metrics-linked-mark {
+  flex: none;
+  color: #486a82;
+  font-size: .68rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.cosme-metrics-page .metrics-live-notice {
+  margin: 2px 0 9px;
+}
+.cosme-metrics-page .metrics-table .metrics-value-open .metrics-live-mark {
+  margin-left: 9px;
+  vertical-align: baseline;
+}
+.cosme-metrics-page .metrics-headline-open .metrics-live-mark {
+  display: block;
+  margin-top: 5px;
+}
