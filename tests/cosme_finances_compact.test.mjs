@@ -1,0 +1,91 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {createCosmeFinancesPanel} from "../assets/js/cosme_finances_panel.mjs";
+const read=p=>readFileSync(new URL(p,import.meta.url),"utf8");
+const page=read("../cosme_metrics.html");
+const main=read("../assets/js/cosme_metrics_page.js");
+const css=read("../assets/css/cosme_finances.css");
+const panelSource=read("../assets/js/cosme_finances_panel.mjs");
+
+test("Finance uses matching Metrics/Timeline shell with two compact internal views",()=>{
+  assert.match(page,/data-tab="finances"/);
+  assert.match(page,/cosme_finances\.css\?v=2/);
+  assert.match(main,/cosme_finances_panel\.mjs\?v=2/);
+  assert.match(panelSource,/Project costs & estimates/);
+  assert.match(panelSource,/Expense register/);
+  assert.match(panelSource,/Filter finance activity/);
+  assert.match(panelSource,/Filter cost basis/);
+  assert.match(css,/\.finance-table-header/);
+  assert.match(css,/\.finance-row\{/);
+  assert.match(css,/grid-template-columns/);
+  assert.match(css,/max-width:580px/);
+});
+test("Accurate project version stages and source labels",()=>{
+  assert.match(panelSource,/V1\.1 · Shangani as-built BOM/);
+  assert.match(panelSource,/V1\.2 · Pre-build estimate/);
+  assert.match(panelSource,/V1\.2 · Funzi as-built BOM/);
+  assert.match(panelSource,/V1\.3 · Pre-build estimate/);
+  assert.match(panelSource,/V1\.3 · PLAN production quote/);
+  assert.match(panelSource,/V1\.2 · Rough design \(materials\)/);
+  assert.doesNotMatch(panelSource,/PLAN as-built/);
+  assert.match(panelSource,/Month taken from source file name/);
+});
+class FakeNode{
+  constructor(tag){this.tag=tag;this.children=[];this.dataset={};this.attributes={};this.listeners={};this.open=false;this.value="";this.textContent="";this.className="";this.title="";this.style={}}
+  append(...elems){this.children.push(...elems)}
+  replaceChildren(...elems){this.children=[...elems]}
+  setAttribute(k,v){this.attributes[k]=v}
+  addEventListener(k,f){this.listeners[k]=f}
+  querySelectorAll(sel){
+    const out=[];
+    const walk=el=>{
+      for(const c of el.children){
+        if(sel==='details[data-finance-key]'&&c.tag==='details'&&c.dataset.financeKey)out.push(c);
+        walk(c);
+      }
+    };
+    walk(this);
+    return out;
+  }
+}
+function fakeDom(){globalThis.document={createElement:tag=>new FakeNode(tag)}}
+function payload(){
+  return {
+    sources:[{id:"s1",display_name:"V1.3 PLAN quote",source_date:"2026-04-01"}],
+    packages:[{id:"p1",source_id:"s1",version:"V1.3",activity:"Solar Drying Tables",basis:"quoted",currency:"KES",control_total:2471500,units_covered:10,unit_label:"tables",reconciliation_status:"verified"}],
+    lines:[{package_id:"p1",source_row:"A1",category:"Materials",subcategory:"Metal",description:"Steel pipes",quantity:1,unit_rate:2471500,amount:2471500,reconciliation_status:"verified",included_in_total:true}]
+  };
+}
+test("Refresh with identical data retains open item and DOM identity; changed data restores open state",async()=>{
+  fakeDom();
+  const root=new FakeNode("div");
+  let data=payload();
+  const auth={rpc:async()=>({data,error:null})};
+  const finance=createCosmeFinancesPanel(auth,root);
+  await finance.load();
+  const getDetail=()=>root.querySelectorAll("details[data-finance-key]").find(x=>x.dataset.financeKey==="pkg:p1");
+  const first=getDetail();assert.ok(first);first.open=true;
+  await finance.load();
+  assert.strictEqual(getDetail(),first,"Unchanged session refresh must not recreate/close open rows");
+  data={...data,packages:[{...data.packages[0],version:"V1.3 revised label"}]};
+  await finance.load();
+  const second=getDetail();
+  assert.notStrictEqual(second,first,"Changed data should render");
+  assert.equal(second.open,true,"Open row state must survive data refresh");
+});
+test("Expense register separates procurement from project versions",async()=>{
+  fakeDom();
+  const root=new FakeNode("div");
+  const data=payload();
+  data.packages.push({id:"exp",source_id:"s1",activity:"COSME Procurement — Offshore Nursery",version:"Expense register",basis:"paid",currency:"CAD",units_covered:1,reconciliation_status:"review"});
+  data.lines.push({package_id:"exp",category:"Travel",subcategory:"Field",source_row:"3",description:"Transfer",amount:10,reconciliation_status:"verified",included_in_total:true});
+  const finance=createCosmeFinancesPanel({rpc:async()=>({data,error:null})},root);
+  await finance.load();
+  const buttons=root.children.flatMap(c=>c.children).filter(c=>c.tag==="button");
+  const expenses=buttons.find(c=>c.textContent==="Expense register");
+  assert.ok(expenses,"Expense sub-view tab exists");
+  expenses.listeners.click();
+  assert.ok(root.querySelectorAll("details[data-finance-key]").some(x=>x.dataset.financeKey==="pkg:exp"));
+  assert.ok(!root.querySelectorAll("details[data-finance-key]").some(x=>x.dataset.financeKey==="pkg:p1"));
+});
