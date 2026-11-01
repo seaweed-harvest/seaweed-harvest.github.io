@@ -6,8 +6,8 @@ import {
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
 
 import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=3";
-import { initializeSampleRopeDataTable } from "./reef_sample_rope_data_table.js?v=3";
-import { createNurseryRecordsAnalysis } from "./reef_nursery_analysis.mjs?v=1";
+import { initializeSampleRopeDataTable } from "./reef_sample_rope_data_table.js?v=4";
+import { createNurseryRecordsAnalysis } from "./reef_nursery_analysis.mjs?v=2";
 
 const PAGE_SIZE = 50;
 const LOCATION_LABELS = Object.freeze({
