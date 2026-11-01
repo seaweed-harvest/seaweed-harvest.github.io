@@ -63,6 +63,7 @@ let selectedCategories = new Set();
 let detailMetricId=null;
 let releaseLoad=0;
 let latestReleaseKey=null;
+let prefersLiveValues=true;
 let liveRefreshInFlight=null;
 
 function loadColumns() {
@@ -91,6 +92,7 @@ function clearPrivateState() {
   detailMetricId=null;
   all = []; visible = []; current = null; access = null;
   latestReleaseKey=null;
+  prefersLiveValues=true;
   currentRopeCoverage = null; currentCoverageError = "";
   currentDryerMetrics = null; currentDryerError = "";
   nurseryGrowthPanel.clear();
@@ -179,6 +181,7 @@ async function loadRelease(version = null) {
     " · " + all.length + " frozen metrics.";
   el("version").value = String(data.major) + "." + String(data.minor);
   el("showLiveValues").disabled=!isLatestRelease();
+  el("showLiveValues").checked=isLatestRelease() && prefersLiveValues;
   setStatus("", false, false);
   render();
   await sharedPicks.load(data,all);
@@ -551,7 +554,12 @@ function renderRows() {
   const populated=populatedMetrics(all);
   const linkedCount=populated.filter(metric=>Boolean(currentLinkSource(metric))).length;
   const liveCount=populated.filter(metric=>currentStatus(metric).kind==="live").length;
-  visible = selectMetrics(populated, {
+  // Sorting and text search use the displayed current figure, not an unseen
+  // frozen number, while keeping the original metric values intact.
+  const displayRows=populated.map(metric=>({
+    ...metric,liveDisplayValue:metricDisplay(metric).value
+  }));
+  visible = selectMetrics(displayRows, {
     query, activity: el("activity").value, categories: [...selectedCategories],
     featured: el("featured").checked, sort: sortKey, direction: sortDirection
   });
@@ -813,7 +821,9 @@ async function reloadAndRecheck() {
   access = grant;
   el("accessRole").textContent = "Metrics " + grant.role;
   await prepareNavigation();
-  const previousVersion = current?.status === "published" ?
+  // Follow the latest release pointer on return, but preserve a deliberately
+  // opened historical release for comparison.
+  const previousVersion = current?.status === "published" && !isLatestRelease() ?
     [current.major, current.minor] : null;
   await loadReleases();
   await loadRelease(previousVersion);
@@ -838,6 +848,7 @@ el("featured").addEventListener("change", () => {
 });
 el("linkedOnly").addEventListener("change", renderRows);
 el("showLiveValues").addEventListener("change",()=>{
+  prefersLiveValues=el("showLiveValues").checked;
   renderHeadlines();
   renderRows();
 });
