@@ -9,7 +9,7 @@ import {
 import { createSharedPicks } from "./cosme_metrics_picks.mjs?v=1";
 import { liveStatus, displayValue, exportMetricViewCsv } from "./cosme_metrics_live_values.mjs?v=1";
 import { populatedMetrics, concisePickStatus, metricEvidence } from "./cosme_metrics_presentation.js?v=1";
-import { createNurseryGrowthPanel } from "./cosme_nursery_growth.mjs?v=3";
+import { createNurseryGrowthPanel } from "./cosme_nursery_growth.mjs?v=4";
 import { createMawimbiOperationsPanel } from "./cosme_mawimbi_operations.mjs?v=1";
 import { createMawimbiStockQcPanel } from "./cosme_mawimbi_stock_qc.mjs?v=1";
 import { createMawimbiTraceabilityPanel } from "./cosme_mawimbi_traceability.mjs?v=1";
