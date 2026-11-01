@@ -58,7 +58,7 @@ test("curated source-anchored milestones have precise, non-invented dates", () =
     const s = new Date(start + "T12:00:00Z");
     return !isNaN(s) && s.toISOString().slice(0,10) === start &&
       (!end || (end >= start && !isNaN(new Date(end + "T12:00:00Z")))) &&
-      /^'(?:(?:[A-Z]{2,3}|SDT-R)-[0-9]{4,5}'(?:,|$))+/.test(ids);
+      ids.split(",").every(id => /^'(?:[A-Z]{2,3}|SDT-R)-[0-9]{4,5}'$/.test(id));
   }));
   assert.equal(entries.filter((x) => x[1]==="2025-10-14").length,1);
   assert.equal(entries.filter((x) => x[1]==="2025-10-15").length,1);
