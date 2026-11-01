@@ -220,7 +220,7 @@ export function createMetricsTimeline(authClient, root, openMetric) {
           throw new Error("Project timeline access unavailable.");
         }
         milestones = data.milestones
-          .filter((m) => /^\\d{4}-\\d{2}-\\d{2}$/.test(m.start_date) && m.title)
+          .filter((m) => /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(m.start_date) && m.title)
           .sort((a,b) => a.start_date.localeCompare(b.start_date) || a.title.localeCompare(b.title));
         loaded = true;
         errorMessage = "";
