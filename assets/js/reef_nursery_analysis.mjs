@@ -1,4 +1,4 @@
-import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=4";
+import { nurserySiteDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=5";
 // Nursery Records -> Analysis. Shared server-side calculation with COSME live metrics.
 // No raw measurements, farmer details, or write access are exposed by this view.
 const nf=(n,d=1)=>n==null?"—":new Intl.NumberFormat("en-KE",{maximumFractionDigits:d}).format(n);
@@ -54,7 +54,7 @@ export function createNurseryRecordsAnalysis(authClient,target){
     const body=node(t,"tbody");
     for(const s of sites){
       const r=node(body,"tr");
-      for(const v of [mkwiroRaftDisplayLabel(s.site_code,s.site_name)||s.site_code,s.structure_type==="raft"?"Floating raft":"Shore / off-bottom",
+      for(const v of [nurserySiteDisplayLabel(s.site_code,s.site_name)||s.site_code,s.structure_type==="raft"?"Floating raft":"Shore / off-bottom",
         s.initial_ropes,s.week2_ropes,s.week4_ropes,
         s.mean_gain_g_day==null?"—":nf(s.mean_gain_g_day)+" g/day",
         s.mean_sgr_pct_day==null?"—":nf(s.mean_sgr_pct_day,2)+" %/day"])cell(r,v);
@@ -67,8 +67,8 @@ export function createNurseryRecordsAnalysis(authClient,target){
       node(section,"p","Mean wet-weight gain (g/rope/day), Week 2–4","reef-growth-note");
       for(const pair of data.pairs){
         const card=node(section,"div",undefined,"reef-growth-pair");
-        const raft=mkwiroRaftDisplayLabel(pair.raft_site)||pair.raft_site;
-        const shore=mkwiroRaftDisplayLabel(pair.shore_site)||pair.shore_site;
+        const raft=nurserySiteDisplayLabel(pair.raft_site)||pair.raft_site;
+        const shore=nurserySiteDisplayLabel(pair.shore_site)||pair.shore_site;
         const pairHeading=node(card,"strong",raft+" vs "+shore+" · "+pair.pair_count+" matched pairs");
         pairHeading.title=pair.raft_site+" / "+pair.shore_site;
         const max=Math.max(pair.raft_gain_g_day,pair.shore_gain_g_day,1);
