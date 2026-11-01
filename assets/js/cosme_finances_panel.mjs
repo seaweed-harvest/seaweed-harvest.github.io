@@ -1,4 +1,4 @@
-import {BASIS,money,amountOrNull,normalizeFinanceData,activityGroups,exportFinanceCsv} from "./cosme_finances_core.mjs?v=1";
+import {BASIS,money,amountOrNull,normalizeFinanceData,activityGroups,exportFinanceCsv,effectiveFinanceBasis} from "./cosme_finances_core.mjs?v=2";
 
 // Read-only project reference: separate estimates/quotes/invoices from expense claims.
 const make=(tag,cls="",value)=>{
@@ -62,12 +62,8 @@ function reportStatus(p){
   if(p.reconciliation_status!=="verified")return "Review";
   return "Source checked";
 }
-function effectiveBasis(p){
-  // Owner confirms the project cost, not a bank payment or invoice date.
-  return p.package_key==="v13-plan-10"?"actual":p.basis;
-}
 function basisLabel(p){
-  if(effectiveBasis(p)==="actual")return "Actual (owner)";
+  if(effectiveFinanceBasis(p)==="actual")return "Actual (owner)";
   return p.basis==="paid"?"Recorded expense":BASIS[p.basis];
 }
 function sourceLineTable(lines,p){
@@ -229,7 +225,7 @@ export function createCosmeFinancesPanel(authClient,root){
       "Expense claims grouped by activity and category. CAD amounts are kept separate from KES project budgets.":
       "One row per project version or source; estimates, quotes and invoices are distinct. Open any row for the parts breakdown.");
     if(lastError)add(root,"p","finance-detail-flag","Update unavailable; showing last loaded costs. "+lastError);
-    const selected=pool.filter(p=>(activity==="all"||p.activity===activity)&&(isExpense||basis==="all"||effectiveBasis(p)===basis));
+    const selected=pool.filter(p=>(activity==="all"||p.activity===activity)&&(isExpense||basis==="all"||effectiveFinanceBasis(p)===basis));
     if(!selected.length){add(root,"p","finance-empty",hasLoaded?"No matching cost records.":"Loading finance records…");return}
     const list=add(root,"div","finance-register");
     tableHeader(list);
