@@ -1262,3 +1262,37 @@
     outline-offset: 2px;
   }
 }
+
+/* Group by metric type without altering record identity or the original release. */
+.cosme-metrics-page .metrics-count-line {
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 14px;
+  margin-bottom:8px;
+}
+.cosme-metrics-page .metrics-count-line .metrics-count {margin:0;}
+.cosme-metrics-page .metrics-sort-label {
+  display:flex;align-items:center;gap:7px;color:var(--text-muted);
+  font-size:.73rem;font-weight:650;
+}
+.cosme-metrics-page .metrics-sort-label select {
+  min-height:32px;max-width:180px;padding:4px 22px 4px 8px;
+  color:var(--text);background:var(--panel);border:1px solid var(--border);
+  border-radius:7px;font-size:.76rem;
+}
+.cosme-metrics-page .metrics-table .metrics-type-row > td {
+  height:29px;padding:5px 12px;font-size:.75rem;font-weight:730;
+  color:var(--text-sec);background:var(--panel-soft);
+  border-top:1px solid var(--border);border-bottom:1px solid var(--border);
+}
+.cosme-metrics-page .metrics-table .metrics-type-row:hover > td {
+  background:var(--panel-soft);
+}
+.cosme-metrics-page .metrics-mobile-list .metrics-group-label {
+  font-size:.75rem;line-height:1.3;font-weight:750;
+  color:var(--text-sec);margin:8px 2px 1px;
+  padding:8px 1px 3px;border-bottom:1px solid var(--border);
+  overflow-wrap:anywhere;
+}
+@media (max-width:700px) {
+  .cosme-metrics-page .metrics-sort-label select {min-height:40px;}
+  .cosme-metrics-page .metrics-count-line {align-items:center;}
+}
