@@ -34,3 +34,11 @@ export function pairedMkwiroSites(siteCode) {
   }
   return null;
 }
+
+/** Human-facing operational names for both nursery locations; source site codes remain unchanged. */
+export function nurserySiteDisplayLabel(siteCode,siteName=""){
+  const code=String(siteCode||"").trim().toUpperCase();
+  if(code==="TB-R1")return "Tumbe · Raft A";
+  if(code==="TB-SF1/R1")return "Tumbe · Shore A";
+  return mkwiroRaftDisplayLabel(code,siteName);
+}
