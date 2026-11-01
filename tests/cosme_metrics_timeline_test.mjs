@@ -72,7 +72,7 @@ test("SQL keeps COSME grant checks, old metric anchors and source-separated trav
   assert.match(sql,/2026-02-16/);
   assert.match(sql,/2026-02-10/);
   assert.match(sql,/2026-02-18/);
-  const eventRows=[...sql.matchAll(/\\('\d{4}-\d{2}-\d{2}'::date/g)];
+  const eventRows=sql.split("\n").filter(line=>line.trim().startsWith("('"));
   assert.equal(eventRows.length,44);
   assert.match(sql,/\('2025-07-23'::date,null::date/);
   assert.match(sql,/\('2025-11-26'::date,null::date/);
