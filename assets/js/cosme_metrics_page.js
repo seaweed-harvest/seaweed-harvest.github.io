@@ -1,7 +1,7 @@
 import {
   authClient, currentSession, currentProfile, setupAccountControls
 } from "./auth_client.js?v=25";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=16";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=17";
 import {
   normalizeReleaseItems, selectMetrics,
   parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, headlineMetrics, financialContext, currentDryerWeightReduction, metricCategory
