@@ -35,21 +35,25 @@ export function selectMetrics(metrics,{
     &&(!verification||m.verification===verification)
     &&(!featured||m.featured)
     &&(!selected.size||selected.has(m.theme))
-    &&(!q||[m.id,m.title,m.note,m.source,m.value,m.unit,m.theme].join(" ").toLocaleLowerCase().includes(q))
+    &&(!q||[m.id,m.title,m.note,m.source,m.value,m.liveDisplayValue,m.unit,m.theme].join(" ").toLocaleLowerCase().includes(q))
   );
   const allowed=["id","title","activity","theme","value","unit","source","note","verification","asOf","dataKind"];
   const sortKey=allowed.includes(sort)?sort:"id";
   const sign=direction==="desc"?-1:1;
   return filtered.sort((a,b)=>{
     if(sortKey==="value"){
-      const aEmpty=!String(a.value??"").trim();
-      const bEmpty=!String(b.value??"").trim();
+      const aEmpty=!String(a.liveDisplayValue??a.value??"").trim();
+      const bEmpty=!String(b.liveDisplayValue??b.value??"").trim();
       if(aEmpty!==bEmpty)return aEmpty?1:-1; // Missing values always last.
-      const aNumber=sortableMetricNumber(a.value),bNumber=sortableMetricNumber(b.value);
+      const aNumber=sortableMetricNumber(a.liveDisplayValue??a.value),
+        bNumber=sortableMetricNumber(b.liveDisplayValue??b.value);
       if(aNumber!==null&&bNumber!==null&&aNumber!==bNumber)return sign*(aNumber-bNumber);
       if((aNumber===null)!==(bNumber===null))return aNumber===null?1:-1;
     }
-    const cmp=String(a[sortKey]??"").localeCompare(String(b[sortKey]??""),undefined,{numeric:sortKey!=="value",sensitivity:"base"});
+    const aLabel=sortKey==="value"?(a.liveDisplayValue??a.value):a[sortKey];
+    const bLabel=sortKey==="value"?(b.liveDisplayValue??b.value):b[sortKey];
+    const cmp=String(aLabel??"").localeCompare(String(bLabel??""),undefined,
+      {numeric:sortKey!=="value",sensitivity:"base"});
     return sign*cmp||String(a.id).localeCompare(String(b.id),undefined,{numeric:true});
   });
 }
