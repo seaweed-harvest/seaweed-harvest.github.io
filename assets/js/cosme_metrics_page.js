@@ -4,25 +4,25 @@ import {
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=17";
 import {
   normalizeReleaseItems, selectMetrics,
-  parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, headlineMetrics, financialContext, currentDryerWeightReduction, metricCategory
+  parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, financialContext, currentDryerWeightReduction, metricCategory
 } from "./cosme_metrics_core.mjs?v=2";
 import { createSharedPicks } from "./cosme_metrics_picks.mjs?v=1";
 import { liveStatus, displayValue, exportMetricViewCsv } from "./cosme_metrics_live_values.mjs?v=1";
 import { populatedMetrics, concisePickStatus, metricEvidence } from "./cosme_metrics_presentation.js?v=1";
-import { createNurseryGrowthPanel } from "./cosme_nursery_growth.mjs?v=2";
+import { createNurseryGrowthPanel } from "./cosme_nursery_growth.mjs?v=4";
 import { createMawimbiOperationsPanel } from "./cosme_mawimbi_operations.mjs?v=1";
 import { createMawimbiStockQcPanel } from "./cosme_mawimbi_stock_qc.mjs?v=1";
 import { createMawimbiTraceabilityPanel } from "./cosme_mawimbi_traceability.mjs?v=1";
 import { createMetricsTimeline } from "./cosme_metrics_timeline.mjs?v=3";
 import { createCosmeFinancesPanel } from "./cosme_finances_panel.mjs?v=3";
-import { createOperationalIndicators } from "./cosme_operational_indicators.mjs?v=1";
+import { createOperationalIndicators } from "./cosme_operational_indicators.mjs?v=2";
 
 // Published values remain immutable. Shared picks are a separate authorised layer.
 // Only column choices persist locally; metric data and picks never do.
 const el = (id) => document.getElementById(id);
 const sharedPicks=createSharedPicks(authClient,()=>{
   all=sharedPicks.apply(all);
-  for(const id of ["picksStatus","picksStatusRegister"]){
+  for(const id of ["picksStatusRegister"]){
     const message=concisePickStatus(sharedPicks.message());
     el(id).textContent=message;el(id).hidden=!message;
   }
@@ -38,8 +38,9 @@ const timelinePanel = createMetricsTimeline(authClient,el("metricsTimeline"),(id
 });
 const financesPanel = createCosmeFinancesPanel(authClient,el("cosmeFinances"));
 let financesLoaded = false;
-const ACTIVITY_ORDER = ["Solar Drying Tables", "Offshore Nursery", "Aggregation Hub", "Mawimbi"];
+const ACTIVITY_ORDER = ["Solar Drying Tables", "Offshore Nursery", "Aggregation Hub", "Mawimbi", "Off-bottom Farming"];
 const STORAGE_KEY = "seaweed_ag:cosme_metric_columns_v2";
+const HIDDEN_KEY_PREFIX = "seaweed_ag:cosme_hidden_metric_ids_v1:";
 const COLUMN_DEFS = [
   { key: "title", label: "Metric", weight: 28 },
   { key: "activity", label: "Activity", weight: 15 },
@@ -52,7 +53,8 @@ const COLUMN_DEFS = [
   { key: "source", label: "Source", weight: 27 },
   { key: "note", label: "Notes", weight: 25 },
   { key: "verification", label: "Evidence", weight: 11 },
-  { key: "asOf", label: "As of", weight: 16 }
+  { key: "asOf", label: "As of", weight: 16 },
+  { key: "hide", label: "Hide", weight: 5 }
 ];
 const DEFAULT_COLUMNS = ["title", "activity", "theme", "value"];
 let all = [];
@@ -76,6 +78,48 @@ let releaseLoad=0;
 let latestReleaseKey=null;
 let prefersLiveValues=true;
 let liveRefreshInFlight=null;
+let hiddenMetricIds=new Set();
+let preferenceUserId=null;
+function preferencesKey(){return preferenceUserId?HIDDEN_KEY_PREFIX+preferenceUserId:null;}
+function loadHiddenMetrics(){
+  try {
+    const value=JSON.parse(localStorage.getItem(preferencesKey())||"[]");
+    hiddenMetricIds=new Set(Array.isArray(value) ? value.filter(
+      x=>typeof x==="string" && /^(?:LIVE-)?[A-Z]+-[A-Z0-9-]{1,32}$/.test(x)).slice(0,1000):[]);
+  } catch { hiddenMetricIds=new Set(); }
+}
+function saveHiddenMetrics(){
+  try {const key=preferencesKey();if(key)localStorage.setItem(key,JSON.stringify([...hiddenMetricIds]));}catch {}
+}
+function hideMetric(id){
+  if(!preferenceUserId)return;
+  hiddenMetricIds.add(id);saveHiddenMetrics();renderRows();
+}
+function restoreMetric(id){
+  hiddenMetricIds.delete(id);saveHiddenMetrics();renderRows();
+}
+function restoreAllHidden(){
+  hiddenMetricIds.clear();saveHiddenMetrics();renderRows();
+}
+function renderHiddenMetricMenu(){
+  const list=el("hiddenMetricList");
+  list.replaceChildren();
+  const hidden=[...all,...operationalIndicators].filter(m=>hiddenMetricIds.has(m.id));
+  el("hiddenMetricSummary").textContent="Hidden"+(hidden.length?" · "+hidden.length:"");
+  el("restoreAllHidden").disabled=!hiddenMetricIds.size;
+  if(!hidden.length){
+    add(list,"p","No hidden metrics.","metrics-small-note");
+    return;
+  }
+  for(const metric of hidden.sort((a,b)=>a.title.localeCompare(b.title))){
+    const item=add(list,"div","","metrics-hidden-item");
+    const label=add(item,"span",metric.title);
+    label.title=metric.id;
+    const button=add(item,"button","Restore","metrics-button");
+    button.type="button";button.setAttribute("aria-label","Restore "+metric.title);
+    button.addEventListener("click",()=>restoreMetric(metric.id));
+  }
+}
 
 function loadColumns() {
   try {
@@ -102,6 +146,7 @@ function clearPrivateState() {
   sharedPicks.clear();
   detailMetricId=null;
   all = []; visible = []; current = null; access = null;
+  preferenceUserId=null; hiddenMetricIds.clear();
   latestReleaseKey=null;
   prefersLiveValues=true;
   currentRopeCoverage = null; currentCoverageError = "";
@@ -116,16 +161,17 @@ function clearPrivateState() {
   financesLoaded = false;
   el("rows").replaceChildren();
   el("activityCards").replaceChildren();
-  el("headlineGroups").replaceChildren();
+
   el("detail").replaceChildren();
   el("metricMetadata").replaceChildren();
   el("metricEvidence").replaceChildren();
   el("metricTitle").textContent="";
-  el("headlineCount").textContent="";
+
   el("metricsConnectionStatus").replaceChildren();
   el("app").hidden = true;
   el("accessRole").textContent = "Access unavailable";
   el("releaseCaption").textContent = "";
+  el("overviewRegisterFacts").replaceChildren();
   el("veil").classList.remove("open");
   el("metricsStickyScroll").hidden = true;
 }
@@ -135,6 +181,11 @@ async function requireMetrics() {
   if (!session) {
     window.location.replace("./login.html?return=cosme_metrics.html");
     return null;
+  }
+  const newUserId=session.user?.id||null;
+  if(preferenceUserId!==newUserId){
+    preferenceUserId=newUserId;
+    loadHiddenMetrics();
   }
   const { data, error } = await authClient.rpc("cosme_metrics_my_access");
   if (error) throw error;
@@ -223,6 +274,18 @@ function metricDisplay(metric) {
 function currentLinkSource(metric) {
   return currentStatus(metric).source;
 }
+// Anchor the table's *scrolling viewport* to the visible screen bottom on
+// desktop, so large registers scroll inside the table rather than pushing the
+// horizontal scrollbar pages below. Never resize during vertical page scroll.
+function sizeRegisterViewport(){
+  if(el("app").hidden||el("register").hidden||window.innerWidth<700)return;
+  const wrap=el("metricScrollArea");
+  const top=wrap.getBoundingClientRect().top;
+  const available=window.innerHeight-top-25;
+  if(top>=0 && available>=280){
+    wrap.style.height=Math.min(920,Math.max(280,Math.floor(available)))+"px";
+  }
+}
 function syncStickyScrollbar() {
   const wrap=el("metricScrollArea"), bar=el("metricsStickyScroll");
   const rect=wrap.getBoundingClientRect();
@@ -247,7 +310,7 @@ function tab(name) {
     financesPanel.load();
   }
   if (name === "register") renderRows();
-  requestAnimationFrame(syncStickyScrollbar);
+  requestAnimationFrame(()=>{sizeRegisterViewport();syncStickyScrollbar();});
 }
 function add(parent, tag, value, className = "") {
   const node = document.createElement(tag);
@@ -257,7 +320,7 @@ function add(parent, tag, value, className = "") {
   return node;
 }
 function render() {
-  const populated=populatedMetrics(all);
+  const populated=[...populatedMetrics(all),...(isLatestRelease()?operationalIndicators:[])];
   const activity = el("activity");
   const previous = activity.value;
   activity.replaceChildren();
@@ -276,7 +339,18 @@ function render() {
     const rows = populated.filter((metric) => metric.activity === name);
     const button = document.createElement("button");
     button.className = "metrics-activity-card";
-    add(button, "strong", name);
+    const [tone,symbol]=({
+      "Solar Drying Tables":["dryer","☀"],
+      "Offshore Nursery":["nursery","≈"],
+      "Aggregation Hub":["aggregation","▦"],
+      "Mawimbi":["mawimbi","❧"],
+      "Off-bottom Farming":["farming","≋"]
+    })[name]||["other","○"];
+    button.dataset.activityTone=tone;
+    const heading=add(button,"div","","metrics-activity-heading");
+    const mark=add(heading,"span",symbol,"metrics-activity-icon");
+    mark.setAttribute("aria-hidden","true");
+    add(heading,"strong",name);
     add(button, "span", rows.length + " metrics", "metrics-big");
     button.addEventListener("click", () => {
       activity.value = name;
@@ -286,7 +360,7 @@ function render() {
     cards.append(button);
   }
   renderCategoryChoices();
-  renderHeadlines();
+  renderRegisterSummary();
   renderCurrentRopeCoverage();
   renderCurrentDryerMetrics();
   renderRows();
@@ -305,7 +379,8 @@ function configureStar(button,metric){
   button.setAttribute("aria-label",(metric.featured?"Remove ":"Add ")+metric.title+
     (metric.featured?" from":" to")+" shared Top Picks");
   button.title=sharedPicks.editable()?button.getAttribute("aria-label"):sharedPicks.message();
-  button.disabled=!sharedPicks.editable();
+  button.disabled=Boolean(metric.operationalLive)||!sharedPicks.editable();
+  if(metric.operationalLive)button.title="Top Picks only apply to published metrics";
   button.setAttribute("aria-busy",String(sharedPicks.busy(metric.id)));
 }
 async function togglePick(id,context="rows"){
@@ -315,29 +390,21 @@ async function togglePick(id,context="rows"){
   if(target&&!target.disabled) target.focus();
   else el("featured").focus();
 }
-function renderHeadlines() {
-  const items = headlineMetrics(populatedMetrics(all));
-  el("headlineCount").textContent = String(items.length);
-  const root = el("headlineGroups");
+function renderRegisterSummary(){
+  const root=el("overviewRegisterFacts");
   root.replaceChildren();
-  if(!items.length) add(root,"p","No highlights selected.","metrics-small-note");
-  for (const activity of [...new Set([...ACTIVITY_ORDER,...items.map(m=>m.activity)])]) {
-    const selected = items.filter(m => m.activity === activity);
-    if (!selected.length) continue;
-    const section = add(root,"section","","metrics-headline-group");
-    add(section,"h4",activity);
-    const grid = add(section,"div","","metrics-headline-grid");
-    for (const metric of selected) {
-      const button = add(grid,"button","","metrics-headline-open");
-      button.type = "button";
-      const overlay=metricDisplay(metric);
-      const formatted = displayMetricValue(overlay.value, overlay.unit);
-      add(button,"span",metric.title,"metrics-headline-label");
-      const headlineValue=formatted.missing&&metric.valueState==="not_established"?"Not established":formatted.full;
-      add(button,"strong",headlineValue,"metrics-headline-value");
-      if(overlay.state==="Live") add(button,"span","● Live","metrics-live-mark");
-      button.addEventListener("click",()=>openMetric(metric,button));
-    }
+  const publishedAt=current?.published_at&&Number.isFinite(Date.parse(current.published_at))
+    ?new Date(current.published_at).toLocaleString():"Not recorded";
+  for(const [name,value] of [
+    ["Published metrics",all.length.toLocaleString()],
+    ["Live indicators",isLatestRelease()?operationalIndicators.length.toLocaleString():"—"],
+    ["Release",current?.version||"—"],
+    ["Last published",publishedAt],
+    ["Published by","Not recorded"]
+  ]){
+    const fact=add(root,"div","","metrics-register-fact");
+    add(fact,"span",name);
+    add(fact,"strong",value);
   }
 }
 
@@ -575,11 +642,10 @@ function renderColumnChoices() {
 function renderRows() {
   const query = el("search").value.trim().toLocaleLowerCase();
   const populated=[...populatedMetrics(all),...(isLatestRelease()?operationalIndicators:[])];
-  const linkedCount=populated.filter(metric=>Boolean(currentLinkSource(metric))).length;
   const liveCount=populated.filter(metric=>currentStatus(metric).kind==="live").length;
   // Sorting and text search use the displayed current figure, not an unseen
   // frozen number, while keeping the original metric values intact.
-  const displayRows=populated.map(metric=>({
+  const displayRows=populated.filter(metric=>!hiddenMetricIds.has(metric.id)).map(metric=>({
     ...metric,liveDisplayValue:metricDisplay(metric).value
   }));
   visible = selectMetrics(displayRows, {
@@ -643,7 +709,7 @@ function renderRows() {
     const pickCell=add(row,"td","","metrics-pick-cell");
     const star=add(pickCell,"button","");
     star.type="button";configureStar(star,metric);
-    star.addEventListener("click",()=>togglePick(metric.id));
+    if(!metric.operationalLive)star.addEventListener("click",()=>togglePick(metric.id));
     for (const col of cols) {
       const cell = document.createElement("td");
       cell.dataset.col = col.key;
@@ -656,7 +722,13 @@ function renderRows() {
         displayMetricValue(overlay.value, selectedColumns.has("unit") ? "" : overlay.unit) : null;
       if (formatted?.numeric || formatted?.missing) cell.classList.add("metrics-number");
       cell.title = formatted ? formatted.full : value;
-      if (col.key === "title") {
+      if (col.key === "hide") {
+        const hideButton=add(cell,"button","×","metrics-hide-action");
+        hideButton.type="button";
+        hideButton.title="Hide from my metrics view";
+        hideButton.setAttribute("aria-label","Hide "+metric.title);
+        hideButton.addEventListener("click",()=>hideMetric(metric.id));
+      } else if (col.key === "title") {
         const button = document.createElement("button");
         button.type = "button";
         button.className = "metric-open";
@@ -698,16 +770,15 @@ function renderRows() {
     fragment.append(row);
   }
   tbody.append(fragment);
-  el("count").textContent = visible.length + " of " + populated.length +
-    " metrics ("+operationalIndicators.length+" live operational indicators) · " + liveCount + " current calculations · " +
-    (linkedCount-liveCount) + " linked data sources";
-  el("liveValueNotice").textContent = !isLatestRelease() ?
-    "Historical release · showing published values only." :
-    el("showLiveValues").checked ?
-    "Verified current values are displayed automatically; others remain published figures. Open a metric to compare both." :
-    "Published values shown. Enable Current values to display verified live calculations.";
+  const hiddenCount=populated.filter(m=>hiddenMetricIds.has(m.id)).length;
+  el("count").textContent=visible.length+" shown · "+populated.length+
+    " available · "+liveCount+" live"+(hiddenCount?" · "+hiddenCount+" hidden":"");
+  renderHiddenMetricMenu();
+  const notice=isLatestRelease()?"":"Historical release — published values only.";
+  el("liveValueNotice").textContent=notice;
+  el("liveValueNotice").hidden=!notice;
   el("empty").hidden = visible.length > 0;
-  requestAnimationFrame(syncStickyScrollbar);
+  requestAnimationFrame(()=>{sizeRegisterViewport();syncStickyScrollbar();});
 }
 function openMetric(metric, button, keepFocus=false) {
   detailMetricId=metric.id;
@@ -887,7 +958,7 @@ async function reloadAndRecheck() {
   renderConnectionStatus();
   el("app").hidden = false;
   if (financesLoaded) financesPanel.load();
-  renderHeadlines();
+  renderRegisterSummary();
   renderRows();
 }
 for (const button of document.querySelectorAll(".metrics-tabs .tab")) {
@@ -905,11 +976,11 @@ el("featured").addEventListener("change", () => {
 el("linkedOnly").addEventListener("change", renderRows);
 el("showLiveValues").addEventListener("change",()=>{
   prefersLiveValues=el("showLiveValues").checked;
-  renderHeadlines();
+  renderRegisterSummary();
   renderRows();
 });
 el("refreshLiveValues").addEventListener("click",()=>refreshLiveFeeds());
-el("openRegister").addEventListener("click", () => tab("register"));
+// Overview activity cards navigate to All metrics.
 el("reset").addEventListener("click", () => {
   el("search").value = "";
   el("activity").value = "";
@@ -925,6 +996,7 @@ el("reset").addEventListener("click", () => {
   renderRows();
 });
 el("exportCsv").addEventListener("click", exportCsv);
+el("restoreAllHidden").addEventListener("click",restoreAllHidden);
 async function refreshLiveFeeds() {
   if(liveRefreshInFlight || !access || !navigator.onLine) return liveRefreshInFlight;
   const button=el("refreshLiveValues");
@@ -934,7 +1006,7 @@ async function refreshLiveFeeds() {
       await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics(),loadOperationalIndicators(),
         nurseryGrowthPanel.refresh(),mawimbiPanel.refresh(),mawimbiQcPanel.refresh()]);
       renderConnectionStatus();
-      renderHeadlines();
+      renderRegisterSummary();
       renderRows();
       if(detailMetricId && el("veil").classList.contains("open")){
         // A stale detail should never suggest its opened value remains current.
@@ -961,13 +1033,11 @@ stickyScroll.addEventListener("scroll",()=>{
     metricScrollArea.scrollLeft=stickyScroll.scrollLeft;
 },{passive:true});
 window.addEventListener("scroll",syncStickyScrollbar,{passive:true});
-window.addEventListener("resize",syncStickyScrollbar,{passive:true});
+window.addEventListener("resize",()=>{sizeRegisterViewport();syncStickyScrollbar();},{passive:true});
 if("ResizeObserver" in window)
   new ResizeObserver(()=>requestAnimationFrame(syncStickyScrollbar)).observe(metricScrollArea);
 el("detailStar").addEventListener("click",()=>togglePick(detailMetricId,"detail"));
-for(const id of ["reloadPicks","reloadPicksRegister"]) el(id).addEventListener("click",async()=>{
-  if(current?.status==="published") await sharedPicks.load(current,all);
-});
+
 el("selectVersion").addEventListener("click", async () => {
   const version = parseReleaseVersion(el("version").value);
   if (!version) {
@@ -985,7 +1055,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && el("veil").classList.contains("open")) closeMetric();
 });
 document.addEventListener("click", (event) => {
-  for (const id of ["columnMenu", "categoryMenu"]) {
+  for (const id of ["columnMenu", "categoryMenu", "hiddenMetricMenu"]) {
     const menu = el(id);
     if (menu.open && !menu.contains(event.target)) menu.open = false;
   }
