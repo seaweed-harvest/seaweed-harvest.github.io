@@ -25,3 +25,14 @@ Lane C: small SQL SECURITY DEFINER API function in protected `supabase/**` path;
 - Static Node tests validate the projected dataset, source link handling, access-checks, and no mutation SQL; SQL validation/negative access-control tests are required before production apply.
 - Verify latest main features are preserved and review exact changed paths. Keep this PR a draft until review and browser checks.
 - Rollback: revert the front-end commit; if the RPC were applied in a separately approved production change, revoke its EXECUTE grant then drop `public.cosme_metrics_timeline()`. No persistent timeline data to recover.
+
+## Implementation and verification (1 November 2026)
+- Draft PR #144: https://github.com/seaweed-harvest/seaweed-harvest.github.io/pull/144
+- 22 curated timeline milestones are anchored to 29 distinct metric IDs within the current published 327-metric COSME release; 7 Solar Drying, 6 Offshore Nursery, 5 Aggregation Hub, and 4 Mawimbi events.
+- Executed the read-only SQL event projection against the current Supabase database (no function creation, grant change or production data write). It returned 22 complete milestone objects with no missing metric links.
+- Independently checked all 29 current-release metric anchors, with zero missing.
+- All four focused static test cases passed under a JavaScript V8-equivalent harness; syntax parsed for the page, module and test source.
+- A simulated DOM interaction probe rendered two source-backed events, opened an existing metric detail link, switched to the calendar and rendered the expected 31 October 2026 day cells.
+- PR branch is based on the newest main metrics version (preserves mobile menu, live-value overlays and register updates); verified GitHub mergeability.
+- This environment cannot clone the repository for a native Node test run or launch a real authenticated desktop/mobile browser probe; those are outstanding review gates.
+- No production migration or merge was applied; the public SQL RPC is still absent until an separately approved apply.
