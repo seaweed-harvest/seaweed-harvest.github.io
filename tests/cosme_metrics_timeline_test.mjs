@@ -65,5 +65,5 @@ test("curated source-anchored milestones have precise, non-invented dates", () =
   assert.match(sql, /'2026-08-25'::date/);
   assert.doesNotMatch(sql, /'2026-08-24'::date/);
   assert.match(sql, /Dated practical sessions do not establish permanent commissioning/);
-  assert.match(sql, /recorded 2 October; another worksheet has an inconsistent 2 September/);
+  assert.match(sql, /records 2 October; another worksheet has an inconsistent 2 September/);
 });
