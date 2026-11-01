@@ -1,3 +1,4 @@
+import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=4";
 // COSME Metrics: current sample-rope growth, shown separately from frozen V0.1.
 // Only consumes the dedicated owner-granted, aggregate-only Supabase RPC.
 const number = (value, digits = 2) => new Intl.NumberFormat("en-KE", {
@@ -137,7 +138,7 @@ export function createNurseryGrowthPanel(authClient, target) {
     const tbody = element(table,"tbody");
     for(const row of model.sites) {
       const tr = element(tbody,"tr");
-      element(tr,"th",row.site_code).scope="row";
+      const th=element(tr,"th",mkwiroRaftDisplayLabel(row.site_code)||row.site_code);th.scope="row";th.title=row.site_code;
       element(tr,"td",row.structure === "raft" ? "Raft" : row.structure === "shore" ? "Shore" : "Other");
       element(tr,"td",stageCount(row.week2_n,row.initial_n));
       const w2 = element(tr,"td",ratio(row.week2_factor));
@@ -165,7 +166,7 @@ export function createNurseryGrowthPanel(authClient, target) {
       const body=element(table,"tbody");
       for(const row of quality.sites) {
         const tr=element(body,"tr");
-        element(tr,"th",row.site_code).scope="row";
+        const th=element(tr,"th",mkwiroRaftDisplayLabel(row.site_code)||row.site_code);th.scope="row";th.title=row.site_code;
         element(tr,"td",stageCount(row.week4_n,row.initial_n));
         element(tr,"td",ratio(row.median_factor));
         element(tr,"td",row.p25_factor==null?"—":ratio(row.p25_factor)+"–"+ratio(row.p75_factor));
