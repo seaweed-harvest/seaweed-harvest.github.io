@@ -13,7 +13,7 @@ test("Finances tab sits inside authenticated COSME Metrics, not a new public pag
   assert.match(page,/<section id="finances" hidden/);
   assert.match(page,/id="cosmeFinances"/);
   assert.match(app,/const grant = await requireMetrics\(\)/);
-  assert.match(app,/if\(name === "finances" && access && !financesLoaded\)/);
+  assert.match(app,/if\s*\(name === "finances" && access && !financesLoaded\)/);
   assert.match(app,/financesPanel\.clear\(\)/);
 });
 test("Source-backed read-only panel exposes no financial mutations",()=>{
@@ -56,4 +56,17 @@ test("Finance line SQL keeps valid monetary and currency fields",()=>{
   assert.match(migration,/\n  amount numeric\(18,2\),/);
   assert.match(migration,/\n  entry_date date,/);
   assert.doesNotMatch(migration,/rate_currency ~ '\^\[A-Z\]\{3\}\s*\n/);
+});
+
+test("Private COSME Finance migration has exactly one copy of every DDL object",()=>{
+  for(const name of ["finance_sources","finance_packages","finance_lines","finance_allocations"]){
+    const def=new RegExp("create table cosme_metrics\\."+name+" \\(","g");
+    assert.equal([...migration.matchAll(def)].length,1,name+" DDL must be unique");
+  }
+  for(const fn of ["cosme_metrics.finance_reject_published_mutation","public.cosme_finance_read"]){
+    const escaped=fn.replace(/\\./g,"\\\\.");
+    const def=new RegExp("create function "+escaped+"\\(","g");
+    assert.equal([...migration.matchAll(def)].length,1,fn+" DDL must be unique");
+  }
+  assert.equal([...migration.matchAll(/notify pgrst,'reload schema';/g)].length,1);
 });
