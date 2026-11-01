@@ -26,7 +26,7 @@ test("Accurate project version stages and source labels",()=>{
   assert.match(panelSource,/V1\.2 · Pre-build estimate/);
   assert.match(panelSource,/V1\.2 · Funzi as-built BOM/);
   assert.match(panelSource,/V1\.3 · Pre-build estimate/);
-  assert.match(panelSource,/V1\.3 · PLAN production quote/);
+  assert.match(panelSource,/V1\.3 · PLAN production \(actual\)/);
   assert.match(panelSource,/V1\.2 · Rough design \(materials\)/);
   assert.match(panelSource,/V1\.3 · Living Machines \(Cascadia\)/);
   assert.match(panelSource,/V1\.3 · Living Machines \(PLAN\)/);
@@ -58,7 +58,7 @@ function fakeDom(){globalThis.document={createElement:tag=>new FakeNode(tag)}}
 function payload(){
   return {
     sources:[{id:"s1",display_name:"V1.3 PLAN quote",source_date:"2026-04-01"}],
-    packages:[{id:"p1",source_id:"s1",version:"V1.3",activity:"Solar Drying Tables",basis:"quoted",currency:"KES",control_total:2471500,units_covered:10,unit_label:"tables",reconciliation_status:"verified"}],
+    packages:[{id:"p1",source_id:"s1",version:"V1.3",package_key:"v13-plan-10",activity:"Solar Drying Tables",basis:"quoted",currency:"KES",control_total:2471500,units_covered:10,unit_label:"tables",reconciliation_status:"verified"}],
     lines:[{package_id:"p1",source_row:"A1",category:"Materials",subcategory:"Metal",description:"Steel pipes",quantity:1,unit_rate:2471500,amount:2471500,reconciliation_status:"verified",included_in_total:true}]
   };
 }
@@ -93,4 +93,52 @@ test("Expense register separates procurement from project versions",async()=>{
   expenses.listeners.click();
   assert.ok(root.querySelectorAll("details[data-finance-key]").some(x=>x.dataset.financeKey==="pkg:exp"));
   assert.ok(!root.querySelectorAll("details[data-finance-key]").some(x=>x.dataset.financeKey==="pkg:p1"));
+});
+
+
+test("Owner-confirmed PLAN actual and V1.2 chosen itemised estimate appear as clear package rows",async()=>{
+  fakeDom();
+  const root=new FakeNode("div");
+  const data=payload();
+  data.sources.push({id:"s2",display_name:"V1.2 Funzi design BOM",source_date:null});
+  data.packages.push({
+    id:"p2",source_id:"s2",package_key:"v12-design",version:"V1.2 · Pre-build",
+    activity:"Solar Drying Tables",basis:"estimated",currency:"KES",
+    units_covered:1,unit_label:"table",control_total:162970,reconciliation_status:"review"
+  });
+  data.lines.push({package_id:"p2",source_row:"V1.2!F30",category:"Materials",
+    subcategory:"Steel",description:"Materials subtotal",amount:178670,
+    reconciliation_status:"verified",included_in_total:true});
+  const finance=createCosmeFinancesPanel({rpc:async()=>({data,error:null})},root);
+  await finance.load();
+  const details=root.querySelectorAll("details[data-finance-key]");
+  const getRow=id=>details.find(d=>d.dataset.financeKey==="pkg:"+id).children[0].children.map(c=>c.textContent);
+  const plan=getRow("p1");
+  const v12=getRow("p2");
+  assert.ok(plan.includes("Actual (owner)"));
+  assert.ok(plan.includes("KES 247,150 / table"));
+  assert.ok(plan.includes("KES 2,471,500"));
+  assert.ok(v12.includes("KES 178,670 / table"));
+  assert.ok(v12.includes("KES 178,670"));
+});
+test("Legacy shed is its own reference project, not an extra price per drying table",async()=>{
+  fakeDom();
+  const root=new FakeNode("div");
+  const data=payload();
+  data.sources.push({id:"shed",display_name:"Existing drying shade and store — priced BQ"});
+  data.packages.push({id:"shed1",source_id:"shed",package_key:"existing-shed-store-reference",
+    version:"Existing shed & store (possibly Mkwiro)",activity:"Existing Solar Dryer Shed",
+    basis:"estimated",currency:"KES",units_covered:1,unit_label:"shed project",
+    control_total:2641401.2,reconciliation_status:"verified"});
+  data.lines.push({package_id:"shed1",source_row:"F692",category:"Building",
+    subcategory:"BoQ",description:"Store and shade tender",amount:2641401.2,
+    included_in_total:true,reconciliation_status:"verified"});
+  const finance=createCosmeFinancesPanel({rpc:async()=>({data,error:null})},root);
+  await finance.load();
+  const d=root.querySelectorAll("details[data-finance-key]").find(d=>d.dataset.financeKey==="pkg:shed1");
+  assert.ok(d);
+  const labels=d.children[0].children.map(x=>x.textContent);
+  assert.ok(labels.includes("Existing shed & store (possibly Mkwiro)"));
+  assert.ok(labels.includes("KES 2,641,401.20"));
+  assert.ok(labels.includes("—"),"Site-level project reference should not be mislabelled per table");
 });
