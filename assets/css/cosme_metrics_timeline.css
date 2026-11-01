@@ -1,45 +1,75 @@
-/* A view inside COSME Project Metrics, not a new application module. */
-.cosme-metrics-page .metrics-timeline-heading{display:flex;gap:12px;justify-content:space-between;align-items:start;flex-wrap:wrap}
-.cosme-metrics-page .metrics-timeline-heading h3{margin:0 0 4px;font-size:1.13rem}
-.cosme-metrics-page .metrics-timeline-heading p{margin:0}
-.cosme-metrics-page .metrics-timeline-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin:16px 0 14px}
-.cosme-metrics-page .metrics-timeline-filter{display:grid;gap:4px;min-width:130px;flex:1 1 150px;font-size:.76rem;color:var(--text-sec);font-weight:650}
-.cosme-metrics-page .metrics-timeline-filter select{width:100%;min-height:37px;border-radius:7px;border:1px solid var(--border);background:var(--panel);color:var(--text);padding:6px 9px}
-.cosme-metrics-page .metrics-timeline-switch{display:flex;gap:5px;align-items:center}
-.cosme-metrics-page .metrics-timeline-switch .selected{background:var(--accent);color:#fff;border-color:var(--accent)}
+/* COSME Project Metrics / Timeline: concise overview, detail on demand. */
+.cosme-metrics-page .metrics-timeline-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.cosme-metrics-page .metrics-timeline-heading h3{font-size:1.05rem;margin:0}
+.cosme-metrics-page .metrics-timeline-controls{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:12px 0 14px}
+.cosme-metrics-page .metrics-timeline-filter{display:grid;gap:4px;min-width:140px;flex:1 1 155px;color:var(--text-sec);font-size:.76rem;font-weight:650}
+.cosme-metrics-page .metrics-timeline-filter select{background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:6px 10px;min-height:36px}
+.cosme-metrics-page .metrics-timeline-switch,.cosme-metrics-page .metrics-timeline-period-switch{display:flex;align-items:center;flex-wrap:wrap;gap:5px}
+.cosme-metrics-page .metrics-timeline-switch .selected,.cosme-metrics-page .metrics-timeline-period-switch .selected{color:white;background:var(--accent);border-color:var(--accent)}
 .cosme-metrics-page .metrics-timeline-results{min-width:0}
-.cosme-metrics-page .metrics-timeline-year{font-size:.92rem;margin:20px 0 8px;color:var(--text-sec);border-bottom:1px solid var(--border);padding-bottom:6px}
-.cosme-metrics-page .metrics-timeline-event{display:grid;grid-template-columns:130px minmax(0,1fr);gap:12px;border-bottom:1px solid var(--border);padding:13px 0}
-.cosme-metrics-page .metrics-timeline-event:last-child{border-bottom:0}
-.cosme-metrics-page .metrics-timeline-event-date{font-size:.79rem;font-weight:750;color:var(--accent);font-variant-numeric:tabular-nums;padding-top:3px}
-.cosme-metrics-page .metrics-timeline-event-body{min-width:0}
-.cosme-metrics-page .metrics-timeline-event-labels{display:flex;flex-wrap:wrap;gap:6px}
-.cosme-metrics-page .metrics-timeline-activity,.cosme-metrics-page .metrics-timeline-type{font-size:.72rem;font-weight:650;color:var(--text-sec)}
-.cosme-metrics-page .metrics-timeline-activity{color:var(--accent)}
-.cosme-metrics-page .metrics-timeline-event-body h4{font-size:.93rem;line-height:1.35;margin:4px 0}
-.cosme-metrics-page .metrics-timeline-event-body p{color:var(--text-sec);font-size:.83rem;line-height:1.5;margin:3px 0}
-.cosme-metrics-page .metrics-timeline-links{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:8px;font-size:.78rem}
-.cosme-metrics-page .metrics-timeline-links a,.cosme-metrics-page .metrics-timeline-metric-link{color:var(--accent);text-decoration:underline;text-underline-offset:2px}
-.cosme-metrics-page .metrics-timeline-metric-link{border:0;background:transparent;padding:0;text-align:left;cursor:pointer;font:inherit}
-.cosme-metrics-page .metrics-timeline-empty{color:var(--text-sec);padding:12px 0}
-.cosme-metrics-page .metrics-timeline-calendar-header{display:flex;justify-content:space-between;align-items:center;gap:6px;margin:16px 0}
-.cosme-metrics-page .metrics-timeline-calendar-header h3{font-size:1rem;margin:0;text-align:center}
-.cosme-metrics-page .metrics-timeline-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
-.cosme-metrics-page .metrics-timeline-weekday{text-align:center;font-size:.7rem;color:var(--text-sec);padding:7px 0}
-.cosme-metrics-page .metrics-timeline-day{min-width:0;min-height:55px;border:1px solid var(--border);border-radius:7px;background:var(--panel);color:var(--text);padding:6px;display:flex;flex-direction:column;align-items:start;gap:5px}
-.cosme-metrics-page .metrics-timeline-day.blank{border:0;background:transparent}
-.cosme-metrics-page .metrics-timeline-day.has-events{border-color:var(--accent);background:var(--accent-soft);cursor:pointer}
-.cosme-metrics-page .metrics-timeline-day.selected{outline:2px solid var(--accent);outline-offset:0}
-.cosme-metrics-page .metrics-timeline-day small{font-size:.68rem;color:var(--accent);line-height:1.1}
-.cosme-metrics-page .metrics-timeline-calendar-events{margin-top:18px}
-.cosme-metrics-page .metrics-timeline-calendar-events>h4{font-size:.92rem;margin:0 0 10px}
+.cosme-metrics-page .metrics-timeline-columns,.cosme-metrics-page .metrics-timeline-row{display:grid;grid-template-columns:minmax(110px,155px) minmax(135px,185px) minmax(0,1fr);gap:14px;align-items:center}
+.cosme-metrics-page .metrics-timeline-columns{padding:8px 11px;background:var(--panel-soft);border-bottom:1px solid var(--border);font-size:.71rem;letter-spacing:.02em;font-weight:750;color:var(--text-sec)}
+.cosme-metrics-page .metrics-timeline-year{margin:10px 0 2px;font-size:.75rem;color:var(--text-sec);padding:5px 11px;border-bottom:1px solid var(--border-soft)}
+.cosme-metrics-page .metrics-timeline-row{background:transparent;border:0;border-bottom:1px solid var(--border-soft);color:var(--text);padding:8px 11px;min-height:42px;text-align:left;width:100%;cursor:pointer;border-radius:0;font-size:.83rem}
+.cosme-metrics-page .metrics-timeline-row:hover{background:var(--panel-soft)}
+.cosme-metrics-page .metrics-timeline-row:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.cosme-metrics-page .metrics-timeline-row-date{color:var(--text-sec);font-weight:650;font-size:.77rem;font-variant-numeric:tabular-nums;white-space:normal}
+.cosme-metrics-page .metrics-timeline-row-title{display:block;font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.cosme-metrics-page .metrics-timeline-activity{display:inline-flex;align-items:center;gap:6px;color:var(--text-sec);font-size:.76rem;white-space:nowrap}
+.cosme-metrics-page .metrics-timeline-symbol{display:inline-flex;align-items:center;justify-content:center;font-size:.94rem;line-height:1.2;min-width:20px}
+.cosme-metrics-page .activity-drying{--timeline-color:#af6a23}
+.cosme-metrics-page .activity-nursery{--timeline-color:#267cb5}
+.cosme-metrics-page .activity-aggregation{--timeline-color:#8b62ab}
+.cosme-metrics-page .activity-mawimbi{--timeline-color:#2b8f70}
+.cosme-metrics-page .activity-programme{--timeline-color:#627388}
+.cosme-metrics-page .metrics-timeline-activity:before{content:"";width:4px;height:14px;border-radius:2px;background:var(--timeline-color);flex:0 0 4px}
+.cosme-metrics-page .metrics-timeline-empty{font-size:.83rem;color:var(--text-sec);padding:14px 7px}
+.cosme-metrics-page .metrics-timeline-calendar-header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.cosme-metrics-page .metrics-timeline-calendar-header h3{font-size:.95rem;margin:0;text-align:center}
+.cosme-metrics-page .metrics-timeline-period-switch{margin:9px 0}
+.cosme-metrics-page .metrics-timeline-period-switch .metrics-button{min-height:31px}
+.cosme-metrics-page .metrics-timeline-legend{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap;padding:8px 0 12px;border-bottom:1px solid var(--border)}
+.cosme-metrics-page .metrics-timeline-legend .metrics-timeline-activity{font-size:.72rem}
+.cosme-metrics-page .metrics-timeline-months{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:15px;margin-top:14px}
+.cosme-metrics-page .metrics-timeline-months.year-view{grid-template-columns:repeat(auto-fit,minmax(min(100%,255px),1fr))}
+.cosme-metrics-page .metrics-timeline-month{border:1px solid var(--border);border-radius:8px;min-width:0;padding:10px;background:var(--panel)}
+.cosme-metrics-page .metrics-timeline-month h4{font-size:.82rem;font-weight:750;text-align:center;margin:1px 0 9px}
+.cosme-metrics-page .metrics-timeline-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.cosme-metrics-page .metrics-timeline-weekday{font-size:.65rem;color:var(--text-sec);text-align:center;padding:4px 0}
+.cosme-metrics-page .metrics-timeline-day{display:flex;flex-direction:column;align-items:center;justify-content:start;gap:2px;border:1px solid transparent;border-radius:5px;padding:4px 1px;min-width:0;min-height:39px;color:var(--text);background:transparent;font-size:.74rem;line-height:1}
+.cosme-metrics-page .metrics-timeline-day.blank{pointer-events:none}
+.cosme-metrics-page .metrics-timeline-day.has-events{border-color:var(--border);background:var(--panel-soft);cursor:pointer}
+.cosme-metrics-page .metrics-timeline-day.has-events:hover{border-color:var(--accent)}
+.cosme-metrics-page .metrics-timeline-day.travel-range{background:color-mix(in srgb,var(--panel-soft) 85%,#627388 15%);border-style:dotted}
+.cosme-metrics-page .metrics-timeline-date-symbols{display:inline-flex;align-items:center;gap:0;font-size:.65rem;line-height:1.1;white-space:nowrap}
+.cosme-metrics-page .metrics-timeline-date-mark{display:inline-flex;border-bottom:2px solid var(--timeline-color)}
+.cosme-metrics-page .metrics-timeline-day:focus-visible{outline:2px solid var(--accent)}
+.cosme-metrics-page .metrics-timeline-scrim{position:fixed;inset:0;z-index:500;display:flex;justify-content:flex-end}
+.cosme-metrics-page .metrics-timeline-backdrop{position:absolute;inset:0;border:0;background:#122c3691;width:100%;cursor:default}
+.cosme-metrics-page .metrics-timeline-drawer{position:relative;z-index:1;display:flex;flex-direction:column;width:min(480px,100vw);max-height:100dvh;background:var(--panel);box-shadow:-8px 0 30px #001a2630;color:var(--text)}
+.cosme-metrics-page .metrics-timeline-drawer-head{display:flex;align-items:start;justify-content:space-between;gap:10px;border-bottom:1px solid var(--border);padding:20px}
+.cosme-metrics-page .metrics-timeline-drawer-head h3{font-size:1.08rem;margin:0;line-height:1.35}
+.cosme-metrics-page .metrics-timeline-close{min-width:36px;min-height:36px;border:1px solid var(--border);border-radius:6px;background:var(--panel);color:var(--text);font-size:1.5rem}
+.cosme-metrics-page .metrics-timeline-drawer-content{padding:20px;overflow-y:auto;min-height:0;font-size:.85rem;line-height:1.55}
+.cosme-metrics-page .metrics-timeline-drawer-meta{display:flex;align-items:center;flex-wrap:wrap;gap:9px 14px}
+.cosme-metrics-page .metrics-timeline-type{font-size:.75rem;color:var(--text-sec)}
+.cosme-metrics-page .metrics-timeline-drawer-summary{font-size:.87rem;line-height:1.6;padding:16px 0}
+.cosme-metrics-page .metrics-timeline-source{border-top:1px solid var(--border);padding-top:14px}
+.cosme-metrics-page .metrics-timeline-source h4{font-size:.82rem;margin:0 0 8px}
+.cosme-metrics-page .metrics-timeline-source p{color:var(--text-sec);overflow-wrap:anywhere;margin:4px 0}
+.cosme-metrics-page .metrics-timeline-links{display:grid;gap:6px;margin-top:12px}
+.cosme-metrics-page .metrics-timeline-metric-link{color:var(--accent);background:transparent;border:0;text-align:left;text-decoration:underline;text-underline-offset:2px;padding:3px 0;font:inherit;cursor:pointer}
+.cosme-metrics-page .metrics-timeline-day-event{display:flex;align-items:center;flex-wrap:wrap;gap:8px;text-align:left;border:0;border-bottom:1px solid var(--border-soft);background:transparent;color:var(--text);padding:12px 0;width:100%;cursor:pointer}
 .cosme-metrics-page .metrics-tabs{overflow-x:auto;scrollbar-width:thin}
-@media(max-width:620px){
-.cosme-metrics-page .metrics-timeline-event{grid-template-columns:1fr;gap:5px}
-.cosme-metrics-page .metrics-timeline-event-date{padding-top:0}
-.cosme-metrics-page .metrics-timeline-filter{min-width:110px;flex-basis:40%}
-.cosme-metrics-page .metrics-timeline-switch{width:100%}
-.cosme-metrics-page .metrics-timeline-day{min-height:45px;padding:4px}
-.cosme-metrics-page .metrics-timeline-day small{font-size:.59rem}
-.cosme-metrics-page .metrics-timeline-calendar-header .metrics-button{font-size:.74rem;padding:6px}
+@media(max-width:660px){
+  .cosme-metrics-page .metrics-timeline-columns{display:none}
+  .cosme-metrics-page .metrics-timeline-row{grid-template-columns:95px minmax(0,1fr);gap:3px 9px;padding:9px 4px;min-height:51px}
+  .cosme-metrics-page .metrics-timeline-row-date{grid-row:1 / 3;font-size:.73rem;align-self:center}
+  .cosme-metrics-page .metrics-timeline-row-activity{font-size:.69rem}
+  .cosme-metrics-page .metrics-timeline-row-title{font-size:.78rem}
+  .cosme-metrics-page .metrics-timeline-filter{min-width:110px;flex-basis:40%}
+  .cosme-metrics-page .metrics-timeline-switch{width:100%}
+  .cosme-metrics-page .metrics-timeline-months,.cosme-metrics-page .metrics-timeline-months.year-view{grid-template-columns:1fr}
+  .cosme-metrics-page .metrics-timeline-drawer{width:100vw}
+  .cosme-metrics-page .metrics-timeline-calendar-header .metrics-button{font-size:.73rem}
 }
