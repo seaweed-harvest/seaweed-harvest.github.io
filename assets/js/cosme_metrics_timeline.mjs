@@ -4,7 +4,7 @@ export const TIMELINE_ACTIVITIES = Object.freeze({
   "Solar Drying Tables": {icon:"☀️", label:"Solar drying", css:"drying"},
   "Offshore Nursery": {icon:"🌊", label:"Offshore nursery", css:"nursery"},
   "Aggregation Hub": {icon:"🏭", label:"Aggregation", css:"aggregation"},
-  "Mawimbi": {icon:"🧪", label:"Mawimbi", css:"mawimbi"},
+  "Mawimbi": {icon:"🌿", label:"Mawimbi", css:"mawimbi"},
   "Programme": {icon:"✈️", label:"Programme / travel", css:"programme"}
 });
 
