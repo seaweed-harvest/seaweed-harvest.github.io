@@ -21,8 +21,8 @@ function stage(p){
   }
   if(p.activity==="Offshore Nursery"){
     if(v.includes("Rough")||v.includes("Design"))return "V1.2 · Rough design (materials)";
-    if(v.includes("LM-C"))return "Living Machines · Cascadia invoice";
-    if(v.includes("LM-P"))return "Living Machines · PLAN invoice";
+    if(v.includes("LM-C"))return "V1.3 · Living Machines (Cascadia)";
+    if(v.includes("LM-P"))return "V1.3 · Living Machines (PLAN)";
   }
   return v;
 }
@@ -156,7 +156,9 @@ function line(root,p,expenses){
   title.title=(p.source?.display_name||"");
   add(s,"span","finance-date",dateOf(p));
   add(s,"span","finance-basis",basisLabel(p));
-  add(s,"strong","finance-money",expenses?"—":costOf(p)+(p.units_covered>1||p.unit_label==="table"?" / "+(p.unit_label==="tables"?"table":p.unit_label||"unit"):""));
+  const unit=String(p.unit_label||"").replace(/s$/,"");
+  const hasComparableUnit=/^(table|raft)$/.test(unit);
+  add(s,"strong","finance-money",expenses||!hasComparableUnit?"—":costOf(p)+" / "+unit);
   add(s,"strong","finance-money",money(totalOf(p),p.currency));
   add(s,"span","finance-row-status"+(p.reconciliation_status==="verified"?"":" finance-needs-review"),reportStatus(p));
   d.append(expenses?expenseSections(p):costSections(p));
