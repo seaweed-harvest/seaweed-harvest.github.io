@@ -108,3 +108,23 @@ test("desktop/mobile headings and detail panel render presentation labels only",
   assert.match(page,/Original metric name/);
   assert.match(html,/id="sortChoice"/);
 });
+
+test("second-pass audit keeps costs, equipment and verification in the right families",()=>{
+  const cases=[
+    ["AGH-0032","Aggregation Hub","Site fit-out and equipment actual cost","Hub costs and funding"],
+    ["AGH-0060","Aggregation Hub","Hydraulic baler PO price","Hub costs and funding"],
+    ["AGH-0043","Aggregation Hub","Baler maintenance approach","Baler equipment and maintenance"],
+    ["MAW-0026","Mawimbi","Existing frames allocated to dual pressing","Press equipment and commissioning"],
+    ["MAW-0056","Mawimbi","QC package invoice amount","Equipment and funding"],
+    ["MAW-0072","Mawimbi","October pre-RO borehole E. coli screen","Water quality"],
+    ["SDT-0010","Solar Drying Tables","Weather protection","Drying-table design"],
+    ["SDT-R007","Solar Drying Tables","Weather protection acceptance","Drying quality and verification"],
+    ["SDT-R005","Solar Drying Tables","Indicative initial cost saving per drying area","Drying-table costs"],
+    ["SDT-0063","Solar Drying Tables","Completed COSME drying cycles","Drying operations and cycle counts"],
+    ["ON-0052","Offshore Nursery","PLAN three-raft supplier invoice","Nursery procurement"],
+    ["ON-0072","Offshore Nursery","KMFRI prototype construction sinkers","Raft design and configuration"],
+    ["ON-R007","Offshore Nursery","Open flotation defect","Raft deployment and inspection"]
+  ];
+  for(const [id,activity,title,expected] of cases)
+    assert.equal(metricType({id,activity,title}),expected,id);
+});
