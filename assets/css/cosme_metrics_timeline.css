@@ -40,6 +40,7 @@
 .cosme-metrics-page .metrics-timeline-day.blank{pointer-events:none}
 .cosme-metrics-page .metrics-timeline-day.has-events{border-color:var(--border);background:var(--panel-soft);cursor:pointer}
 .cosme-metrics-page .metrics-timeline-day.has-events:hover{border-color:var(--accent)}
+.cosme-metrics-page .metrics-timeline-day.travel-range{background:color-mix(in srgb,var(--panel-soft) 85%,#627388 15%);border-style:dotted}
 .cosme-metrics-page .metrics-timeline-date-symbols{display:inline-flex;align-items:center;gap:0;font-size:.65rem;line-height:1.1;white-space:nowrap}
 .cosme-metrics-page .metrics-timeline-date-mark{display:inline-flex;border-bottom:2px solid var(--timeline-color)}
 .cosme-metrics-page .metrics-timeline-day:focus-visible{outline:2px solid var(--accent)}
