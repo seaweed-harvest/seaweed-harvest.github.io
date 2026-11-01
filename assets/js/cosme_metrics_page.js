@@ -738,7 +738,7 @@ function openMetric(metric, button, keepFocus=false) {
     ["Unit / basis", metricDisplay(metric).unit],
     ...(metricDisplay(metric).state==="Live" ? [
       ["Value status","Live · refreshed on current data query"],
-      ["Published "+(current?.version||"release"),displayMetricValue(metric.value,metric.unit).full],
+      ...(!metric.operationalLive ? [["Published "+(current?.version||"release"),displayMetricValue(metric.value,metric.unit).full]] : []),
       ["Current calculated value",displayMetricValue(metricDisplay(metric).value,metricDisplay(metric).unit).full],
       ["Current query checked",new Date(metricDisplay(metric).checkedAt).toLocaleString()],
       ...(metricDisplay(metric).sourceUpdatedAt ?
