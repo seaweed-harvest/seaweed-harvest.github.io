@@ -103,3 +103,16 @@ export function referenceFor(group){
   }
   return {amount:"",note:""};
 }
+
+// Component detail is an alternate view of paid costs, never an extra ledger.
+export function itemisationFor(pkg){
+ const detail=reportMetadata(pkg).itemisation;
+ if(!detail||!Array.isArray(detail.items)||!detail.items.length)return null;
+ const items=detail.items;
+ if(items.some(l=>typeof l.description!=="string"||!l.description.trim()||
+   typeof l.amount!=="number"||!Number.isFinite(l.amount)||l.amount<0))return null;
+ const cents=n=>Math.round(n*100);
+ const total=items.reduce((n,l)=>n+cents(l.amount),0);
+ if(!pkg.summary||total!==cents(pkg.summary.total))return null;
+ return detail;
+}

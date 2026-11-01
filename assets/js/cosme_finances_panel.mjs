@@ -1,5 +1,5 @@
 import {BASIS,money,amountOrNull,normalizeFinanceData,activityGroups,exportFinanceCsv,effectiveFinanceBasis} from "./cosme_finances_core.mjs?v=3";
-import {expenseOverview,projectOverview,referenceFor,itemDescription,reportMetadata} from "./cosme_finances_view.mjs?v=2";
+import {expenseOverview,projectOverview,referenceFor,itemDescription,reportMetadata,itemisationFor} from "./cosme_finances_view.mjs?v=3";
 
 // Read-only project reference: separate estimates/quotes/invoices from expense claims.
 const make=(tag,cls="",value)=>{
@@ -88,6 +88,9 @@ function sourceLineTable(lines,p,showDates=false){
     add(row,"td","finance-money",line.unit_rate===null||line.unit_rate===undefined?"—":money(line.unit_rate,line.rate_currency||p.currency));
     add(row,"td","finance-money",line.amount===null||line.amount===undefined?"—":money(line.amount,p.currency));
     const src=add(row,"td","finance-source-row",line.source_row||"—");
+    if(line.source_url&&/^https:\/\//.test(line.source_url)){
+      const link=add(src,"a","","Open");link.href=line.source_url;link.target="_blank";link.rel="noopener noreferrer";
+    }
     if(line.funding_org)add(src,"small","",line.funding_org);
     if(line.note)src.title=String(line.note);
   }
@@ -105,10 +108,19 @@ function costSections(p){
       funders.set(l.funding_org||"Project",(funders.get(l.funding_org||"Project")||0)+Number(l.amount));
     add(box,"p","finance-detail-context",[...funders].map(([name,n])=>name+" "+money(n,p.currency)).join(" · "));
   }
+  const itemisation=itemisationFor(p);
+  let categoryRoot=box;
+  if(itemisation){
+    if(itemisation.note)add(box,"p","finance-detail-context",itemisation.note);
+    box.append(sourceLineTable(itemisation.items,p));
+    categoryRoot=add(box,"details","finance-category");
+    categoryRoot.dataset.financeKey="payments:"+p.id;
+    add(categoryRoot,"summary","finance-category-line","Payments");
+  }
   const categoryOrder=p.activity==="Aggregation Hub"?["Site Works","Power / Electrical","Administration","Intake / Weighing / Grading","Baling and Packing","Storage","Warehouse Organisation / Management","Safety / Site Basics","Consultancy / Supervision"]:[];
   const categories=[...p.summary.categories].sort((a,b)=>categoryOrder.length?(categoryOrder.indexOf(a.name)<0?99:categoryOrder.indexOf(a.name))-(categoryOrder.indexOf(b.name)<0?99:categoryOrder.indexOf(b.name)):0);
   for(const cat of categories){
-    const detail=add(box,"details","finance-category");
+    const detail=add(categoryRoot,"details","finance-category");
     detail.dataset.financeKey="cat:"+p.id+":"+cat.name;
     const sum=add(detail,"summary","finance-category-line");
     add(sum,"span","",cat.name);

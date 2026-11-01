@@ -65,3 +65,13 @@ test("Mawimbi budget uses source KES and CAD amounts rather than a public hardco
  assert.equal(ref.note,"Budget · CAD 10");
  assert.equal(referenceFor({name:"Mawimbi",entries:[]}).amount,"—");
 });
+
+ test("Itemisation is accepted only when it exactly matches payment costs",async()=>{
+  const {itemisationFor}=await import("../assets/js/cosme_finances_view.mjs");
+  const p={summary:{total:100},report:{itemisation:{items:[{description:"A",amount:60},{description:"B",amount:40}]}}};
+  assert.ok(itemisationFor(p));
+  p.report.itemisation.items[1].amount=41;assert.equal(itemisationFor(p),null);
+  p.report.itemisation.items[1].amount=null;assert.equal(itemisationFor(p),null);
+  p.report.itemisation.items[1].amount="40";assert.equal(itemisationFor(p),null);
+  assert.equal(p.summary.total,100);
+ });
