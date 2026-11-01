@@ -60,7 +60,7 @@ function packageDetails(pkg) {
   const right=node("div","finance-package-value");
   const reported = pkg.summary.control !== null && !pkg.summary.reconciled;
   right.append(node("strong","",displayAmount(pkg)));
-  right.append(node("small","",(reported?"Reported · ":"")+BASIS[pkg.basis]+
+  right.append(node("small","",(pkg.reconciliation_status==="verified"?"":"Review required · ")+(reported?"Source-reported · ":"")+BASIS[pkg.basis]+
     (pkg.units_covered>1?" · "+money(reportedTotal(pkg),pkg.currency)+
       " / "+pkg.units_covered+" "+(pkg.unit_label||"units"):"")));
   sum.append(info,right);details.append(sum);
@@ -82,6 +82,9 @@ function packageDetails(pkg) {
     " · "+(pkg.reconciliation_status||"Review pending")+
     " · Not summed with other versions, quotation types or currencies.");
   content.append(status);
+  if(pkg.reconciliation_status!=="verified") {
+    content.append(node("p","finance-alert","Reconciliation pending — this is source-reported information, not a verified final expenditure total."));
+  }
   if(pkg.summary.categories.length===0) content.append(node("p","finance-note","No verified cost lines to display."));
   for(const category of pkg.summary.categories){
     const cat=node("details","finance-category");
@@ -168,7 +171,7 @@ export function createCosmeFinancesPanel(authClient,root){
       const latest=group.entries[0];
       const preview=node("div","finance-activity-preview");
       preview.append(node("strong","",displayAmount(latest)));
-      preview.append(node("small","","Most recent "+BASIS[latest.basis].toLowerCase()+" · "+(latest.version||"Unversioned")));
+      preview.append(node("small","",(latest.reconciliation_status==="verified"?"":"Review required · ")+"Most recent "+BASIS[latest.basis].toLowerCase()+" · "+(latest.version||"Unversioned")));
       summary.append(title,preview);outer.append(summary);
       const body=node("div","finance-packages");
       group.entries.forEach(pkg=>body.append(packageDetails(pkg)));
