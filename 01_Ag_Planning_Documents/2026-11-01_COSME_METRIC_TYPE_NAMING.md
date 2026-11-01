@@ -59,3 +59,24 @@ and immutable values remain available on each detail view and in CSV.
 - Rollback: revert the frontend PR, with no database migration or frozen metrics
   publication to undo.
 - Keep in draft until required review checks and owner release approval.
+
+## Second review pass (1 November 2026)
+
+A read-only inspection of every ID, activity and frozen title in the current
+release counted 347 published metrics: 64 Aggregation Hub, 101 Mawimbi,
+81 Offshore Nursery, 81 Solar Drying Tables and 20 Off-bottom Farming.
+This is separate from the current live operational indicators.
+
+The initial type rules placed several metrics under an unrelated common word
+rather than their meaning: raft supplier invoices under raft design, actual hub
+site cost under deployment, hydraulic baler purchase price under performance,
+weather protection under temperature, press frame allocation under productivity,
+and drying-area cost savings under dimensions. The audited classification now
+uses narrow type patterns and explicit, traceable exceptions by metric ID.
+Every published metric now has a named group; no published metrics remain in
+the generic "Other metrics" group.
+
+Added focused classification regressions for the identified cases. No new
+derived values, site assignments, metric IDs, report figures, shared picks or
+release records were created. PR remains a draft for Node suite and browser
+review before separate release approval.
