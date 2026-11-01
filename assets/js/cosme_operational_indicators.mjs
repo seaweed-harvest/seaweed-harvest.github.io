@@ -44,6 +44,19 @@ const definitions = [
  ["MAW","Mawimbi","Historical stock disposal volume","mawimbi.historical_disposal_l","L"],
  ["MAW","Mawimbi","Confirmed stock-to-process links","mawimbi.stock_process_links","links"]
 ];
+// Deliberately small dashboard shortlist. All other calculations remain in their
+// operational analysis views; IDs of retained metrics remain stable.
+const featuredPaths = new Set([
+ "nursery.week2_ropes","nursery.week4_ropes",
+ "drying.within_five_days","drying.median_hours",
+ "mawimbi.collections_finalised","mawimbi.collected_kg",
+ "mawimbi.communities_registered","mawimbi.communities_collected",
+ "mawimbi.farmers_registered","mawimbi.processing_sessions",
+ "mawimbi.processing_received_kg","mawimbi.pressed_liquid_l",
+ "mawimbi.liquid_per_kg","mawimbi.containers_distinct",
+ "mawimbi.water_samples","mawimbi.ro_monitoring",
+ "mawimbi.historical_disposal_l"
+]);
 const validTime = value => typeof value==="string" && Number.isFinite(Date.parse(value));
 const safeNumeric = v => typeof v==="number" && Number.isFinite(v) && v>=0;
 const get = (root,path) => path.split(".").reduce((v,k)=>v?.[k],root);
@@ -53,7 +66,7 @@ export function createOperationalIndicators(payload){
    !Array.isArray(payload.nursery.pairs) || !Array.isArray(payload.nursery.sites) ||
    payload.nursery.pairs.length>10 || payload.nursery.sites.length>25) return [];
  const out=[];
- const add=(prefix,activity,title,value,unit,source,serial)=>{
+ const add=(prefix,activity,title,value,unit,source,serial,note="")=>{
    if(!safeNumeric(value) && !(typeof value==='number' && Number.isFinite(value) && unit==='g/rope/day'))return;
    const id="LIVE-"+prefix+"-"+String(serial).padStart(3,"0");
    const read={value:String(value),unit,source,queriedAt:payload.queried_at,
@@ -62,7 +75,7 @@ export function createOperationalIndicators(payload){
      value:read.value,unit,source,verification:"Live read-only aggregate",
      featured:false,sourceMode:"Live",valueState:"calculated",asOf:payload.queried_at,
      dataKind:"Live",valueType:"Measurement",basis:"Operational aggregate",
-     originalEvidence:"",originalTheme:"Current operations",note:"",
+     originalEvidence:"",originalTheme:"Current operations",note,
      operationalLive:true,liveCurrent:read});
  };
  const sources={
@@ -74,20 +87,46 @@ export function createOperationalIndicators(payload){
  for (const [prefix,activity,title,path,unit] of definitions) {
    serial++;
    const source=path.startsWith("nursery.")?sources.ON:path.startsWith("drying.")?sources.SDT:sources.MAW;
+   if(!featuredPaths.has(path))continue;
    if(prefix==="MAW" && (payload.mawimbi?.inventory_verified!==false ||
      payload.mawimbi?.batch_linkage_verified!==false))continue;
-   add(prefix,activity,title,get(payload,path),unit,source,serial);
+   const titleShort={
+    "mawimbi.containers_distinct":"Numbered containers recorded",
+    "mawimbi.collections_finalised":"Finalised collection records",
+    "mawimbi.collected_kg":"Seaweed collected (finalised)",
+    "mawimbi.processing_received_kg":"Seaweed received for processing",
+    "mawimbi.pressed_liquid_l":"Liquid pressed",
+    "mawimbi.liquid_per_kg":"Liquid extracted per kg processed",
+    "drying.within_five_days":"Drying bays completed within 5 days",
+    "drying.median_hours":"Median drying time"
+   }[path]||title;
+   const note=path==="mawimbi.containers_distinct"
+     ? "Unique numbered containers from their first recorded stock entry. Not a verified on-hand inventory count; retests are not new containers."
+     : path==="mawimbi.liquid_per_kg"
+     ? "Pressed liquid per recorded processing input, not a verified collection-to-batch conversion."
+     : "";
+   add(prefix,activity,titleShort,get(payload,path),unit,source,serial,note);
  }
  for (const pair of payload.nursery.pairs){
   if(!/^MK-R[123]$/.test(pair.raft_site)||!/^MK-SF[123]\/R[123]$/.test(pair.shore_site)
     || !Number.isSafeInteger(pair.pair_count)||pair.pair_count<1)continue;
-  const label=pair.raft_site+" vs "+pair.shore_site;
+  const letter={"MK-R2":"A","MK-R3":"B","MK-R1":"C"}[pair.raft_site];
+  const shore={"A":"MK-SF2/R2","B":"MK-SF3/R3","C":"MK-SF1/R1"}[letter];
+  if(!letter || shore!==pair.shore_site)continue;
+  const label="Raft "+letter+" vs Shore "+letter;
   for(const [title,key,unit] of [
     ["Raft gain · "+label,"raft_gain_g_day","g/rope/day"],
     ["Shore gain · "+label,"shore_gain_g_day","g/rope/day"],
     ["Raft-to-shore daily gain · "+label,"relative_gain","×"],
     ["Matched rope pairs · "+label,"pair_count","pairs"]
-  ]){serial++;add("ON","Offshore Nursery",title,pair[key],unit,sources.ON,serial);}
+  ]){
+    serial++;
+    if(key!=="relative_gain")continue;
+    add("ON","Offshore Nursery","Daily growth comparison · "+label,
+      pair[key],unit,sources.ON,serial,
+      pair.pair_count+" matched rope pairs · "+pair.raft_site+" / "+pair.shore_site+
+      " · Week 2–4 wet-weight gain per day (raft ÷ shore).");
+  }
  }
  return out;
 }
