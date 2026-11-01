@@ -847,6 +847,15 @@ async function loadOperationalIndicators() {
     if(error)throw error;
     if(!data || data.can_view!==true || data.status!=="current")
       throw Error("Operational aggregates unavailable");
+    // Separate permission-checked dryer performance feed augments the existing
+    // validated cycle weights without changing historical release payloads.
+    try{
+      const result=await authClient.rpc("cosme_metrics_live_dryer_performance");
+      if(!result.error && result.data?.can_view===true && result.data.status==="current" &&
+          Number.isFinite(Date.parse(result.data.queried_at))){
+        data.drying={...data.drying,...result.data};
+      }
+    }catch{/* Keep base operational indicators if dryer supplementary data fail. */}
     operationalIndicators=createOperationalIndicators(data);
     if(!operationalIndicators.length)throw Error("No validated operational indicators");
   } catch {
