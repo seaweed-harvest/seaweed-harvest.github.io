@@ -799,7 +799,13 @@ function openMetric(metric, button, keepFocus=false) {
   // These are navigation links to operational ledgers, not live calculations.
   const source = String(metric.source || "").toLowerCase();
   let relatedHref = "";
-  if (metric.activity === "Solar Drying Tables" && source.includes("seaweed harvest")) {
+  if (metric.operationalLive && metric.activity==="Offshore Nursery")
+    relatedHref="./reef_seaweed_records.html#analysis";
+  else if (metric.operationalLive && metric.activity==="Solar Drying Tables")
+    relatedHref="./dryer_table_records.html";
+  else if (metric.operationalLive && metric.activity==="Mawimbi")
+    relatedHref="./mawimbi_analysis.html";
+  else if (metric.activity === "Solar Drying Tables" && source.includes("seaweed harvest")) {
     relatedHref = "./dryer_table_records.html";
   } else if (metric.activity === "Offshore Nursery" && source.includes("seaweed harvest")) {
     relatedHref = "./reef_seaweed_records.html";
