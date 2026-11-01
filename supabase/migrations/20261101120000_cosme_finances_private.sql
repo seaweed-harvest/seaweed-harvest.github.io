@@ -51,7 +51,9 @@ create table cosme_metrics.finance_lines (
   quantity numeric(18,4),
   unit text,
   unit_rate numeric(18,4),
-  rate_currency text check (rate_currency is null or rate_currency ~ '^[A-Z]{3}
+  rate_currency text check (rate_currency is null or rate_currency ~ '^[A-Z]{3}$'),
+  amount numeric(18,2),
+  funding_org text,
   included_in_total boolean not null default true,
   reconciliation_status text not null default 'review'
     check (reconciliation_status in ('verified','review','excluded')),
