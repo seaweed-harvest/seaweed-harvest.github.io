@@ -79,6 +79,7 @@ let latestReleaseKey=null;
 let prefersLiveValues=true;
 let liveRefreshInFlight=null;
 let hiddenMetricIds=new Set();
+let mobileLiveOnly=false;
 let preferenceUserId=null;
 function preferencesKey(){return preferenceUserId?HIDDEN_KEY_PREFIX+preferenceUserId:null;}
 function loadHiddenMetrics(){
@@ -147,6 +148,7 @@ function clearPrivateState() {
   detailMetricId=null;
   all = []; visible = []; current = null; access = null;
   preferenceUserId=null; hiddenMetricIds.clear();
+  mobileLiveOnly=false;
   latestReleaseKey=null;
   prefersLiveValues=true;
   currentRopeCoverage = null; currentCoverageError = "";
@@ -640,6 +642,40 @@ function renderColumnChoices() {
     options.append(label);
   }
 }
+// Phone cards share the same filtered metrics, current-value overlay and detail dialog.
+function renderMobileRows(){
+  const list=el("mobileMetricList");
+  const fragment=document.createDocumentFragment();
+  for(const metric of visible){
+    const status=currentStatus(metric);
+    const overlay=metricDisplay(metric);
+    const formatted=displayMetricValue(overlay.value,overlay.unit);
+    const state=overlay.state==="Live" ? "Live" :
+      isLatestRelease() && status.kind==="live" ? "Live available" :
+      isLatestRelease() && status.kind==="linked" ? "Linked" : "Published";
+    const card=add(fragment,"article","","metrics-mobile-card");
+    if(state==="Live")card.classList.add("metrics-mobile-card-live");
+    else if(state==="Linked")card.classList.add("metrics-mobile-card-linked");
+    const star=add(card,"button","","metrics-star");
+    star.type="button";configureStar(star,metric);
+    if(!metric.operationalLive)star.addEventListener("click",()=>togglePick(metric.id));
+    const open=add(card,"button","","metrics-mobile-card-open");
+    open.type="button";
+    open.setAttribute("aria-label",metric.title+" · "+formatted.full+" · open metric details");
+    open.addEventListener("click",()=>openMetric(metric,open));
+    const body=add(open,"span","","metrics-mobile-card-body");
+    add(body,"span",metric.title,"metrics-mobile-card-title");
+    const meta=add(body,"span","","metrics-mobile-card-meta");
+    add(meta,"span",metric.activity||"Project metric","metrics-mobile-card-activity");
+    add(meta,"span",state,"metrics-mobile-status"+
+      (state==="Live"?" is-live":state==="Linked"?" is-linked":""));
+    const value=add(body,"span","","metrics-mobile-card-value");
+    add(value,"span",formatted.value,"metrics-value-main");
+    if(formatted.unit)add(value,"span",formatted.unit,"metrics-value-unit");
+    add(open,"span","›","metrics-mobile-chevron").setAttribute("aria-hidden","true");
+  }
+  list.replaceChildren(fragment);
+}
 function renderRows() {
   const query = el("search").value.trim().toLocaleLowerCase();
   const populated=[...populatedMetrics(all),...(isLatestRelease()?operationalIndicators:[])];
@@ -654,6 +690,11 @@ function renderRows() {
     featured: el("featured").checked, sort: sortKey, direction: sortDirection
   });
   if(el("linkedOnly").checked) visible=visible.filter(metric=>Boolean(currentLinkSource(metric)));
+  if(!isLatestRelease())mobileLiveOnly=false;
+  if(mobileLiveOnly)visible=visible.filter(metric=>currentStatus(metric).kind==="live");
+  el("mobileLiveOnly").disabled=!isLatestRelease();
+  el("mobileLiveOnly").setAttribute("aria-pressed",String(mobileLiveOnly));
+  el("mobileTopPicks").setAttribute("aria-pressed",String(el("featured").checked));
   const cols = COLUMN_DEFS.filter((column) => selectedColumns.has(column.key));
   const table = el("metricHead").closest("table");
   // More selected columns get horizontal room rather than squeezing each cell.
@@ -771,6 +812,7 @@ function renderRows() {
     fragment.append(row);
   }
   tbody.append(fragment);
+  renderMobileRows();
   const hiddenCount=populated.filter(m=>hiddenMetricIds.has(m.id)).length;
   el("count").textContent=visible.length+" shown · "+populated.length+
     " available · "+liveCount+" live"+(hiddenCount?" · "+hiddenCount+" hidden":"");
@@ -965,6 +1007,25 @@ async function reloadAndRecheck() {
 for (const button of document.querySelectorAll(".metrics-tabs .tab")) {
   button.addEventListener("click", () => tab(button.dataset.tab));
 }
+for(const [buttonId,panelId] of [
+  ["mobileFiltersToggle","mobileFilters"],["mobileActionsToggle","registerActions"]
+]){
+  el(buttonId).addEventListener("click",()=>{
+    const button=el(buttonId),panel=el(panelId);
+    const open=!panel.classList.contains("is-open");
+    panel.classList.toggle("is-open",open);
+    button.setAttribute("aria-expanded",String(open));
+  });
+}
+el("mobileLiveOnly").addEventListener("click",()=>{
+  mobileLiveOnly=!mobileLiveOnly;
+  renderRows();
+});
+el("mobileTopPicks").addEventListener("click",()=>{
+  el("featured").checked=!el("featured").checked;
+  renderCategoryChoices();
+  renderRows();
+});
 el("search").addEventListener("input", renderRows);
 el("activity").addEventListener("change", () => {
   renderCategoryChoices();
@@ -987,6 +1048,7 @@ el("reset").addEventListener("click", () => {
   el("activity").value = "";
   el("featured").checked = false;
   el("linkedOnly").checked = false;
+  mobileLiveOnly=false;
   selectedCategories.clear();
   el("categoryMenu").open = false;
   sortKey = "id"; sortDirection = "asc";
