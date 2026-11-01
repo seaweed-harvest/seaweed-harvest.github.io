@@ -696,7 +696,7 @@ function renderRows() {
     query, activity: el("activity").value, categories: [...selectedCategories],
     featured: el("featured").checked, sort: sortKey, direction: sortDirection
   });
-  el("sortChoice").value=["metricType","title","id"].includes(sortKey)?sortKey:"metricType";
+  el("sortChoice").value=["metricType","title","id"].includes(sortKey)?sortKey:"column";
   if(el("linkedOnly").checked) visible=visible.filter(metric=>Boolean(currentLinkSource(metric)));
   if(!isLatestRelease())mobileLiveOnly=false;
   if(mobileLiveOnly)visible=visible.filter(metric=>currentStatus(metric).kind==="live");
