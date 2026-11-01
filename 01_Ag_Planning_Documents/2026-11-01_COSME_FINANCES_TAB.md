@@ -51,11 +51,12 @@ Pure helper/unit tests: basis/currency isolation, exclude cross-source duplicate
 - Private-scope schema and authenticated, access-controlled read RPC staged as
   migration only, not applied. Four tables use RLS with direct authenticated and
   anonymous access revoked.
-- Thirteen focused unit / static contract checks passed in a JS harness, plus syntax
+- Fourteen focused unit / static contract checks passed in a JS harness, plus syntax
   checks for the panel and metrics page. No signed-in browser or SQL migration rehearsal
   has yet been completed. GitHub branch needs draft PR and CI review.
 - The private staging import now records entry_date for 251 lines, keeps three inconsistent
-  asset receipt dates null with reviewer notes, and verifies all seven workbook
+  asset receipt dates null with reviewer notes, preserves original transaction
+  currency separately from reporting currency, and verifies all seven workbook
   hashes plus expected line counts in a transaction. Nothing has been applied.
 - All imported packages are `draft`; empty published state is deliberate
   until reviewed and expressly authorised. No production data changed.
