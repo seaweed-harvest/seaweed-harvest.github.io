@@ -9,12 +9,12 @@ export const TIMELINE_ACTIVITIES = Object.freeze({
 });
 
 export const TIMELINE_TYPES = Object.freeze({
-  "Planning & decisions":["Assessment","Consultation","Site selection","Decision","Agreement","Planning","Kickoff","Meeting"],
+  "Planning & decisions":["Assessment","Consultation","Site selection","Decision","Agreement","Planning","Kickoff","Meeting","Contract"],
   "Design & fabrication":["Design","Procurement","Proposal","Fabrication","Prototype"],
   "Installation & deployment":["Installation","Deployment","Repair","Construction"],
   "Trials & monitoring":["Inspection","Pilot","Testing","Monitoring","Trial"],
   "Reports & training":["Report","Training","Handover"],
-  "Travel & fieldwork":["Travel","Fieldwork","Field visit","Contract"]
+  "Travel & fieldwork":["Travel","Fieldwork","Field visit"]
 });
 
 export const timelineType = value =>
@@ -100,7 +100,7 @@ export function createMetricsTimeline(authClient,root,openMetric) {
       linked.forEach(v=>{
         const button=make("button","metrics-timeline-metric-link",v.title);
         button.type="button";
-        button.addEventListener("click",()=>openMetric(v.id,button));
+        button.addEventListener("click",()=>{dismiss();openMetric(v.id,button);});
         group.append(button);
       });
       source.append(group);
