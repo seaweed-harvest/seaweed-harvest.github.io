@@ -55,7 +55,7 @@ test("SQL keeps COSME grant checks, old metric anchors and source-separated trav
   assert.match(sql,/coalesce\(e\.event_activity,anchor\.frozen_payload/);
   assert.match(sql,/cardinality\(e\.metric_ids\)=0 or anchor\.metric_id is not null/);
   assert.doesNotMatch(sql,/\bcreate table\b|\bdelete from\b|\binsert into\b/i);
-  assert.match(sql,/Kenya field deployment — 2025 travel window/);
+  assert.match(sql,/Bosun — Kenya field mission \(2025 travel dates\)/);
   assert.match(sql,/not independently verified Kenya border entry and exit dates/);
   assert.match(sql,/2025-05-19/);
   assert.match(sql,/2025-08-13/);
