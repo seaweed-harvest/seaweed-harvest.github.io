@@ -19,6 +19,8 @@ function stage(p){
     if(v.includes("Design draft"))return "V1.3 · Pre-build estimate";
     if(v==="V1.3")return "V1.3 · PLAN production (actual)";
   }
+  if(p.activity==="Solar Drying Shed & Store")
+    return "Existing drying shed & store · Mwazaro";
   if(p.activity==="Offshore Nursery"){
     if(v.includes("Rough")||v.includes("Design"))return "V1.2 · Rough design (materials)";
     if(v.includes("LM-C"))return "V1.3 · Living Machines (Cascadia)";
@@ -55,7 +57,8 @@ function costOf(p){
 function reportStatus(p){
   if(p.package_key==="v13-plan-10")return "Owner confirmed";
   if(p.package_key==="v12-design")return "Estimate";
-  if(p.package_key==="existing-shed-store-reference")return "BoQ reference";
+  if(p.package_key==="legacy-mwazaro-shed-store" || p.package_key==="existing-shed-store-reference")
+    return "BoQ reference";
   if(p.reconciliation_status!=="verified")return "Review";
   return "Source checked";
 }
@@ -95,8 +98,8 @@ function costSections(p){
     " · "+(p.funding_scope||"Funding not recorded")+
     (unitCount>1?" · "+unitCount+" "+(p.unit_label||"units"):"");
   if(p.package_key==="v12-design"){
-    add(box,"p","finance-detail-context","Reference uses the itemised "+money(totalOf(p),p.currency)+
-      " estimate; the original worksheet summary says "+money(p.summary.control,p.currency)+".");
+    add(box,"p","finance-detail-context","Pre-build estimate: "+money(totalOf(p),p.currency)+
+      " itemised cost, selected as the reference. Earlier worksheet summary was KES 162,970.");
   } else if(p.summary.control!==null && !p.summary.reconciled){
     const diff=Math.abs(p.summary.difference||0);
     add(box,"p","finance-detail-flag",
