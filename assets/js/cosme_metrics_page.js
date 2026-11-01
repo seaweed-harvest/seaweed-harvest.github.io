@@ -785,10 +785,15 @@ function openMetric(metric, button, keepFocus=false) {
   if(!keepFocus)el("close").focus();
 }
 function closeMetric() {
+  const closingId=detailMetricId;
   detailMetricId=null;
   el("veil").classList.remove("open");
   if(lastFocus && document.contains(lastFocus))lastFocus.focus();
-  else if(detailMetricId) el("search").focus();
+  else {
+    const replacement=[...el("rows").querySelectorAll("[data-metric-id]")]
+      .find(node=>node.dataset.metricId===closingId);
+    (replacement||el("search")).focus();
+  }
 }
 function exportCsv() {
   if (!current || !visible.length) return;
