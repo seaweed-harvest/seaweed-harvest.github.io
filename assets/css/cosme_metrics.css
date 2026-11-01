@@ -1133,6 +1133,16 @@
   .cosme-metrics-page .metrics-filter-controls input:not([type="checkbox"]),
   .cosme-metrics-page .metrics-filter-controls select,
   .cosme-metrics-page .metrics-category-menu > summary { width: 100%; min-height: 42px; }
+  /* Expand menus within the phone panel, never beyond the screen edge. */
+  .cosme-metrics-page .metrics-filter-controls .metrics-category-control { grid-column: 1 / -1; }
+  .cosme-metrics-page .metrics-filter-controls .metrics-category-options {
+    position: static;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+    margin-top: 4px;
+    box-shadow: none;
+  }
   .cosme-metrics-page .metrics-action-controls {
     grid-area: actionPanel;
     display: none;
@@ -1143,7 +1153,19 @@
     border-radius: 9px;
     background: var(--panel-soft);
   }
-  .cosme-metrics-page .metrics-action-controls.is-open { display: flex; }
+  .cosme-metrics-page .metrics-action-controls.is-open {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
+  .cosme-metrics-page .metrics-action-controls .metrics-columns { grid-column: 1 / -1; }
+  .cosme-metrics-page .metrics-action-controls .metrics-column-options {
+    position: static;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+    margin-top: 4px;
+    box-shadow: none;
+  }
   .cosme-metrics-page .metrics-action-controls .metrics-columns summary { background: var(--panel); }
   .cosme-metrics-page .metrics-count { margin: 6px 0 11px; font-size: .76rem; }
   .cosme-metrics-page #metricScrollArea,
