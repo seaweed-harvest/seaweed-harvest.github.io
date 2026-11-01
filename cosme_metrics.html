@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Project Metrics — Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/cosme_metrics.css?v=14">
+  <link rel="stylesheet" href="./assets/css/cosme_metrics.css?v=15">
   <link rel="stylesheet" href="./assets/css/cosme_metrics_timeline.css?v=2">
   <link rel="stylesheet" href="./assets/css/cosme_finances.css?v=2">
   <link rel="manifest" href="./manifest.webmanifest">
@@ -53,10 +53,9 @@
         </nav>
         <section id="overview">
           <div id="activityCards" class="metrics-summary-grid"></div>
-          <div class="metrics-panel metrics-headlines-panel">
-            <div class="metrics-headline-heading"><h3>Project highlights</h3><div class="metrics-highlight-actions"><span id="headlineCount" class="metrics-count"></span><button id="reloadPicks" class="metrics-button" type="button" aria-label="Refresh highlights">Refresh</button><button id="openRegister" class="metrics-button" type="button">View metrics</button></div></div>
-            <p id="picksStatus" class="metrics-small-note" role="status" hidden></p>
-            <div id="headlineGroups" class="metrics-headline-groups"></div>
+          <div class="metrics-panel metrics-register-overview">
+            <h3>Register at a glance</h3>
+            <div id="overviewRegisterFacts" class="metrics-register-facts" aria-live="polite"></div>
           </div>
         </section>
         <section id="current" hidden>
@@ -94,7 +93,14 @@
               <label class="metrics-check" title="Show only metrics with validated current values or related operational data"><input type="checkbox" id="linkedOnly"> Linked data</label>
               <label class="metrics-check" title="On the latest release, show verified current Seaweed Harvest values in place of published snapshots"><input type="checkbox" id="showLiveValues" checked> Current values</label>
               <button id="refreshLiveValues" type="button" class="metrics-button" title="Recheck current Seaweed Harvest records">Refresh live</button>
-              <button id="reloadPicksRegister" type="button" class="metrics-button" aria-label="Refresh shared selection">Refresh</button>
+              
+              <details class="metrics-columns metrics-hidden-menu" id="hiddenMetricMenu">
+                <summary id="hiddenMetricSummary" role="button">Hidden · 0</summary>
+                <div class="metrics-column-options metrics-hidden-list">
+                  <div id="hiddenMetricList"></div>
+                  <button type="button" id="restoreAllHidden" class="metrics-button">Show all hidden</button>
+                </div>
+              </details>
               <details class="metrics-columns" id="columnMenu">
                 <summary role="button">Columns</summary>
                 <div id="columnOptions" class="metrics-column-options" aria-label="Visible columns"></div>
@@ -103,8 +109,7 @@
               <button id="exportCsv" type="button" class="metrics-button primary">Export CSV</button>
             </div>
             <div id="count" class="metrics-count" aria-live="polite"></div>
-            <p id="liveValueNotice" class="metrics-small-note metrics-live-notice" aria-live="polite"></p>
-            <p class="metrics-small-note">Live operational indicators (LIVE-*) are current Seaweed Harvest measurements, separate from the frozen published metrics release. Linked data shows both verified live figures and related historical metrics. Mawimbi aggregates are owner-only.</p>
+            <p id="liveValueNotice" class="metrics-small-note metrics-live-notice" aria-live="polite" hidden></p>
             <p id="picksStatusRegister" class="metrics-small-note" role="status" hidden></p>
             <div id="metricScrollArea" class="metrics-table-wrap responsive-table-wrap">
               <table class="management-table metrics-table">
@@ -145,6 +150,6 @@
       <details class="metrics-record-details"><summary>Record details</summary><dl id="metricMetadata"></dl></details>
     </div>
   </div>
-  <script type="module" src="./assets/js/cosme_metrics_page.js?v=23"></script>
+  <script type="module" src="./assets/js/cosme_metrics_page.js?v=25"></script>
 </body>
 </html>
