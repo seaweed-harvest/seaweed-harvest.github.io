@@ -1,3 +1,5 @@
+import { safeCsvCell } from "./cosme_metrics_core.mjs";
+
 // Presentation-only live-value adapter. Authorised RPC responses are validated
 // by the page before being passed here. Never change frozen release payloads.
 const DRYER_FIELDS = Object.freeze({
@@ -64,4 +66,18 @@ export function displayValue(metric, status, showCurrent, latestRelease) {
     publishedValue: metric.value,
     publishedUnit: metric.unit
   };
+}
+
+/** Export what the reader sees, with the frozen source value alongside it. */
+export function exportMetricViewCsv(metrics, version, statusOf, showCurrent, latestRelease) {
+  const header=["Metric ID","Activity","Category","Metric","Displayed value","Displayed unit",
+    "Display status","Published value","Published unit","Live query checked","Source last updated",
+    "Published version","Source","Notes"];
+  const rows=metrics.map(metric=>{
+    const state=displayValue(metric,statusOf(metric),showCurrent,latestRelease);
+    return [metric.id,metric.activity,metric.theme,metric.title,state.value,state.unit,
+      state.state,state.publishedValue,state.publishedUnit,state.checkedAt||"",
+      state.sourceUpdatedAt||"",version||"",metric.source,metric.note];
+  });
+  return "\uFEFF"+[header,...rows].map(row=>row.map(safeCsvCell).join(",")).join("\r\n");
 }
