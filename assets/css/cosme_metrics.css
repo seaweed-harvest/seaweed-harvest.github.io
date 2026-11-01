@@ -806,3 +806,124 @@
 .cosme-metrics-page .metrics-link-action:disabled{opacity:.6;cursor:wait;}
 .cosme-metrics-page .metrics-link-save-error{color:#a12b2b;font-size:.77rem;padding:8px 0;margin:0;}
 @media(max-width:750px){.cosme-metrics-page .metrics-link-summary{grid-template-columns:repeat(2,minmax(0,1fr));}}
+
+/* Clear navigation cards restore the original at-a-glance activity overview. */
+.cosme-metrics-page .metrics-summary-grid { gap: 12px; }
+.cosme-metrics-page .metrics-activity-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 9px;
+  min-height: 104px;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+.cosme-metrics-page .metrics-activity-card .metrics-big {
+  font-size: 1.45rem;
+  font-weight: 750;
+  color: var(--accent);
+}
+.cosme-metrics-page .metrics-activity-card:hover,
+.cosme-metrics-page .metrics-activity-card:focus-visible {
+  border-color: var(--accent);
+  background: var(--panel-soft);
+}
+
+/* Green identifies a validated current calculation actively shown as Live.
+   Published source snapshots remain frozen and available in details. */
+.cosme-metrics-page .metrics-table tbody tr.metrics-live-linked > td { background: #edf9f4; }
+.cosme-metrics-page .metrics-table tbody tr.metrics-live-linked:hover > td { background: #dcf5e9; }
+.cosme-metrics-page .metrics-table tbody tr.metrics-live-linked > td:first-child {
+  box-shadow: inset 3px 0 0 #16835d;
+}
+.cosme-metrics-page .metrics-table .metric-open.has-current-link {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.cosme-metrics-page .metric-title-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cosme-metrics-page .metrics-live-mark {
+  flex: none;
+  color: #0b7551;
+  font-size: .68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+/* Mirrored scrollbar stays at the viewport base while the table is visible. */
+.cosme-metrics-page .metrics-sticky-scroll {
+  position: fixed;
+  bottom: 0;
+  z-index: 25;
+  height: 17px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 5px 5px 0 0;
+  scrollbar-color: var(--accent) var(--border-soft);
+}
+.cosme-metrics-page .metrics-sticky-scroll[hidden] { display: none; }
+.cosme-metrics-page .metrics-sticky-scroll > div { height: 1px; }
+@media (max-width:600px) {
+  .cosme-metrics-page .metrics-activity-card { min-height: 98px; padding: 11px; }
+  .cosme-metrics-page .metrics-activity-card .metrics-big { font-size: 1.2rem; }
+}
+
+/* Only equivalent, validated calculations receive the green Live treatment.
+   Related Mawimbi data uses a distinct neutral-linked treatment. */
+.cosme-metrics-page .metrics-table tbody tr.metrics-data-linked > td { background: #f2f7fa; }
+.cosme-metrics-page .metrics-table tbody tr.metrics-data-linked:hover > td { background: #e8f1f7; }
+.cosme-metrics-page .metrics-table tbody tr.metrics-data-linked > td:first-child {
+  box-shadow: inset 3px 0 0 #5f8297;
+}
+.cosme-metrics-page .metrics-linked-mark {
+  flex: none;
+  color: #486a82;
+  font-size: .68rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.cosme-metrics-page .metrics-live-notice {
+  margin: 2px 0 9px;
+}
+.cosme-metrics-page .metrics-table .metrics-value-open .metrics-live-mark {
+  margin-left: 9px;
+  vertical-align: baseline;
+}
+.cosme-metrics-page .metrics-headline-open .metrics-live-mark {
+  display: block;
+  margin-top: 5px;
+}
+
+/* Phone-sized COSME Metrics: readable tabs, touch targets, iOS safe area. */
+@media (max-width: 600px) {
+  .cosme-metrics-page .metrics-tabs {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    padding-bottom: 8px;
+  }
+  .cosme-metrics-page .metrics-tabs > button {
+    flex: 0 0 auto;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+  .cosme-metrics-page .metrics-toolbar .metrics-check,
+  .cosme-metrics-page .metrics-toolbar button,
+  .cosme-metrics-page .metrics-toolbar .metrics-columns summary {
+    min-height: 44px;
+  }
+  .cosme-metrics-page .metrics-table-wrap {
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+  }
+  .cosme-metrics-page .metrics-sticky-scroll {
+    bottom: env(safe-area-inset-bottom, 0px);
+  }
+}

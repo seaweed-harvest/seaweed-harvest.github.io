@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Project Metrics — Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/cosme_metrics.css?v=12">
+  <link rel="stylesheet" href="./assets/css/cosme_metrics.css?v=14">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./favicon.ico" sizes="any">
   <link rel="icon" href="./assets/images/seaweed-harvest-icon-192.png" type="image/png" sizes="192x192">
@@ -84,6 +84,9 @@
                 </details>
               </div>
               <label class="metrics-check"><input type="checkbox" id="featured">Top Picks</label>
+              <label class="metrics-check" title="Show only metrics with validated current values or related operational data"><input type="checkbox" id="linkedOnly"> Linked data</label>
+              <label class="metrics-check" title="On the latest release, show verified current Seaweed Harvest values in place of published snapshots"><input type="checkbox" id="showLiveValues" checked> Current values</label>
+              <button id="refreshLiveValues" type="button" class="metrics-button" title="Recheck current Seaweed Harvest records">Refresh live</button>
               <button id="reloadPicksRegister" type="button" class="metrics-button" aria-label="Refresh shared selection">Refresh</button>
               <details class="metrics-columns" id="columnMenu">
                 <summary role="button">Columns</summary>
@@ -93,13 +96,15 @@
               <button id="exportCsv" type="button" class="metrics-button primary">Export CSV</button>
             </div>
             <div id="count" class="metrics-count" aria-live="polite"></div>
+            <p id="liveValueNotice" class="metrics-small-note metrics-live-notice" aria-live="polite"></p>
             <p id="picksStatusRegister" class="metrics-small-note" role="status" hidden></p>
-            <div class="metrics-table-wrap responsive-table-wrap">
+            <div id="metricScrollArea" class="metrics-table-wrap responsive-table-wrap">
               <table class="management-table metrics-table">
                 <thead><tr id="metricHead"></tr></thead>
                 <tbody id="rows"></tbody>
               </table>
             </div>
+            <div id="metricsStickyScroll" class="metrics-sticky-scroll" aria-label="Horizontal scrollbar for All Metrics" role="region" tabindex="0" hidden><div id="metricsStickyWidth"></div></div>
             <p id="empty" class="metrics-small-note" hidden>No matching metrics.</p>
           </div>
         </section>
@@ -111,6 +116,7 @@
               <button type="button" id="selectVersion" class="metrics-button">Open selected release</button>
             </div>
             <p id="historyInfo" class="metrics-small-note"></p>
+            <p class="metrics-small-note">This view opens immutable published releases. New releases are prepared and verified separately, then published with owner approval; editing Top Picks or refreshing current data does not rewrite an earlier release.</p>
           </div>
         </section>
       </div>
@@ -128,6 +134,6 @@
       <details class="metrics-record-details"><summary>Record details</summary><dl id="metricMetadata"></dl></details>
     </div>
   </div>
-  <script type="module" src="./assets/js/cosme_metrics_page.js?v=15"></script>
+  <script type="module" src="./assets/js/cosme_metrics_page.js?v=17"></script>
 </body>
 </html>
