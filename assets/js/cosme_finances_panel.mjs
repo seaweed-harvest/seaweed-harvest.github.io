@@ -27,6 +27,10 @@ function stage(p){
   return v;
 }
 function dateOf(p){
+  // Invoice dates in Offshore Nursery Close Out BoQ / BoQ detail, rows 43–44.
+  // Keep source month-only fallback for other records without a dated invoice.
+  if(p.activity==="Offshore Nursery" && (p.package_key==="LM-C"||p.package_key==="LM-P"))
+    return "2026-07-28";
   if(p.source?.source_date)return p.source.source_date;
   const rows=(p.lines||[]).map(l=>l.entry_date).filter(Boolean);
   if(rows.length){
