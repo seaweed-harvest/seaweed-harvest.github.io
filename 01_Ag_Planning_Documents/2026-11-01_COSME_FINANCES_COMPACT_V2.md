@@ -14,7 +14,7 @@ User provided live screenshot and requested: concise single-row formatting match
 ## Source questions (non-blocking for UI release)
 1. V1.2 pre-build dryer source summary KES 162,970 vs itemised list KES 178,670. Which total is intended? Continue showing source-reported figure with difference in expanded note.
 2. For PLAN V1.3 dryer production, is a paid/final as-built invoice available? It must remain labelled *quote* until then.
-3. Are the specific offshore nursery invoice dates recorded outside the October 2026 closeout file? If yes, use those dates; otherwise display month-qualified source filename or date not recorded.
+3. Resolved: Offshore Nursery close-out BoQ, `BoQ detail` rows 43–44, explicitly records both LM invoice dates as **2026-07-28**; display these exact dates. October 2026 is the BoQ file month, not invoice date.
 
 ## Tests and release gates
 - Four focused compact UI tests passed in isolated JS harness: matching page, stage labels, unchanged refresh preserves same open nodes, changed payload restores expansion, and expense subview excludes project cost rows. Existing nine finance logic and seven contract tests need to be run too.
