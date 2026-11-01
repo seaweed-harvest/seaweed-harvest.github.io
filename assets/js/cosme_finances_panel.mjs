@@ -94,7 +94,26 @@ function sourceLineTable(lines,p,showDates=false){
     if(line.funding_org)add(src,"small","",line.funding_org);
     if(line.note)src.title=String(line.note);
   }
-  wrap.append(table);return wrap;
+  wrap.append(table);
+  // Phone-width drilldown keeps a readable two-column price breakdown; the
+  // full evidence table remains available on desktop and in source export.
+  const compact=add(wrap,"div","finance-mobile-lines");
+  for(const line of lines){
+    const item=add(compact,"div","finance-mobile-line");
+    const details=add(item,"div","finance-mobile-item");
+    add(details,"span","finance-mobile-item-name",line.item_detail||itemDescription(line)||"Unspecified item");
+    const info=[showDates?line.entry_date:null,
+      line.quantity==null?null:String(line.quantity)+" "+(line.unit||""),
+      line.source_row||null].filter(Boolean).join(" · ");
+    if(info)add(details,"small","finance-mobile-item-meta",info);
+    add(item,"strong","finance-mobile-item-cost",
+      line.amount==null?"—":money(line.amount,p.currency));
+    if(line.source_url&&/^https:\/\//.test(line.source_url)){
+      const link=add(details,"a","finance-mobile-source","Source");
+      link.href=line.source_url;link.target="_blank";link.rel="noopener noreferrer";
+    }
+  }
+  return wrap;
 }
 function costSections(p){
   const box=make("div","finance-detail-body");
@@ -163,6 +182,29 @@ function expenseSections(p){
   return box;
 }
 const columns=["Version / stage","Date","Basis","Per unit","Package total","Status"];
+function projectMobileReference(group){
+  const {name,entries}=group;
+  const key=name==="Solar Drying Tables"?"v13-plan-10":
+    name==="Offshore Nursery"?"nursery-future-4-rafts":
+    name==="Aggregation Hub"?"august-2026-consultant-proposal":null;
+  const p=key?entries.find(x=>x.package_key===key):null;
+  if(p){
+    const total=totalOf(p);
+    const quantity=Number(p.units_covered||0);
+    const validTotal=Number.isFinite(total);
+    const perUnit=validTotal&&quantity>0&&(name==="Solar Drying Tables"||name==="Offshore Nursery")?
+      money(total/quantity,p.currency)+" / "+(name==="Solar Drying Tables"?"table":"raft"):null;
+    return {
+      total:validTotal?money(total,p.currency):"—",perUnit,
+      quantity:quantity>0?quantity+" "+(name==="Solar Drying Tables"?"tables":name==="Offshore Nursery"?"rafts":"units"):null,
+      status:name==="Solar Drying Tables"?"Actual (owner-confirmed)":
+        name==="Offshore Nursery"?"Partial estimate":"Proposal"
+    };
+  }
+  const r=referenceFor(group);
+  return {total:r.amount,perUnit:null,quantity:null,
+    status:name==="Mawimbi"?"Budget":"Reference"};
+}
 function tableHeader(root){
   const h=add(root,"div","finance-table-header");
   for(const col of columns)add(h,"span","",col);
@@ -186,6 +228,7 @@ function line(root,p,expenses){
 export function createCosmeFinancesPanel(authClient,root){
   let entries=[],epoch=0,mode="costs",activity="all",basis="all",search="",fingerprint=null,hasLoaded=false;
   let refreshPromise=null, lastError="";
+  let mobileFiltersOpen=false,mobileActionsOpen=false;
   root.className=(root.className+" metrics-panel finance-panel").trim();
   const expanded=new Map();
   function snapshot(){
@@ -197,6 +240,7 @@ export function createCosmeFinancesPanel(authClient,root){
   function clear(){
     epoch++;entries=[];fingerprint=null;hasLoaded=false;lastError="";refreshPromise=null;expanded.clear();
     root.replaceChildren();
+    mobileFiltersOpen=false;mobileActionsOpen=false;
   }
   function redraw(){
     snapshot();
@@ -213,7 +257,16 @@ export function createCosmeFinancesPanel(authClient,root){
     const searchLabel=add(toolbar,"label","metrics-search","Search");
     const searchInput=add(searchLabel,"input","");searchInput.type="search";searchInput.placeholder="Project, part or source";searchInput.value=search;
     searchInput.addEventListener("change",()=>{search=searchInput.value;redraw()});
-    const controls=add(toolbar,"div","finance-filters");
+    const filtersToggle=add(toolbar,"button","metrics-button finance-mobile-toggle finance-filters-toggle","Filters");
+    filtersToggle.type="button";filtersToggle.setAttribute("aria-controls","cosmeFinanceFilters");
+    filtersToggle.setAttribute("aria-expanded",String(mobileFiltersOpen));
+    const controls=add(toolbar,"div","finance-filters"+(mobileFiltersOpen?" is-open":""));
+    controls.id="cosmeFinanceFilters";
+    filtersToggle.addEventListener("click",()=>{
+      mobileFiltersOpen=!mobileFiltersOpen;
+      controls.classList.toggle("is-open",mobileFiltersOpen);
+      filtersToggle.setAttribute("aria-expanded",String(mobileFiltersOpen));
+    });
     const activityLabel=add(controls,"label","","Activity");
     const selector=add(activityLabel,"select","finance-select");
     selector.setAttribute("aria-label","Filter finance activity");
@@ -230,7 +283,17 @@ export function createCosmeFinancesPanel(authClient,root){
       }
       filter.value=basis;filter.addEventListener("change",()=>{basis=filter.value;redraw()});
     }
-    const refresh=add(toolbar,"button","metrics-button","Refresh");
+    const actionsToggle=add(toolbar,"button","metrics-button finance-mobile-toggle finance-actions-toggle","Actions");
+    actionsToggle.type="button";actionsToggle.setAttribute("aria-controls","cosmeFinanceActions");
+    actionsToggle.setAttribute("aria-expanded",String(mobileActionsOpen));
+    const actions=add(toolbar,"div","finance-actions"+(mobileActionsOpen?" is-open":""));
+    actions.id="cosmeFinanceActions";
+    actionsToggle.addEventListener("click",()=>{
+      mobileActionsOpen=!mobileActionsOpen;
+      actions.classList.toggle("is-open",mobileActionsOpen);
+      actionsToggle.setAttribute("aria-expanded",String(mobileActionsOpen));
+    });
+    const refresh=add(actions,"button","metrics-button","Refresh");
     refresh.type="button";refresh.addEventListener("click",()=>load({force:true}));
     if(lastError)add(root,"p","finance-detail-flag","Update unavailable; showing last loaded costs. "+lastError);
     const selected=pool.filter(p=>(activity==="all"||p.activity===activity||(activity==="Solar Drying Tables"&&p.activity==="Solar Drying Shed & Store"))&&(isExpense||basis==="all"||effectiveFinanceBasis(p)===basis)&&
@@ -254,10 +317,18 @@ export function createCosmeFinancesPanel(authClient,root){
       date.title=dateOf(group.entries[0])+" · "+(reportMetadata(group.entries[0]).date_kind||"Source date");
       add(summary,"strong","finance-group-cost",ref.amount);
       add(summary,"span","finance-group-note",ref.note);
+      const mobile=projectMobileReference(group);
+      const mobileInfo=add(summary,"span","finance-group-mobile");
+      const first=add(mobileInfo,"span","finance-group-mobile-main");
+      add(first,"strong","finance-group-mobile-total",mobile.total);
+      add(first,"span","finance-group-mobile-status",mobile.status);
+      const supporting=[mobile.quantity,mobile.perUnit].filter(Boolean).join(" · ");
+      if(supporting)add(mobileInfo,"span","finance-group-mobile-unit",supporting);
+      add(mobileInfo,"span","finance-group-mobile-context",ref.note);
       for(const p of group.entries)line(container,p,false);
     }
 
-    const exportBtn=add(toolbar,"button","metrics-button finance-export","Export source lines CSV");
+    const exportBtn=add(actions,"button","metrics-button finance-export","Export source lines CSV");
     exportBtn.type="button";exportBtn.addEventListener("click",()=>{
       const csv=exportFinanceCsv(selected);
       const url=URL.createObjectURL(new Blob(["\ufeff",csv],{type:"text/csv;charset=utf-8"}));
