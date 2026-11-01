@@ -1,6 +1,6 @@
 // Presentation-only finance helpers. Never combine currencies, bases or source packages.
 export const BASIS = Object.freeze({
-  estimated: "Estimated", quoted: "Quoted", invoiced: "Invoiced", paid: "Paid"
+  estimated: "Estimated", quoted: "Quoted", actual: "Actual cost", invoiced: "Invoiced", paid: "Paid"
 });
 export function amountOrNull(value) {
   if (value === null || value === undefined || value === "" || typeof value === "boolean") return null;
@@ -78,7 +78,7 @@ export function activityGroups(packages) {
     entries: entries.sort((a,b)=>String(b.source?.source_date||"").localeCompare(String(a.source?.source_date||""))||
       String(b.version||"").localeCompare(String(a.version||""),undefined,{numeric:true}))
   })).sort((a,b)=>{
-    const rank=name=>({ "Solar Drying Tables":0, "Offshore Nursery":1, "Mawimbi":2 })[name]??3;
+    const rank=name=>({ "Solar Drying Tables":0, "Solar Drying Shed & Store":1, "Offshore Nursery":2, "Aggregation Hub":3, "Mawimbi":4 })[name]??3;
     return rank(a.name)-rank(b.name)||a.name.localeCompare(b.name);
   });
 }
