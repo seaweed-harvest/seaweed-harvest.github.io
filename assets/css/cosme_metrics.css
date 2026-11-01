@@ -834,8 +834,8 @@
   background: var(--panel-soft);
 }
 
-/* Green identifies an authorised, validated current-data adapter, NOT a changing
-   historical value. The row still shows its frozen published value. */
+/* Green identifies a validated current calculation actively shown as Live.
+   Published source snapshots remain frozen and available in details. */
 .cosme-metrics-page .metrics-table tbody tr.metrics-live-linked > td { background: #edf9f4; }
 .cosme-metrics-page .metrics-table tbody tr.metrics-live-linked:hover > td { background: #dcf5e9; }
 .cosme-metrics-page .metrics-table tbody tr.metrics-live-linked > td:first-child {
@@ -898,4 +898,32 @@
 .cosme-metrics-page .metrics-headline-open .metrics-live-mark {
   display: block;
   margin-top: 5px;
+}
+
+/* Phone-sized COSME Metrics: readable tabs, touch targets, iOS safe area. */
+@media (max-width: 600px) {
+  .cosme-metrics-page .metrics-tabs {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    padding-bottom: 8px;
+  }
+  .cosme-metrics-page .metrics-tabs > button {
+    flex: 0 0 auto;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+  .cosme-metrics-page .metrics-toolbar .metrics-check,
+  .cosme-metrics-page .metrics-toolbar button,
+  .cosme-metrics-page .metrics-toolbar .metrics-columns summary {
+    min-height: 44px;
+  }
+  .cosme-metrics-page .metrics-table-wrap {
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+  }
+  .cosme-metrics-page .metrics-sticky-scroll {
+    bottom: env(safe-area-inset-bottom, 0px);
+  }
 }
