@@ -77,3 +77,39 @@ Still required before merge/deployment: the repository's complete existing
 test suite, browser layout and keyboard probes (desktop and narrow/mobile),
 final diff review and a successful publication check. No production mutation,
 migration or release update was made by this implementation.
+
+## Mobile access and release-gate review (1 November 2026)
+
+**Owner request:** Make the Metrics page available on an iPhone and deploy the
+changes live. Mobile acceptance: a signed-in account with a dedicated COSME
+Metrics grant finds Project Metrics in the mobile Tools drawer, regardless
+of active organisation; accounts without the server grant do not see the
+shortcut; the direct URL supports sign-in return and does not broaden ledger
+permissions; Overview cards and All Metrics work at phone widths.
+
+**Implementation:** The shared navigation checks the dedicated authorised
+RPC for each signed-in profile, independently of its active aggregator.
+Only a successful grant reveals the mobile Tools section and Project Metrics
+shortcut. Metrics and Home entry points use a new versioned navigation import.
+The phone tabs now scroll horizontally with touch-friendly 44px controls,
+and the mirrored table scrollbar respects the bottom safe area.
+
+**Checks:** Relevant JavaScript source syntax parsed; ten source/negative
+permission assertions passed. A component-level Chromium browser fixture at
+375, 390, 768 and 1280px confirmed constrained page widths, horizontally
+scrolling table, two-column cards at phone size and mobile-tab access.
+This fixture is not a substitute for a full signed-in browser probe of the
+actual staging/production page. Seven live-value unit tests pass after the
+derived dryer-reduction validation correction; earlier existing metrics
+logic tests passed in an isolated JS harness.
+
+**Change classification:** Shared `assets/js/app_navigation.js` is Lane B.
+No Lane C files or Supabase permissions/grants were altered. Actual changed
+paths and diff must be reviewed before any merge.
+
+**Deployment gate:** `.automation/app-map.yml` currently declares
+`deployment_enabled: false` with a `deployment_when_disabled: stop`
+routing rule. The development policy also disables automatic deployment.
+The user requested a live release, but the AI deployment control has not
+been changed. Do not circumvent it; keep production unchanged pending
+the approved manual release procedure and full authenticated live checks.
