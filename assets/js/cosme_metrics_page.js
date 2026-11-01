@@ -7,6 +7,7 @@ import {
   parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, headlineMetrics, financialContext, currentDryerWeightReduction, metricCategory
 } from "./cosme_metrics_core.mjs?v=2";
 import { createSharedPicks } from "./cosme_metrics_picks.mjs?v=1";
+import { liveStatus, displayValue } from "./cosme_metrics_live_values.mjs?v=1";
 import { populatedMetrics, concisePickStatus, metricEvidence } from "./cosme_metrics_presentation.js?v=1";
 import { createNurseryGrowthPanel } from "./cosme_nursery_growth.mjs?v=2";
 import { createMawimbiOperationsPanel } from "./cosme_mawimbi_operations.mjs?v=1";
@@ -61,6 +62,8 @@ let selectedColumns = loadColumns();
 let selectedCategories = new Set();
 let detailMetricId=null;
 let releaseLoad=0;
+let latestReleaseKey=null;
+let liveRefreshInFlight=null;
 
 function loadColumns() {
   try {
@@ -87,6 +90,7 @@ function clearPrivateState() {
   sharedPicks.clear();
   detailMetricId=null;
   all = []; visible = []; current = null; access = null;
+  latestReleaseKey=null;
   currentRopeCoverage = null; currentCoverageError = "";
   currentDryerMetrics = null; currentDryerError = "";
   nurseryGrowthPanel.clear();
@@ -153,6 +157,8 @@ async function loadRelease(version = null) {
   if (error) throw error;
   if(request!==releaseLoad) return;
   current = data;
+  if(!version && data?.status === "published")
+    latestReleaseKey = String(data.major)+"."+String(data.minor);
   if (data?.status !== "published") {
     all = [];
     setStatus("No metrics release is currently available.");
@@ -172,25 +178,28 @@ async function loadRelease(version = null) {
     " · Reporting cut-off: " + (data.reporting_cutoff || "not specified") +
     " · " + all.length + " frozen metrics.";
   el("version").value = String(data.major) + "." + String(data.minor);
+  el("showLiveValues").disabled=!isLatestRelease();
   setStatus("", false, false);
   render();
   await sharedPicks.load(data,all);
 }
-/**
- * A live-link marker means a validated aggregate is currently available.
- * The value displayed in All Metrics remains the immutable release value.
- * A source citation, or an unrelated live analysis, is not enough.
- */
+/** An overlay is eligible only on the current release and after validated RPC reads. */
+function isLatestRelease() {
+  return current?.status==="published" &&
+    String(current.major)+"."+String(current.minor)===latestReleaseKey;
+}
+function currentStatus(metric) {
+  return liveStatus(metric.id,{
+    dryer:currentDryerMetrics,coverage:currentRopeCoverage,
+    mawimbiContext:id=>mawimbiPanel.metricContext(id)||mawimbiQcPanel.metricContext(id)
+  });
+}
+function metricDisplay(metric) {
+  return displayValue(metric,currentStatus(metric),
+    el("showLiveValues").checked,isLatestRelease());
+}
 function currentLinkSource(metric) {
-  if(currentDryerMetrics && DRYER_COMPARE.some(item=>item.id===metric.id))
-    return "COSME drying-table records";
-  if(currentRopeCoverage && metric.id==="ON-0054")
-    return "COSME nursery sample-rope register";
-  if(mawimbiPanel.metricContext(metric.id))
-    return "Authorised Mawimbi collection and processing aggregate";
-  if(mawimbiQcPanel.metricContext(metric.id))
-    return "Authorised Mawimbi stock QC aggregate";
-  return "";
+  return currentStatus(metric).source;
 }
 function syncStickyScrollbar() {
   const wrap=el("metricScrollArea"), bar=el("metricsStickyScroll");
@@ -295,10 +304,12 @@ function renderHeadlines() {
     for (const metric of selected) {
       const button = add(grid,"button","","metrics-headline-open");
       button.type = "button";
-      const formatted = displayMetricValue(metric.value, metric.unit);
+      const overlay=metricDisplay(metric);
+      const formatted = displayMetricValue(overlay.value, overlay.unit);
       add(button,"span",metric.title,"metrics-headline-label");
       const headlineValue=formatted.missing&&metric.valueState==="not_established"?"Not established":formatted.full;
       add(button,"strong",headlineValue,"metrics-headline-value");
+      if(overlay.state==="Live") add(button,"span","● Live","metrics-live-mark");
       button.addEventListener("click",()=>openMetric(metric,button));
     }
   }
@@ -539,6 +550,7 @@ function renderRows() {
   const query = el("search").value.trim().toLocaleLowerCase();
   const populated=populatedMetrics(all);
   const linkedCount=populated.filter(metric=>Boolean(currentLinkSource(metric))).length;
+  const liveCount=populated.filter(metric=>currentStatus(metric).kind==="live").length;
   visible = selectMetrics(populated, {
     query, activity: el("activity").value, categories: [...selectedCategories],
     featured: el("featured").checked, sort: sortKey, direction: sortDirection
@@ -590,11 +602,13 @@ function renderRows() {
   const fragment = document.createDocumentFragment();
   for (const metric of visible) {
     const row = document.createElement("tr");
-    const linkSource=currentLinkSource(metric);
-    if(linkSource) {
-      row.classList.add("metrics-live-linked");
-      row.title="Verified current-data link: "+linkSource+". Displayed value is from the selected published release.";
-    }
+    const status=currentStatus(metric);
+    const linkSource=status.source;
+    const overlay=metricDisplay(metric);
+    if(status.kind==="live") row.classList.add("metrics-live-linked");
+    else if(status.kind==="linked") row.classList.add("metrics-data-linked");
+    if(linkSource) row.title=(status.kind==="live" ?
+      "Verified current-data calculation: " : "Related current records: ") +linkSource;
     const pickCell=add(row,"td","","metrics-pick-cell");
     const star=add(pickCell,"button","");
     star.type="button";configureStar(star,metric);
@@ -602,8 +616,11 @@ function renderRows() {
     for (const col of cols) {
       const cell = document.createElement("td");
       cell.dataset.col = col.key;
-      const value = String(metric[col.key] ?? "");
-      const formatted = col.key === "value" ? displayMetricValue(metric.value, selectedColumns.has("unit") ? "" : metric.unit) : null;
+      const value = String(col.key==="unit" ? overlay.unit :
+        col.key==="dataKind" && status.kind!=="published" ? overlay.state :
+        metric[col.key] ?? "");
+      const formatted = col.key === "value" ?
+        displayMetricValue(overlay.value, selectedColumns.has("unit") ? "" : overlay.unit) : null;
       if (formatted?.numeric || formatted?.missing) cell.classList.add("metrics-number");
       cell.title = formatted ? formatted.full : value;
       if (col.key === "title") {
@@ -616,8 +633,10 @@ function renderRows() {
           button.classList.add("has-current-link");
           button.replaceChildren();
           add(button,"span",value,"metric-title-text");
-          add(button,"span","● Live link","metrics-live-mark");
-          button.title = value+" · linked to "+linkSource+" (published value remains frozen)";
+          add(button,"span",status.kind==="live" ? "● Live" : "Linked",
+            status.kind==="live" ? "metrics-live-mark" : "metrics-linked-mark");
+          button.title=value+" · "+(status.kind==="live" ?
+            "live calculation" : "related operational data")+" from "+linkSource;
         }
         button.addEventListener("click", () => openMetric(metric, button));
         cell.append(button);
@@ -630,6 +649,12 @@ function renderRows() {
         button.addEventListener("click",()=>openMetric(metric,button));
         add(button, "span", formatted.value, "metrics-value-main");
         if (formatted.unit) add(button, "span", formatted.unit, "metrics-value-unit");
+        if(overlay.state==="Live") {
+          add(button,"span","● Live","metrics-live-mark");
+          button.title="Live value · "+linkSource+" · checked "+
+            new Date(overlay.checkedAt).toLocaleString()+"; published value: "+
+            displayMetricValue(metric.value,metric.unit).full;
+        }
       } else {
         cell.textContent = value;
       }
@@ -639,7 +664,13 @@ function renderRows() {
   }
   tbody.append(fragment);
   el("count").textContent = visible.length + " of " + populated.length +
-    " metrics · " + linkedCount + " with verified live links this session";
+    " metrics · " + liveCount + " current calculations · " +
+    (linkedCount-liveCount) + " linked data sources";
+  el("liveValueNotice").textContent = !isLatestRelease() ?
+    "Historical release · showing published values only." :
+    el("showLiveValues").checked ?
+    "Verified current values are displayed automatically; others remain published figures. Open a metric to compare both." :
+    "Published values shown. Enable Current values to display verified live calculations.";
   el("empty").hidden = visible.length > 0;
   requestAnimationFrame(syncStickyScrollbar);
 }
@@ -668,11 +699,19 @@ function openMetric(metric, button) {
     ["Category", metric.theme],
     ["Original workbook theme", metric.originalTheme],
     ["Shared Top Pick", metric.featured?"Yes":"No"],
-    ["Value", metric.value],
-    ["Unit / basis", metric.unit],
+    ["Value", metricDisplay(metric).value],
+    ["Unit / basis", metricDisplay(metric).unit],
+    ...(metricDisplay(metric).state==="Live" ? [
+      ["Value status","Live · refreshed on current data query"],
+      ["Published "+(current?.version||"release"),displayMetricValue(metric.value,metric.unit).full],
+      ["Current calculated value",displayMetricValue(metricDisplay(metric).value,metricDisplay(metric).unit).full],
+      ["Current query checked",new Date(metricDisplay(metric).checkedAt).toLocaleString()],
+      ...(metricDisplay(metric).sourceUpdatedAt ?
+        [["Operational records last updated",new Date(metricDisplay(metric).sourceUpdatedAt).toLocaleString()]]:[])
+    ] : [["Value status",metricDisplay(metric).state]]),
     ["Data", metric.dataKind],
     ...(currentLinkSource(metric) ? [["Current data link",currentLinkSource(metric)+
-      " · the published value above is frozen; see Current data for the latest calculation"]] : []),
+      " · published releases remain frozen and unchanged"]] : []),
     ["Value type", metric.valueType],
     ...(mawimbiQcPanel.metricContext(metric.id) ? [
       ["Current MAWIMBI stock record counts",mawimbiQcPanel.metricContext(metric.id).value],
@@ -749,6 +788,7 @@ function closeMetric() {
 }
 function exportCsv() {
   if (!current || !visible.length) return;
+  // CSV deliberately exports frozen release values: never silently mix periods.
   const csv = exportSelectedCsv(visible, current.version || "");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -772,6 +812,7 @@ async function reloadAndRecheck() {
   await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics(),nurseryGrowthPanel.refresh(),mawimbiPanel.refresh(),mawimbiQcPanel.refresh(),...(grant.role === "owner" ? [traceabilityPanel.refresh()] : [])]);
   renderConnectionStatus();
   el("app").hidden = false;
+  renderHeadlines();
   renderRows();
 }
 for (const button of document.querySelectorAll(".metrics-tabs .tab")) {
@@ -787,6 +828,11 @@ el("featured").addEventListener("change", () => {
   renderRows();
 });
 el("linkedOnly").addEventListener("change", renderRows);
+el("showLiveValues").addEventListener("change",()=>{
+  renderHeadlines();
+  renderRows();
+});
+el("refreshLiveValues").addEventListener("click",()=>refreshLiveFeeds());
 el("openRegister").addEventListener("click", () => tab("register"));
 el("reset").addEventListener("click", () => {
   el("search").value = "";
@@ -803,6 +849,31 @@ el("reset").addEventListener("click", () => {
   renderRows();
 });
 el("exportCsv").addEventListener("click", exportCsv);
+async function refreshLiveFeeds() {
+  if(liveRefreshInFlight || !access || !navigator.onLine) return liveRefreshInFlight;
+  const button=el("refreshLiveValues");
+  button.disabled=true;
+  liveRefreshInFlight=(async()=>{
+    try {
+      await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics(),
+        nurseryGrowthPanel.refresh(),mawimbiPanel.refresh(),mawimbiQcPanel.refresh()]);
+      renderConnectionStatus();
+      renderHeadlines();
+      renderRows();
+      if(detailMetricId && el("veil").classList.contains("open")){
+        // A stale detail should never suggest its opened value remains current.
+        const metric=all.find(m=>m.id===detailMetricId);
+        if(metric)openMetric(metric,lastFocus);
+      }
+    } finally { button.disabled=false; liveRefreshInFlight=null; }
+  })();
+  return liveRefreshInFlight;
+}
+// Recheck live sources while an authorised user has this page open.
+setInterval(()=>{
+  if(access && !document.hidden && navigator.onLine)
+    refreshLiveFeeds().catch(()=>{});
+},300000);
 const metricScrollArea=el("metricScrollArea");
 const stickyScroll=el("metricsStickyScroll");
 metricScrollArea.addEventListener("scroll",()=>{
