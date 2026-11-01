@@ -630,11 +630,10 @@ function renderColumnChoices() {
 function renderRows() {
   const query = el("search").value.trim().toLocaleLowerCase();
   const populated=[...populatedMetrics(all),...(isLatestRelease()?operationalIndicators:[])];
-  const linkedCount=populated.filter(metric=>Boolean(currentLinkSource(metric))).length;
   const liveCount=populated.filter(metric=>currentStatus(metric).kind==="live").length;
   // Sorting and text search use the displayed current figure, not an unseen
   // frozen number, while keeping the original metric values intact.
-  const displayRows=populated.map(metric=>({
+  const displayRows=populated.filter(metric=>!hiddenMetricIds.has(metric.id)).map(metric=>({
     ...metric,liveDisplayValue:metricDisplay(metric).value
   }));
   visible = selectMetrics(displayRows, {
@@ -698,7 +697,7 @@ function renderRows() {
     const pickCell=add(row,"td","","metrics-pick-cell");
     const star=add(pickCell,"button","");
     star.type="button";configureStar(star,metric);
-    star.addEventListener("click",()=>togglePick(metric.id));
+    if(!metric.operationalLive)star.addEventListener("click",()=>togglePick(metric.id));
     for (const col of cols) {
       const cell = document.createElement("td");
       cell.dataset.col = col.key;
@@ -711,7 +710,13 @@ function renderRows() {
         displayMetricValue(overlay.value, selectedColumns.has("unit") ? "" : overlay.unit) : null;
       if (formatted?.numeric || formatted?.missing) cell.classList.add("metrics-number");
       cell.title = formatted ? formatted.full : value;
-      if (col.key === "title") {
+      if (col.key === "hide") {
+        const hideButton=add(cell,"button","×","metrics-hide-action");
+        hideButton.type="button";
+        hideButton.title="Hide from my metrics view";
+        hideButton.setAttribute("aria-label","Hide "+metric.title);
+        hideButton.addEventListener("click",()=>hideMetric(metric.id));
+      } else if (col.key === "title") {
         const button = document.createElement("button");
         button.type = "button";
         button.className = "metric-open";
@@ -753,14 +758,13 @@ function renderRows() {
     fragment.append(row);
   }
   tbody.append(fragment);
-  el("count").textContent = visible.length + " of " + populated.length +
-    " metrics ("+operationalIndicators.length+" live operational indicators) · " + liveCount + " current calculations · " +
-    (linkedCount-liveCount) + " linked data sources";
-  el("liveValueNotice").textContent = !isLatestRelease() ?
-    "Historical release · showing published values only." :
-    el("showLiveValues").checked ?
-    "Verified current values are displayed automatically; others remain published figures. Open a metric to compare both." :
-    "Published values shown. Enable Current values to display verified live calculations.";
+  const hiddenCount=populated.filter(m=>hiddenMetricIds.has(m.id)).length;
+  el("count").textContent=visible.length+" shown · "+populated.length+
+    " available · "+liveCount+" live"+(hiddenCount?" · "+hiddenCount+" hidden":"");
+  renderHiddenMetricMenu();
+  const notice=isLatestRelease()?"":"Historical release — published values only.";
+  el("liveValueNotice").textContent=notice;
+  el("liveValueNotice").hidden=!notice;
   el("empty").hidden = visible.length > 0;
   requestAnimationFrame(syncStickyScrollbar);
 }
@@ -964,7 +968,7 @@ el("showLiveValues").addEventListener("change",()=>{
   renderRows();
 });
 el("refreshLiveValues").addEventListener("click",()=>refreshLiveFeeds());
-el("openRegister").addEventListener("click", () => tab("register"));
+// Overview activity cards navigate to All metrics.
 el("reset").addEventListener("click", () => {
   el("search").value = "";
   el("activity").value = "";
@@ -980,6 +984,7 @@ el("reset").addEventListener("click", () => {
   renderRows();
 });
 el("exportCsv").addEventListener("click", exportCsv);
+el("restoreAllHidden").addEventListener("click",restoreAllHidden);
 async function refreshLiveFeeds() {
   if(liveRefreshInFlight || !access || !navigator.onLine) return liveRefreshInFlight;
   const button=el("refreshLiveValues");
@@ -1020,9 +1025,7 @@ window.addEventListener("resize",syncStickyScrollbar,{passive:true});
 if("ResizeObserver" in window)
   new ResizeObserver(()=>requestAnimationFrame(syncStickyScrollbar)).observe(metricScrollArea);
 el("detailStar").addEventListener("click",()=>togglePick(detailMetricId,"detail"));
-for(const id of ["reloadPicks","reloadPicksRegister"]) el(id).addEventListener("click",async()=>{
-  if(current?.status==="published") await sharedPicks.load(current,all);
-});
+
 el("selectVersion").addEventListener("click", async () => {
   const version = parseReleaseVersion(el("version").value);
   if (!version) {
@@ -1040,7 +1043,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && el("veil").classList.contains("open")) closeMetric();
 });
 document.addEventListener("click", (event) => {
-  for (const id of ["columnMenu", "categoryMenu"]) {
+  for (const id of ["columnMenu", "categoryMenu", "hiddenMetricMenu"]) {
     const menu = el(id);
     if (menu.open && !menu.contains(event.target)) menu.open = false;
   }
