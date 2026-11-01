@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { verifiedLiveValue, liveStatus, displayValue, exportMetricViewCsv } from "../assets/js/cosme_metrics_live_values.mjs";
+import { selectMetrics } from "../assets/js/cosme_metrics_core.mjs";
 
 const dryer = {
   can_view:true,status:"current",
@@ -78,4 +79,14 @@ test("export includes both live displayed and frozen published values with prove
   assert.equal(metric.value,"20");
   const historic=exportMetricViewCsv([metric],"V0.1",m=>liveStatus(m.id,{dryer}),true,false);
   assert.match(historic,/"20","cycles","Published","20","cycles"/);
+});
+
+test("value sorting and text search use the displayed overlay, not hidden source values",()=>{
+  const rows=[
+    {id:"a",value:"500",liveDisplayValue:"10",title:"Metric A",unit:"kg",activity:"Dryer",theme:"Deployment"},
+    {id:"b",value:"10",liveDisplayValue:"200",title:"Metric B",unit:"kg",activity:"Dryer",theme:"Deployment"}
+  ];
+  assert.deepEqual(selectMetrics(rows,{sort:"value"}).map(r=>r.id),["a","b"]);
+  assert.deepEqual(selectMetrics(rows,{query:"200"}).map(r=>r.id),["b"]);
+  assert.equal(rows[0].value,"500");
 });
