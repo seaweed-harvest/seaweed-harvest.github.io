@@ -9,13 +9,13 @@ import {
 import { createSharedPicks } from "./cosme_metrics_picks.mjs?v=1";
 import { liveStatus, displayValue, exportMetricViewCsv } from "./cosme_metrics_live_values.mjs?v=1";
 import { populatedMetrics, concisePickStatus, metricEvidence } from "./cosme_metrics_presentation.js?v=1";
-import { createNurseryGrowthPanel } from "./cosme_nursery_growth.mjs?v=2";
+import { createNurseryGrowthPanel } from "./cosme_nursery_growth.mjs?v=3";
 import { createMawimbiOperationsPanel } from "./cosme_mawimbi_operations.mjs?v=1";
 import { createMawimbiStockQcPanel } from "./cosme_mawimbi_stock_qc.mjs?v=1";
 import { createMawimbiTraceabilityPanel } from "./cosme_mawimbi_traceability.mjs?v=1";
 import { createMetricsTimeline } from "./cosme_metrics_timeline.mjs?v=3";
 import { createCosmeFinancesPanel } from "./cosme_finances_panel.mjs?v=2";
-import { createOperationalIndicators } from "./cosme_operational_indicators.mjs?v=1";
+import { createOperationalIndicators } from "./cosme_operational_indicators.mjs?v=2";
 
 // Published values remain immutable. Shared picks are a separate authorised layer.
 // Only column choices persist locally; metric data and picks never do.
