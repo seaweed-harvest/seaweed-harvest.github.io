@@ -6,6 +6,12 @@ const definitions = [
  ["ON","Offshore Nursery","Sample ropes with Week 4 measurements","nursery.week4_ropes","ropes"],
  ["ON","Offshore Nursery","Sample sites with active monitored ropes","nursery.site_count","sites"],
  ["ON","Offshore Nursery","Week 4 observations overdue","nursery.week4_due","ropes"],
+ ["SDT","Solar Drying Tables","Completed validated drying cycles","drying.completed_cycles","cycles"],
+ ["SDT","Solar Drying Tables","Validated completed drying bay records","drying.completed_bays","bays"],
+ ["SDT","Solar Drying Tables","Validated fresh seaweed loading weight","drying.wet_kg","kg"],
+ ["SDT","Solar Drying Tables","Validated final unloading weight","drying.final_kg","kg"],
+ ["SDT","Solar Drying Tables","Intermediate reweigh events on Bati tables","drying.reweigh_events","events"],
+ ["SDT","Solar Drying Tables","Intermediate reweighed bay records","drying.reweigh_bays","bays"],
  ["SDT","Solar Drying Tables","Recorded drying bays eligible for analysis","drying.qualified_bays","bays"],
  ["SDT","Solar Drying Tables","Drying bays completed within five days","drying.within_five_days","bays"],
  ["SDT","Solar Drying Tables","Median drying time of qualified bays","drying.median_hours","hours"],
@@ -48,10 +54,10 @@ export function createOperationalIndicators(payload){
    payload.nursery.pairs.length>10 || payload.nursery.sites.length>25) return [];
  const out=[];
  const add=(prefix,activity,title,value,unit,source,serial)=>{
-   if(!safeNumeric(value))return;
+   if(!safeNumeric(value) && !(typeof value==='number' && Number.isFinite(value) && unit==='g/rope/day'))return;
    const id="LIVE-"+prefix+"-"+String(serial).padStart(3,"0");
    const read={value:String(value),unit,source,queriedAt:payload.queried_at,
-     sourceUpdatedAt:payload.nursery.source_updated_at||null};
+     sourceUpdatedAt:prefix==='ON'?payload.nursery.source_updated_at||null:prefix==='SDT'?payload.drying?.source_updated_at||null:null};
    out.push({id,activity,theme:"Current operations",title,
      value:read.value,unit,source,verification:"Live read-only aggregate",
      featured:false,sourceMode:"Live",valueState:"calculated",asOf:payload.queried_at,
