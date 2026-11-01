@@ -17,7 +17,7 @@ function lineTable(lines,pkg){
   const table=node("table","finance-line-table");
   const head=node("thead");
   const header=node("tr");
-  for(const label of ["Item","Date","Qty","Unit rate","Amount","Status","Evidence"]) header.append(node("th","",label));
+  for(const label of ["Item","Date","Qty","Rate / original","Amount","Status","Evidence"]) header.append(node("th","",label));
   head.append(header);table.append(head);
   const body=node("tbody");
   for(const line of lines){
@@ -25,7 +25,7 @@ function lineTable(lines,pkg){
     row.append(node("td","",line.description||"Unspecified"));
     row.append(node("td","",line.entry_date||"—"));
     row.append(node("td","",line.quantity===null?"—":String(line.quantity)+" "+(line.unit||"")));
-    row.append(node("td","",money(line.unit_rate,pkg.currency)));
+    row.append(node("td","",money(line.unit_rate,line.rate_currency||pkg.currency)));
     row.append(node("td","finance-amount",money(line.amount,pkg.currency)));
     row.append(node("td","",line.reconciliation_status||"Review"));
     const evidence=node("td","finance-evidence");
