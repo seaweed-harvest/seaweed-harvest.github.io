@@ -132,3 +132,23 @@ Across all historical releases, ten IDs have changed source titles. Nine of
 these use display aliases in the current release; exact-title guards keep
 their earlier frozen titles from inheriting the later label. The tenth title
 is retained in this pass. A regression test covers the nine guarded cases.
+
+## Publication approval and refreshed base (1 November 2026)
+
+The owner explicitly instructed in the Codex chat, “please deploy. fully
+approved”. This is the human approval for merging draft PR #157 and publishing
+its frontend change; it does not authorise database or permission changes.
+Before merge, the branch incorporated the newer `live/main` commit
+`bb8901c32f472a576e01c1325e8e21ec1590ce5a` (COSME Finance mobile
+presentation). The two shared page files merged cleanly. The final PR diff
+against that base contains ten COSME naming/presentation paths and no protected
+paths. The 74 focused metrics tests, JavaScript syntax, diff whitespace and
+desktop/390 px synthetic browser probes pass on the combined branch.
+
+A wider COSME test run passes 114 of 115 tests. Its one packing-form copy
+assertion expects the same sentence twice in `stabilization_packing.html`;
+the current production branch contains it once, and neither that form nor
+the test is changed by this PR. This pre-existing, unrelated assertion does
+not affect the metrics-specific required checks. Post-deployment verification
+will confirm the published assets and page response; authenticated live data
+and grants remain governed by their existing server checks.
