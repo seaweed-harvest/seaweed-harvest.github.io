@@ -30,6 +30,8 @@ test("Accurate project version stages and source labels",()=>{
   assert.match(panelSource,/V1\.2 · Rough design \(materials\)/);
   assert.doesNotMatch(panelSource,/PLAN as-built/);
   assert.match(panelSource,/Month taken from source file name/);
+  assert.match(panelSource,/LM-C"\|\|p\.package_key==="LM-P"/);
+  assert.match(panelSource,/return "2026-07-28"/);
 });
 class FakeNode{
   constructor(tag){this.tag=tag;this.children=[];this.dataset={};this.attributes={};this.listeners={};this.open=false;this.value="";this.textContent="";this.className="";this.title="";this.style={}}
