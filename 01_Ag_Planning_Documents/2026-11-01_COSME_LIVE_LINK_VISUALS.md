@@ -15,10 +15,15 @@ page only; no Mawimbi forms, operational ledgers, permissions, or database chang
 1. An All Metrics row is visually marked as linked only if an authorised,
    validated current aggregate has succeeded during this browser session.
    Historic source citations alone do not qualify.
-2. The row's value remains the selected frozen release value. Current values
-   continue to appear separately in Current data and relevant detail views.
+2. The latest register automatically shows the validated current value for
+   exact metric-level matches, with a prominent Live label and check time.
+   Its original published value remains immutable, appears in metric details
+   and is included alongside the current value in CSV export. Historical
+   release selection always shows frozen values.
 3. Users can filter to live-linked rows without changing shared Top Picks.
-   The count identifies how many current adapters are linked this session.
+   The count separates exact Live calculations from related Linked data.
+   The Current values switch permits reviewing the frozen figure in the latest
+   release without changing the underlying record.
 4. The bottom horizontal scrollbar is visible whenever the register is
    onscreen and wider than its container, including narrow viewports.
    Synchronise both directions without adding page-wide horizontal overflow.
@@ -26,8 +31,12 @@ page only; no Mawimbi forms, operational ledgers, permissions, or database chang
    counts; clicking filters All Metrics.
 6. Explain that releases are immutable, reviewed, owner-approved snapshots;
    no unauthorised in-page publish control or implicit releases.
-7. Preserve existing Project Highlights selection for now. Its curation
-   into 4–8 outcome-oriented, source-verified KPIs is a separate follow-up.
+7. Preserve existing Project Highlights selection for now, but display the
+   live calculation where an exact selected metric has a verified overlay.
+   Curating 4–8 outcome-oriented KPIs is a separate follow-up.
+8. Refresh validated aggregates on page open, foreground return, on-demand
+   and every five minutes while the authorised page is visible and online.
+   Failed checks fall back to published values; never imply streaming updates.
 
 ## Live-source audit and limitations
 
@@ -42,16 +51,27 @@ page only; no Mawimbi forms, operational ledgers, permissions, or database chang
   aggregate access. They do not establish batch traceability, extraction yield
   or calibrated QC compliance.
 - Aggregation Hub: no verified live adapter in the page. Do not colour it.
-- Thus **up to nine specific rows** can be highlighted, depending on
-  available release rows and successful authorised data responses.
-  Connection failure produces no green marker.
+- **Six metric IDs** receive directly substitutable, live current values
+  (five dryer and one nursery coverage). **Three Mawimbi metric IDs** have
+  informative but non-equivalent linked data. Green Live and neutral Linked
+  must never be confused. Adapter failures revert to Published.
+- CSV exports include the currently displayed value and separate frozen
+  published value, version and source timestamps. No operational data persists
+  in the browser beyond the existing session state.
 - Linking more metrics requires definition-by-definition source matching,
   scope validation and, when needed, a separately approved backend change.
 
 ## Tests and release gate
 
-Synthetic/static assertions inspect the DOM hooks, current-aggregate guards,
-frozen-value boundary and scrollbar wiring. Syntax compilation is included.
-Still required before merge: desktop/mobile browser layout and keyboard probes,
-actual diff review, existing metrics test suite and explicit approval under
-repository policy. No deploy was authorised by this planning document.
+The owner approved proceeding and asked for automatically updated live values
+on 1 November 2026. The update is implemented in the same review branch with
+a pure overlay adapter and explicit published/live display states.
+
+Review checks: 10 focused logic/static tests pass in a sandboxed JavaScript
+test harness; source-page, core and adapter syntax compile; CSS braces are
+balanced; no protected paths changed. Actual diff is eight files and more
+than 400 changed lines, so Lane B review rather than Lane A applies.
+Still required before merge/deployment: the repository's complete existing
+test suite, browser layout and keyboard probes (desktop and narrow/mobile),
+final diff review and a successful publication check. No production mutation,
+migration or release update was made by this implementation.
