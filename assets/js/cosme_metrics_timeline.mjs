@@ -216,13 +216,16 @@ export function createMetricsTimeline(authClient,root,openMetric) {
     for(let d=1;d<=count;d++){
       const day=key+"-"+String(d).padStart(2,"0");
       const hits=entries.filter(m=>activeOn(m,day));
-      const button=make("button","metrics-timeline-day"+(hits.length?" has-events":""));
+      const insideTravel=hits.some(m=>m.type==="Travel"&&m.end_date&&m.start_date<day&&m.end_date>day);
+      const markers=hits.filter(m=>m.type!=="Travel"||!m.end_date||m.start_date===day||m.end_date===day);
+      const button=make("button","metrics-timeline-day"+(hits.length?" has-events":"")+
+        (insideTravel?" travel-range":""));
       button.type="button";
       button.setAttribute("aria-label",dateLabel(day)+(hits.length?": "+hits.map(x=>meta(x.activity).label+": "+title(x)).join("; "):": No events"));
       button.append(make("span","metrics-timeline-date-number",String(d)));
       if(hits.length){
         const symbols=make("span","metrics-timeline-date-symbols");
-        const distinct=[...new Set(hits.map(m=>m.activity))];
+        const distinct=[...new Set(markers.map(m=>m.activity))];
         distinct.slice(0,3).forEach(a=>{
           const marker=make("span","metrics-timeline-date-mark activity-"+meta(a).css,meta(a).icon);
           marker.title=meta(a).label;
