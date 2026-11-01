@@ -927,3 +927,106 @@
     bottom: env(safe-area-inset-bottom, 0px);
   }
 }
+
+/* Focused November register: muted activity colours and concise release metadata. */
+.cosme-metrics-page .metrics-activity-card[data-activity-tone="dryer"] {
+  background:#faf6eb; border-color:#e7dbc0;
+}
+.cosme-metrics-page .metrics-activity-card[data-activity-tone="nursery"] {
+  background:#edf7f7; border-color:#c9e2e2;
+}
+.cosme-metrics-page .metrics-activity-card[data-activity-tone="aggregation"] {
+  background:#f1f1f9; border-color:#dad9ec;
+}
+.cosme-metrics-page .metrics-activity-card[data-activity-tone="mawimbi"] {
+  background:#eff6ec; border-color:#d0e1c9;
+}
+.cosme-metrics-page .metrics-activity-card[data-activity-tone="farming"] {
+  background:#faf2eb; border-color:#e6d5c8;
+}
+.cosme-metrics-page .metrics-activity-heading {
+  display:flex; gap:10px; align-items:center; max-width:100%;
+}
+.cosme-metrics-page .metrics-activity-heading strong {
+  font-size:.9rem; font-weight:700;
+}
+.cosme-metrics-page .metrics-activity-icon {
+  flex:none; display:grid;place-items:center;
+  width:32px;height:32px;border-radius:10px;
+  background:#ffffffa9;color:#40665e;font-size:1.2rem;line-height:1;
+}
+.cosme-metrics-page .metrics-activity-card .metrics-big {
+  color:var(--text);font-size:1.25rem;font-weight:730;
+}
+.cosme-metrics-page .metrics-activity-card:hover,
+.cosme-metrics-page .metrics-activity-card:focus-visible {
+  filter:brightness(.98);box-shadow:0 4px 14px #092c2712;
+}
+.cosme-metrics-page .metrics-register-overview { margin-top:14px; }
+.cosme-metrics-page .metrics-register-overview h3 {font-size:.95rem;margin:0 0 12px;}
+.cosme-metrics-page .metrics-register-facts {
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;
+}
+.cosme-metrics-page .metrics-register-fact {
+  display:grid;align-content:center;gap:5px;min-height:74px;
+  padding:10px 12px;background:var(--panel-soft);
+  border:1px solid var(--border-soft);border-radius:8px;
+}
+.cosme-metrics-page .metrics-register-fact span {
+  font-size:.72rem;color:var(--text-muted);
+}
+.cosme-metrics-page .metrics-register-fact strong {
+  font-size:.95rem;font-weight:730;overflow-wrap:anywhere;
+}
+/* Keep the record grid as a viewport-sized, independently scrollable pane.
+   Horizontal scrolling is always reachable at its base and mirrored at the
+   bottom of the screen when columns overflow. */
+.cosme-metrics-page #metricScrollArea {
+  height:clamp(320px,calc(100dvh - 285px),920px);
+  max-height:none;
+  min-height:280px;
+  overflow:auto;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+}
+.cosme-metrics-page .metrics-sticky-scroll {
+  height:20px;bottom:env(safe-area-inset-bottom,0px);
+  box-shadow:0 -2px 12px #072c2719;
+  border-color:#94b6ae;
+}
+.cosme-metrics-page .metrics-hide-action {
+  min-height:26px!important;min-width:26px!important;
+  padding:0!important;border:1px solid transparent!important;
+  background:transparent!important;color:#71827d!important;
+  font-size:1.1rem!important;border-radius:5px!important;
+}
+.cosme-metrics-page .metrics-hide-action:hover,
+.cosme-metrics-page .metrics-hide-action:focus-visible {
+  color:#9a3f41!important;border-color:#e6bebe!important;background:#fff4f4!important;
+}
+.cosme-metrics-page td[data-col="hide"] {text-align:center;}
+.cosme-metrics-page .metrics-hidden-menu .metrics-column-options {
+  min-width:min(340px,90vw);
+  max-width:min(400px,90vw);
+}
+.cosme-metrics-page .metrics-hidden-list > div {
+  display:grid;gap:3px;overflow-y:auto;max-height:300px;
+}
+.cosme-metrics-page .metrics-hidden-item {
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:5px 2px;border-bottom:1px solid var(--border-soft);
+}
+.cosme-metrics-page .metrics-hidden-item span {
+  min-width:0;font-size:.78rem;overflow:hidden;text-overflow:ellipsis;
+}
+.cosme-metrics-page .metrics-hidden-item button {flex:none;}
+.cosme-metrics-page .metrics-hidden-list > button {margin-top:8px;}
+@media(max-width:950px){
+ .cosme-metrics-page .metrics-register-facts {grid-template-columns:repeat(3,minmax(0,1fr));}
+}
+@media(max-width:600px){
+ .cosme-metrics-page .metrics-register-facts {grid-template-columns:repeat(2,minmax(0,1fr));}
+ .cosme-metrics-page .metrics-activity-heading {gap:6px;}
+ .cosme-metrics-page .metrics-activity-icon {width:26px;height:26px;font-size:1rem;}
+ .cosme-metrics-page #metricScrollArea {height:clamp(290px,58dvh,660px);min-height:290px;}
+}
