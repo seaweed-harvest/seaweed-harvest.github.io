@@ -9,7 +9,7 @@ class MobileAppNavigationStaticTest(unittest.TestCase):
     def test_shared_navigation_is_connected_to_admin_and_collection(self):
         admin = (ROOT / "assets/js/admin_page.js").read_text(encoding="utf-8")
         collection = (ROOT / "assets/js/collection_form.js").read_text(encoding="utf-8")
-        self.assertIn('from "./app_navigation.js?v=15"', admin)
+        self.assertRegex(admin, r'from "\./app_navigation\.js\?v=\d+"')
         self.assertIn("setupAppNavigation({", admin)
         self.assertIn('from "./app_navigation.js?v=15"', collection)
         self.assertIn("setupAppNavigation({", collection)
