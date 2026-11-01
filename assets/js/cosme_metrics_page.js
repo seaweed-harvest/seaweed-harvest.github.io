@@ -613,8 +613,8 @@ function renderRows() {
     const status=currentStatus(metric);
     const linkSource=status.source;
     const overlay=metricDisplay(metric);
-    if(status.kind==="live") row.classList.add("metrics-live-linked");
-    else if(status.kind==="linked") row.classList.add("metrics-data-linked");
+    if(overlay.state==="Live") row.classList.add("metrics-live-linked");
+    else if(status.kind!=="published") row.classList.add("metrics-data-linked");
     if(linkSource) row.title=(status.kind==="live" ?
       "Verified current-data calculation: " : "Related current records: ") +linkSource;
     const pickCell=add(row,"td","","metrics-pick-cell");
@@ -644,8 +644,9 @@ function renderRows() {
           button.classList.add("has-current-link");
           button.replaceChildren();
           add(button,"span",value,"metric-title-text");
-          add(button,"span",status.kind==="live" ? "● Live" : "Linked",
-            status.kind==="live" ? "metrics-live-mark" : "metrics-linked-mark");
+          add(button,"span",overlay.state==="Live" ? "● Live" :
+            status.kind==="live" ? "Live available" : "Linked",
+            overlay.state==="Live" ? "metrics-live-mark" : "metrics-linked-mark");
           button.title=value+" · "+(status.kind==="live" ?
             "live calculation" : "related operational data")+" from "+linkSource;
         }
