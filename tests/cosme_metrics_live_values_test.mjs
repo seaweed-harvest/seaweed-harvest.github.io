@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { verifiedLiveValue, liveStatus, displayValue } from "../assets/js/cosme_metrics_live_values.mjs";
+import { verifiedLiveValue, liveStatus, displayValue, exportMetricViewCsv } from "../assets/js/cosme_metrics_live_values.mjs";
 
 const dryer = {
   can_view:true,status:"current",
@@ -64,4 +64,18 @@ test("published value always survives and historical version stays frozen", () =
   assert.equal(displayValue(metric,status,true,false).value,"20");
   assert.equal(metric.value,"20");
   assert.equal(displayValue(metric,liveStatus("MAW-0086",{mawimbiContext:()=>({})}),true,true).state,"Linked");
+});
+
+test("export includes both live displayed and frozen published values with provenance", () => {
+  const metric={id:"SDT-0063",activity:"Solar Drying Tables",theme:"Delivery",
+    title:"Completed COSME drying cycles",value:"20",unit:"cycles",
+    source:"Read-only COSME",note:"",featured:false};
+  const csv=exportMetricViewCsv([metric],"V0.3",m=>liveStatus(m.id,{dryer}),true,true);
+  assert.match(csv,/Displayed value/);
+  assert.match(csv,/Published value/);
+  assert.match(csv,/"21","cycles","Live","20","cycles"/);
+  assert.match(csv,/2026-11-01T04:00:00Z/);
+  assert.equal(metric.value,"20");
+  const historic=exportMetricViewCsv([metric],"V0.1",m=>liveStatus(m.id,{dryer}),true,false);
+  assert.match(historic,/"20","cycles","Published","20","cycles"/);
 });
