@@ -80,9 +80,9 @@ export function activityGroups(packages) {
 }
 export function exportFinanceCsv(packages) {
   const quote=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
-  const rows=[["Activity","Version","Basis","Currency","Source","Source row","Entry date","Category","Subcategory","Description","Quantity","Unit","Unit rate","Amount","Funder","Status","Included"]];
+  const rows=[["Activity","Version","Basis","Currency","Source","Source row","Entry date","Category","Subcategory","Description","Quantity","Unit","Unit rate","Rate currency","Amount","Funder","Status","Included"]];
   for(const pkg of packages) for(const line of pkg.lines){
-    rows.push([pkg.activity,pkg.version,pkg.basis,pkg.currency,pkg.source?.display_name||"",line.source_row,line.entry_date,line.category,line.subcategory,line.description,line.quantity,line.unit,line.unit_rate,line.amount,line.funding_org,line.reconciliation_status,line.included_in_total!==false]);
+    rows.push([pkg.activity,pkg.version,pkg.basis,pkg.currency,pkg.source?.display_name||"",line.source_row,line.entry_date,line.category,line.subcategory,line.description,line.quantity,line.unit,line.unit_rate,line.rate_currency,line.amount,line.funding_org,line.reconciliation_status,line.included_in_total!==false]);
   }
   return rows.map(row=>row.map(quote).join(",")).join("\r\n");
 }
