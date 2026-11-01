@@ -126,8 +126,8 @@ test("Legacy shed is its own reference project, not an extra price per drying ta
   const root=new FakeNode("div");
   const data=payload();
   data.sources.push({id:"shed",display_name:"Existing drying shade and store — priced BQ"});
-  data.packages.push({id:"shed1",source_id:"shed",package_key:"existing-shed-store-reference",
-    version:"Existing shed & store (possibly Mkwiro)",activity:"Existing Solar Dryer Shed",
+  data.packages.push({id:"shed1",source_id:"shed",package_key:"legacy-mwazaro-shed-store",
+    version:"Existing site · Mwazaro priced BoQ",activity:"Solar Drying Shed & Store",
     basis:"estimated",currency:"KES",units_covered:1,unit_label:"shed project",
     control_total:2641401.2,reconciliation_status:"verified"});
   data.lines.push({package_id:"shed1",source_row:"F692",category:"Building",
@@ -138,7 +138,7 @@ test("Legacy shed is its own reference project, not an extra price per drying ta
   const d=root.querySelectorAll("details[data-finance-key]").find(d=>d.dataset.financeKey==="pkg:shed1");
   assert.ok(d);
   const labels=d.children[0].children.map(x=>x.textContent);
-  assert.ok(labels.includes("Existing shed & store (possibly Mkwiro)"));
+  assert.ok(labels.includes("Existing drying shed & store · Mwazaro"));
   assert.ok(labels.includes("KES 2,641,401.20"));
   assert.ok(labels.includes("—"),"Site-level project reference should not be mislabelled per table");
 });
