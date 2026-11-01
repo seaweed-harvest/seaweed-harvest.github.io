@@ -37,7 +37,7 @@ export function createMetricsTimeline(authClient, root, openMetric) {
     (!type || m.type === type) &&
     (!year || m.start_date.startsWith(year))
   );
-  const activeOn = (m, day) => m.start_date <= day && (!m.end_date || m.end_date >= day);
+  const activeOn = (m, day) => m.start_date <= day && (m.end_date || m.start_date) >= day;
 
   function select(parent, label, choices, value, onChange) {
     const control = make("label", "metrics-timeline-filter");
@@ -145,7 +145,7 @@ export function createMetricsTimeline(authClient, root, openMetric) {
     const eventsPanel = make("div", "metrics-timeline-calendar-events");
     const visible = selectedDay ? rows.filter((m) => activeOn(m,selectedDay))
       : rows.filter((m) => m.start_date.slice(0,7) <= month &&
-        (!m.end_date || m.end_date.slice(0,7) >= month));
+        (m.end_date || m.start_date).slice(0,7) >= month);
     eventsPanel.append(make("h4", "", selectedDay ? "Milestones on " + dateLabel(selectedDay)
       : "Milestones in " + heading.textContent));
     if (!visible.length) eventsPanel.append(make("p", "metrics-timeline-empty", "No milestones for this period."));
