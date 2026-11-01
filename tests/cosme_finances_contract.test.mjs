@@ -50,3 +50,10 @@ test("Mobile drilldowns are usable without navigation or horizontal page overflo
   assert.match(css,/overflow-x:auto/);
   assert.match(css,/:focus-visible/);
 });
+
+test("Finance line SQL keeps valid monetary and currency fields",()=>{
+  assert.match(migration,/rate_currency text check \(rate_currency is null or rate_currency ~ '\^\[A-Z\]\{3\}\$'\),/);
+  assert.match(migration,/\n  amount numeric\(18,2\),/);
+  assert.match(migration,/\n  entry_date date,/);
+  assert.doesNotMatch(migration,/rate_currency ~ '\^\[A-Z\]\{3\}\s*\n/);
+});
