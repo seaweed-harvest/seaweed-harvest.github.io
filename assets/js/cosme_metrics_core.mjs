@@ -35,12 +35,22 @@ export function selectMetrics(metrics,{
     &&(!verification||m.verification===verification)
     &&(!featured||m.featured)
     &&(!selected.size||selected.has(m.theme))
-    &&(!q||[m.id,m.title,m.note,m.source,m.liveDisplayValue??m.value,m.unit,m.theme].join(" ").toLocaleLowerCase().includes(q))
+    &&(!q||[m.id,m.title,m.displayTitle,m.metricType,m.note,m.source,m.liveDisplayValue??m.value,m.unit,m.theme].join(" ").toLocaleLowerCase().includes(q))
   );
-  const allowed=["id","title","activity","theme","value","unit","source","note","verification","asOf","dataKind"];
+  const allowed=["id","title","activity","theme","value","unit","source","note","verification","asOf","dataKind","metricType"];
   const sortKey=allowed.includes(sort)?sort:"id";
   const sign=direction==="desc"?-1:1;
   return filtered.sort((a,b)=>{
+    if(sortKey==="metricType"){
+      const activityCompare=String(a.activity??"").localeCompare(String(b.activity??""),undefined,{sensitivity:"base"});
+      if(activityCompare)return sign*activityCompare;
+      const familyCompare=String(a.metricType??"Other metrics").localeCompare(
+        String(b.metricType??"Other metrics"),undefined,{sensitivity:"base"});
+      if(familyCompare)return sign*familyCompare;
+      const nameCompare=String(a.displayTitle??a.title??"").localeCompare(
+        String(b.displayTitle??b.title??""),undefined,{numeric:true,sensitivity:"base"});
+      return sign*nameCompare||String(a.id).localeCompare(String(b.id),undefined,{numeric:true});
+    }
     if(sortKey==="value"){
       const aEmpty=!String(a.liveDisplayValue??a.value??"").trim();
       const bEmpty=!String(b.liveDisplayValue??b.value??"").trim();
@@ -50,8 +60,10 @@ export function selectMetrics(metrics,{
       if(aNumber!==null&&bNumber!==null&&aNumber!==bNumber)return sign*(aNumber-bNumber);
       if((aNumber===null)!==(bNumber===null))return aNumber===null?1:-1;
     }
-    const aLabel=sortKey==="value"?(a.liveDisplayValue??a.value):a[sortKey];
-    const bLabel=sortKey==="value"?(b.liveDisplayValue??b.value):b[sortKey];
+    const aLabel=sortKey==="value"?(a.liveDisplayValue??a.value):
+      sortKey==="title"?(a.displayTitle??a.title):a[sortKey];
+    const bLabel=sortKey==="value"?(b.liveDisplayValue??b.value):
+      sortKey==="title"?(b.displayTitle??b.title):b[sortKey];
     const cmp=String(aLabel??"").localeCompare(String(bLabel??""),undefined,
       {numeric:sortKey!=="value",sensitivity:"base"});
     return sign*cmp||String(a.id).localeCompare(String(b.id),undefined,{numeric:true});
