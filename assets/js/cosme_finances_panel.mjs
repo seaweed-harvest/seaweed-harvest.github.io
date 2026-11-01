@@ -1,4 +1,5 @@
 import {BASIS,money,amountOrNull,normalizeFinanceData,activityGroups,exportFinanceCsv,effectiveFinanceBasis} from "./cosme_finances_core.mjs?v=2";
+import {expenseOverview,projectOverview,referenceFor,itemDescription} from "./cosme_finances_view.mjs?v=1";
 
 // Read-only project reference: separate estimates/quotes/invoices from expense claims.
 const make=(tag,cls="",value)=>{
@@ -75,7 +76,7 @@ function sourceLineTable(lines,p){
   const body=add(table,"tbody");
   for(const line of lines){
     const row=add(body,"tr");
-    add(row,"td","finance-description",line.description||"Unspecified item");
+    add(row,"td","finance-description",line.item_detail||itemDescription(line)||"Unspecified item");
     add(row,"td","finance-date",line.entry_date||"—");
     add(row,"td","finance-qty",line.quantity===null||line.quantity===undefined?"—":line.quantity+" "+(line.unit||""));
     add(row,"td","finance-money",line.unit_rate===null||line.unit_rate===undefined?"—":money(line.unit_rate,line.rate_currency||p.currency));
@@ -145,7 +146,7 @@ function costSections(p){
 }
 function expenseSections(p){
   const box=make("div","finance-detail-body");
-  add(box,"p","finance-detail-context","Source: "+(p.source?.display_name||"Expense register")+" · Recorded expense claims in "+p.currency+". This is not an audited paid ledger.");
+  add(box,"p","finance-detail-context","Expense claims · "+p.currency+" · source detail appears on each item; not an audited paid ledger.");
   for(const cat of p.summary.categories){
     const d=add(box,"details","finance-category");
     d.dataset.financeKey="expense-cat:"+p.id+":"+cat.name;
@@ -163,7 +164,7 @@ function tableHeader(root){
   for(const col of columns)add(h,"span","",col);
 }
 function line(root,p,expenses){
-  const d=add(root,"details","finance-register-item");
+  const d=add(root,"details","finance-register-item"+(p.activity==="Solar Drying Shed & Store"?" finance-reference":""));
   d.dataset.financeKey="pkg:"+p.id;
   const s=add(d,"summary","finance-row");
   const title=add(s,"span","finance-stage",expenses?p.activity.replace(/^COSME Procurement — /,""):stage(p));
@@ -205,7 +206,7 @@ export function createCosmeFinancesPanel(authClient,root){
       button.addEventListener("click",()=>{mode=value;activity="all";basis="all";redraw()});
     }
     const isExpense=mode==="expenses";
-    const pool=isExpense?expensePackages(entries):costPackages(entries);
+    const pool=isExpense?expenseOverview(entries):costPackages(entries);
     const controls=add(root,"div","finance-filters");
     const selector=add(controls,"select","finance-select");
     selector.setAttribute("aria-label","Filter finance activity");
@@ -216,7 +217,7 @@ export function createCosmeFinancesPanel(authClient,root){
     if(!isExpense){
       const filter=add(controls,"select","finance-select");
       filter.setAttribute("aria-label","Filter cost basis");
-      for(const [key,label] of [["all","All cost bases"],["actual","Actual (owner-confirmed)"],...Object.entries(BASIS)]){
+      for(const [key,label] of [["all","All cost bases"],...Object.entries(BASIS)]){
         const opt=add(filter,"option","",label);opt.value=key;
       }
       filter.value=basis;filter.addEventListener("change",()=>{basis=filter.value;redraw()});
@@ -229,24 +230,21 @@ export function createCosmeFinancesPanel(authClient,root){
     if(!selected.length){add(root,"p","finance-empty",hasLoaded?"No matching cost records.":"Loading finance records…");return}
     const list=add(root,"div","finance-register");
     tableHeader(list);
-    const groups=activityGroups(selected);
-    const stageOrder={
-      "v11-asbuilt":10,"v12-design":20,"v12-funzi-asbuilt":30,
-      "v13-design":40,"v13-plan-10":50,
-      "nursery-v12-rough-materials":10,"LM-C":20,"LM-P":21
-    };
+
+    const groups=isExpense?activityGroups(selected):projectOverview(selected);
     for(const group of groups){
-      if(!isExpense && group.name==="Solar Drying Tables"){
-        group.entries.sort((a,b)=>(stageOrder[a.package_key]??99)-(stageOrder[b.package_key]??99));
-      } else if(!isExpense && group.name==="Offshore Nursery"){
-        group.entries.sort((a,b)=>(stageOrder[a.package_key]??99)-(stageOrder[b.package_key]??99));
-      } else if(!isExpense && group.name==="Aggregation Hub"){
-        group.entries.sort((a,b)=>String(a.source?.source_date||a.version).localeCompare(String(b.source?.source_date||b.version)));
+      if(isExpense){
+        for(const p of group.entries)line(list,p,true);
+        continue;
       }
-      if(!isExpense){
-        add(list,"div","finance-section-title",group.name);
-      }
-      for(const p of group.entries)line(list,p,isExpense);
+      const container=add(list,"details","finance-project-group");
+      container.dataset.financeKey="group:"+group.name;
+      const summary=add(container,"summary","finance-group-summary");
+      add(summary,"strong","finance-group-name",group.name);
+      const ref=referenceFor(group);
+      add(summary,"strong","finance-group-cost",ref.amount);
+      add(summary,"span","finance-group-note",ref.note);
+      for(const p of group.entries)line(container,p,false);
     }
     if(!isExpense) add(root,"p","finance-footnote","* Month taken from source file name; exact transaction date was not recorded. Unit costs use source quantities, not payment verification.");
     const exportBtn=add(root,"button","metrics-button finance-export","Export source lines CSV");

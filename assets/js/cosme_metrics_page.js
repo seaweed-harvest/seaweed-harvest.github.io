@@ -14,7 +14,7 @@ import { createMawimbiOperationsPanel } from "./cosme_mawimbi_operations.mjs?v=1
 import { createMawimbiStockQcPanel } from "./cosme_mawimbi_stock_qc.mjs?v=1";
 import { createMawimbiTraceabilityPanel } from "./cosme_mawimbi_traceability.mjs?v=1";
 import { createMetricsTimeline } from "./cosme_metrics_timeline.mjs?v=3";
-import { createCosmeFinancesPanel } from "./cosme_finances_panel.mjs?v=2";
+import { createCosmeFinancesPanel } from "./cosme_finances_panel.mjs?v=3";
 import { createOperationalIndicators } from "./cosme_operational_indicators.mjs?v=2";
 
 // Published values remain immutable. Shared picks are a separate authorised layer.

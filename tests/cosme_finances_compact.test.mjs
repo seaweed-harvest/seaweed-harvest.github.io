@@ -10,8 +10,8 @@ const panelSource=read("../assets/js/cosme_finances_panel.mjs");
 
 test("Finance uses matching Metrics/Timeline shell with two compact internal views",()=>{
   assert.match(page,/data-tab="finances"/);
-  assert.match(page,/cosme_finances\.css\?v=2/);
-  assert.match(main,/cosme_finances_panel\.mjs\?v=2/);
+  assert.match(page,/cosme_finances\.css\?v=3/);
+  assert.match(main,/cosme_finances_panel\.mjs\?v=3/);
   assert.match(panelSource,/Project costs & estimates/);
   assert.match(panelSource,/Expense register/);
   assert.match(panelSource,/Filter finance activity/);
@@ -91,7 +91,7 @@ test("Expense register separates procurement from project versions",async()=>{
   const expenses=buttons.find(c=>c.textContent==="Expense register");
   assert.ok(expenses,"Expense sub-view tab exists");
   expenses.listeners.click();
-  assert.ok(root.querySelectorAll("details[data-finance-key]").some(x=>x.dataset.financeKey==="pkg:exp"));
+  assert.ok(root.querySelectorAll("details[data-finance-key]").some(x=>x.dataset.financeKey==="pkg:expense:Travel"));
   assert.ok(!root.querySelectorAll("details[data-finance-key]").some(x=>x.dataset.financeKey==="pkg:p1"));
 });
 
