@@ -7,6 +7,7 @@ import {
   parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, headlineMetrics, financialContext, currentDryerWeightReduction, metricCategory
 } from "./cosme_metrics_core.mjs?v=2";
 import { createSharedPicks } from "./cosme_metrics_picks.mjs?v=1";
+import { populatedMetrics, concisePickStatus, metricEvidence } from "./cosme_metrics_presentation.js?v=1";
 import { createNurseryGrowthPanel } from "./cosme_nursery_growth.mjs?v=2";
 import { createMawimbiOperationsPanel } from "./cosme_mawimbi_operations.mjs?v=1";
 import { createMawimbiStockQcPanel } from "./cosme_mawimbi_stock_qc.mjs?v=1";
@@ -17,8 +18,10 @@ import { createMawimbiTraceabilityPanel } from "./cosme_mawimbi_traceability.mjs
 const el = (id) => document.getElementById(id);
 const sharedPicks=createSharedPicks(authClient,()=>{
   all=sharedPicks.apply(all);
-  el("picksStatus").textContent=sharedPicks.message();
-  el("picksStatusRegister").textContent=sharedPicks.message();
+  for(const id of ["picksStatus","picksStatusRegister"]){
+    const message=concisePickStatus(sharedPicks.message());
+    el(id).textContent=message;el(id).hidden=!message;
+  }
   render();
 });
 const nurseryGrowthPanel = createNurseryGrowthPanel(authClient,el("currentNurseryGrowth"));
@@ -94,6 +97,8 @@ function clearPrivateState() {
   el("activityCards").replaceChildren();
   el("headlineGroups").replaceChildren();
   el("detail").replaceChildren();
+  el("metricMetadata").replaceChildren();
+  el("metricEvidence").replaceChildren();
   el("metricTitle").textContent="";
   el("headlineCount").textContent="";
   el("metricsConnectionStatus").replaceChildren();
@@ -154,8 +159,10 @@ async function loadRelease(version = null) {
     render();
     return;
   }
+  const evidenceById=new Map((data.items||[]).map(item=>[String(item.metric_id),metricEvidence(item.frozen?.source_evidence)]));
   all = normalizeReleaseItems(data.items).map((m) => ({
     ...m, theme:metricCategory(m.theme,m.id), publishedFeatured:m.featured,
+    evidence:evidenceById.get(m.id)||null,
     dataKind: sourceLabel(m), valueType: metricValueType(m), liveValidated: false
   }));
   el("releaseCaption").textContent = data.version + " · " +
@@ -172,7 +179,7 @@ function tab(name) {
   for (const button of document.querySelectorAll(".metrics-tabs .tab")) {
     button.setAttribute("aria-selected", String(button.dataset.tab === name));
   }
-  for (const view of ["overview", "register", "history"]) el(view).hidden = view !== name;
+  for (const view of ["overview", "register", "current", "history"]) el(view).hidden = view !== name;
   if (name === "register") renderRows();
 }
 function add(parent, tag, value, className = "") {
@@ -183,6 +190,7 @@ function add(parent, tag, value, className = "") {
   return node;
 }
 function render() {
+  const populated=populatedMetrics(all);
   const activity = el("activity");
   const previous = activity.value;
   activity.replaceChildren();
@@ -198,12 +206,11 @@ function render() {
   const cards = el("activityCards");
   cards.replaceChildren();
   for (const name of activities) {
-    const rows = all.filter((metric) => metric.activity === name);
+    const rows = populated.filter((metric) => metric.activity === name);
     const button = document.createElement("button");
     button.className = "metrics-activity-card";
     add(button, "strong", name);
     add(button, "span", rows.length + " metrics", "metrics-big");
-    add(button, "span", rows.filter((metric) => metric.featured).length + " Top Picks", "metrics-muted");
     button.addEventListener("click", () => {
       activity.value = name;
       tab("register");
@@ -219,7 +226,7 @@ function render() {
   const detailMetric=all.find(m=>m.id===detailMetricId);
   if(detailMetric){
     configureStar(el("detailStar"),detailMetric);
-    const detailSelection=el("detail").querySelector("[data-shared-selection]");
+    const detailSelection=el("metricMetadata").querySelector("[data-shared-selection]");
     if(detailSelection) detailSelection.textContent=detailMetric.featured?"Yes":"No";
   }
 }
@@ -242,11 +249,11 @@ async function togglePick(id,context="rows"){
   else el("featured").focus();
 }
 function renderHeadlines() {
-  const items = headlineMetrics(all);
-  el("headlineCount").textContent = items.length + " selected";
+  const items = headlineMetrics(populatedMetrics(all));
+  el("headlineCount").textContent = String(items.length);
   const root = el("headlineGroups");
   root.replaceChildren();
-  if(!items.length) add(root,"p","No shared Top Picks selected. Open All metrics and select a star.","metrics-small-note");
+  if(!items.length) add(root,"p","No highlights selected.","metrics-small-note");
   for (const activity of [...new Set([...ACTIVITY_ORDER,...items.map(m=>m.activity)])]) {
     const selected = items.filter(m => m.activity === activity);
     if (!selected.length) continue;
@@ -254,19 +261,12 @@ function renderHeadlines() {
     add(section,"h4",activity);
     const grid = add(section,"div","","metrics-headline-grid");
     for (const metric of selected) {
-      const card=add(grid,"div","","metrics-headline-card");
-      const star=add(card,"button","");
-      star.type="button";configureStar(star,metric);
-      star.addEventListener("click",()=>togglePick(metric.id,"headlineGroups"));
-      const button = add(card,"button","","metrics-headline-open");
+      const button = add(grid,"button","","metrics-headline-open");
       button.type = "button";
       const formatted = displayMetricValue(metric.value, metric.unit);
       add(button,"span",metric.title,"metrics-headline-label");
       const headlineValue=formatted.missing&&metric.valueState==="not_established"?"Not established":formatted.full;
       add(button,"strong",headlineValue,"metrics-headline-value");
-      if(metric.valueType!==headlineValue) add(button,"span",metric.valueType,"metrics-headline-type");
-      add(card,"p",metric.asOf,"metrics-small-note");
-      if(metric.note) add(card,"p",metric.note,"metrics-small-note");
       button.addEventListener("click",()=>openMetric(metric,button));
     }
   }
@@ -407,7 +407,7 @@ function renderCategoryChoices() {
   const activity = el("activity").value;
   const featured = el("featured").checked;
   const counts = new Map();
-  for (const metric of all) {
+  for (const metric of populatedMetrics(all)) {
     if (activity && metric.activity !== activity) continue;
     if (featured && !metric.featured) continue;
     const category = metric.theme || "Uncategorised";
@@ -505,7 +505,8 @@ function renderColumnChoices() {
 }
 function renderRows() {
   const query = el("search").value.trim().toLocaleLowerCase();
-  visible = selectMetrics(all, {
+  const populated=populatedMetrics(all);
+  visible = selectMetrics(populated, {
     query, activity: el("activity").value, categories: [...selectedCategories],
     featured: el("featured").checked, sort: sortKey, direction: sortDirection
   });
@@ -577,8 +578,12 @@ function renderRows() {
       } else if (col.key === "dataKind") {
         add(cell, "span", value, "metrics-type" + (value === "Live" ? " is-live" : ""));
       } else if (col.key === "value") {
-        add(cell, "span", formatted.value, formatted.missing ? "metrics-value-missing" : "metrics-value-main");
-        if (formatted.unit) add(cell, "span", formatted.unit, "metrics-value-unit");
+        const button=add(cell,"button","","metrics-value-open");
+        button.type="button";
+        button.setAttribute("aria-label",metric.title+" · "+formatted.full+" · details");
+        button.addEventListener("click",()=>openMetric(metric,button));
+        add(button, "span", formatted.value, "metrics-value-main");
+        if (formatted.unit) add(button, "span", formatted.unit, "metrics-value-unit");
       } else {
         cell.textContent = value;
       }
@@ -587,9 +592,7 @@ function renderRows() {
     fragment.append(row);
   }
   tbody.append(fragment);
-  el("count").textContent = visible.length + " of " + all.length +
-    " metrics · " + (current?.version || "No release") +
-    " · Click a column heading to sort";
+  el("count").textContent = visible.length + " of " + populated.length + " metrics";
   el("empty").hidden = visible.length > 0;
 }
 function openMetric(metric, button) {
@@ -599,6 +602,18 @@ function openMetric(metric, button) {
   el("metricTitle").textContent = metric.title;
   const details = el("detail");
   details.replaceChildren();
+  const metadata=el("metricMetadata");
+  metadata.replaceChildren();
+  metadata.closest("details").open=false;
+  const evidence=el("metricEvidence");
+  evidence.replaceChildren();
+  if(metric.evidence){
+    add(evidence,"h3","Groups");
+    const list=add(evidence,"ul","","metrics-evidence-groups");
+    for(const group of metric.evidence.groups)add(list,"li",group);
+    add(evidence,"p",metric.evidence.source+" · "+metric.evidence.locator,"metrics-small-note");
+    if(metric.evidence.method)add(evidence,"p",metric.evidence.method,"metrics-small-note");
+  }
   const fields = [
     ["Metric ID", metric.id],
     ["Activity", metric.activity],
@@ -651,8 +666,10 @@ function openMetric(metric, button) {
     ["Published in", current?.version || ""]
   ];
   for (const [label, value] of fields) {
-    add(details, "dt", label);
-    const dd=add(details, "dd", value);
+    if(value===""||value===undefined||value===null)continue;
+    const root=["Value","Unit / basis","Activity","As of","Source","Notes"].includes(label)?details:metadata;
+    add(root, "dt", label);
+    const dd=add(root, "dd", value);
     if(label==="Shared Top Pick") dd.dataset.sharedSelection="";
   }
   // These are navigation links to operational ledgers, not live calculations.

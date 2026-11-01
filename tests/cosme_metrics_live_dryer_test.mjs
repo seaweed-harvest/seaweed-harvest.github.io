@@ -24,8 +24,9 @@ test("metrics endpoint is owner-gated and validated before display",()=>{
   assert.match(page,/source_updated_at/);
   assert.match(page,/queried_at/);
 });
-test("comparison is responsive and visible in the Overview",()=>{
+test("comparison remains available in the separate Current data view",()=>{
   assert.match(html,/id="currentDryerMetrics"/);
+  assert.match(html,/<section id="current" hidden>/);
   assert.match(css,/metrics-dryer-comparison-wrap/);
   assert.match(css,/overflow-x:auto/);
   assert.match(html,/cosme_metrics_page\.js\?v=\d+/);
