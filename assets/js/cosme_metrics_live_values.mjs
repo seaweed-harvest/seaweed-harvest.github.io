@@ -73,12 +73,12 @@ export function displayValue(metric, status, showCurrent, latestRelease) {
 
 /** Export what the reader sees, with the frozen source value alongside it. */
 export function exportMetricViewCsv(metrics, version, statusOf, showCurrent, latestRelease) {
-  const header=["Metric ID","Activity","Category","Metric","Displayed value","Displayed unit",
+  const header=["Metric ID","Activity","Category","Metric","Original metric name","Displayed value","Displayed unit",
     "Display status","Published value","Published unit","Live query checked","Source last updated",
     "Published version","Source","Notes"];
   const rows=metrics.map(metric=>{
     const state=displayValue(metric,statusOf(metric),showCurrent||metric.operationalLive,latestRelease);
-    return [metric.id,metric.activity,metric.theme,metric.title,state.value,state.unit,
+    return [metric.id,metric.activity,metric.theme,metric.displayTitle||metric.title,metric.title,state.value,state.unit,
       state.state,metric.operationalLive?"":state.publishedValue,metric.operationalLive?"":state.publishedUnit,state.checkedAt||"",
       state.sourceUpdatedAt||"",metric.operationalLive?"":(version||""),metric.source,metric.note];
   });
