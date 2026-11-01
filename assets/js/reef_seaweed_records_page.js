@@ -5,9 +5,9 @@ import {
 } from "./auth_client.js?v=25";
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15";
 
-import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=4";
-import { initializeSampleRopeDataTable } from "./reef_sample_rope_data_table.js?v=4";
-import { createNurseryRecordsAnalysis } from "./reef_nursery_analysis.mjs?v=2";
+import { nurserySiteDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=5";
+import { initializeSampleRopeDataTable } from "./reef_sample_rope_data_table.js?v=5";
+import { createNurseryRecordsAnalysis } from "./reef_nursery_analysis.mjs?v=3";
 
 const PAGE_SIZE = 50;
 const LOCATION_LABELS = Object.freeze({
@@ -374,7 +374,7 @@ async function loadSelectedRecord(item) {
     let html;
     if (item.kind === "sample_rope_register") {
       html = await loadSampleRegisterCard(item.key);
-      item.recordNumber = mkwiroRaftDisplayLabel(item.key) || item.recordNumber;
+      item.recordNumber = nurserySiteDisplayLabel(item.key) || item.recordNumber;
     } else if (item.kind === "site_capture") {
       html = await loadSiteCaptureCard(item.key);
     } else {
@@ -431,7 +431,7 @@ async function loadSiteCaptureCard(captureId) {
     <div class="reef-detail-grid">
       ${detailItem("Date / time", formatDateTime(record.observed_at))}
       ${detailItem("Location", LOCATION_LABELS[record.location] || humanize(record.location))}
-      ${detailItem("Site", mkwiroRaftDisplayLabel(record.site_code, record.site_name) || [record.site_code, record.site_name].filter(Boolean).join(" - "))}
+      ${detailItem("Site", nurserySiteDisplayLabel(record.site_code, record.site_name) || [record.site_code, record.site_name].filter(Boolean).join(" - "))}
       ${detailItem("Recorder", record.recorded_by_name)}
       ${detailItem("Monitoring team", record.monitoring_team === "other" ? record.monitoring_team_other : humanize(record.monitoring_team))}
       ${detailItem("Species", humanize(record.species))}
@@ -486,7 +486,7 @@ function sampleStageCell(row, [stage, , weightKey, dateKey]) {
 
 function renderSampleRegisterCard(register, code, kindLabel) {
   const rows = Array.isArray(register.rows) ? register.rows : [];
-  const name = mkwiroRaftDisplayLabel(register.site_code || code, register.site_name)
+  const name = nurserySiteDisplayLabel(register.site_code || code, register.site_name)
     || [register.site_code || code, register.site_name].filter(Boolean).join(" - ");
   const hasMeasurements = rows.some((row) =>
     SAMPLE_MEASUREMENT_STAGES.some(([, , field]) => row[field] !== null && row[field] !== undefined && row[field] !== "")
@@ -589,7 +589,7 @@ function setDetailStatus(message, kind = "") {
 function formatSite(record) {
   if (record.site_code) {
     const prefix = LOCATION_LABELS[record.location] || humanize(record.location);
-    const site = mkwiroRaftDisplayLabel(record.site_code, record.site_name) || [record.site_code, record.site_name].filter(Boolean).join(" - ");
+    const site = nurserySiteDisplayLabel(record.site_code, record.site_name) || [record.site_code, record.site_name].filter(Boolean).join(" - ");
     return [prefix, site].filter(Boolean).join(" · ");
   }
   return LOCATION_LABELS[record.location] || humanize(record.location) || "-";
