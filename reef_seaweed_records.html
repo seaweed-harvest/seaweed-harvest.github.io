@@ -172,6 +172,23 @@
     .reef-rope-flat-table th button { padding:4px; background:none; border:0; font:inherit; font-weight:700; color:inherit; cursor:pointer; text-align:left; white-space:nowrap; }
     .reef-rope-flat-table th[aria-sort="ascending"], .reef-rope-flat-table th[aria-sort="descending"] { background:#e2f4ee; }
     .reef-rope-flat-table td { white-space:nowrap; }
+    .reef-records-tabs button[hidden] {display:none!important;}
+    .reef-growth-kpis { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:10px 0 20px; }
+    .reef-growth-kpi { background:#f2f8f6;border:1px solid #cfe1dc;border-radius:10px;padding:12px;display:grid;gap:4px; }
+    .reef-growth-kpi span { font-size:.8rem;color:#42655e; }
+    .reef-growth-kpi strong { font-size:1.25rem;color:#11675b;font-variant-numeric:tabular-nums; }
+    .reef-growth-toolbar {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:14px 0;}
+    .reef-growth-toolbar label {display:flex;align-items:center;gap:9px;}
+    .reef-growth-table-wrap {overflow-x:auto;max-width:100%;}
+    .reef-growth-table {min-width:660px;}
+    .reef-growth-pair {border:1px solid #d1e2dd;border-radius:10px;padding:12px 14px;margin:12px 0;display:grid;gap:8px;}
+    .reef-growth-pair small,.reef-growth-note {color:#49665f;font-size:.83rem;line-height:1.45;}
+    .reef-growth-bar-row {display:grid;grid-template-columns:65px minmax(80px,1fr) 105px;align-items:center;gap:10px;font-size:.8rem;}
+    .reef-growth-bar-row b {text-align:right;font-variant-numeric:tabular-nums;}
+    .reef-growth-bar-track {height:16px;border-radius:4px;background:#eaf0ee;overflow:hidden;}
+    .reef-growth-bar {height:100%;display:block;border-radius:4px;background:#177f74;}
+    .reef-growth-bar.shore {background:#b37a43;}
+    @media (max-width:600px) {.reef-growth-kpis {grid-template-columns:repeat(2,minmax(0,1fr));}.reef-growth-bar-row{grid-template-columns:50px minmax(60px,1fr) 88px;gap:5px;}}
     @media (max-width:600px) { .reef-rope-column-list { grid-template-columns:1fr; } }
     @media (max-width: 900px) {
       .reef-seaweed-records-toolbar { grid-template-columns: 1fr; }
@@ -218,6 +235,7 @@
         <div class="reef-records-tabs" role="tablist" aria-label="Seaweed Records sections">
           <button id="reefRecordsListTab" class="is-active" type="button" role="tab" aria-selected="true" aria-controls="reefRecordsListPanel">Records</button>
           <button id="reefSampleRopeDataTab" type="button" role="tab" aria-selected="false" aria-controls="reefSampleRopeDataTabPanel">Sample Rope Data</button>
+           <button id="reefNurseryAnalysisTab" type="button" role="tab" aria-selected="false" aria-controls="reefNurseryAnalysisPanel" hidden>Analysis</button>
         </div>
         <section id="reefRecordsListPanel" role="tabpanel" aria-labelledby="reefRecordsListTab">
         <div class="reef-seaweed-records-toolbar">
@@ -308,10 +326,15 @@
             <small>Initial/Wk 2/Wk 4/Wk 6 compared within each row; Rope Weight excluded. Missing weights stay uncoloured; a single saved weight or equal weights use yellow.</small>
           </div>
         </section>
+        <section id="reefNurseryAnalysisPanel" role="tabpanel" aria-labelledby="reefNurseryAnalysisTab" hidden>
+          <h3>Offshore Nursery · Growth Analysis</h3>
+          <p class="field-hint">Live Mkwiro raft versus off-bottom comparisons, site coverage and Tumbe follow-up status.</p>
+          <div id="reefNurseryAnalysisResults" aria-live="polite">Open Analysis to load current nursery measurements.</div>
+        </section>
       </section>
     </section>
   </main>
 
-  <script type="module" src="./assets/js/reef_seaweed_records_page.js?v=9"></script>
+  <script type="module" src="./assets/js/reef_seaweed_records_page.js?v=10"></script>
 </body>
 </html>

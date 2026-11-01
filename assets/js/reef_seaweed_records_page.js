@@ -7,6 +7,7 @@ import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=15
 
 import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=3";
 import { initializeSampleRopeDataTable } from "./reef_sample_rope_data_table.js?v=3";
+import { createNurseryRecordsAnalysis } from "./reef_nursery_analysis.mjs?v=1";
 
 const PAGE_SIZE = 50;
 const LOCATION_LABELS = Object.freeze({
@@ -33,7 +34,8 @@ const state = {
   deleting: false,
   canDelete: false,
   selectedRecords: new Map(),
-  ropeGrid: null
+  ropeGrid: null,
+  nurseryAnalysis: null
 };
 const els = {};
 
@@ -63,8 +65,11 @@ async function init() {
     setupAppNavigation({ profile: state.profile, sidebar, dashboardHref });
     bindEvents();
     state.ropeGrid = initializeSampleRopeDataTable({ authClient, root: els.reefSampleRopeDataTabPanel });
+    els.reefNurseryAnalysisTab.hidden = context.access_mode !== "authenticated";
+    if(context.access_mode === "authenticated")
+      state.nurseryAnalysis=createNurseryRecordsAnalysis(authClient,els.reefNurseryAnalysisResults);
     const flatTabRequested = window.location.hash === "#sample-rope-data";
-    selectRecordsTab(flatTabRequested ? "data" : "records");
+    selectRecordsTab(window.location.hash==="#analysis" && state.nurseryAnalysis ? "analysis" : flatTabRequested ? "data" : "records");
     document.body.removeAttribute("data-auth-pending");
     await loadRecords();
   } catch (error) {
@@ -81,6 +86,9 @@ function cacheElements() {
     "reefSeaweedRecordsSearch",
     "reefRecordsListTab",
     "reefSampleRopeDataTab",
+    "reefNurseryAnalysisTab",
+    "reefNurseryAnalysisPanel",
+    "reefNurseryAnalysisResults",
     "reefRecordsListPanel",
     "reefSampleRopeDataTabPanel",
     "searchReefSeaweedRecords",
@@ -141,17 +149,22 @@ function bindEvents() {
   els.closeReefSeaweedRecordDetail.addEventListener("click", closeDetail);
   els.reefRecordsListTab.addEventListener("click", () => selectRecordsTab("records"));
   els.reefSampleRopeDataTab.addEventListener("click", () => selectRecordsTab("data"));
+  els.reefNurseryAnalysisTab.addEventListener("click", () => selectRecordsTab("analysis"));
 }
 
 function selectRecordsTab(selected) {
   const dataTab = selected === "data";
-  els.reefRecordsListPanel.hidden = dataTab;
+  const analysisTab=selected === "analysis" && Boolean(state.nurseryAnalysis);
+  const recordTab=!dataTab&&!analysisTab;
+  els.reefRecordsListPanel.hidden = !recordTab;
   els.reefSampleRopeDataTabPanel.hidden = !dataTab;
-  els.reefRecordsListTab.setAttribute("aria-selected", String(!dataTab));
-  els.reefSampleRopeDataTab.setAttribute("aria-selected", String(dataTab));
-  els.reefRecordsListTab.classList.toggle("is-active", !dataTab);
-  els.reefSampleRopeDataTab.classList.toggle("is-active", dataTab);
+  els.reefNurseryAnalysisPanel.hidden = !analysisTab;
+  for(const [tab,active] of [[els.reefRecordsListTab,recordTab],[els.reefSampleRopeDataTab,dataTab],[els.reefNurseryAnalysisTab,analysisTab]]){
+    tab.setAttribute("aria-selected",String(active));
+    tab.classList.toggle("is-active",active);
+  }
   if (dataTab && state.ropeGrid && !state.ropeGrid.state.loaded) void state.ropeGrid.refresh();
+  if (analysisTab) void state.nurseryAnalysis.refresh();
 }
 
 async function loadRecords() {
