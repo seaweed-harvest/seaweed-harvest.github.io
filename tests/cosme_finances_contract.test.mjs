@@ -20,9 +20,9 @@ test("Source-backed read-only panel exposes no financial mutations",()=>{
   assert.match(panel,/authClient\.rpc\("cosme_finance_read"\)/);
   assert.doesNotMatch(panel,/\.insert\(|\.update\(|\.delete\(|authClient\.rpc\("cosme_finance_write"/);
   assert.match(panel,/line\.entry_date/);
-  assert.match(panel,/reconciliation_status/);
+  assert.match(panel,/reportMetadata/);
   assert.match(panel,/included_in_total/);
-  assert.match(panel,/source items excluded from totals/);
+  assert.doesNotMatch(panel,/source items excluded from totals/);
 });
 test("Sensitive finance tables remain private with explicit metrics-grant RPC",()=>{
   for(const table of ["finance_sources","finance_packages","finance_lines","finance_allocations"]){

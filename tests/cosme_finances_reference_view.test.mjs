@@ -59,8 +59,9 @@ test("nursery headline uses partial repeat-build rate, not historical invoice av
  assert.equal(referenceFor(g).amount,"KES 270,467 / raft");
  assert.match(referenceFor(g).note,/partial estimate/);
 });
-test("mawimbi planning reference stays unconverted and explicitly approximate",()=>{
- const ref=referenceFor({name:"Mawimbi",entries:[]});
- assert.equal(ref.amount,"≈ CAD 10,000");
- assert.match(ref.note,/not converted|KES asset/);
+test("Mawimbi budget uses source KES and CAD amounts rather than a public hardcoded conversion",()=>{
+ const ref=referenceFor({name:"Mawimbi",entries:[{report:{budget_kes:900,budget_cad:10,budget_rate:90}}]});
+ assert.equal(ref.amount,"KES 900");
+ assert.equal(ref.note,"Budget · CAD 10");
+ assert.equal(referenceFor({name:"Mawimbi",entries:[]}).amount,"—");
 });

@@ -86,3 +86,28 @@
 .cosme-metrics-page .finance-group-summary{min-height:42px}
 .cosme-metrics-page .finance-group-note{font-size:.7rem}
 }
+
+/* Finance shares the All Metrics white panel and horizontal filter toolbar. */
+.cosme-metrics-page .finance-panel{background:var(--panel);min-width:0}
+.cosme-metrics-page .finance-toolbar{align-items:end;gap:10px;margin-bottom:12px}
+.cosme-metrics-page .finance-toolbar .finance-view-tabs{margin:0;align-self:end}
+.cosme-metrics-page .finance-toolbar .finance-filters{display:flex;align-items:end;gap:10px;margin:0;flex-wrap:wrap}
+.cosme-metrics-page .finance-toolbar label{display:flex;flex-direction:column;gap:5px}
+.cosme-metrics-page .finance-toolbar .finance-export{margin:0}
+.cosme-metrics-page .finance-group-summary{grid-template-columns:minmax(160px,1.5fr) minmax(110px,1fr) minmax(145px,1fr) minmax(160px,1.2fr)}
+.cosme-metrics-page .finance-group-date{font-size:.76rem;color:var(--text-sec);white-space:nowrap}
+.cosme-metrics-page .finance-line-table td{vertical-align:middle}
+@media(max-width:980px){
+.cosme-metrics-page .finance-group-summary{grid-template-columns:minmax(120px,1fr) minmax(140px,1fr);grid-template-areas:"name cost" "date note"}
+.cosme-metrics-page .finance-group-date{grid-area:date}
+.cosme-metrics-page .finance-group-note{text-align:right}
+.cosme-metrics-page .finance-toolbar .finance-view-tabs{width:100%}
+}
+@media(max-width:580px){
+.cosme-metrics-page .finance-toolbar .finance-filters{display:flex;width:100%}
+.cosme-metrics-page .finance-toolbar .finance-filters label{flex:1;min-width:120px}
+.cosme-metrics-page .finance-group-summary{padding-left:22px}
+.cosme-metrics-page .finance-group-note{white-space:normal}
+}
+
+.cosme-metrics-page .finance-date{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

@@ -1,5 +1,5 @@
-import {BASIS,money,amountOrNull,normalizeFinanceData,activityGroups,exportFinanceCsv,effectiveFinanceBasis} from "./cosme_finances_core.mjs?v=2";
-import {expenseOverview,projectOverview,referenceFor,itemDescription} from "./cosme_finances_view.mjs?v=1";
+import {BASIS,money,amountOrNull,normalizeFinanceData,activityGroups,exportFinanceCsv,effectiveFinanceBasis} from "./cosme_finances_core.mjs?v=3";
+import {expenseOverview,projectOverview,referenceFor,itemDescription,reportMetadata} from "./cosme_finances_view.mjs?v=2";
 
 // Read-only project reference: separate estimates/quotes/invoices from expense claims.
 const make=(tag,cls="",value)=>{
@@ -30,6 +30,8 @@ function stage(p){
   return v;
 }
 function dateOf(p){
+  const report=reportMetadata(p);
+  if(report.date)return report.date;
   // Invoice dates in Offshore Nursery Close Out BoQ / BoQ detail, rows 43–44.
   // Keep source month-only fallback for other records without a dated invoice.
   if(p.activity==="Offshore Nursery" && (p.package_key==="LM-C"||p.package_key==="LM-P"))
@@ -46,6 +48,7 @@ function dateOf(p){
   return "Date not recorded";
 }
 function totalOf(p){
+  if(Number.isFinite(reportMetadata(p).display_total))return reportMetadata(p).display_total;
   // Project owner chose the itemised V1.2 pre-build estimate as the reference.
   // Preserve the original KES 162,970 source control separately as evidence.
   if(p.package_key==="v12-design" && p.summary.included>0)return p.summary.total;
@@ -56,31 +59,34 @@ function costOf(p){
   return money(totalOf(p)/Number(p.units_covered||1),p.currency);
 }
 function reportStatus(p){
+  if(reportMetadata(p).status)return reportMetadata(p).status;
   if(p.package_key==="v13-plan-10")return "Owner confirmed";
   if(p.package_key==="v12-design")return "Estimate";
   if(p.package_key==="legacy-mwazaro-shed-store" || p.package_key==="existing-shed-store-reference")
     return "BoQ reference";
-  if(p.reconciliation_status!=="verified")return "Review";
+  if(p.basis==="estimated")return "Estimate";
+  if(p.basis==="paid")return "Paid";
   return "Source checked";
 }
 function basisLabel(p){
-  if(effectiveFinanceBasis(p)==="actual")return "Actual (owner)";
-  return p.basis==="paid"?"Recorded expense":BASIS[p.basis];
+  if(p.activity.startsWith("COSME Procurement"))return "Expense";
+  if(effectiveFinanceBasis(p)==="actual")return "Actual";
+  return BASIS[p.basis];
 }
-function sourceLineTable(lines,p){
+function sourceLineTable(lines,p,showDates=false){
   const wrap=make("div","finance-line-scroll");
   const table=make("table","finance-line-table");
   const head=add(table,"thead");
   const tr=add(head,"tr");
-  for(const name of ["Part / item","Date","Qty","Rate","Amount","Source"])add(tr,"th","",name);
+  for(const name of ["Part / item",...(showDates?["Date"]:[]),"Qty","Rate","Amount","Source"])add(tr,"th","",name);
   const body=add(table,"tbody");
   for(const line of lines){
     const row=add(body,"tr");
     add(row,"td","finance-description",line.item_detail||itemDescription(line)||"Unspecified item");
-    add(row,"td","finance-date",line.entry_date||"—");
+    if(showDates)add(row,"td","finance-date",line.entry_date||"—");
     add(row,"td","finance-qty",line.quantity===null||line.quantity===undefined?"—":line.quantity+" "+(line.unit||""));
     add(row,"td","finance-money",line.unit_rate===null||line.unit_rate===undefined?"—":money(line.unit_rate,line.rate_currency||p.currency));
-    add(row,"td","finance-money",money(line.amount,p.currency));
+    add(row,"td","finance-money",line.amount===null||line.amount===undefined?"—":money(line.amount,p.currency));
     const src=add(row,"td","finance-source-row",line.source_row||"—");
     if(line.funding_org)add(src,"small","",line.funding_org);
     if(line.note)src.title=String(line.note);
@@ -91,25 +97,17 @@ function costSections(p){
   const box=make("div","finance-detail-body");
   const unitCount=Number(p.units_covered||1);
   const status=add(box,"p","finance-detail-context");
-  status.textContent="Source: "+(p.source?.display_name||"Unrecorded")+" · "+basisLabel(p)+
-    " · "+(p.funding_scope||"Funding not recorded")+
+  status.textContent=(p.source?.display_name||"Source")+
     (unitCount>1?" · "+unitCount+" "+(p.unit_label||"units"):"");
-  if(p.package_key==="v12-design"){
-    add(box,"p","finance-detail-context","Pre-build estimate: "+money(totalOf(p),p.currency)+
-      " itemised cost, selected as the reference. Earlier worksheet summary was KES 162,970.");
-  } else if(p.summary.control!==null && !p.summary.reconciled){
-    const diff=Math.abs(p.summary.difference||0);
-    add(box,"p","finance-detail-flag",
-      "Source total "+money(p.summary.control,p.currency)+
-      "; itemised total differs by "+money(diff,p.currency)+".");
+  if(p.basis==="paid"){
+    const funders=new Map();
+    for(const l of p.lines||[])if(l.included_in_total!==false&&amountOrNull(l.amount)!==null)
+      funders.set(l.funding_org||"Project",(funders.get(l.funding_org||"Project")||0)+Number(l.amount));
+    add(box,"p","finance-detail-context",[...funders].map(([name,n])=>name+" "+money(n,p.currency)).join(" · "));
   }
-  if(p.package_key==="v13-plan-10")
-    add(box,"p","finance-detail-context","Actual project cost confirmed by the project owner; original supporting document is a PLAN supplier quotation, not a payment receipt.");
-  if(p.reconciliation_status!=="verified" && p.package_key!=="v12-design" && (p.summary.control===null || p.summary.reconciled))
-    add(box,"p","finance-detail-flag","Some source details need checking; cost is indicative, not confirmed spend.");
-  if(unitCount>1)
-    add(box,"p","finance-detail-context","Full "+unitCount+"-"+(p.unit_label||"unit")+" order: "+money(totalOf(p),p.currency)+". Per-unit equivalent shown in register.");
-  for(const cat of p.summary.categories){
+  const categoryOrder=p.activity==="Aggregation Hub"?["Site Works","Power / Electrical","Administration","Intake / Weighing / Grading","Baling and Packing","Storage","Warehouse Organisation / Management","Safety / Site Basics","Consultancy / Supervision"]:[];
+  const categories=[...p.summary.categories].sort((a,b)=>categoryOrder.length?(categoryOrder.indexOf(a.name)<0?99:categoryOrder.indexOf(a.name))-(categoryOrder.indexOf(b.name)<0?99:categoryOrder.indexOf(b.name)):0);
+  for(const cat of categories){
     const detail=add(box,"details","finance-category");
     detail.dataset.financeKey="cat:"+p.id+":"+cat.name;
     const sum=add(detail,"summary","finance-category-line");
@@ -124,21 +122,15 @@ function costSections(p){
       sub.append(sourceLineTable(group.lines,p));
     }
   }
-  const review=(p.lines||[]).filter(l=>l.included_in_total!==false&&(l.reconciliation_status!=="verified"||amountOrNull(l.amount)===null));
-  if(review.length){
+  // Priced reviewed lines belong in their source categories. Never repeat them as unpriced.
+  const missing=(p.lines||[]).filter(l=>l.included_in_total!==false&&amountOrNull(l.amount)===null);
+  if(missing.length){
     const d=add(box,"details","finance-category");
-    d.dataset.financeKey="review:"+p.id;
-    add(d,"summary","finance-category-line",review.length+" unpriced or unchecked source item(s)");
-    d.append(sourceLineTable(review,p));
+    d.dataset.financeKey="options:"+p.id;
+    add(d,"summary","finance-category-line","Additional scope");
+    d.append(sourceLineTable(missing,p));
   }
-  const excluded=(p.lines||[]).filter(l=>l.included_in_total===false);
-  if(excluded.length){
-    const d=add(box,"details","finance-category");
-    d.dataset.financeKey="excluded:"+p.id;
-    add(d,"summary","finance-category-line",excluded.length+" source items excluded from totals");
-    d.append(sourceLineTable(excluded,p));
-  }
-  if(!p.summary.categories.length&&!review.length&&!excluded.length)add(box,"p","finance-detail-context","No itemised price details.");
+  if(!p.summary.categories.length&&!missing.length)add(box,"p","finance-detail-context","No itemised price details.");
   if(typeof p.source?.source_url==="string"&&/^https:\/\//.test(p.source.source_url)){
     const link=add(box,"a","finance-source-link","Open source");link.href=p.source.source_url;link.target="_blank";link.rel="noopener noreferrer";
   }
@@ -146,7 +138,7 @@ function costSections(p){
 }
 function expenseSections(p){
   const box=make("div","finance-detail-body");
-  add(box,"p","finance-detail-context","Expense claims · "+p.currency+" · source detail appears on each item; not an audited paid ledger.");
+
   for(const cat of p.summary.categories){
     const d=add(box,"details","finance-category");
     d.dataset.financeKey="expense-cat:"+p.id+":"+cat.name;
@@ -154,7 +146,7 @@ function expenseSections(p){
     add(summary,"span","",cat.name);
     add(summary,"strong","finance-money",money(cat.amount,p.currency));
     const lines=cat.groups.flatMap(g=>g.lines);
-    d.append(sourceLineTable(lines,p));
+    d.append(sourceLineTable(lines,p,true));
   }
   return box;
 }
@@ -169,18 +161,20 @@ function line(root,p,expenses){
   const s=add(d,"summary","finance-row");
   const title=add(s,"span","finance-stage",expenses?p.activity.replace(/^COSME Procurement — /,""):stage(p));
   title.title=(p.source?.display_name||"");
-  add(s,"span","finance-date",dateOf(p));
+  const date=add(s,"span","finance-date",dateOf(p));
+  date.title=dateOf(p)+" · "+(reportMetadata(p).date_kind||"Source date");
   add(s,"span","finance-basis",basisLabel(p));
   const unit=String(p.unit_label||"").replace(/s$/,"");
   const hasComparableUnit=/^(table|raft)$/.test(unit);
   add(s,"strong","finance-money",expenses||!hasComparableUnit?"—":costOf(p)+" / "+unit);
   add(s,"strong","finance-money",money(totalOf(p),p.currency));
-  add(s,"span","finance-row-status"+(p.reconciliation_status==="verified"?"":" finance-needs-review"),reportStatus(p));
+  add(s,"span","finance-row-status",reportStatus(p));
   d.append(expenses?expenseSections(p):costSections(p));
 }
 export function createCosmeFinancesPanel(authClient,root){
-  let entries=[],epoch=0,mode="costs",activity="all",basis="all",fingerprint=null,hasLoaded=false;
+  let entries=[],epoch=0,mode="costs",activity="all",basis="all",search="",fingerprint=null,hasLoaded=false;
   let refreshPromise=null, lastError="";
+  root.className=(root.className+" metrics-panel finance-panel").trim();
   const expanded=new Map();
   function snapshot(){
     root.querySelectorAll("details[data-finance-key]").forEach(d=>expanded.set(d.dataset.financeKey,d.open));
@@ -195,11 +189,8 @@ export function createCosmeFinancesPanel(authClient,root){
   function redraw(){
     snapshot();
     root.replaceChildren();
-    const titleRow=add(root,"div","finance-top");
-    add(titleRow,"h3","","COSME finances");
-    const refresh=add(titleRow,"button","metrics-button","Refresh");
-    refresh.type="button";refresh.addEventListener("click",()=>load({force:true}));
-    const nav=add(root,"div","finance-view-tabs");
+    const toolbar=add(root,"div","metrics-toolbar finance-toolbar");
+    const nav=add(toolbar,"div","finance-view-tabs");
     for(const [value,label] of [["costs","Project costs & estimates"],["expenses","Expense register"]]){
       const button=add(nav,"button","metrics-button"+(value===mode?" selected":""),label);
       button.type="button";button.setAttribute("aria-pressed",String(mode===value));
@@ -207,26 +198,31 @@ export function createCosmeFinancesPanel(authClient,root){
     }
     const isExpense=mode==="expenses";
     const pool=isExpense?expenseOverview(entries):costPackages(entries);
-    const controls=add(root,"div","finance-filters");
-    const selector=add(controls,"select","finance-select");
+    const searchLabel=add(toolbar,"label","metrics-search","Search");
+    const searchInput=add(searchLabel,"input","");searchInput.type="search";searchInput.placeholder="Project, part or source";searchInput.value=search;
+    searchInput.addEventListener("change",()=>{search=searchInput.value;redraw()});
+    const controls=add(toolbar,"div","finance-filters");
+    const activityLabel=add(controls,"label","","Activity");
+    const selector=add(activityLabel,"select","finance-select");
     selector.setAttribute("aria-label","Filter finance activity");
-    let options=[["all","All activities"],...[...new Set(pool.map(p=>p.activity))].sort().map(x=>[x,x.replace(/^COSME Procurement — /,"")])];
+    let options=[["all","All activities"],...[...new Set(pool.map(p=>p.activity==="Solar Drying Shed & Store"?"Solar Drying Tables":p.activity))].sort().map(x=>[x,x.replace(/^COSME Procurement — /,"")])];
     for(const [key,label] of options){const o=add(selector,"option","",label);o.value=key}
     if(!options.some(o=>o[0]===activity))activity="all";
     selector.value=activity;selector.addEventListener("change",()=>{activity=selector.value;redraw()});
     if(!isExpense){
-      const filter=add(controls,"select","finance-select");
+      const basisLabel=add(controls,"label","","Cost basis");
+      const filter=add(basisLabel,"select","finance-select");
       filter.setAttribute("aria-label","Filter cost basis");
       for(const [key,label] of [["all","All cost bases"],...Object.entries(BASIS)]){
         const opt=add(filter,"option","",label);opt.value=key;
       }
       filter.value=basis;filter.addEventListener("change",()=>{basis=filter.value;redraw()});
     }
-    add(root,"p","finance-intro",isExpense?
-      "Expense claims grouped by activity and category. CAD amounts are kept separate from KES project budgets.":
-      "One row per project version or source; estimates, quotes and invoices are distinct. Open any row for the parts breakdown.");
+    const refresh=add(toolbar,"button","metrics-button","Refresh");
+    refresh.type="button";refresh.addEventListener("click",()=>load({force:true}));
     if(lastError)add(root,"p","finance-detail-flag","Update unavailable; showing last loaded costs. "+lastError);
-    const selected=pool.filter(p=>(activity==="all"||p.activity===activity)&&(isExpense||basis==="all"||effectiveFinanceBasis(p)===basis));
+    const selected=pool.filter(p=>(activity==="all"||p.activity===activity||(activity==="Solar Drying Tables"&&p.activity==="Solar Drying Shed & Store"))&&(isExpense||basis==="all"||effectiveFinanceBasis(p)===basis)&&
+      (!search||[p.activity,p.version,p.source?.display_name,...(p.lines||[]).map(l=>itemDescription(l))].join(" ").toLowerCase().includes(search.toLowerCase())));
     if(!selected.length){add(root,"p","finance-empty",hasLoaded?"No matching cost records.":"Loading finance records…");return}
     const list=add(root,"div","finance-register");
     tableHeader(list);
@@ -242,12 +238,14 @@ export function createCosmeFinancesPanel(authClient,root){
       const summary=add(container,"summary","finance-group-summary");
       add(summary,"strong","finance-group-name",group.name);
       const ref=referenceFor(group);
+      const date=add(summary,"span","finance-group-date",dateOf(group.entries[0]));
+      date.title=dateOf(group.entries[0])+" · "+(reportMetadata(group.entries[0]).date_kind||"Source date");
       add(summary,"strong","finance-group-cost",ref.amount);
       add(summary,"span","finance-group-note",ref.note);
       for(const p of group.entries)line(container,p,false);
     }
-    if(!isExpense) add(root,"p","finance-footnote","* Month taken from source file name; exact transaction date was not recorded. Unit costs use source quantities, not payment verification.");
-    const exportBtn=add(root,"button","metrics-button finance-export","Export source lines CSV");
+
+    const exportBtn=add(toolbar,"button","metrics-button finance-export","Export source lines CSV");
     exportBtn.type="button";exportBtn.addEventListener("click",()=>{
       const csv=exportFinanceCsv(selected);
       const url=URL.createObjectURL(new Blob(["\ufeff",csv],{type:"text/csv;charset=utf-8"}));

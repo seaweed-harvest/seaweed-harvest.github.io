@@ -24,20 +24,20 @@ const input={
     {package_id:"p2",source_row:"B1",category:"Other",description:"Credit",amount:-20,reconciliation_status:"verified",included_in_total:true}
   ]
 };
-test("isolates source packages, basis and currency; excludes duplicate/review amounts",()=>{
+test("isolates source packages, basis and currency; excludes duplicates and retains priced source rows",()=>{
   const packages=normalizeFinanceData(input);
   assert.equal(packages.length,2);
   const b=breakdown(packages[0]);
-  assert.equal(b.total,240);
+  assert.equal(b.total,290);
   assert.equal(b.review,1);
   assert.equal(b.categories.length,2);
   assert.equal(b.reconciled,false);
-  assert.equal(b.difference,0);
+  assert.equal(b.difference,50);
   assert.equal(breakdown(packages[1]).total,-20);
   const groups=activityGroups(packages);
   assert.equal(groups.length,1);
   assert.equal(groups[0].entries.length,2);
-  assert.equal(groups[0].entries[0].summary.total,240);
+  assert.equal(groups[0].entries[0].summary.total,290);
 });
 test("reconciliation only succeeds with all verified included lines",()=>{
   const p=normalizeFinanceData(input)[0];
