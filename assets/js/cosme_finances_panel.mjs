@@ -17,7 +17,7 @@ function stage(p){
     if(v.includes("Pre-build"))return "V1.2 · Pre-build estimate";
     if(v.includes("Funzi"))return "V1.2 · Funzi as-built BOM";
     if(v.includes("Design draft"))return "V1.3 · Pre-build estimate";
-    if(v==="V1.3")return "V1.3 · PLAN production quote";
+    if(v==="V1.3")return "V1.3 · PLAN production (actual)";
   }
   if(p.activity==="Offshore Nursery"){
     if(v.includes("Rough")||v.includes("Design"))return "V1.2 · Rough design (materials)";
@@ -43,6 +43,9 @@ function dateOf(p){
   return "Date not recorded";
 }
 function totalOf(p){
+  // Project owner chose the itemised V1.2 pre-build estimate as the reference.
+  // Preserve the original KES 162,970 source control separately as evidence.
+  if(p.package_key==="v12-design" && p.summary.included>0)return p.summary.total;
   return p.summary.control!==null && !p.summary.reconciled?p.summary.control:p.summary.total;
 }
 function costOf(p){
@@ -50,10 +53,18 @@ function costOf(p){
   return money(totalOf(p)/Number(p.units_covered||1),p.currency);
 }
 function reportStatus(p){
+  if(p.package_key==="v13-plan-10")return "Owner confirmed";
+  if(p.package_key==="v12-design")return "Estimate";
+  if(p.package_key==="existing-shed-store-reference")return "BoQ reference";
   if(p.reconciliation_status!=="verified")return "Review";
   return "Source checked";
 }
+function effectiveBasis(p){
+  // Owner confirms the project cost, not a bank payment or invoice date.
+  return p.package_key==="v13-plan-10"?"actual":p.basis;
+}
 function basisLabel(p){
+  if(effectiveBasis(p)==="actual")return "Actual (owner)";
   return p.basis==="paid"?"Recorded expense":BASIS[p.basis];
 }
 function sourceLineTable(lines,p){
@@ -68,7 +79,7 @@ function sourceLineTable(lines,p){
     add(row,"td","finance-description",line.description||"Unspecified item");
     add(row,"td","finance-date",line.entry_date||"—");
     add(row,"td","finance-qty",line.quantity===null||line.quantity===undefined?"—":line.quantity+" "+(line.unit||""));
-    add(row,"td","finance-money",money(line.unit_rate,line.rate_currency||p.currency));
+    add(row,"td","finance-money",line.unit_rate===null||line.unit_rate===undefined?"—":money(line.unit_rate,line.rate_currency||p.currency));
     add(row,"td","finance-money",money(line.amount,p.currency));
     const src=add(row,"td","finance-source-row",line.source_row||"—");
     if(line.funding_org)add(src,"small","",line.funding_org);
@@ -83,14 +94,18 @@ function costSections(p){
   status.textContent="Source: "+(p.source?.display_name||"Unrecorded")+" · "+basisLabel(p)+
     " · "+(p.funding_scope||"Funding not recorded")+
     (unitCount>1?" · "+unitCount+" "+(p.unit_label||"units"):"");
-  if(p.summary.control!==null && !p.summary.reconciled){
+  if(p.package_key==="v12-design"){
+    add(box,"p","finance-detail-context","Reference uses the itemised "+money(totalOf(p),p.currency)+
+      " estimate; the original worksheet summary says "+money(p.summary.control,p.currency)+".");
+  } else if(p.summary.control!==null && !p.summary.reconciled){
     const diff=Math.abs(p.summary.difference||0);
     add(box,"p","finance-detail-flag",
       "Source total "+money(p.summary.control,p.currency)+
-      "; itemised total differs by "+money(diff,p.currency)+
-      ". Source total shown above.");
+      "; itemised total differs by "+money(diff,p.currency)+".");
   }
-  if(p.reconciliation_status!=="verified" && (p.summary.control===null || p.summary.reconciled))
+  if(p.package_key==="v13-plan-10")
+    add(box,"p","finance-detail-context","Actual project cost confirmed by the project owner; original supporting document is a PLAN supplier quotation, not a payment receipt.");
+  if(p.reconciliation_status!=="verified" && p.package_key!=="v12-design" && (p.summary.control===null || p.summary.reconciled))
     add(box,"p","finance-detail-flag","Some source details need checking; cost is indicative, not confirmed spend.");
   if(unitCount>1)
     add(box,"p","finance-detail-context","Full "+unitCount+"-"+(p.unit_label||"unit")+" order: "+money(totalOf(p),p.currency)+". Per-unit equivalent shown in register.");
@@ -202,7 +217,7 @@ export function createCosmeFinancesPanel(authClient,root){
     if(!isExpense){
       const filter=add(controls,"select","finance-select");
       filter.setAttribute("aria-label","Filter cost basis");
-      for(const [key,label] of [["all","All cost bases"],...Object.entries(BASIS)]){
+      for(const [key,label] of [["all","All cost bases"],["actual","Actual (owner-confirmed)"],...Object.entries(BASIS)]){
         const opt=add(filter,"option","",label);opt.value=key;
       }
       filter.value=basis;filter.addEventListener("change",()=>{basis=filter.value;redraw()});
@@ -211,7 +226,7 @@ export function createCosmeFinancesPanel(authClient,root){
       "Expense claims grouped by activity and category. CAD amounts are kept separate from KES project budgets.":
       "One row per project version or source; estimates, quotes and invoices are distinct. Open any row for the parts breakdown.");
     if(lastError)add(root,"p","finance-detail-flag","Update unavailable; showing last loaded costs. "+lastError);
-    const selected=pool.filter(p=>(activity==="all"||p.activity===activity)&&(isExpense||basis==="all"||p.basis===basis));
+    const selected=pool.filter(p=>(activity==="all"||p.activity===activity)&&(isExpense||basis==="all"||effectiveBasis(p)===basis));
     if(!selected.length){add(root,"p","finance-empty",hasLoaded?"No matching cost records.":"Loading finance records…");return}
     const list=add(root,"div","finance-register");
     tableHeader(list);
