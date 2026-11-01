@@ -80,3 +80,55 @@ Added focused classification regressions for the identified cases. No new
 derived values, site assignments, metric IDs, report figures, shared picks or
 release records were created. PR remains a draft for Node suite and browser
 review before separate release approval.
+
+## Complete naming review (1 November 2026)
+
+The owner requested a further, complete pass that puts the core metric first,
+followed by the site, period, design, status or measurement basis. The exact
+branch base remains `d364211f45ec1d5a94c450bb7d5d664464c215de`; this
+pass continues draft PR #157 on the same branch and stays in Lane B. Changed
+paths are the presentation helper, its focused tests, this plan and the
+before/after comparison. No protected path, release payload, metric ID,
+published value, permission, live calculation or shared pick is changed.
+
+The read-only current-release query returned 347 IDs, titles and notes across
+the five activities (64 Hub, 101 Mawimbi, 81 Nursery, 81 Drying Tables, 20
+Off-bottom). Notes were checked where a proposed label could imply an achieved
+outcome. Of those 347, 271 receive a clearer display name and 76 retain their
+source title. All 347 still have a named metric type; there are no duplicate
+display names within an activity. The current code can also show 17 fixed
+live indicators and three Mkwiro matched-pair comparisons. All 20 receive
+quantity-first names when present; the live source titles and values remain
+unchanged. Pair labels require the validated MK site codes.
+
+The complete [before/after comparison](2026-11-01_COSME_METRIC_NAMES_BEFORE_AFTER.csv)
+lists each published ID and each potential live indicator with its activity,
+original title, proposed display name, metric type and retain/revise decision.
+The live rows were generated with synthetic values; their presence in a user's
+view still depends on permissions and current operational data. The comparison
+contains no notes, underlying values or private source documents.
+
+Review examples: storage capacity before upgrade is explicitly unmeasured;
+factory bale times are reported, not verified site performance; the site bale
+cycle time is pending; final recorded drying mass does not claim measured
+moisture content; modelled nursery harvest and plot design remain models;
+selected dryer comparisons retain their selection qualifier. The original
+titles remain available in details and CSV for source traceability.
+
+Acceptance checks for this pass: review all 347 title/note pairs and live
+definitions; keep meaningful baselines, targets, reports, models and missing
+results distinct; preserve immutable release and live values; search both
+names; run the COSME test suite, syntax checks and a narrow/desktop UI probe;
+inspect the final diff and leave PR #157 in draft. Rollback is a frontend PR
+revert. Merge and deployment require separate owner approval.
+
+Verification: 74 COSME Node tests pass, including a complete comparison/map
+contract; changed JavaScript syntax and diff whitespace checks pass. A local
+browser fixture with synthetic values showed the 347-row register, type
+headings, original-name search, source title in Details and no page overflow
+at desktop 1440 px and emulated phone 390 px. The fixture has no permitted
+live feed, so it cannot verify authenticated production live values or grants.
+Across all historical releases, ten IDs have changed source titles. Nine of
+these use display aliases in the current release; exact-title guards keep
+their earlier frozen titles from inheriting the later label. The tenth title
+is retained in this pass. A regression test covers the nine guarded cases.

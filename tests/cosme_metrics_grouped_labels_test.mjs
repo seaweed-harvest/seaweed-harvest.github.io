@@ -68,7 +68,7 @@ test("similar metric types sort together across source IDs, and search finds new
   assert.deepEqual(selectMetrics(list,{query:"Living Machines"}).map(x=>x.id),["ON-0034"]);
   assert.deepEqual(selectMetrics(list,{query:"overall frame dimensions"}).map(x=>x.id),["ON-0034"]);
   assert.equal(selectMetrics(list,{sort:"id"})[0].id,"ON-0010");
-  assert.equal(selectMetrics(list,{sort:"title"})[0].id,"ON-0041");
+  assert.equal(selectMetrics(list,{sort:"title"})[0].id,"ON-0010");
 });
 
 test("other activities receive useful type groups and safe specific labels",()=>{
@@ -127,4 +127,92 @@ test("second-pass audit keeps costs, equipment and verification in the right fam
   ];
   for(const [id,activity,title,expected] of cases)
     assert.equal(metricType({id,activity,title}),expected,id);
+});
+
+test("core metric leads the source-checked variants across all five activities",()=>{
+  const cases=[
+    ["AGH-0010","Aggregation Hub","Before-upgrade dry seaweed storage capacity","Storage capacity — Before upgrade (unmeasured)"],
+    ["AGH-0061","Aggregation Hub","Factory bale mass achieved","Bale mass — Factory reported"],
+    ["AGH-0063","Aggregation Hub","Conditional baler-only equivalent mass rate","Baler-only mass rate — Conditional equivalent"],
+    ["MAW-0013","Mawimbi","June baseline daily processing","Daily processing — Manual baseline (June)"],
+    ["MAW-0053","Mawimbi","Press upgrade total quote","Press upgrade cost — Total quote"],
+    ["MAW-0067","Mawimbi","August borehole total coliforms","Total coliforms — August borehole sample"],
+    ["ON-0014","Offshore Nursery","Mkwiro candidate-site depths — March 2025 survey","Site depth — Mkwiro candidate positions (March 2025)"],
+    ["ON-0031","Offshore Nursery","Modelled harvest biomass — four-week scenario","Harvest biomass — Modelled four-week scenario"],
+    ["ON-0039","Offshore Nursery","Tumbe deployment and commissioning status","Raft deployment — Tumbe commissioning status"],
+    ["SDT-0025","Solar Drying Tables","Median duration — selected COSME vs existing","Drying duration — Selected COSME vs existing median"],
+    ["SDT-0066","Solar Drying Tables","Total final recorded weight","Final recorded mass — Drying loads"],
+    ["SDT-R005","Solar Drying Tables","Indicative initial cost saving per drying area","Cost saving per drying area — Indicative initial"],
+    ["OFB-0002","Off-bottom Farming","Model plot dimensions","Plot dimensions — Model"],
+    ["OFB-0020","Off-bottom Farming","Verified actual dry harvest per plot","Dry harvest per plot — Actual unverified"]
+  ];
+  for(const [id,activity,title,expected] of cases){
+    const metric={id,activity,title};
+    assert.equal(metricDisplayName(metric),expected,id);
+    assert.equal(metric.title,title,"source title must remain intact");
+    assert.notEqual(metricType(metric),"Other metrics",id);
+  }
+});
+
+test("associated live indicators use quantity-first names without changing source titles",()=>{
+  const cases=[
+    ["Sample ropes with Week 2 measurements","Sample-rope coverage — Week 2 measured","Offshore Nursery"],
+    ["Sample ropes with Week 4 measurements","Sample-rope coverage — Week 4 measured","Offshore Nursery"],
+    ["Drying bays completed within 5 days","Drying bay completion — Within five days","Solar Drying Tables"],
+    ["Median drying time","Drying duration — Qualified bays median","Solar Drying Tables"],
+    ["Finalised collection records","Collection records — Finalised receipt-backed","Mawimbi"],
+    ["Seaweed collected (finalised)","Wet seaweed collected — Finalised receipt-backed","Mawimbi"],
+    ["Registered active communities","Communities — Registered active","Mawimbi"],
+    ["Communities represented by finalised collections","Communities — Finalised collections","Mawimbi"],
+    ["Registered active farmers","Farmers — Registered active","Mawimbi"],
+    ["Processing records","Processing records — Recorded","Mawimbi"],
+    ["Seaweed received for processing","Wet seaweed received — Processing","Mawimbi"],
+    ["Liquid pressed","Pressed-liquid output — Recorded","Mawimbi"],
+    ["Liquid extracted per kg processed","Pressed-liquid yield — Per wet kg processed","Mawimbi"],
+    ["Numbered containers recorded","Numbered containers — Distinct initial serials","Mawimbi"],
+    ["Site water samples","Water samples — Site","Mawimbi"],
+    ["RO monitoring records","RO monitoring — Records","Mawimbi"],
+    ["Historical stock disposal volume","Historical stock disposal — Recorded volume","Mawimbi"]
+  ];
+  for(const [title,expected,activity] of cases){
+    const metric={id:"LIVE-TEST",title,activity,operationalLive:true};
+    assert.equal(metricDisplayName(metric),expected,title);
+    assert.equal(metricDisplayName({...metric,operationalLive:false}),title);
+    assert.notEqual(metricType(metric),"Other metrics",title);
+  }
+});
+
+test("complete before/after review matches the published display map",()=>{
+  const csv=readFileSync(new URL("../01_Ag_Planning_Documents/2026-11-01_COSME_METRIC_NAMES_BEFORE_AFTER.csv",import.meta.url),"utf8").replace(/^\uFEFF/,"");
+  const rows=csv.trim().split(/\r?\n/).map(line=>
+    [...line.matchAll(/"((?:[^"]|"")*)"(?:,|$)/g)].map(match=>match[1].replaceAll('""','"')));
+  assert.deepEqual(rows[0],["Metric ID","Activity","Kind","Before (source title)","After (display name)","Metric type","Decision"]);
+  const published=rows.slice(1).filter(row=>row[2]==="Published");
+  const live=rows.slice(1).filter(row=>row[2]==="Live indicator");
+  assert.equal(published.length,347);
+  assert.equal(live.length,20);
+  assert.equal(new Set(rows.slice(1).map(row=>row[0])).size,367);
+  assert.equal(published.filter(row=>row[6]==="Revised").length,271);
+  for(const [id,activity,,original,display,type,decision] of published){
+    const metric={id,activity,title:original};
+    assert.equal(metricDisplayName(metric),display,id);
+    assert.equal(metricType(metric),type,id);
+    assert.equal(decision,original===display?"Retained":"Revised",id);
+  }
+});
+
+test("earlier immutable release titles do not inherit later evidence wording",()=>{
+  const older=[
+    ["SDT-0018","Quoted production-table package cost"],
+    ["SDT-0075","Comparative drying effectiveness"],
+    ["MAW-0039","Powered dual-press status"],
+    ["MAW-0073","October RO E. coli screening"],
+    ["MAW-0082","Offtake volume in Seaweed Harvest"],
+    ["MAW-0083","Farmer purchase value"],
+    ["MAW-0086","Processing record counts"],
+    ["MAW-0087","Stock and carton QC record counts"],
+    ["ON-0039","Living Machines deployment — Tumbe"]
+  ];
+  for(const [id,title] of older)
+    assert.equal(metricDisplayName({id,title}),title,id);
 });
