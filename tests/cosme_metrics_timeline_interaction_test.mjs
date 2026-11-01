@@ -59,6 +59,10 @@ test("Timeline filters, calendar navigation and metric links work without a para
 
     query(root,node=>node.tag==="button" && node.textContent==="Calendar")[0].fire("click");
     assert.match(root.textContent,/October 2026/);
+    assert.equal(query(root,node=>node.className==="metrics-timeline-day has-events").length,3);
+    // The October 2025 one-day launch must not recur throughout 2026.
+    const currentMonthEvents = query(root,node=>node.className==="metrics-timeline-calendar-events")[0];
+    assert.doesNotMatch(currentMonthEvents.textContent,/Shangani pilot launch/);
     const yearControl = query(root,node=>node.tag==="label" && node.textContent.includes("Year"))[0];
     const yearSelect = query(yearControl,node=>node.tag==="select")[0];
     yearSelect.value = "2025";
