@@ -141,7 +141,7 @@ as $function$
 declare
   v_role text := cosme_metrics.caller_role();
 begin
-  if (select auth.uid()) is null or v_role not in ('owner','editor','reader') then
+  if (select auth.uid()) is null or v_role is null or v_role not in ('owner','editor','reader') then
     raise exception 'COSME Metrics access required' using errcode='42501';
   end if;
   return jsonb_build_object(
