@@ -17,6 +17,9 @@
 .cosme-metrics-page .finance-register-item:last-child{border-bottom:0}
 .cosme-metrics-page .finance-row{padding:8px 12px;min-height:41px;cursor:pointer;color:var(--text);font-size:.82rem}
 .cosme-metrics-page .finance-row:hover,.cosme-metrics-page .finance-register-item[open]>.finance-row{background:var(--accent-soft)}
+.cosme-metrics-page .finance-register-item>summary.finance-row{position:relative;padding-right:26px}
+.cosme-metrics-page .finance-register-item>summary.finance-row:after{content:'▸';position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--accent);font-size:.87rem}
+.cosme-metrics-page .finance-register-item[open]>summary.finance-row:after{content:'▾'}
 .cosme-metrics-page .finance-row::marker{font-size:.69rem;color:var(--accent)}
 .cosme-metrics-page .finance-stage{font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cosme-metrics-page .finance-date{color:var(--text-sec);font-size:.77rem;font-variant-numeric:tabular-nums}
