@@ -1,5 +1,5 @@
 // Presentation-only transformations. The source ledger and financial amounts remain unchanged.
-import {activityGroups,breakdown} from "./cosme_finances_core.mjs?v=2";
+import {activityGroups,breakdown} from "./cosme_finances_core.mjs?v=3";
 
 const lower=value=>String(value||"").trim().toLowerCase();
 const clean=value=>String(value||"").trim();
@@ -77,6 +77,9 @@ export function projectOverview(packages){
   }).sort((a,b)=>(order.indexOf(a.name)<0?99:order.indexOf(a.name))-
                   (order.indexOf(b.name)<0?99:order.indexOf(b.name)));
 }
+export function reportMetadata(pkg){
+  try { return pkg?.report || JSON.parse(pkg?.note || "{}").report || {}; } catch { return {}; }
+}
 export function referenceFor(group){
   const {name,entries}=group;
   if(name==="Solar Drying Tables"){
@@ -94,7 +97,9 @@ export function referenceFor(group){
     return {amount:p?"KES "+Number(p.control_total).toLocaleString("en-US"):"—",note:"Eng. Tom · August proposal"};
   }
   if(name==="Mawimbi"){
-    return {amount:"≈ CAD 10,000",note:"Planning reference (user estimate); KES asset costs detailed below"};
+    const budget=entries.map(reportMetadata).find(r=>Number.isFinite(r.budget_kes));
+    return budget?{amount:"KES "+budget.budget_kes.toLocaleString("en-US"),
+      note:"Budget · CAD "+budget.budget_cad.toLocaleString("en-US")}:{amount:"—",note:"Budget"};
   }
   return {amount:"",note:""};
 }

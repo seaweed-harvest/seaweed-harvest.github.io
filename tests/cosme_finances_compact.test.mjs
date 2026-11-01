@@ -10,8 +10,8 @@ const panelSource=read("../assets/js/cosme_finances_panel.mjs");
 
 test("Finance uses matching Metrics/Timeline shell with two compact internal views",()=>{
   assert.match(page,/data-tab="finances"/);
-  assert.match(page,/cosme_finances\.css\?v=3/);
-  assert.match(main,/cosme_finances_panel\.mjs\?v=3/);
+  assert.match(page,/cosme_finances\.css\?v=4/);
+  assert.match(main,/cosme_finances_panel\.mjs\?v=4/);
   assert.match(panelSource,/Project costs & estimates/);
   assert.match(panelSource,/Expense register/);
   assert.match(panelSource,/Filter finance activity/);
@@ -32,7 +32,7 @@ test("Accurate project version stages and source labels",()=>{
   assert.match(panelSource,/V1\.3 · Living Machines \(PLAN\)/);
   assert.match(panelSource,/hasComparableUnit/);
   assert.doesNotMatch(panelSource,/PLAN as-built/);
-  assert.match(panelSource,/Month taken from source file name/);
+  assert.doesNotMatch(panelSource,/unpriced or unchecked source item/);
   assert.match(panelSource,/LM-C"\|\|p\.package_key==="LM-P"/);
   assert.match(panelSource,/return "2026-07-28"/);
 });
@@ -87,7 +87,7 @@ test("Expense register separates procurement from project versions",async()=>{
   data.lines.push({package_id:"exp",category:"Travel",subcategory:"Field",source_row:"3",description:"Transfer",amount:10,reconciliation_status:"verified",included_in_total:true});
   const finance=createCosmeFinancesPanel({rpc:async()=>({data,error:null})},root);
   await finance.load();
-  const buttons=root.children.flatMap(c=>c.children).filter(c=>c.tag==="button");
+  const buttons=root.children.flatMap(c=>c.children).flatMap(c=>[c,...c.children]).filter(c=>c.tag==="button");
   const expenses=buttons.find(c=>c.textContent==="Expense register");
   assert.ok(expenses,"Expense sub-view tab exists");
   expenses.listeners.click();
@@ -115,7 +115,7 @@ test("Owner-confirmed PLAN actual and V1.2 chosen itemised estimate appear as cl
   const getRow=id=>details.find(d=>d.dataset.financeKey==="pkg:"+id).children[0].children.map(c=>c.textContent);
   const plan=getRow("p1");
   const v12=getRow("p2");
-  assert.ok(plan.includes("Actual (owner)"));
+  assert.ok(plan.includes("Actual"));
   assert.ok(plan.includes("KES 247,150 / table"));
   assert.ok(plan.includes("KES 2,471,500"));
   assert.ok(v12.includes("KES 178,670 / table"));
@@ -141,4 +141,20 @@ test("Legacy shed is its own reference project, not an extra price per drying ta
   assert.ok(labels.includes("Existing drying shed & store · Mwazaro"));
   assert.ok(labels.includes("KES 2,641,401.20"));
   assert.ok(labels.includes("—"),"Site-level project reference should not be mislabelled per table");
+});
+
+test("Source metadata supplies installation dates and project BOM tables omit per-part dates",async()=>{
+ fakeDom();const root=new FakeNode("div"),data=payload();
+ data.packages[0].report={date:"12 May 2026",date_kind:"Installed",status:"Actual"};
+ data.lines[0].reconciliation_status="review";
+ await createCosmeFinancesPanel({rpc:async()=>({data})},root).load();
+ const nodes=[];const walk=n=>{nodes.push(n);n.children.forEach(walk)};walk(root);
+ assert.ok(nodes.some(n=>n.className==="finance-group-date"&&n.textContent==="12 May 2026"));
+ assert.ok(nodes.some(n=>n.className==="finance-date"&&n.title==="Installed"));
+ assert.ok(nodes.some(n=>n.tag==="td"&&n.textContent==="Steel pipes"),"priced reviewed item belongs in its category");
+ assert.equal(nodes.filter(n=>n.tag==="td"&&n.textContent==="Steel pipes").length,1);
+ assert.equal(nodes.filter(n=>n.tag==="th"&&n.textContent==="Date").length,0);
+ assert.ok(root.className.includes("metrics-panel"));
+ assert.ok(nodes.some(n=>n.className.includes("metrics-toolbar")));
+ assert.doesNotMatch(page,/data-tab="current"/);
 });

@@ -14,7 +14,7 @@ import { createMawimbiOperationsPanel } from "./cosme_mawimbi_operations.mjs?v=1
 import { createMawimbiStockQcPanel } from "./cosme_mawimbi_stock_qc.mjs?v=1";
 import { createMawimbiTraceabilityPanel } from "./cosme_mawimbi_traceability.mjs?v=1";
 import { createMetricsTimeline } from "./cosme_metrics_timeline.mjs?v=3";
-import { createCosmeFinancesPanel } from "./cosme_finances_panel.mjs?v=3";
+import { createCosmeFinancesPanel } from "./cosme_finances_panel.mjs?v=4";
 import { createOperationalIndicators } from "./cosme_operational_indicators.mjs?v=2";
 
 // Published values remain immutable. Shared picks are a separate authorised layer.
@@ -301,6 +301,7 @@ function syncStickyScrollbar() {
   if(bar.scrollLeft!==wrap.scrollLeft)bar.scrollLeft=wrap.scrollLeft;
 }
 function tab(name) {
+  if(name==="current")name="register";
   for (const button of document.querySelectorAll(".metrics-tabs .tab")) {
     button.setAttribute("aria-selected", String(button.dataset.tab === name));
   }

@@ -46,7 +46,9 @@ export function breakdown(pkg) {
   for (const line of pkg.lines || []) {
     if (line.included_in_total === false) continue;
     const n = amountOrNull(line.amount);
-    if (line.reconciliation_status !== "verified" || n === null) { review++; continue; }
+    if (n === null) { review++; continue; }
+    // A source review flag does not make its recorded price unpriced.
+    if (line.reconciliation_status !== "verified") review++;
     total += n; included++;
     const category = String(line.category || "Other");
     const subcategory = String(line.subcategory || "Other");
