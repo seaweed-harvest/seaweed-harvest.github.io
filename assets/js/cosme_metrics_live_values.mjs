@@ -77,7 +77,7 @@ export function exportMetricViewCsv(metrics, version, statusOf, showCurrent, lat
     "Display status","Published value","Published unit","Live query checked","Source last updated",
     "Published version","Source","Notes"];
   const rows=metrics.map(metric=>{
-    const state=displayValue(metric,statusOf(metric),showCurrent,latestRelease);
+    const state=displayValue(metric,statusOf(metric),showCurrent||metric.operationalLive,latestRelease);
     return [metric.id,metric.activity,metric.theme,metric.title,state.value,state.unit,
       state.state,metric.operationalLive?"":state.publishedValue,metric.operationalLive?"":state.publishedUnit,state.checkedAt||"",
       state.sourceUpdatedAt||"",version||"",metric.source,metric.note];
