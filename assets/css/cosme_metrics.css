@@ -806,3 +806,70 @@
 .cosme-metrics-page .metrics-link-action:disabled{opacity:.6;cursor:wait;}
 .cosme-metrics-page .metrics-link-save-error{color:#a12b2b;font-size:.77rem;padding:8px 0;margin:0;}
 @media(max-width:750px){.cosme-metrics-page .metrics-link-summary{grid-template-columns:repeat(2,minmax(0,1fr));}}
+
+/* Clear navigation cards restore the original at-a-glance activity overview. */
+.cosme-metrics-page .metrics-summary-grid { gap: 12px; }
+.cosme-metrics-page .metrics-activity-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 9px;
+  min-height: 104px;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+.cosme-metrics-page .metrics-activity-card .metrics-big {
+  font-size: 1.45rem;
+  font-weight: 750;
+  color: var(--accent);
+}
+.cosme-metrics-page .metrics-activity-card:hover,
+.cosme-metrics-page .metrics-activity-card:focus-visible {
+  border-color: var(--accent);
+  background: var(--panel-soft);
+}
+
+/* Green identifies an authorised, validated current-data adapter, NOT a changing
+   historical value. The row still shows its frozen published value. */
+.cosme-metrics-page .metrics-table tbody tr.metrics-live-linked > td { background: #edf9f4; }
+.cosme-metrics-page .metrics-table tbody tr.metrics-live-linked:hover > td { background: #dcf5e9; }
+.cosme-metrics-page .metrics-table tbody tr.metrics-live-linked > td:first-child {
+  box-shadow: inset 3px 0 0 #16835d;
+}
+.cosme-metrics-page .metrics-table .metric-open.has-current-link {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.cosme-metrics-page .metric-title-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cosme-metrics-page .metrics-live-mark {
+  flex: none;
+  color: #0b7551;
+  font-size: .68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+/* Mirrored scrollbar stays at the viewport base while the table is visible. */
+.cosme-metrics-page .metrics-sticky-scroll {
+  position: fixed;
+  bottom: 0;
+  z-index: 25;
+  height: 17px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 5px 5px 0 0;
+  scrollbar-color: var(--accent) var(--border-soft);
+}
+.cosme-metrics-page .metrics-sticky-scroll[hidden] { display: none; }
+.cosme-metrics-page .metrics-sticky-scroll > div { height: 1px; }
+@media (max-width:600px) {
+  .cosme-metrics-page .metrics-activity-card { min-height: 98px; padding: 11px; }
+  .cosme-metrics-page .metrics-activity-card .metrics-big { font-size: 1.2rem; }
+}
