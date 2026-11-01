@@ -3,11 +3,11 @@ import {
 } from "./auth_client.js?v=25";
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=16";
 import {
-  normalizeReleaseItems, selectMetrics, exportSelectedCsv,
+  normalizeReleaseItems, selectMetrics,
   parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, headlineMetrics, financialContext, currentDryerWeightReduction, metricCategory
 } from "./cosme_metrics_core.mjs?v=2";
 import { createSharedPicks } from "./cosme_metrics_picks.mjs?v=1";
-import { liveStatus, displayValue } from "./cosme_metrics_live_values.mjs?v=1";
+import { liveStatus, displayValue, exportMetricViewCsv } from "./cosme_metrics_live_values.mjs?v=1";
 import { populatedMetrics, concisePickStatus, metricEvidence } from "./cosme_metrics_presentation.js?v=1";
 import { createNurseryGrowthPanel } from "./cosme_nursery_growth.mjs?v=2";
 import { createMawimbiOperationsPanel } from "./cosme_mawimbi_operations.mjs?v=1";
@@ -617,6 +617,8 @@ function renderRows() {
       const cell = document.createElement("td");
       cell.dataset.col = col.key;
       const value = String(col.key==="unit" ? overlay.unit :
+        col.key==="asOf" && overlay.state==="Live" ?
+          new Date(overlay.sourceUpdatedAt || overlay.checkedAt).toLocaleString() :
         col.key==="dataKind" && status.kind!=="published" ? overlay.state :
         metric[col.key] ?? "");
       const formatted = col.key === "value" ?
@@ -628,6 +630,7 @@ function renderRows() {
         button.type = "button";
         button.className = "metric-open";
         button.textContent = value;
+        button.dataset.metricId=metric.id;
         button.title = value + " · open details";
         if(linkSource) {
           button.classList.add("has-current-link");
@@ -674,10 +677,10 @@ function renderRows() {
   el("empty").hidden = visible.length > 0;
   requestAnimationFrame(syncStickyScrollbar);
 }
-function openMetric(metric, button) {
+function openMetric(metric, button, keepFocus=false) {
   detailMetricId=metric.id;
   configureStar(el("detailStar"),metric);
-  lastFocus = button;
+  if(!keepFocus) lastFocus = button;
   el("metricTitle").textContent = metric.title;
   const details = el("detail");
   details.replaceChildren();
@@ -779,17 +782,18 @@ function openMetric(metric, button) {
     details.append(value);
   }
   el("veil").classList.add("open");
-  el("close").focus();
+  if(!keepFocus)el("close").focus();
 }
 function closeMetric() {
   detailMetricId=null;
   el("veil").classList.remove("open");
-  lastFocus?.focus();
+  if(lastFocus && document.contains(lastFocus))lastFocus.focus();
+  else if(detailMetricId) el("search").focus();
 }
 function exportCsv() {
   if (!current || !visible.length) return;
-  // CSV deliberately exports frozen release values: never silently mix periods.
-  const csv = exportSelectedCsv(visible, current.version || "");
+  const csv = exportMetricViewCsv(visible,current.version||"",currentStatus,
+    el("showLiveValues").checked,isLatestRelease());
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -863,7 +867,7 @@ async function refreshLiveFeeds() {
       if(detailMetricId && el("veil").classList.contains("open")){
         // A stale detail should never suggest its opened value remains current.
         const metric=all.find(m=>m.id===detailMetricId);
-        if(metric)openMetric(metric,lastFocus);
+        if(metric)openMetric(metric,lastFocus,true);
       }
     } finally { button.disabled=false; liveRefreshInFlight=null; }
   })();
