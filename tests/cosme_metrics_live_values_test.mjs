@@ -5,7 +5,7 @@ import { selectMetrics } from "../assets/js/cosme_metrics_core.mjs";
 
 const dryer = {
   can_view:true,status:"current",
-  metric_ids:["SDT-0022","SDT-0063","SDT-0064","SDT-0065","SDT-0066"],
+  metric_ids:["SDT-0063","SDT-0064","SDT-0065","SDT-0066"],
   completed_cycles:21,completed_bays:116,wet_kg:1397.2,final_kg:462.45,
   wet_weight_reduction_pct:66.9,
   queried_at:"2026-11-01T04:00:00Z",source_updated_at:"2026-10-31T18:00:00Z"
