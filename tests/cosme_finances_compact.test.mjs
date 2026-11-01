@@ -91,7 +91,7 @@ test("Expense register separates procurement from project versions",async()=>{
   const expenses=buttons.find(c=>c.textContent==="Expense register");
   assert.ok(expenses,"Expense sub-view tab exists");
   expenses.listeners.click();
-  assert.ok(root.querySelectorAll("details[data-finance-key]").some(x=>x.dataset.financeKey==="pkg:exp"));
+  assert.ok(root.querySelectorAll("details[data-finance-key]").some(x=>x.dataset.financeKey==="pkg:expense:Travel"));
   assert.ok(!root.querySelectorAll("details[data-finance-key]").some(x=>x.dataset.financeKey==="pkg:p1"));
 });
 
