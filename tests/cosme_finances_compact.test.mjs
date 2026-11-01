@@ -28,6 +28,9 @@ test("Accurate project version stages and source labels",()=>{
   assert.match(panelSource,/V1\.3 · Pre-build estimate/);
   assert.match(panelSource,/V1\.3 · PLAN production quote/);
   assert.match(panelSource,/V1\.2 · Rough design \(materials\)/);
+  assert.match(panelSource,/V1\.3 · Living Machines \(Cascadia\)/);
+  assert.match(panelSource,/V1\.3 · Living Machines \(PLAN\)/);
+  assert.match(panelSource,/hasComparableUnit/);
   assert.doesNotMatch(panelSource,/PLAN as-built/);
   assert.match(panelSource,/Month taken from source file name/);
   assert.match(panelSource,/LM-C"\|\|p\.package_key==="LM-P"/);
