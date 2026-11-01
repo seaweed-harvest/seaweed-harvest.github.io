@@ -4,7 +4,7 @@ import {
 import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=17";
 import {
   normalizeReleaseItems, selectMetrics,
-  parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, headlineMetrics, financialContext, currentDryerWeightReduction, metricCategory
+  parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, financialContext, currentDryerWeightReduction, metricCategory
 } from "./cosme_metrics_core.mjs?v=2";
 import { createSharedPicks } from "./cosme_metrics_picks.mjs?v=1";
 import { liveStatus, displayValue, exportMetricViewCsv } from "./cosme_metrics_live_values.mjs?v=1";
@@ -22,7 +22,7 @@ import { createOperationalIndicators } from "./cosme_operational_indicators.mjs?
 const el = (id) => document.getElementById(id);
 const sharedPicks=createSharedPicks(authClient,()=>{
   all=sharedPicks.apply(all);
-  for(const id of ["picksStatus","picksStatusRegister"]){
+  for(const id of ["picksStatusRegister"]){
     const message=concisePickStatus(sharedPicks.message());
     el(id).textContent=message;el(id).hidden=!message;
   }
@@ -38,8 +38,9 @@ const timelinePanel = createMetricsTimeline(authClient,el("metricsTimeline"),(id
 });
 const financesPanel = createCosmeFinancesPanel(authClient,el("cosmeFinances"));
 let financesLoaded = false;
-const ACTIVITY_ORDER = ["Solar Drying Tables", "Offshore Nursery", "Aggregation Hub", "Mawimbi"];
+const ACTIVITY_ORDER = ["Solar Drying Tables", "Offshore Nursery", "Aggregation Hub", "Mawimbi", "Off-bottom Farming"];
 const STORAGE_KEY = "seaweed_ag:cosme_metric_columns_v2";
+const HIDDEN_KEY_PREFIX = "seaweed_ag:cosme_hidden_metric_ids_v1:";
 const COLUMN_DEFS = [
   { key: "title", label: "Metric", weight: 28 },
   { key: "activity", label: "Activity", weight: 15 },
@@ -52,7 +53,8 @@ const COLUMN_DEFS = [
   { key: "source", label: "Source", weight: 27 },
   { key: "note", label: "Notes", weight: 25 },
   { key: "verification", label: "Evidence", weight: 11 },
-  { key: "asOf", label: "As of", weight: 16 }
+  { key: "asOf", label: "As of", weight: 16 },
+  { key: "hide", label: "Hide", weight: 5 }
 ];
 const DEFAULT_COLUMNS = ["title", "activity", "theme", "value"];
 let all = [];
@@ -76,6 +78,48 @@ let releaseLoad=0;
 let latestReleaseKey=null;
 let prefersLiveValues=true;
 let liveRefreshInFlight=null;
+let hiddenMetricIds=new Set();
+let preferenceUserId=null;
+function preferencesKey(){return preferenceUserId?HIDDEN_KEY_PREFIX+preferenceUserId:null;}
+function loadHiddenMetrics(){
+  try {
+    const value=JSON.parse(localStorage.getItem(preferencesKey())||"[]");
+    hiddenMetricIds=new Set(Array.isArray(value) ? value.filter(
+      x=>typeof x==="string" && /^(?:LIVE-)?[A-Z]+-[A-Z0-9-]{1,32}$/.test(x)).slice(0,1000):[]);
+  } catch { hiddenMetricIds=new Set(); }
+}
+function saveHiddenMetrics(){
+  try {const key=preferencesKey();if(key)localStorage.setItem(key,JSON.stringify([...hiddenMetricIds]));}catch {}
+}
+function hideMetric(id){
+  if(!preferenceUserId)return;
+  hiddenMetricIds.add(id);saveHiddenMetrics();renderRows();
+}
+function restoreMetric(id){
+  hiddenMetricIds.delete(id);saveHiddenMetrics();renderRows();
+}
+function restoreAllHidden(){
+  hiddenMetricIds.clear();saveHiddenMetrics();renderRows();
+}
+function renderHiddenMetricMenu(){
+  const list=el("hiddenMetricList");
+  list.replaceChildren();
+  const hidden=[...all,...operationalIndicators].filter(m=>hiddenMetricIds.has(m.id));
+  el("hiddenMetricSummary").textContent="Hidden"+(hidden.length?" · "+hidden.length:"");
+  el("restoreAllHidden").disabled=!hiddenMetricIds.size;
+  if(!hidden.length){
+    add(list,"p","No hidden metrics.","metrics-small-note");
+    return;
+  }
+  for(const metric of hidden.sort((a,b)=>a.title.localeCompare(b.title))){
+    const item=add(list,"div","","metrics-hidden-item");
+    const label=add(item,"span",metric.title);
+    label.title=metric.id;
+    const button=add(item,"button","Restore","metrics-button");
+    button.type="button";button.setAttribute("aria-label","Restore "+metric.title);
+    button.addEventListener("click",()=>restoreMetric(metric.id));
+  }
+}
 
 function loadColumns() {
   try {
@@ -102,6 +146,7 @@ function clearPrivateState() {
   sharedPicks.clear();
   detailMetricId=null;
   all = []; visible = []; current = null; access = null;
+  preferenceUserId=null; hiddenMetricIds.clear();
   latestReleaseKey=null;
   prefersLiveValues=true;
   currentRopeCoverage = null; currentCoverageError = "";
@@ -116,16 +161,17 @@ function clearPrivateState() {
   financesLoaded = false;
   el("rows").replaceChildren();
   el("activityCards").replaceChildren();
-  el("headlineGroups").replaceChildren();
+
   el("detail").replaceChildren();
   el("metricMetadata").replaceChildren();
   el("metricEvidence").replaceChildren();
   el("metricTitle").textContent="";
-  el("headlineCount").textContent="";
+
   el("metricsConnectionStatus").replaceChildren();
   el("app").hidden = true;
   el("accessRole").textContent = "Access unavailable";
   el("releaseCaption").textContent = "";
+  el("overviewRegisterFacts").replaceChildren();
   el("veil").classList.remove("open");
   el("metricsStickyScroll").hidden = true;
 }
@@ -135,6 +181,11 @@ async function requireMetrics() {
   if (!session) {
     window.location.replace("./login.html?return=cosme_metrics.html");
     return null;
+  }
+  const newUserId=session.user?.id||null;
+  if(preferenceUserId!==newUserId){
+    preferenceUserId=newUserId;
+    loadHiddenMetrics();
   }
   const { data, error } = await authClient.rpc("cosme_metrics_my_access");
   if (error) throw error;
@@ -257,7 +308,7 @@ function add(parent, tag, value, className = "") {
   return node;
 }
 function render() {
-  const populated=populatedMetrics(all);
+  const populated=[...populatedMetrics(all),...(isLatestRelease()?operationalIndicators:[])];
   const activity = el("activity");
   const previous = activity.value;
   activity.replaceChildren();
@@ -276,7 +327,18 @@ function render() {
     const rows = populated.filter((metric) => metric.activity === name);
     const button = document.createElement("button");
     button.className = "metrics-activity-card";
-    add(button, "strong", name);
+    const [tone,symbol]=({
+      "Solar Drying Tables":["dryer","☀"],
+      "Offshore Nursery":["nursery","≈"],
+      "Aggregation Hub":["aggregation","▦"],
+      "Mawimbi":["mawimbi","❧"],
+      "Off-bottom Farming":["farming","≋"]
+    })[name]||["other","○"];
+    button.dataset.activityTone=tone;
+    const heading=add(button,"div","","metrics-activity-heading");
+    const mark=add(heading,"span",symbol,"metrics-activity-icon");
+    mark.setAttribute("aria-hidden","true");
+    add(heading,"strong",name);
     add(button, "span", rows.length + " metrics", "metrics-big");
     button.addEventListener("click", () => {
       activity.value = name;
@@ -286,7 +348,7 @@ function render() {
     cards.append(button);
   }
   renderCategoryChoices();
-  renderHeadlines();
+  renderRegisterSummary();
   renderCurrentRopeCoverage();
   renderCurrentDryerMetrics();
   renderRows();
@@ -305,7 +367,8 @@ function configureStar(button,metric){
   button.setAttribute("aria-label",(metric.featured?"Remove ":"Add ")+metric.title+
     (metric.featured?" from":" to")+" shared Top Picks");
   button.title=sharedPicks.editable()?button.getAttribute("aria-label"):sharedPicks.message();
-  button.disabled=!sharedPicks.editable();
+  button.disabled=Boolean(metric.operationalLive)||!sharedPicks.editable();
+  if(metric.operationalLive)button.title="Top Picks only apply to published metrics";
   button.setAttribute("aria-busy",String(sharedPicks.busy(metric.id)));
 }
 async function togglePick(id,context="rows"){
@@ -315,29 +378,21 @@ async function togglePick(id,context="rows"){
   if(target&&!target.disabled) target.focus();
   else el("featured").focus();
 }
-function renderHeadlines() {
-  const items = headlineMetrics(populatedMetrics(all));
-  el("headlineCount").textContent = String(items.length);
-  const root = el("headlineGroups");
+function renderRegisterSummary(){
+  const root=el("overviewRegisterFacts");
   root.replaceChildren();
-  if(!items.length) add(root,"p","No highlights selected.","metrics-small-note");
-  for (const activity of [...new Set([...ACTIVITY_ORDER,...items.map(m=>m.activity)])]) {
-    const selected = items.filter(m => m.activity === activity);
-    if (!selected.length) continue;
-    const section = add(root,"section","","metrics-headline-group");
-    add(section,"h4",activity);
-    const grid = add(section,"div","","metrics-headline-grid");
-    for (const metric of selected) {
-      const button = add(grid,"button","","metrics-headline-open");
-      button.type = "button";
-      const overlay=metricDisplay(metric);
-      const formatted = displayMetricValue(overlay.value, overlay.unit);
-      add(button,"span",metric.title,"metrics-headline-label");
-      const headlineValue=formatted.missing&&metric.valueState==="not_established"?"Not established":formatted.full;
-      add(button,"strong",headlineValue,"metrics-headline-value");
-      if(overlay.state==="Live") add(button,"span","● Live","metrics-live-mark");
-      button.addEventListener("click",()=>openMetric(metric,button));
-    }
+  const publishedAt=current?.published_at&&Number.isFinite(Date.parse(current.published_at))
+    ?new Date(current.published_at).toLocaleString():"Not recorded";
+  for(const [name,value] of [
+    ["Published metrics",all.length.toLocaleString()],
+    ["Live indicators",isLatestRelease()?operationalIndicators.length.toLocaleString():"—"],
+    ["Release",current?.version||"—"],
+    ["Last published",publishedAt],
+    ["Published by","Not recorded"]
+  ]){
+    const fact=add(root,"div","","metrics-register-fact");
+    add(fact,"span",name);
+    add(fact,"strong",value);
   }
 }
 
@@ -887,7 +942,7 @@ async function reloadAndRecheck() {
   renderConnectionStatus();
   el("app").hidden = false;
   if (financesLoaded) financesPanel.load();
-  renderHeadlines();
+  renderRegisterSummary();
   renderRows();
 }
 for (const button of document.querySelectorAll(".metrics-tabs .tab")) {
@@ -905,7 +960,7 @@ el("featured").addEventListener("change", () => {
 el("linkedOnly").addEventListener("change", renderRows);
 el("showLiveValues").addEventListener("change",()=>{
   prefersLiveValues=el("showLiveValues").checked;
-  renderHeadlines();
+  renderRegisterSummary();
   renderRows();
 });
 el("refreshLiveValues").addEventListener("click",()=>refreshLiveFeeds());
@@ -934,7 +989,7 @@ async function refreshLiveFeeds() {
       await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics(),loadOperationalIndicators(),
         nurseryGrowthPanel.refresh(),mawimbiPanel.refresh(),mawimbiQcPanel.refresh()]);
       renderConnectionStatus();
-      renderHeadlines();
+      renderRegisterSummary();
       renderRows();
       if(detailMetricId && el("veil").classList.contains("open")){
         // A stale detail should never suggest its opened value remains current.
