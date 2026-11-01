@@ -37,7 +37,7 @@ summary names the five represented drying-rack groups. Private source coordinate
 and group lists are retained in the local evidence proposal, outside this public
 repository. Sources are read-only.
 
-Potential content update, pending review: append a small V0.3 evidence supplement
+Owner-approved content update (1 November 2026): append a small V0.3 evidence supplement
 using the existing release model, copying existing values and original payloads,
 and carrying forward the latest shared picks. Seven supported assessment metrics
 receive source_evidence, the actual assessment month, Source checked verification,
@@ -48,8 +48,9 @@ rehearse the append in a rolled-back transaction before any authorised apply.
 Rollback restores the previous current-release pointer and reverts the frontend;
 all immutable evidence/history and shared audit events remain intact.
 
-Prepare a concrete draft PR and evidence proposal before the required release
-approval. No merge or deployment approval has been requested for this cleanup yet.
+Draft PR #142 and the private evidence proposal were prepared before approval.
+The owner explicitly approved publishing the cleanup and applying the reviewed
+group details to seven existing metrics on 1 November 2026.
 
 Implementation and verification (1 November 2026):
 
@@ -79,5 +80,13 @@ Confirm unchanged V0.1/V0.2 payload fingerprints, all 327 values/units/originals
 seven evidence lists and the carried selection before publishing the pointer.
 If needed, restore the pointer to V0.2; retain V0.3 and all audit/history records.
 The private local evidence proposal contains the names and exact source locations;
-it is intentionally excluded from the public PR. No import code or database write
-has been performed for this supplement before the protected-work approval.
+it is intentionally excluded from the public PR. Import implementation and writes
+were performed only after the protected-work approval.
+
+Evidence supplement result: the rehearsal passed and rolled back to V0.2. The
+authorised append published V0.3 with 327 records and seven group lists, preserving
+13 effective shared selections (including all three prior user overrides).
+Fresh committed-state checks report zero changed values, units, original evidence
+objects or effective selections. V0.1 and V0.2 fingerprints remain unchanged.
+V0.3 content SHA-256:
+`d29a43085f4b080b53e0d598af46543f5d397dcd2a2df05e074c08bcd5729897`.
