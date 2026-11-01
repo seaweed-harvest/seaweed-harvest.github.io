@@ -1,4 +1,4 @@
-import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=3";
+import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=4";
 
 // Read-only aggregation of the currently saved Sample Rope Register cycles.
 // Site discovery comes from the existing scoped context RPC, not a hardcoded list.
