@@ -35,7 +35,7 @@ export function selectMetrics(metrics,{
     &&(!verification||m.verification===verification)
     &&(!featured||m.featured)
     &&(!selected.size||selected.has(m.theme))
-    &&(!q||[m.id,m.title,m.note,m.source,m.value,m.liveDisplayValue,m.unit,m.theme].join(" ").toLocaleLowerCase().includes(q))
+    &&(!q||[m.id,m.title,m.note,m.source,m.liveDisplayValue??m.value,m.unit,m.theme].join(" ").toLocaleLowerCase().includes(q))
   );
   const allowed=["id","title","activity","theme","value","unit","source","note","verification","asOf","dataKind"];
   const sortKey=allowed.includes(sort)?sort:"id";
