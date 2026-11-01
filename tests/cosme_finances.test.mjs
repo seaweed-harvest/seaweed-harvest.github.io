@@ -94,3 +94,15 @@ test("prototype numeric version sorting places latest first on equal source date
   const g=activityGroups(p);
   assert.deepEqual(g[0].entries.map(x=>x.version),["V1.10","V1.2"]);
 });
+
+test("original payment currency remains separate from converted reporting currency",()=>{
+  const packages=normalizeFinanceData({packages:[{id:"conversion",activity:"Project",basis:"paid",currency:"CAD"}],
+    lines:[{package_id:"conversion",source_row:"Example!A1",category:"Other",
+      description:"Synthetic purchase",unit_rate:110,rate_currency:"AUD",amount:95,reconciliation_status:"verified"}]});
+  assert.equal(packages[0].currency,"CAD");
+  assert.equal(packages[0].lines[0].rate_currency,"AUD");
+  const csv=exportFinanceCsv(packages);
+  assert.ok(csv.includes('"CAD"'));
+  assert.ok(csv.includes('"AUD"'));
+  assert.ok(csv.includes('"Rate currency"'));
+});
