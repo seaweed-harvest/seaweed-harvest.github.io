@@ -71,8 +71,8 @@ const TYPES = Object.freeze({
   "Mawimbi": [
     ["Press productivity", /press productivity|pressing|manual press|labour productivity|productivity factor|extraction recovery/i],
     ["Press equipment and commissioning", /press|hydraulic|frame repair|frames repaired/i],
-    ["RO water treatment", /RO |reverse osmosis|treatment water|treated.water|water cost|purchased.water|water spend|water purchase/i],
     ["Water quality", /borehole|water quality|water TDS|coliform|E\. coli|water series|water pH|water conductivity/i],
+    ["RO water treatment", /RO |reverse osmosis|treatment water|treated.water|water cost|purchased.water|water spend|water purchase/i],
     ["QC instrumentation and records", /QC|quality.control|meter|Brix|product pH|retest/i],
     ["Seaweed collection", /collection|purchases|purchasing|incoming wet biomass|seller|supplying/i],
     ["Processing and extraction", /processing|pressed.liquid|liquid output|feedstock|batch|production input|traceab/i],
