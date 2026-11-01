@@ -274,6 +274,18 @@ function metricDisplay(metric) {
 function currentLinkSource(metric) {
   return currentStatus(metric).source;
 }
+// Anchor the table's *scrolling viewport* to the visible screen bottom on
+// desktop, so large registers scroll inside the table rather than pushing the
+// horizontal scrollbar pages below. Never resize during vertical page scroll.
+function sizeRegisterViewport(){
+  if(el("app").hidden||el("register").hidden||window.innerWidth<700)return;
+  const wrap=el("metricScrollArea");
+  const top=wrap.getBoundingClientRect().top;
+  const available=window.innerHeight-top-25;
+  if(top>=0 && available>=280){
+    wrap.style.height=Math.min(920,Math.max(280,Math.floor(available)))+"px";
+  }
+}
 function syncStickyScrollbar() {
   const wrap=el("metricScrollArea"), bar=el("metricsStickyScroll");
   const rect=wrap.getBoundingClientRect();
@@ -298,7 +310,7 @@ function tab(name) {
     financesPanel.load();
   }
   if (name === "register") renderRows();
-  requestAnimationFrame(syncStickyScrollbar);
+  requestAnimationFrame(()=>{sizeRegisterViewport();syncStickyScrollbar();});
 }
 function add(parent, tag, value, className = "") {
   const node = document.createElement(tag);
@@ -766,7 +778,7 @@ function renderRows() {
   el("liveValueNotice").textContent=notice;
   el("liveValueNotice").hidden=!notice;
   el("empty").hidden = visible.length > 0;
-  requestAnimationFrame(syncStickyScrollbar);
+  requestAnimationFrame(()=>{sizeRegisterViewport();syncStickyScrollbar();});
 }
 function openMetric(metric, button, keepFocus=false) {
   detailMetricId=metric.id;
@@ -1021,7 +1033,7 @@ stickyScroll.addEventListener("scroll",()=>{
     metricScrollArea.scrollLeft=stickyScroll.scrollLeft;
 },{passive:true});
 window.addEventListener("scroll",syncStickyScrollbar,{passive:true});
-window.addEventListener("resize",syncStickyScrollbar,{passive:true});
+window.addEventListener("resize",()=>{sizeRegisterViewport();syncStickyScrollbar();},{passive:true});
 if("ResizeObserver" in window)
   new ResizeObserver(()=>requestAnimationFrame(syncStickyScrollbar)).observe(metricScrollArea);
 el("detailStar").addEventListener("click",()=>togglePick(detailMetricId,"detail"));
