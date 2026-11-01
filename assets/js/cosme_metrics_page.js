@@ -12,6 +12,7 @@ import { createNurseryGrowthPanel } from "./cosme_nursery_growth.mjs?v=2";
 import { createMawimbiOperationsPanel } from "./cosme_mawimbi_operations.mjs?v=1";
 import { createMawimbiStockQcPanel } from "./cosme_mawimbi_stock_qc.mjs?v=1";
 import { createMawimbiTraceabilityPanel } from "./cosme_mawimbi_traceability.mjs?v=1";
+import { createMetricsTimeline } from "./cosme_metrics_timeline.mjs?v=1";
 
 // Published values remain immutable. Shared picks are a separate authorised layer.
 // Only column choices persist locally; metric data and picks never do.
@@ -28,6 +29,10 @@ const nurseryGrowthPanel = createNurseryGrowthPanel(authClient,el("currentNurser
 const mawimbiPanel = createMawimbiOperationsPanel(authClient,el("currentMawimbiOperations"));
 const mawimbiQcPanel = createMawimbiStockQcPanel(authClient,el("currentMawimbiStockQc"));
 const traceabilityPanel = createMawimbiTraceabilityPanel(authClient,el("currentMawimbiTraceability"));
+const timelinePanel = createMetricsTimeline(authClient, el("metricsTimeline"), (id, button) => {
+  const metric = all.find((item) => item.id === id);
+  if (metric) openMetric(metric, button);
+});
 const ACTIVITY_ORDER = ["Solar Drying Tables", "Offshore Nursery", "Aggregation Hub", "Mawimbi"];
 const STORAGE_KEY = "seaweed_ag:cosme_metric_columns_v2";
 const COLUMN_DEFS = [
@@ -93,6 +98,7 @@ function clearPrivateState() {
   mawimbiPanel.clear();
   mawimbiQcPanel.clear();
   traceabilityPanel.clear();
+  timelinePanel.clear();
   el("rows").replaceChildren();
   el("activityCards").replaceChildren();
   el("headlineGroups").replaceChildren();
@@ -154,6 +160,7 @@ async function loadRelease(version = null) {
   current = data;
   if (data?.status !== "published") {
     all = [];
+    timelinePanel.setRelease([]);
     setStatus("No metrics release is currently available.");
     el("releaseCaption").textContent = "Not yet published";
     render();
@@ -165,6 +172,7 @@ async function loadRelease(version = null) {
     evidence:evidenceById.get(m.id)||null,
     dataKind: sourceLabel(m), valueType: metricValueType(m), liveValidated: false
   }));
+  timelinePanel.setRelease(all);
   el("releaseCaption").textContent = data.version + " · " +
     (data.published_at ? new Date(data.published_at).toLocaleDateString() : "");
   el("historyInfo").textContent = "Purpose: " + (data.purpose || "Reference") +
@@ -179,7 +187,7 @@ function tab(name) {
   for (const button of document.querySelectorAll(".metrics-tabs .tab")) {
     button.setAttribute("aria-selected", String(button.dataset.tab === name));
   }
-  for (const view of ["overview", "register", "current", "history"]) el(view).hidden = view !== name;
+  for (const view of ["overview", "register", "current", "timeline", "history"]) el(view).hidden = view !== name;
   if (name === "register") renderRows();
 }
 function add(parent, tag, value, className = "") {
@@ -719,7 +727,7 @@ async function reloadAndRecheck() {
   await loadReleases();
   await loadRelease(previousVersion);
   el("currentMawimbiTraceability").hidden = grant.role !== "owner";
-  await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics(),nurseryGrowthPanel.refresh(),mawimbiPanel.refresh(),mawimbiQcPanel.refresh(),...(grant.role === "owner" ? [traceabilityPanel.refresh()] : [])]);
+  await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics(),nurseryGrowthPanel.refresh(),mawimbiPanel.refresh(),mawimbiQcPanel.refresh(),timelinePanel.load(),...(grant.role === "owner" ? [traceabilityPanel.refresh()] : [])]);
   renderConnectionStatus();
   el("app").hidden = false;
 }
