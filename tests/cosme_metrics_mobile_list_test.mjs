@@ -17,7 +17,9 @@ test("mobile register uses collapsible controls and a dedicated metric list", ()
   assert.match(page, /button\.setAttribute\("aria-expanded",String\(open\)\)/);
   assert.match(css, /@media \(max-width: 700px\)/);
   assert.match(css, /\.metrics-filter-controls\.is-open \{ display: grid; \}/);
-  assert.match(css, /\.metrics-action-controls\.is-open \{ display: flex; \}/);
+  assert.match(css, /\.metrics-filter-controls \.metrics-category-options \{\s*position: static;/);
+  assert.match(css, /\.metrics-action-controls \.metrics-column-options \{\s*position: static;/);
+  assert.match(css, /\.metrics-action-controls\.is-open \{\s*display: grid;/);
 });
 
 test("phone cards are generated from the same filtered rows and original authorised overlays", () => {
