@@ -109,3 +109,5 @@
 .cosme-metrics-page .finance-group-summary{padding-left:22px}
 .cosme-metrics-page .finance-group-note{white-space:normal}
 }
+
+.cosme-metrics-page .finance-date{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

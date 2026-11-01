@@ -69,6 +69,7 @@ function reportStatus(p){
   return "Source checked";
 }
 function basisLabel(p){
+  if(p.activity.startsWith("COSME Procurement"))return "Expense";
   if(effectiveFinanceBasis(p)==="actual")return "Actual";
   return BASIS[p.basis];
 }
@@ -161,7 +162,7 @@ function line(root,p,expenses){
   const title=add(s,"span","finance-stage",expenses?p.activity.replace(/^COSME Procurement — /,""):stage(p));
   title.title=(p.source?.display_name||"");
   const date=add(s,"span","finance-date",dateOf(p));
-  date.title=reportMetadata(p).date_kind||"Source date";
+  date.title=dateOf(p)+" · "+(reportMetadata(p).date_kind||"Source date");
   add(s,"span","finance-basis",basisLabel(p));
   const unit=String(p.unit_label||"").replace(/s$/,"");
   const hasComparableUnit=/^(table|raft)$/.test(unit);
@@ -238,7 +239,7 @@ export function createCosmeFinancesPanel(authClient,root){
       add(summary,"strong","finance-group-name",group.name);
       const ref=referenceFor(group);
       const date=add(summary,"span","finance-group-date",dateOf(group.entries[0]));
-      date.title=reportMetadata(group.entries[0]).date_kind||"Source date";
+      date.title=dateOf(group.entries[0])+" · "+(reportMetadata(group.entries[0]).date_kind||"Source date");
       add(summary,"strong","finance-group-cost",ref.amount);
       add(summary,"span","finance-group-note",ref.note);
       for(const p of group.entries)line(container,p,false);

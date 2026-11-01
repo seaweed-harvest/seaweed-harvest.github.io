@@ -150,7 +150,7 @@ test("Source metadata supplies installation dates and project BOM tables omit pe
  await createCosmeFinancesPanel({rpc:async()=>({data})},root).load();
  const nodes=[];const walk=n=>{nodes.push(n);n.children.forEach(walk)};walk(root);
  assert.ok(nodes.some(n=>n.className==="finance-group-date"&&n.textContent==="12 May 2026"));
- assert.ok(nodes.some(n=>n.className==="finance-date"&&n.title==="Installed"));
+ assert.ok(nodes.some(n=>n.className==="finance-date"&&n.title==="12 May 2026 · Installed"));
  assert.ok(nodes.some(n=>n.tag==="td"&&n.textContent==="Steel pipes"),"priced reviewed item belongs in its category");
  assert.equal(nodes.filter(n=>n.tag==="td"&&n.textContent==="Steel pipes").length,1);
  assert.equal(nodes.filter(n=>n.tag==="th"&&n.textContent==="Date").length,0);
