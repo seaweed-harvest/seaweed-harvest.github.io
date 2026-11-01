@@ -1,3 +1,4 @@
+import { mkwiroRaftDisplayLabel } from "./reef_mkwiro_raft_labels.js?v=4";
 // Nursery Records -> Analysis. Shared server-side calculation with COSME live metrics.
 // No raw measurements, farmer details, or write access are exposed by this view.
 const nf=(n,d=1)=>n==null?"—":new Intl.NumberFormat("en-KE",{maximumFractionDigits:d}).format(n);
@@ -25,7 +26,7 @@ export function createNurseryRecordsAnalysis(authClient,target){
  function render(){
   target.replaceChildren();
   if(!data)return;
-  const intro=node(target,"p","Current Sample Rope Register measurements, grouped by actual site code. Historic PDF Week 4 labels were mismatched; this view always pairs measurements within the same saved rope cycle.","reef-growth-note");
+  const intro=node(target,"p","Live, matched-rope measurements · 2–4 week growth","reef-growth-note");
   intro.style.marginBottom="12px";
   const summary=node(target,"div",undefined,"reef-growth-kpis");
   for(const [label,value,unit] of [["Initial",data.initial_ropes,"ropes"],["Week 2",data.week2_ropes,"ropes"],["Week 4",data.week4_ropes,"ropes"],["Sites",data.site_count,""]]){
@@ -53,7 +54,7 @@ export function createNurseryRecordsAnalysis(authClient,target){
     const body=node(t,"tbody");
     for(const s of sites){
       const r=node(body,"tr");
-      for(const v of [s.site_code,s.structure_type==="raft"?"Floating raft":"Shore / off-bottom",
+      for(const v of [mkwiroRaftDisplayLabel(s.site_code,s.site_name)||s.site_code,s.structure_type==="raft"?"Floating raft":"Shore / off-bottom",
         s.initial_ropes,s.week2_ropes,s.week4_ropes,
         s.mean_gain_g_day==null?"—":nf(s.mean_gain_g_day)+" g/day",
         s.mean_sgr_pct_day==null?"—":nf(s.mean_sgr_pct_day,2)+" %/day"])cell(r,v);
@@ -63,10 +64,13 @@ export function createNurseryRecordsAnalysis(authClient,target){
     }
     if(area!=="tumbe"&&data.pairs.length){
       node(section,"h3","Matched floating raft versus shore/off-bottom ropes");
-      node(section,"p","The bar lengths show mean gross wet-weight gain per rope per day, using the same rope IDs and actual Week 2–Week 4 interval. Net seaweed mass is used for SGR.","reef-growth-note");
+      node(section,"p","Mean wet-weight gain (g/rope/day), Week 2–4","reef-growth-note");
       for(const pair of data.pairs){
         const card=node(section,"div",undefined,"reef-growth-pair");
-        node(card,"strong",pair.raft_site+" vs "+pair.shore_site+" · "+pair.pair_count+" matched pairs");
+        const raft=mkwiroRaftDisplayLabel(pair.raft_site)||pair.raft_site;
+        const shore=mkwiroRaftDisplayLabel(pair.shore_site)||pair.shore_site;
+        const pairHeading=node(card,"strong",raft+" vs "+shore+" · "+pair.pair_count+" matched pairs");
+        pairHeading.title=pair.raft_site+" / "+pair.shore_site;
         const max=Math.max(pair.raft_gain_g_day,pair.shore_gain_g_day,1);
         for(const [label,value,kind] of [["Floating",pair.raft_gain_g_day,"raft"],["Shore",pair.shore_gain_g_day,"shore"]]){
           const row=node(card,"div",undefined,"reef-growth-bar-row");
