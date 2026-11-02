@@ -58,7 +58,7 @@ function payload(){
 }
 test("Finance asset versions and controls are isolated to Finance",()=>{
   assert.match(html,/cosme_finances\.css\?v=5/);
-  assert.match(app,/cosme_finances_panel\.mjs\?v=6/);
+  assert.match(app,/cosme_finances_panel\.mjs\?v=7/);
   assert.match(panel,/aria-controls","cosmeFinanceFilters"/);
   assert.match(panel,/aria-controls","cosmeFinanceActions"/);
   assert.match(panel,/mobileFiltersOpen/);

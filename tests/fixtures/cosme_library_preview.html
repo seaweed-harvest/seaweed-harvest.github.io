@@ -1,0 +1,46 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Project Metrics review preview</title>
+<link rel="stylesheet" href="../../assets/css/ag.css"><link rel="stylesheet" href="../../assets/css/cosme_metrics.css"><link rel="stylesheet" href="../../assets/css/cosme_finances.css"><link rel="stylesheet" href="../../assets/css/cosme_project_library.css">
+<style>body{margin:0;padding:16px}main{max-width:1100px;margin:auto;min-width:0}header{margin-bottom:16px}.preview-controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}h1{font-size:1.5rem}.preview-controls button{min-height:44px}</style></head>
+<body class="cosme-metrics-page"><main><header><h1>Seaweed Harvest Project Metrics</h1><p>Local review preview. Synthetic data only. No production connection.</p></header>
+<nav class="metrics-tabs" aria-label="Preview views"><button class="tab" data-view="finances">Finances</button><button class="tab" data-view="reports" aria-selected="true">Reports</button><button class="tab" data-view="photos">Photos</button></nav>
+<details><summary>Test controls</summary><div class="preview-controls"><button id="reader">Switch to reader</button><button id="fail">Fail next upload</button><button id="choose">Choose synthetic file</button><button id="clear">Clear private state</button></div></details>
+<section id="finances" hidden><div id="financePanel"></div></section><section id="reports"><div id="reportPanel"></div></section><section id="photos" hidden><div id="photoPanel"></div></section>
+<script type="module">
+import {createProjectLibrary} from '../../assets/js/cosme_project_library.mjs';
+import {createCosmeFinancesPanel} from '../../assets/js/cosme_finances_panel.mjs';
+const folders=[],items=[],files=new Map();let canEdit=true,fail=false,view='reports';
+const client={rpc:async(name,p={})=>{
+ if(name==='cosme_finance_read')return {data:{sources:[],packages:[{id:'synthetic',activity:'COSME Procurement — Project / Other',basis:'paid',currency:'CAD',version:'Synthetic'}],lines:[
+ {id:'s1',package_id:'synthetic',category:'Software',original_product:'T/H Sensing',description:'Coding subscription',item_detail:'Synthetic coding software subscription',amount:25,entry_date:'2026-10-01',source_row:'Expenses!K168',reconciliation_status:'verified'},
+ {id:'s2',package_id:'synthetic',category:'Materials',original_product:'T/H Sensing',description:'Electronics',item_detail:'SIM credit',amount:12,entry_date:'2026-10-02',source_row:'Expenses!K176',reconciliation_status:'verified'}]}};
+ if(name==='cosme_library_list')return {data:{can_edit:canEdit,folders:folders.filter(f=>f.kind===p.p_kind),items:items.filter(i=>i.kind===p.p_kind&&i.status==='ready')}};
+ if(!canEdit)return {error:{message:'Editor access required'}};
+ if(name==='cosme_library_add_folder'){const f={id:crypto.randomUUID(),kind:p.p_kind,name:p.p_name};folders.push(f);return {data:f.id}}
+ if(name==='cosme_library_save'){
+  if(p.p_id){const i=items.find(x=>x.id===p.p_id);if(i.revision!==p.p_revision)return {error:{message:'Reference changed'}};Object.assign(i,p.p_metadata,{revision:i.revision+1});return {data:{...i}}}
+  const i={...p.p_metadata,id:crypto.randomUUID(),kind:p.p_kind,status:'pending',revision:1,object_path:crypto.randomUUID(),created_at:new Date().toISOString()};items.push(i);return {data:{...i}};
+ }
+ if(name==='cosme_library_finish'){const i=items.find(x=>x.id===p.p_id);if(!files.has(i.object_path))return {error:{message:'Upload missing'}};i.status='ready';return {data:null}}
+ return {error:{message:'Unknown test method'}};
+},storage:{from:()=>({upload:async(path,file)=>{if(fail){fail=false;return {error:{message:'Simulated connection loss'}}}files.set(path,file);return {data:{path}}},createSignedUrl:async path=>({data:{signedUrl:URL.createObjectURL(files.get(path))}})})}};
+const panels={reports:createProjectLibrary(client,document.getElementById('reportPanel'),'reports'),photos:createProjectLibrary(client,document.getElementById('photoPanel'),'photos'),finances:createCosmeFinancesPanel(client,document.getElementById('financePanel'))};
+for(const b of document.querySelectorAll('[data-view]'))b.onclick=()=>{view=b.dataset.view;for(const n of ['reports','photos','finances'])document.getElementById(n).hidden=n!==view;for(const tab of document.querySelectorAll('[data-view]'))tab.setAttribute('aria-selected',String(tab===b));panels[view].load()};
+document.getElementById('reader').onclick=async()=>{canEdit=!canEdit;document.getElementById('reader').textContent=canEdit?'Switch to reader':'Switch to editor';await panels[view].load()};
+document.getElementById('fail').onclick=()=>{fail=true};
+document.getElementById('clear').onclick=()=>Object.values(panels).forEach(p=>p.clear());
+function syntheticPdf(){
+ const stream='BT /F1 16 Tf 30 100 Td (Synthetic review report) Tj ET';
+ const objects=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+  '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
+  '<< /Length '+stream.length+' >>\nstream\n'+stream+'\nendstream','<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];
+ let pdf='%PDF-1.4\n';const offsets=[0];objects.forEach((obj,i)=>{offsets.push(pdf.length);pdf+=(i+1)+' 0 obj\n'+obj+'\nendobj\n'});
+ const xref=pdf.length;pdf+='xref\n0 6\n0000000000 65535 f \n'+offsets.slice(1).map(n=>String(n).padStart(10,'0')+' 00000 n \n').join('');
+ return pdf+'trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF';
+}
+document.getElementById('choose').onclick=()=>{
+ const field=document.querySelector(`#${view} input[type=file]`);if(!field)return;
+ const image=Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aDVkAAAAASUVORK5CYII='),c=>c.charCodeAt(0));
+ const dt=new DataTransfer();dt.items.add(new File([view==='reports'?syntheticPdf():image],view==='reports'?'synthetic.pdf':'synthetic.png',{type:view==='reports'?'application/pdf':'image/png'}));field.files=dt.files;
+};
+await panels.reports.load();
+</script></main></body></html>
