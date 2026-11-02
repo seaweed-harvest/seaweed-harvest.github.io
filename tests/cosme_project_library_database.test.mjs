@@ -116,4 +116,3 @@ test('private library migration: upload lifecycle, immutable files and role isol
     assert.equal((await db.query('select * from storage.objects')).rows.length,0,'revoked grant stops file access');
   }finally{await db.close()}
 });
-
