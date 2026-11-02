@@ -16,6 +16,7 @@ import { createMawimbiTraceabilityPanel } from "./cosme_mawimbi_traceability.mjs
 import { createMetricsTimeline } from "./cosme_metrics_timeline.mjs?v=3";
 import { createCosmeFinancesPanel } from "./cosme_finances_panel.mjs?v=7";
 import { createProjectLibrary } from "./cosme_project_library.mjs?v=2";
+import { createMetricEvidenceReview } from "./cosme_metric_evidence_review.mjs?v=1";
 import { createOperationalIndicators } from "./cosme_operational_indicators.mjs?v=2";
 import { metricDisplayName, withMetricPresentation } from "./cosme_metrics_labels.mjs?v=1";
 
@@ -41,6 +42,7 @@ const timelinePanel = createMetricsTimeline(authClient,el("metricsTimeline"),(id
 const financesPanel = createCosmeFinancesPanel(authClient,el("cosmeFinances"));
 let financesLoaded = false;
 const libraries={reports:createProjectLibrary(authClient,el("projectReports"),"reports"),photos:createProjectLibrary(authClient,el("projectPhotos"),"photos")};
+const metricEvidenceReview=createMetricEvidenceReview(authClient,el("metricLinkedPhotos"),el("metricProposalReview"));
 const librariesLoaded=new Set();
 const ACTIVITY_ORDER = ["Solar Drying Tables", "Offshore Nursery", "Aggregation Hub", "Mawimbi", "Off-bottom Farming"];
 const STORAGE_KEY = "seaweed_ag:cosme_metric_columns_v2";
@@ -166,6 +168,7 @@ function clearPrivateState() {
   financesPanel.clear();
   financesLoaded = false;
   Object.values(libraries).forEach(panel=>panel.clear());
+  metricEvidenceReview.clear();
   librariesLoaded.clear();
   el("rows").replaceChildren();
   el("activityCards").replaceChildren();
@@ -310,10 +313,13 @@ function syncStickyScrollbar() {
 }
 function tab(name) {
   if(name==="current")name="register";
+  if(name==="proposals" && !["owner","editor"].includes(access?.role))name="overview";
   for (const button of document.querySelectorAll(".metrics-tabs .tab")) {
     button.setAttribute("aria-selected", String(button.dataset.tab === name));
   }
-  for (const view of ["overview", "register", "current", "timeline", "finances", "reports", "photos", "history"]) el(view).hidden = view !== name;
+  for (const view of ["overview", "register", "current", "timeline", "finances", "reports", "photos", "proposals", "history"]) el(view).hidden = view !== name;
+  if(name==="proposals" && access && !metricEvidenceReview.draftsLoaded())
+    metricEvidenceReview.loadDrafts();
   if(libraries[name]&&access&&!librariesLoaded.has(name)){
     librariesLoaded.add(name);libraries[name].load();
   }
@@ -960,9 +966,11 @@ function openMetric(metric, button, keepFocus=false) {
     details.append(value);
   }
   el("veil").classList.add("open");
+  metricEvidenceReview.openMetric(metric.id);
   if(!keepFocus)el("close").focus();
 }
 function closeMetric() {
+  metricEvidenceReview.closeMetric();
   const closingId=detailMetricId;
   detailMetricId=null;
   el("veil").classList.remove("open");
@@ -1015,6 +1023,8 @@ async function reloadAndRecheck() {
   if (!grant) return;
   access = grant;
   el("accessRole").textContent = "Metrics " + grant.role;
+  const proposalsTab=document.querySelector(".metrics-tabs [data-tab=proposals]");
+  proposalsTab.hidden=!["owner","editor"].includes(grant.role);
   await prepareNavigation();
   // Follow the latest release pointer on return, but preserve a deliberately
   // opened historical release for comparison.
@@ -1074,6 +1084,7 @@ el("showLiveValues").addEventListener("change",()=>{
   renderRows();
 });
 el("refreshLiveValues").addEventListener("click",()=>refreshLiveFeeds());
+el("refreshMetricDrafts").addEventListener("click",()=>metricEvidenceReview.refreshDrafts());
 // Overview activity cards navigate to All metrics.
 el("reset").addEventListener("click", () => {
   el("search").value = "";
