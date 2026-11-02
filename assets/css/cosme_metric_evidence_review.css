@@ -25,3 +25,8 @@
   .metric-proposal-card {padding:.75rem;}
   .metric-reference-gallery {grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem;}
 }
+
+/* Author display rules must never override explicit permission/expiry hiding. */
+.cosme-metrics-page .metrics-tabs [data-tab="proposals"][hidden],
+.metric-reference-photo .metrics-button[hidden],
+.metric-linked-photos[hidden] {display:none!important;}
