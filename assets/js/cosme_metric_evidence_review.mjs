@@ -117,13 +117,18 @@ export function createMetricEvidenceReview(client,photoRoot,draftsRoot){
         const item=append(list,"article","","metric-proposal-card");
         const heading=append(item,"div","","metric-proposal-title");
         append(heading,"strong",row.title);
-        append(heading,"span","Draft · revision "+row.revision,"metrics-small-note");
+        const status=({
+          draft:"Draft",ready_for_review:"Ready for review",
+          approved:"Approved · not published"
+        })[row.review_status]||"Draft";
+        append(heading,"span",status+" · revision "+row.revision,"metrics-small-note");
         const label=row.target_metric_id?"Proposed update · "+row.target_metric_id:"Proposed new metric";
         append(item,"p",row.activity+" · "+label,"metrics-small-note");
         if(row.metric_value){
           append(item,"p",row.metric_value+(row.unit?" "+row.unit:""),"metric-proposal-value");
         }
         if(row.notes)append(item,"p",row.notes,"metric-proposal-notes");
+        if(row.review_notes)append(item,"p","Review: "+row.review_notes,"metrics-small-note");
         const source=row.live_source;
         if(source&&source.organisation_code==="MAWIMBI"&&source.dataset==="processing"){
           append(item,"p","Linked source: Mawimbi processing · "+
