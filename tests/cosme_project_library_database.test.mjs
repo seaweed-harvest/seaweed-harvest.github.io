@@ -33,7 +33,7 @@ test('private library migration: upload lifecycle, immutable files and role isol
         ('00000000-0000-0000-0000-000000000002','editor'),
         ('00000000-0000-0000-0000-000000000003','reader');
     `);
-    await db.exec(readFileSync(new URL('../supabase/migrations/20261102042829_cosme_project_library.sql',import.meta.url),'utf8'));
+    await db.exec(readFileSync(new URL('../supabase/migrations/20261102053127_cosme_project_library.sql',import.meta.url),'utf8'));
     const scalar=async(sql,args=[])=>Object.values((await db.query(sql,args)).rows[0])[0];
     const actor=async(n,role='authenticated')=>{
       await db.exec('reset role');
@@ -116,3 +116,4 @@ test('private library migration: upload lifecycle, immutable files and role isol
     assert.equal((await db.query('select * from storage.objects')).rows.length,0,'revoked grant stops file access');
   }finally{await db.close()}
 });
+
