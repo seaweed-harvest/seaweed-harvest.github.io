@@ -1,4 +1,4 @@
-import {LIBRARY_BUCKET,PROJECTS,EXAMPLES,filterLibrary,localDateTime,libraryMetadata,validateLibraryFile} from "./cosme_project_library_core.mjs?v=1";
+import {LIBRARY_BUCKET,PROJECTS,EXAMPLES,filterLibrary,localDateTime,libraryMetadata,validateLibraryFile} from "./cosme_project_library_core.mjs?v=2";
 const make=(tag,cls="",text)=>{const n=document.createElement(tag);n.className=cls;if(text!==undefined)n.textContent=text;return n};
 const add=(root,tag,cls,text)=>{const n=make(tag,cls,text);root.append(n);return n};
 const button=(root,text,fn)=>{const b=add(root,"button","metrics-button",text);b.type="button";b.addEventListener("click",fn);return b};
@@ -56,32 +56,43 @@ export function createProjectLibrary(client,root,kind){
       media.src=data.signedUrl;
     }catch(e){viewer?.remove();if(ticket===epoch)status("Could not open file. "+e.message,true)}
   }
-  function editor(existing=null){
+  function editor(existing=null,replace=false){
     if(busy)return;
     root.querySelector(".library-editor")?.remove();
-    const form=add(root,"form","library-editor");form.setAttribute("aria-label",existing?"Edit reference":"Add "+noun);
-    add(form,"h3","",existing?"Edit reference":"Add "+noun);
+    const label=replace?"Replace PDF":existing?"Edit reference":"Add "+noun;
+    const form=add(root,"form","library-editor");form.setAttribute("aria-label",label);
+    add(form,"h3","",label);
+    if(kind==="reports")add(form,"p","metrics-small-note","One current PDF per activity and report type. Uploading a replacement advances its file version.");
     const grid=add(form,"div","library-fields"),fields={};
     function input(key,label,type="text",limit=180){
       const l=add(grid,"label","",label),n=add(l,key==="caption"?"textarea":"input");
       if(key!=="caption")n.type=type;n.maxLength=limit;n.value=existing?.[key]||"";fields[key]=n;return n;
     }
     input("title","Title").required=true;
-    fields.project=select(grid,"Project",PROJECTS.map(v=>[v,v]),existing?.project||"Whole project",()=>{});
+    fields.project=select(grid,kind==="reports"?"Activity":"Project",PROJECTS.map(v=>[v,v]),existing?.project||"Whole project",()=>{});
     // Preserve existing/custom project labels rather than silently changing them.
     if(existing?.project&&!PROJECTS.includes(existing.project)){const o=add(fields.project,"option","",existing.project);o.value=existing.project;fields.project.value=existing.project}
-    fields.folder_id=select(grid,"Folder",[["","No folder"],...folders.map(f=>[f.id,f.name])],existing?.folder_id||filters.folder,()=>{});
+    if(kind==="photos")fields.folder_id=select(grid,"Folder",[["","No folder"],...folders.map(f=>[f.id,f.name])],existing?.folder_id||filters.folder,()=>{});
+    if(kind==="reports"){
+      const types=["Closeout","Verification","Maintenance","Innovation","Assembly","Other"];
+      if(existing?.report_type&&!types.includes(existing.report_type))types.push(existing.report_type);
+      fields.report_type=select(grid,"Report type",types.map(v=>[v,v]),existing?.report_type||"Closeout",()=>{});
+      input("submitted_on","Date submitted to register","date").value=replace?localDateTime(new Date().toISOString()).slice(0,10):existing?.submitted_on||localDateTime(new Date().toISOString()).slice(0,10);
+    }
     input("prototype","Prototype version","text",100).placeholder="e.g. V1.2";
-    input("captured_at",kind==="reports"?"Report date & time (local, optional)":"Photo date & time (local, optional)","datetime-local").value=localDateTime(existing?.captured_at);
-    input("location","Location (optional)");input("activity","Activity (optional)");input("asset","Asset / instrument ID (optional)");
+    if(kind==="photos"){
+      input("captured_at","Photo date & time (local, optional)","datetime-local").value=localDateTime(existing?.captured_at);
+      input("location","Location (optional)");input("activity","Activity (optional)");input("asset","Asset / instrument ID (optional)");
+    }
     input("caption","Notes (optional)","text",1000);
     let file=null;
-    if(!existing){
+    if(!existing||replace){
       file=input("file",kind==="reports"?"PDF (up to 20 MB)":"Photo (JPG, PNG or WebP, up to 20 MB)","file");
       file.accept=kind==="reports"?"application/pdf":"image/jpeg,image/png,image/webp";file.required=true;
     }
     const actions=add(form,"div","library-actions");
-    const submit=add(actions,"button","metrics-button primary",existing?"Save reference":"Upload "+noun);submit.type="submit";
+    const submitText=replace?"Replace PDF":existing?"Save reference":"Upload "+noun;
+    const submit=add(actions,"button","metrics-button primary",submitText);submit.type="submit";
     const cancel=button(actions,"Cancel",()=>form.remove());
     const error=add(form,"p","metrics-small-note");error.setAttribute("role","alert");
     // Keep an upload reservation for retry, including a finish failure after upload.
@@ -92,8 +103,9 @@ export function createProjectLibrary(client,root,kind){
       submit.textContent=existing?"Saving…":"Uploading…";form.setAttribute("aria-busy","true");
       Object.values(fields).forEach(n=>n.disabled=true);
       try{
-        const metadata=libraryMetadata(Object.fromEntries(Object.entries(fields).filter(([k])=>k!=="file").map(([k,n])=>[k,n.value])));
-        if(existing){
+        const metadata=libraryMetadata(Object.fromEntries(Object.entries(fields).filter(([k])=>k!=="file").map(([k,n])=>[k,n.value])),kind);
+        if(replace){metadata.replaces_id=existing.id;metadata.replaces_revision=existing.revision}
+        if(existing&&!replace){
           check(await client.rpc("cosme_library_save",{p_kind:kind,p_metadata:metadata,p_id:existing.id,p_revision:existing.revision}));
         }else{
           const selected=file.files[0];
@@ -117,7 +129,7 @@ export function createProjectLibrary(client,root,kind){
         }
         if(ticket!==epoch)return;form.remove();busy=false;await load();
       }catch(e){if(ticket===epoch)error.textContent=e.message||"Could not save. Your fields are kept; retry when connected."}
-      finally{if(ticket===epoch){busy=false;submit.disabled=false;cancel.disabled=false;submit.textContent=existing?"Save reference":"Upload "+noun;form.setAttribute("aria-busy","false");Object.values(fields).forEach(n=>n.disabled=false)}}
+      finally{if(ticket===epoch){busy=false;submit.disabled=false;cancel.disabled=false;submit.textContent=submitText;form.setAttribute("aria-busy","false");Object.values(fields).forEach(n=>n.disabled=false)}}
     });
     fields.title.focus();
   }
@@ -168,7 +180,7 @@ export function createProjectLibrary(client,root,kind){
     root.replaceChildren();
     const heading=add(root,"div","library-heading");add(heading,"h3","",kind==="reports"?"Reports":"Project photos");
     const actions=add(heading,"div","library-actions");
-    if(canEdit){button(actions,"Add "+noun,()=>editor());button(actions,"New folder",folderForm)}
+    if(canEdit){button(actions,"Add "+noun,()=>editor());if(kind==="photos")button(actions,"New folder",folderForm)}
     button(actions,"Refresh",()=>{if(!busy)load()});
     const notice=add(root,"p","metrics-small-note",message);notice.hidden=!message;notice.dataset.libraryStatus="";notice.setAttribute("role",failed?"alert":"status");
     const controls=add(root,"div","library-filters");
@@ -177,9 +189,9 @@ export function createProjectLibrary(client,root,kind){
     const change=key=>value=>{filters[key]=value;page=0;draw()};
     const details=add(root,"details","library-more-filters");add(details,"summary","","Filters");
     const more=add(details,"div","library-filters");
-    select(more,"Folder",[["","All folders"],...folders.map(f=>[f.id,f.name])],filters.folder,change("folder"));
-    select(more,"Project",[["","All projects"],...[...new Set([...PROJECTS,...items.map(i=>i.project)])].map(v=>[v,v])],filters.project,change("project"));
-    for(const [key,label] of [["prototype","Prototype"],["location","Location"],["activity","Activity"],["asset","Asset"]]){
+    if(kind==="photos")select(more,"Folder",[["","All folders"],...folders.map(f=>[f.id,f.name])],filters.folder,change("folder"));
+    select(more,kind==="reports"?"Activity":"Project",[["","All activities"],...[...new Set([...PROJECTS,...items.map(i=>i.project)])].map(v=>[v,v])],filters.project,change("project"));
+    for(const [key,label] of (kind==="reports"?[["report_type","Report type"],["prototype","Prototype"]]:[["prototype","Prototype"],["location","Location"],["activity","Activity"],["asset","Asset"]])){
       const values=[...new Set([...items,...EXAMPLES.filter(x=>x.kind===kind)].map(i=>i[key]).filter(Boolean))].sort();
       select(more,label,[["","All"],...values.map(v=>[v,v])],filters[key],change(key));
     }
@@ -192,9 +204,24 @@ export function createProjectLibrary(client,root,kind){
     const selected=filterLibrary(items,filters);page=Math.min(page,Math.max(0,Math.ceil(selected.length/pageSize)-1));
     add(root,"p","metrics-small-note",selected.length+" "+(selected.length===1?noun:kind)+(canEdit?"":" · Read only"));
     const list=add(root,"div",kind==="photos"?"library-gallery":"library-report-list");
-    for(const item of selected.slice(page*pageSize,(page+1)*pageSize))card(item,list);
+    const slice=selected.slice(page*pageSize,(page+1)*pageSize);
+    if(kind==="reports"&&slice.length){
+      const table=add(list,"table","library-report-table"),head=add(table,"thead"),hr=add(head,"tr");
+      const headers=["Report","Activity","Report type","Submitted","File version","PDF"];
+      for(const title of headers)add(hr,"th","",title).scope="col";
+      const body=add(table,"tbody");
+      for(const item of slice){
+        const row=add(body,"tr");
+        const values=[item.title,item.project,item.report_type,item.submitted_on||"Not recorded","V"+(item.file_version||1)];
+        values.forEach((value,i)=>{const td=add(row,"td","",value);td.dataset.label=headers[i]});
+        const cell=add(row,"td");cell.dataset.label="PDF";
+        const actions=add(cell,"div","library-actions");button(actions,"Open PDF",()=>openFile(item));button(actions,"Download",()=>openFile(item,true));
+        if(canEdit){button(actions,"Edit metadata",()=>editor(item));button(actions,"Replace PDF",()=>editor(item,true))}
+      }
+    }else for(const item of slice)card(item,list);
     if(!selected.length)add(list,"p","metrics-small-note",items.length?"No matching references.":"No "+kind+" added yet.");
     if(selected.length>pageSize){const pages=add(root,"div","library-actions");button(pages,"Previous",()=>{page--;draw()}).disabled=page===0;add(pages,"span","metrics-small-note",`Page ${page+1} of ${Math.ceil(selected.length/pageSize)}`);button(pages,"Next",()=>{page++;draw()}).disabled=(page+1)*pageSize>=selected.length}
+    if(kind==="reports")return;
     const sample=add(root,"details","library-examples");sample.open=examples;
     const summary=add(sample,"summary","","Examples (not saved)");
     sample.addEventListener("toggle",()=>{examples=sample.open});

@@ -1,5 +1,13 @@
 # Project Metrics expenses, reports and photos
 
+## Approved release revision
+
+On 2 November the owner approved applying the private library and releasing PR #159, then changed Reports from folders to a working metadata table. The subsequent instruction "forget the pdfs, do the rest. approved for release" cancels PDF conversion/example uploads and explicitly authorises this final implementation and its manual production migration, merge and publication. Automatic deployment controls remain disabled and unchanged.
+
+Final Reports UI: one current report for each activity and report type, with title, activity, type, date submitted to the register and file version. Editors can edit metadata or replace the PDF; uploading the same activity/type replaces its current reference after successful upload. Failed or concurrent stale replacements never hide or overwrite the current file. File version advances on replacement. Superseded internal files are inaccessible to library clients, retained only to permit safe rollback; there is no version-history UI. No Reports folder controls or illustrative report rows. Photos retain their folders and explicitly labelled illustrative metadata.
+
+Final revision verification: 45 focused checks pass, including database replacement/failure/concurrency checks and report-date/type validation. Synthetic real-browser preview at 390 px confirms no width overflow, working table metadata, absence of report-folder controls, and failed replacement/retry leaving exactly one current V2 row. This is synthetic testing only; no source PDFs or sample records are to be uploaded to production. Earlier progress notes below describe the initial draft and are superseded by this section.
+
 Direct request: owner voice dictation in Codex on 2 November 2026. The owner explicitly approved the implementation, test and rollback plan in the in-chat approval question. This is a direct request, not an automated suggestion.
 
 Repository: seaweed-harvest/seaweed-harvest.github.io. Base live/main `2307bab27ecc0a07f58d65694356febc416ec5c1`. Branch `feature/metrics-expenses-reports-photos-20261102`. Lane C for finance presentation and private file storage; Lane B for feature/UI. Implementation authorised; production database writes, merge and deployment require separate approval. Preserve existing audience, COSME grants and financial source records.

@@ -44,6 +44,15 @@ test('metadata validation trims fields, keeps missing time null and converts loc
   assert.throws(()=>libraryMetadata({...input,captured_at:'nonsense'}),/date/);
   const iso='2026-10-04T12:30:00Z';assert.equal(new Date(localDateTime(iso)).toISOString(),iso.replace(':00Z',':00.000Z'));
 });
+test('report register uses submission dates and report types independently of photo capture dates',()=>{
+  const row={kind:'reports',title:'Sample report',project:'Solar Drying Tables',report_type:'Closeout',submitted_on:'2026-11-02'};
+  assert.equal(filterLibrary([row],{from:'2026-11-02',to:'2026-11-02',report_type:'Closeout'}).length,1);
+  assert.equal(filterLibrary([row],{report_type:'Verification'}).length,0);
+  assert.throws(()=>libraryMetadata({title:'Report',project:'Solar Drying Tables'},'reports'),/submission|submitted/);
+  const code=read('../assets/js/cosme_project_library.mjs');
+  assert.match(code,/library-report-table/);assert.match(code,/Replace PDF/);assert.match(code,/file_version/);
+  assert.match(code,/if\(kind===\"photos\"\)button\(actions,\"New folder\"/);
+});
 test('file bytes, non-empty size and size limits control accepted reports and photos',async()=>{
   const file=(name,bytes,size=bytes.length)=>({name,size,slice:()=>new Blob([new Uint8Array(bytes)])});
   assert.equal((await validateLibraryFile('reports',file('x.pdf',[37,80,68,70,45]))).mime_type,'application/pdf');
