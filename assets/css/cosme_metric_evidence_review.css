@@ -1,0 +1,27 @@
+/* Compact, accessible read-only review of MCP metric evidence and proposals. */
+.metric-proposals-toolbar { display:flex;justify-content:flex-end;margin:0 0 .6rem; }
+.metric-proposals-heading { display:flex; flex-wrap:wrap;align-items:baseline;gap:.5rem 1rem; }
+.metric-proposals-heading h3 { margin:0; }
+.metric-proposals-list { display:grid;gap:.7rem;margin-top:.8rem; }
+.metric-proposal-card {
+  border:1px solid var(--border,#d7e2df);border-radius:10px;padding:.85rem 1rem;
+  background:var(--surface,#fff);overflow-wrap:anywhere;
+}
+.metric-proposal-card p {margin:.35rem 0 0;}
+.metric-proposal-title {display:flex;gap:.5rem 1rem;align-items:baseline;justify-content:space-between;flex-wrap:wrap;}
+.metric-proposal-value {font-weight:700;font-variant-numeric:tabular-nums;}
+.metric-proposal-notes {white-space:pre-wrap;}
+.metric-proposal-evidence {margin-top:.55rem;}
+.metric-proposal-evidence summary {cursor:pointer;min-height:44px;display:flex;align-items:center;}
+.metric-linked-photos {margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--border,#d7e2df);}
+.metric-linked-photos h3 {margin:.15rem 0 .6rem;}
+.metric-reference-gallery {display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,180px),1fr));gap:.7rem;}
+.metric-reference-photo {border:1px solid var(--border,#d7e2df);border-radius:8px;padding:.55rem;min-width:0;}
+.metric-reference-photo img {display:block;object-fit:cover;width:100%;aspect-ratio:4/3;border-radius:6px;margin:.45rem 0;}
+.metric-reference-photo-title {font-weight:600;overflow-wrap:anywhere;margin:0;}
+.metric-reference-photo .metrics-button {display:inline-block;min-height:44px;line-height:2.8;text-decoration:none;padding:0 .7rem;margin-top:.2rem;}
+@media(max-width:600px) {
+  .metric-proposals-toolbar {padding:0 .2rem;}
+  .metric-proposal-card {padding:.75rem;}
+  .metric-reference-gallery {grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem;}
+}
