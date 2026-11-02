@@ -14,7 +14,8 @@ import { createMawimbiOperationsPanel } from "./cosme_mawimbi_operations.mjs?v=1
 import { createMawimbiStockQcPanel } from "./cosme_mawimbi_stock_qc.mjs?v=1";
 import { createMawimbiTraceabilityPanel } from "./cosme_mawimbi_traceability.mjs?v=1";
 import { createMetricsTimeline } from "./cosme_metrics_timeline.mjs?v=3";
-import { createCosmeFinancesPanel } from "./cosme_finances_panel.mjs?v=6";
+import { createCosmeFinancesPanel } from "./cosme_finances_panel.mjs?v=7";
+import { createProjectLibrary } from "./cosme_project_library.mjs?v=2";
 import { createOperationalIndicators } from "./cosme_operational_indicators.mjs?v=2";
 import { metricDisplayName, withMetricPresentation } from "./cosme_metrics_labels.mjs?v=1";
 
@@ -39,6 +40,8 @@ const timelinePanel = createMetricsTimeline(authClient,el("metricsTimeline"),(id
 });
 const financesPanel = createCosmeFinancesPanel(authClient,el("cosmeFinances"));
 let financesLoaded = false;
+const libraries={reports:createProjectLibrary(authClient,el("projectReports"),"reports"),photos:createProjectLibrary(authClient,el("projectPhotos"),"photos")};
+const librariesLoaded=new Set();
 const ACTIVITY_ORDER = ["Solar Drying Tables", "Offshore Nursery", "Aggregation Hub", "Mawimbi", "Off-bottom Farming"];
 const STORAGE_KEY = "seaweed_ag:cosme_metric_columns_v2";
 const HIDDEN_KEY_PREFIX = "seaweed_ag:cosme_hidden_metric_ids_v1:";
@@ -162,6 +165,8 @@ function clearPrivateState() {
   timelinePanel.clear();
   financesPanel.clear();
   financesLoaded = false;
+  Object.values(libraries).forEach(panel=>panel.clear());
+  librariesLoaded.clear();
   el("rows").replaceChildren();
   el("activityCards").replaceChildren();
 
@@ -308,7 +313,10 @@ function tab(name) {
   for (const button of document.querySelectorAll(".metrics-tabs .tab")) {
     button.setAttribute("aria-selected", String(button.dataset.tab === name));
   }
-  for (const view of ["overview", "register", "current", "timeline", "finances", "history"]) el(view).hidden = view !== name;
+  for (const view of ["overview", "register", "current", "timeline", "finances", "reports", "photos", "history"]) el(view).hidden = view !== name;
+  if(libraries[name]&&access&&!librariesLoaded.has(name)){
+    librariesLoaded.add(name);libraries[name].load();
+  }
   if (name === "finances" && access && !financesLoaded) {
     financesLoaded = true;
     financesPanel.load();
@@ -1019,6 +1027,7 @@ async function reloadAndRecheck() {
   renderConnectionStatus();
   el("app").hidden = false;
   if (financesLoaded) financesPanel.load();
+  for(const name of librariesLoaded)libraries[name].load();
   renderRegisterSummary();
   renderRows();
 }

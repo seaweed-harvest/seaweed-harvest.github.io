@@ -1,5 +1,5 @@
 import {BASIS,money,amountOrNull,normalizeFinanceData,activityGroups,exportFinanceCsv,effectiveFinanceBasis} from "./cosme_finances_core.mjs?v=3";
-import {expenseOverview,projectOverview,referenceFor,itemDescription,reportMetadata,itemisationFor} from "./cosme_finances_view.mjs?v=3";
+import {expenseOverview,projectOverview,referenceFor,itemDescription,reportMetadata,itemisationFor} from "./cosme_finances_view.mjs?v=4";
 
 // Read-only project reference: separate estimates/quotes/invoices from expense claims.
 const make=(tag,cls="",value)=>{
@@ -103,8 +103,8 @@ function sourceLineTable(lines,p,showDates=false){
     const details=add(item,"div","finance-mobile-item");
     add(details,"span","finance-mobile-item-name",line.item_detail||itemDescription(line)||"Unspecified item");
     const info=[showDates?line.entry_date:null,
-      line.quantity==null?null:String(line.quantity)+" "+(line.unit||""),
-      line.source_row||null].filter(Boolean).join(" · ");
+      line.category==="Software & hosting"&&/t\s*\/\s*h sensing|data logger/i.test(line.original_product||"")?"For Data Loggers":null,
+      line.quantity==null?null:String(line.quantity)+" "+(line.unit||"")].filter(Boolean).join(" · ");
     if(info)add(details,"small","finance-mobile-item-meta",info);
     add(item,"strong","finance-mobile-item-cost",
       amountOrNull(line.amount)===null?"—":money(line.amount,p.currency));
@@ -178,6 +178,12 @@ function expenseSections(p){
     add(summary,"strong","finance-money",money(cat.amount,p.currency));
     const lines=cat.groups.flatMap(g=>g.lines);
     d.append(sourceLineTable(lines,p,true));
+  }
+  const additional=(p.lines||[]).filter(l=>l.included_in_total===false||amountOrNull(l.amount)===null);
+  if(additional.length){
+    const d=add(box,"details","finance-category");
+    add(d,"summary","finance-category-line","Excluded or unpriced items (not in total)");
+    d.append(sourceLineTable(additional,p,true));
   }
   return box;
 }

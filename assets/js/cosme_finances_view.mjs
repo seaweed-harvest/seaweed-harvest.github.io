@@ -4,21 +4,30 @@ import {activityGroups,breakdown} from "./cosme_finances_core.mjs?v=3";
 const lower=value=>String(value||"").trim().toLowerCase();
 const clean=value=>String(value||"").trim();
 export function expenseActivity(pkg,line){
-  const desc=lower(line.description);
+  const desc=lower([line.description,line.item_detail].filter(Boolean).join(" "));
+  const product=lower(line.original_product);
   const source=lower(pkg.activity);
   const category=lower(line.category);
-  if(category==="travel"||/travel\s*\/\s*m-pesa|travel expense|travel -|transit|flight|accommodation/.test(desc))return "Travel";
+  // Software is a reporting project of its own, even when bought for a logger.
+  if(category==="software"||/fusion 360|github|git hub|codex|tide app.*database/.test(desc))return "Software";
+  if(/t\s*\/\s*h sensing|data logger/.test(product)||/sim credit|sim card|cell data logging/.test(desc))return "Data Loggers";
   if(/controller\s*-\s*electronics|solar fan.*wind sensing|data logger/.test(desc))return "Data Loggers";
+  if(/mawimbi/.test(product+" "+desc)||source.includes("mawimbi"))return "Mawimbi";
+  if(/offshore nursery/.test(product))return "Offshore Nursery";
+  if(/aggregation hub/.test(product))return "Aggregation Hub";
+  if(/dryer table/.test(product))return "Solar Drying Tables";
   if(/aggregation|sorting table|baler|bailer|power installation assessment/.test(desc))return "Aggregation Hub";
   if(/weld equipment|greenhouse material installation|dry(er)? table.*data collection/.test(desc))return "Solar Drying Tables";
   if(source.includes("offshore nursery"))return "Offshore Nursery";
   if(source.includes("solar drying tables"))return "Solar Drying Tables";
   if(source.includes("aggregation hub"))return "Aggregation Hub";
+  if(category==="travel"||/travel\s*\/\s*m-pesa|travel expense|travel -|transit|flight|accommodation/.test(desc))return "Travel";
   return "Project / Other";
 }
 export function expenseCategory(line,activity){
-  const desc=lower(line.description),raw=clean(line.category);
-  if(activity==="Travel")return "Travel";
+  const desc=lower([line.description,line.item_detail].filter(Boolean).join(" ")),raw=clean(line.category);
+  if(activity==="Travel"||lower(raw)==="travel")return "Travel";
+  if(activity==="Software")return "Software & hosting";
   if(activity==="Data Loggers")return /sim credit|sim card|data credit/.test(desc)?"Connectivity":"Electronics & sensing";
   if(/storage/.test(desc))return "Storage & supplies";
   if(/greenhouse material installation|labour|visit to site|assessment/.test(desc))return "Labour & services";
@@ -27,7 +36,8 @@ export function expenseCategory(line,activity){
 export function itemDescription(line){
   const detailed=clean(line.display_item||line.item_detail);
   if(detailed)return detailed;
-  const name=clean(line.description)||"Unspecified expense";
+  if(Number(line.amount)<0&&/^(expense|unspecified expense)?$/i.test(clean(line.description)))return "Credit / adjustment";
+  const name=clean(line.description)||(Number(line.amount)<0?"Credit / adjustment":"Unspecified expense");
   // Receipt/supplier reference is useful, but never invent a list of components.
   if(/controller\s*-\s*electronics/i.test(name)){
     const supplier=String(line.note||"").match(/Supplier:\s*([^;]+)/i)?.[1]?.trim();
@@ -40,16 +50,18 @@ export function expenseOverview(packages){
   for(const pkg of packages.filter(p=>p.activity.startsWith("COSME Procurement"))){
     for(const line of pkg.lines||[]){
       const activity=expenseActivity(pkg,line);
-      if(!groups.has(activity))groups.set(activity,[]);
-      groups.get(activity).push({...line,category:expenseCategory(line,activity),
+      const key=JSON.stringify([activity,pkg.currency,pkg.basis]);
+      if(!groups.has(key))groups.set(key,{activity,currency:pkg.currency,basis:pkg.basis,lines:[]});
+      groups.get(key).lines.push({...line,source_package_id:pkg.id,
+        source_name:pkg.source?.display_name||"",category:expenseCategory(line,activity),
         subcategory:activity,item_detail:itemDescription(line)});
     }
   }
-  const order=["Travel","Data Loggers","Solar Drying Tables","Aggregation Hub","Offshore Nursery","Project / Other"];
-  return [...groups].map(([activity,lines])=>({
-    id:"expense:"+activity,package_key:"expense:"+activity,
+  const order=["Travel","Data Loggers","Software","Solar Drying Tables","Aggregation Hub","Offshore Nursery","Mawimbi","Project / Other"];
+  return [...groups].map(([key,{activity,currency,basis,lines}])=>({
+    id:"expense:"+key,package_key:"expense:"+key,
     activity:"COSME Procurement — "+activity,version:"Expense register",
-    basis:"paid",currency:"CAD",unit_label:null,units_covered:1,
+    basis,currency,unit_label:null,units_covered:1,
     reconciliation_status:"review",control_total:null,source:{display_name:"COSME procurement claims"},
     lines,summary:breakdown({lines,control_total:null})
   })).sort((a,b)=>order.indexOf(a.activity.replace("COSME Procurement — ",""))-

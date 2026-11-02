@@ -1,0 +1,43 @@
+.project-library {display:grid;gap:16px;min-width:0}
+.project-library .library-heading,.project-library .library-actions {display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.project-library .library-heading {justify-content:space-between}
+.project-library .library-heading h3 {margin:0}
+.project-library>p.metrics-small-note {margin:0}
+.project-library label {display:grid;gap:5px;font-size:.85rem;min-width:0}
+.project-library input,.project-library select,.project-library textarea {box-sizing:border-box;width:100%;min-width:0;padding:9px;border:1px solid var(--border-soft);border-radius:6px;background:var(--bg-panel,#fff);color:var(--text);font:inherit}
+.project-library .library-filters,.project-library .library-fields {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:12px}
+.project-library .library-more-filters>summary,.project-library .library-examples>summary {padding:10px 0;cursor:pointer;font-size:.9rem}
+.project-library .library-gallery {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,245px),1fr));gap:16px}
+.project-library .library-report-list {display:grid;gap:12px}
+.project-library .library-report-table {width:100%;border-collapse:collapse;table-layout:fixed;font-size:.85rem}
+.project-library .library-report-table th,.project-library .library-report-table td {padding:10px 8px;border-bottom:1px solid var(--border-soft);text-align:left;vertical-align:top;overflow-wrap:anywhere}
+.project-library .library-report-table th:first-child {width:23%}
+.project-library .library-report-table th:last-child {width:25%}
+.project-library .library-card {display:grid;align-content:start;gap:8px;padding:14px;border:1px solid var(--border-soft);border-radius:8px;min-width:0;overflow-wrap:anywhere}
+.project-library .library-card h3 {font-size:1rem;margin:0}
+.project-library .library-card p {margin:0}
+.project-library .library-context {font-size:.85rem;color:var(--text-sec)}
+.project-library .library-photo {aspect-ratio:4/3;background:var(--bg-soft,#f0f4f3);display:grid;place-items:center;overflow:hidden;border-radius:5px}
+.project-library .library-photo img {width:100%;height:100%;object-fit:contain}
+.project-library .library-example {border-style:dashed}
+.project-library .library-example .library-photo {aspect-ratio:auto;min-height:56px}
+.project-library .library-editor {display:grid;gap:14px;border-top:1px solid var(--border-soft);padding-top:16px}
+.project-library .library-folder-form {display:flex;align-items:end;flex-wrap:wrap;gap:10px}
+.project-library [role=alert] {color:var(--danger,#b42318)}
+.project-library .library-viewer {box-sizing:border-box;width:min(94vw,1100px);max-width:94vw;max-height:94vh;padding:16px;border:1px solid var(--border-soft);border-radius:8px;background:var(--panel);color:var(--text)}
+.project-library .library-viewer::backdrop {background:rgb(0 0 0 / .55)}
+.project-library .library-viewer h3 {min-width:0;overflow-wrap:anywhere}
+.project-library .library-viewer-content {margin-top:12px}
+.project-library .library-viewer iframe {display:block;width:100%;height:72vh;border:0}
+.project-library .library-viewer img {display:block;max-width:100%;max-height:72vh;margin:auto;object-fit:contain}
+@media(max-width:700px){
+ .project-library .library-report-table thead {display:none}
+ .project-library .library-report-table,.project-library .library-report-table tbody,.project-library .library-report-table tr {display:block;width:100%}
+ .project-library .library-report-table tr {padding:10px 0;border-bottom:1px solid var(--border-soft)}
+ .project-library .library-report-table td {display:grid;grid-template-columns:100px minmax(0,1fr);gap:8px;border:0;padding:6px 0}
+ .project-library .library-report-table td::before {content:attr(data-label);font-weight:600;color:var(--text-sec)}
+ .project-library input,.project-library select,.project-library textarea {font-size:16px;min-height:44px}
+ .project-library .metrics-button {min-height:44px}
+ .project-library .library-heading {align-items:start}
+ .project-library .library-card {padding:12px}
+}
