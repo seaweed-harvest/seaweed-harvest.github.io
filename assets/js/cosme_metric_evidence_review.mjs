@@ -78,6 +78,7 @@ export function createMetricEvidenceReview(client,photoRoot,draftsRoot){
       if(!matches.length)return;
       photoRoot.hidden=false;
       append(photoRoot,"h3","Linked project photos");
+      append(photoRoot,"p","Current references · separate from frozen release evidence.","metrics-small-note");
       const gallery=append(photoRoot,"div","","metric-reference-gallery");
       for(const photo of matches.slice(0,20))
         void photoLink(gallery,photo,ticket,detailTicket);
@@ -120,7 +121,7 @@ export function createMetricEvidenceReview(client,photoRoot,draftsRoot){
         const status=({
           draft:"Draft",ready_for_review:"Ready for review",
           approved:"Approved · not published"
-        })[row.review_status]||"Draft";
+        })[row.review_status]||"Review state unavailable";
         append(heading,"span",status+" · revision "+row.revision,"metrics-small-note");
         const label=row.target_metric_id?"Proposed update · "+row.target_metric_id:"Proposed new metric";
         append(item,"p",row.activity+" · "+label,"metrics-small-note");
