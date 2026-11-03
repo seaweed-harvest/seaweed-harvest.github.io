@@ -62,3 +62,28 @@ test('list uses a larger preview and caption beneath the full row, never file si
   assert.match(css,/library-photo-row \.library-row-caption\{/);
   assert.match(css,/grid-column:1\/-1/);
 });
+
+
+test('browser batch upload uses parallel transfer slots with serial image preparation',()=>{
+  const src=read('../assets/js/cosme_project_library.mjs');
+  assert.match(src,/Array\.from\(\{length:Math\.min\(3,work\.length\)\}/);
+  assert.match(src,/prepareQueue=Promise\.resolve\(\)/);
+  assert.match(src,/prepareQueue=p\.catch\(\(\)=>\{\}\)/);
+  assert.match(src,/Stop remaining/);
+  assert.match(src,/Retry \"\+remaining\+\" remaining photo/);
+});
+test('voice-dictated batch descriptions remain attached to each photo for ChatGPT',()=>{
+  const src=read('../assets/js/cosme_project_library.mjs');
+  assert.match(src,/library-batch-note-label/);
+  assert.match(src,/batch_description:settings\.note/);
+  assert.match(src,/batch_id:batch\.batchId/);
+  assert.match(src,/caption:settings\.note\.slice\(0,1000\)/);
+  assert.match(src,/library-upload-savings/);
+});
+test('image optimisation avoids increasing storage and preserves camera metadata',()=>{
+  const exif=read('../assets/js/cosme_photo_exif.mjs');
+  assert.match(exif,/maxEdge=1920,quality=0\.80/);
+  assert.match(exif,/const keepOriginal=supported&&factor===1&&file\.size<=candidate\.size/);
+  assert.match(exif,/const targetMime=mime==="image\/png"\?"image\/png":"image\/jpeg"/);
+  assert.match(exif,/const metadata=readPhotoExif/);
+});
