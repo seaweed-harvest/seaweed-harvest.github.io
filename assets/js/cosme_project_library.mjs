@@ -221,7 +221,11 @@ export function createProjectLibrary(client,root,kind){
     const form=add(root,"form","library-batch-form");
     const head=add(form,"div","library-heading");
     add(head,"h3","","Upload photos");
-    button(head,"Cancel",()=>form.remove());
+    let stopRequested=false,batch=null;
+    const cancel=button(head,"Cancel",()=>{
+      if(busy){stopRequested=true;cancel.disabled=true;cancel.textContent="Stopping…"}
+      else form.remove();
+    });
     const grid=add(form,"div","library-fields");
     const chooser=add(grid,"label","","Select images");
     const files=add(chooser,"input");files.type="file";files.multiple=true;
@@ -230,51 +234,164 @@ export function createProjectLibrary(client,root,kind){
     const activityLabel=add(grid,"label","","Activity"),activity=add(activityLabel,"input");activity.value=filters.activity||"";
     const locationLabel=add(grid,"label","","Location"),location=add(locationLabel,"input");location.value=filters.location||"";
     const assetLabel=add(grid,"label","","Asset / raft"),asset=add(assetLabel,"input");asset.value=filters.asset||"";
-    const note=add(form,"p","metrics-small-note","Camera date and GPS are saved when present. Images are optimised for storage.");
+    const noteLabel=add(form,"label","library-batch-note-label","Batch description");
+    const note=add(noteLabel,"textarea");
+    note.rows=3;note.maxLength=2500;
+    note.placeholder="Describe these photos together. You can use your phone's keyboard microphone.";
+    add(form,"p","metrics-small-note","One note for the whole batch; ChatGPT can add individual descriptions later.");
     const run=add(form,"button","metrics-button primary","Upload selected photos");run.type="submit";
-    const feedback=add(form,"p","metrics-small-note");feedback.setAttribute("role","status");
+    const feedback=add(form,"div","library-upload-progress");
+    feedback.setAttribute("role","status");feedback.setAttribute("aria-live","polite");
+    const countLine=add(feedback,"div","library-upload-status");
+    const meter=add(feedback,"progress","library-upload-meter");
+    meter.max=100;meter.value=0;meter.hidden=true;
+    const savings=add(feedback,"div","library-upload-savings");
+    const errorLine=add(feedback,"div","library-upload-errors");
+    const formatMB=bytes=>(bytes/1048576).toFixed(1)+" MB";
+    const showProgress=()=>{
+      if(!batch)return;
+      const {saved,failed,active,sourceBytes,storedBytes,total,skipped}=batch;
+      const pending=total-saved-failed-skipped;
+      countLine.textContent=saved+" of "+(total-skipped)+" saved"+
+        (active?" · "+active+" uploading":"")+(failed?" · "+failed+" failed":"");
+      meter.hidden=false;meter.value=Math.round(100*(saved+failed+skipped)/total);
+      savings.textContent=sourceBytes?("Photos saved: "+formatMB(sourceBytes)+" original → "+
+        formatMB(storedBytes)+" stored ("+Math.round((1-storedBytes/sourceBytes)*100)+"%"+
+        (storedBytes<=sourceBytes?" smaller":" larger")+")"):"";
+      if(batch.errors.length){
+        errorLine.textContent=batch.errors.slice(0,2).join(" · ")+
+          (batch.errors.length>2?" · +"+(batch.errors.length-2)+" more":"");
+      }else errorLine.textContent="";
+    };
     form.addEventListener("submit",async e=>{
-      e.preventDefault();if(busy||!files.files.length)return;
-      const entries=[...files.files];busy=true;run.disabled=true;files.disabled=true;
-      const duplicates=new Set();
-      let completed=0,failed=0;
-      for(let i=0;i<entries.length;i++){
-        const original=entries[i];
-        if(duplicates.has(original.name+"|"+original.size+"|"+original.lastModified)){failed++;continue}
-        duplicates.add(original.name+"|"+original.size+"|"+original.lastModified);
-        feedback.textContent="Uploading "+(i+1)+" of "+entries.length+"…";
-        try{
-          const prep=await prepareLibraryImage(original),file=prep.file;
-          const details=await validateLibraryFile("photos",file);
-          const capture=captureTimestamp(prep.metadata);
-          const title=original.name.replace(/\.[^.]+$/,"").replace(/[_-]+/g," ").slice(0,180)||"Project photo";
-          const gps=prep.metadata.gps;
-          const place=location.value.trim()||(
-            gps&&Number.isFinite(gps.latitude)&&Number.isFinite(gps.longitude)?
-            "GPS: "+gps.latitude.toFixed(6)+", "+gps.longitude.toFixed(6):""
-          );
-          const metadata={title,project:project.value,activity:activity.value.trim(),
-            location:place,asset:asset.value.trim(),caption:"",captured_at:capture.value,
-            prototype:"",...details};
-          const reservation=check(await client.rpc("cosme_library_save",{p_kind:"photos",p_metadata:metadata}));
-          const stored=await client.storage.from(LIBRARY_BUCKET).upload(reservation.object_path,file,{
-            contentType:details.mime_type,upsert:false});
-          if(stored.error)throw stored.error;
-          check(await client.rpc("cosme_library_finish",{p_id:reservation.id}));
-          const captureMeta={...prep.metadata,capture_source:capture.source,optimized:prep.optimized};
-          const saved=await client.rpc("cosme_library_photo_capture",{
-            p_id:reservation.id,p_expected_revision:reservation.revision,
-            p_metadata:captureMeta,p_source:"web"
-          });
-          if(saved.error)feedback.textContent="Saved image; camera metadata could not be added: "+(saved.error.message||"Try editing later");
-          completed++;
-        }catch(err){failed++;feedback.textContent=original.name+": "+(err.message||"Upload failed")}
+      e.preventDefault();if(busy)return;
+      const isRetry=!!(batch?.remaining?.length);
+      if(!isRetry&&!files.files.length)return;
+      stopRequested=false;
+      const entries=isRetry?batch.remaining:
+        [...files.files].map((original,index)=>({original,index}));
+      if(!isRetry){
+        const seen=new Set();
+        const unique=[];
+        let skipped=0;
+        for(const entry of entries){
+          const key=entry.original.name+"|"+entry.original.size+"|"+entry.original.lastModified;
+          if(seen.has(key)){skipped++;continue}
+          seen.add(key);unique.push(entry);
+        }
+        const snapshot={project:project.value,activity:activity.value.trim(),
+          location:location.value.trim(),asset:asset.value.trim(),note:note.value.trim()};
+        batch={batchId:crypto.randomUUID(),snapshot,remaining:unique,total:entries.length,
+          skipped,saved:0,failed:0,active:0,sourceBytes:0,storedBytes:0,errors:[]};
       }
+      batch.remaining=[];
+      batch.failed=0;batch.errors=[];
+      const work=entries.filter(e=>!isRetry||!!e);
+      busy=true;run.disabled=true;files.disabled=true;
+      for(const field of [project,activity,location,asset,note])field.disabled=true;
+      cancel.textContent="Stop remaining";cancel.disabled=false;
+      run.textContent="Uploading…";
+      // iPhones have limited decoding memory: prepare images one at a time,
+      // but transfer up to three smaller prepared images concurrently.
+      let prepareQueue=Promise.resolve(),next=0;
+      const prepare=original=>{
+        const p=prepareQueue.then(()=>prepareLibraryImage(original));
+        prepareQueue=p.catch(()=>{});
+        return p;
+      };
+      const transient=err=>{
+        const statusCode=Number(err?.statusCode||err?.status||0);
+        return !statusCode||[408,409,425,429].includes(statusCode)||statusCode>=500||
+          /timeout|network|fetch|connection|temporar/i.test(err?.message||"");
+      };
+      const saveOne=async({original,index})=>{
+        const settings=batch.snapshot;
+        const prep=await prepare(original);
+        const file=prep.file,details=await validateLibraryFile("photos",file);
+        const capture=captureTimestamp(prep.metadata);
+        const title=original.name.replace(/\.[^.]+$/,"").replace(/[_-]+/g," ").slice(0,180)||"Project photo";
+        const gps=prep.metadata.gps;
+        const place=settings.location||(
+          gps&&Number.isFinite(gps.latitude)&&Number.isFinite(gps.longitude)?
+          "GPS: "+gps.latitude.toFixed(6)+", "+gps.longitude.toFixed(6):""
+        );
+        const metadata={title,project:settings.project,activity:settings.activity,
+          location:place,asset:settings.asset,
+          caption:settings.note.slice(0,1000),captured_at:capture.value,
+          prototype:"",...details};
+        let reservation=null,uploaded=false,ready=false;
+        for(let attempt=0;attempt<3;attempt++){
+          try{
+            if(!reservation)reservation=check(await client.rpc("cosme_library_save",{
+              p_kind:"photos",p_metadata:metadata
+            }));
+            if(!uploaded){
+              const stored=await client.storage.from(LIBRARY_BUCKET).upload(
+                reservation.object_path,file,{contentType:details.mime_type,upsert:false});
+              // On a lost upload acknowledgement, a 409 may mean our reserved
+              // immutable object exists. Finish checks the exact object and bytes.
+              if(stored.error&&String(stored.error.statusCode||stored.error.status)!=="409")
+                throw stored.error;
+              uploaded=true;
+            }
+            if(!ready){
+              check(await client.rpc("cosme_library_finish",{p_id:reservation.id}));
+              ready=true;
+            }
+            break;
+          }catch(err){
+            if(attempt===2||!transient(err))throw err;
+            // Never reserve a new object during retries, avoiding duplicates.
+          }
+        }
+        const cameraData={...prep.metadata,capture_source:capture.source,optimized:prep.optimized,
+          batch_id:batch.batchId,batch_index:index+1,batch_total:batch.total,
+          batch_description:settings.note};
+        try{
+          check(await client.rpc("cosme_library_photo_capture",{
+            p_id:reservation.id,p_expected_revision:reservation.revision,
+            p_metadata:cameraData,p_source:"web"
+          }));
+        }catch{
+          // Photo is already confirmed ready; don't retry its upload or duplicate it.
+          batch.errors.push(original.name+": photo saved; extra metadata not saved");
+        }
+        batch.saved++;
+        batch.sourceBytes+=original.size;
+        batch.storedBytes+=file.size;
+      };
+      const workers=Array.from({length:Math.min(3,work.length)},async()=>{
+        while(next<work.length&&!stopRequested){
+          const entry=work[next++];
+          batch.active++;showProgress();
+          try{await saveOne(entry)}
+          catch(err){
+            batch.failed++;batch.remaining.push(entry);
+            batch.errors.push(entry.original.name+": "+(err?.message||"upload failed"));
+          }finally{batch.active--;showProgress()}
+        }
+      });
+      showProgress();
+      await Promise.all(workers);
+      if(next<work.length)batch.remaining.push(...work.slice(next));
       busy=false;
-      const message=completed+" of "+entries.length+" saved"+(failed?" · "+failed+" failed":"");
-      if(completed){form.remove();await load()}
-      else{run.disabled=false;files.disabled=false;feedback.textContent=message}
-      status(message,!!failed);
+      const remaining=batch.remaining.length;
+      const summary=batch.saved+" of "+(batch.total-batch.skipped)+" photos saved"+
+        (batch.skipped?" · "+batch.skipped+" duplicate skipped":"")+
+        (remaining?" · "+remaining+" remaining":"");
+      run.disabled=false;
+      cancel.disabled=false;
+      cancel.textContent=remaining?"Close":"Cancel";
+      for(const field of [project,activity,location,asset,note])field.disabled=false;
+      if(remaining){
+        run.textContent="Retry "+remaining+" remaining photo"+(remaining===1?"":"s");
+        files.disabled=true;
+        status(summary,!!batch.failed);
+      }else{
+        form.remove();
+        await load();
+        status(summary,false);
+      }
     });
     files.focus();
   }
