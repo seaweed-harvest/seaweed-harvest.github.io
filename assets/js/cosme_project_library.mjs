@@ -256,7 +256,8 @@ export function createProjectLibrary(client,root,kind){
         (active?" · "+active+" uploading":"")+(failed?" · "+failed+" failed":"");
       meter.hidden=false;meter.value=Math.round(100*(saved+failed+skipped)/total);
       savings.textContent=sourceBytes?("Photos saved: "+formatMB(sourceBytes)+" original → "+
-        formatMB(storedBytes)+" stored ("+Math.round((1-storedBytes/sourceBytes)*100)+"%"+
+        formatMB(storedBytes)+" stored ("+
+        Math.round(Math.abs(1-storedBytes/sourceBytes)*100)+"%"+
         (storedBytes<=sourceBytes?" smaller":" larger")+")"):"";
       if(batch.errors.length){
         errorLine.textContent=batch.errors.slice(0,2).join(" · ")+
@@ -282,7 +283,7 @@ export function createProjectLibrary(client,root,kind){
         const snapshot={project:project.value,activity:activity.value.trim(),
           location:location.value.trim(),asset:asset.value.trim(),note:note.value.trim()};
         batch={batchId:crypto.randomUUID(),snapshot,remaining:unique,total:entries.length,
-          skipped,saved:0,failed:0,active:0,sourceBytes:0,storedBytes:0,errors:[]};
+          skipped,saved:0,failed:0,active:0,sourceBytes:0,storedBytes:0,metadataWarnings:0,errors:[]};
       }
       batch.remaining=[];
       batch.failed=0;batch.errors=[];
@@ -354,6 +355,7 @@ export function createProjectLibrary(client,root,kind){
           }));
         }catch{
           // Photo is already confirmed ready; don't retry its upload or duplicate it.
+          batch.metadataWarnings++;
           batch.errors.push(original.name+": photo saved; extra metadata not saved");
         }
         batch.saved++;
@@ -378,7 +380,8 @@ export function createProjectLibrary(client,root,kind){
       const remaining=batch.remaining.length;
       const summary=batch.saved+" of "+(batch.total-batch.skipped)+" photos saved"+
         (batch.skipped?" · "+batch.skipped+" duplicate skipped":"")+
-        (remaining?" · "+remaining+" remaining":"");
+        (remaining?" · "+remaining+" remaining":"")+
+        (batch.metadataWarnings?" · "+batch.metadataWarnings+" metadata warnings":"");
       run.disabled=false;
       cancel.disabled=false;
       cancel.textContent=remaining?"Close":"Cancel";
@@ -390,7 +393,7 @@ export function createProjectLibrary(client,root,kind){
       }else{
         form.remove();
         await load();
-        status(summary,false);
+        status(summary,batch.metadataWarnings>0);
       }
     });
     files.focus();
