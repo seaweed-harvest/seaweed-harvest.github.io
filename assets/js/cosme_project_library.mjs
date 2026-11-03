@@ -342,6 +342,20 @@ export function createProjectLibrary(client,root,kind){
     });
     if(selectedIds.has(item.id))row.classList.add("is-selected");
   }
+  function photoTrashItem(item,container){
+    const row=add(container,"div","library-trash-row");
+    const symbol=add(row,"span","library-trash-symbol","▧");
+    symbol.setAttribute("aria-hidden","true");
+    const info=add(row,"div","library-trash-info");
+    add(info,"span","library-row-title",item.title);
+    add(info,"span","library-row-context",[item.project,item.location].filter(Boolean).join(" · "));
+    if(item.deleted_at)add(info,"span","library-row-facts",
+      "Moved to Trash "+new Date(item.deleted_at).toLocaleDateString());
+    if(canEdit){
+      const restore=button(row,"Restore",()=>photoAction([item.id],"restore"));
+      restore.classList.add("library-restore-button");
+    }
+  }
   function drawPhotos(){
     root.replaceChildren();
     const header=add(root,"div","library-gallery-header");
@@ -386,13 +400,15 @@ export function createProjectLibrary(client,root,kind){
       ["","All activities"],
       ...[...new Set(items.map(i=>i.project).filter(Boolean))].sort().map(v=>[v,v])
     ],filters.project,value=>{filters.project=value;page=0;draw()});
-    const viewSwitch=add(toolbar,"div","library-gallery-view-toggle");
-    viewSwitch.setAttribute("role","group");viewSwitch.setAttribute("aria-label","Photo display mode");
-    for(const [mode,name] of [["grid","Grid"],["list","List"]]){
-      const control=button(viewSwitch,name,()=>{photoView=mode;draw()});
-      control.classList.add("library-view-button");
-      control.setAttribute("aria-pressed",String(photoView===mode));
-      control.title=name+" view";
+    if(!viewTrash){
+      const viewSwitch=add(toolbar,"div","library-gallery-view-toggle");
+      viewSwitch.setAttribute("role","group");viewSwitch.setAttribute("aria-label","Photo display mode");
+      for(const [mode,name] of [["grid","Grid"],["list","List"]]){
+        const control=button(viewSwitch,name,()=>{photoView=mode;draw()});
+        control.classList.add("library-view-button");
+        control.setAttribute("aria-pressed",String(photoView===mode));
+        control.title=name+" view";
+      }
     }
     const extra=add(root,"div","library-gallery-extras");
     const quick=add(extra,"div","library-gallery-quick");
@@ -442,18 +458,19 @@ export function createProjectLibrary(client,root,kind){
     }
     const visible=filterLibrary(activeItems,filters).filter(i=>!favoritesOnly||i.is_favourite);
     page=Math.min(page,Math.max(0,Math.ceil(visible.length/pageSize)-1));
-    const count=add(root,"div","library-results-line");
-    add(count,"span","",visible.length+" shown"+(!canEdit?" · Read only":""));
     if(filters.project||filters.search||activeFilters||favoritesOnly){
+      const count=add(root,"div","library-results-line");
+      add(count,"span","",visible.length+" shown"+(!canEdit?" · Read only":""));
       const reset=button(count,"Clear filters",()=>{
         filters={};favoritesOnly=false;page=0;draw();
       });reset.classList.add("library-reset-filters");
     }
-    const gallery=add(root,"div",photoView==="grid"?"library-photo-grid":"library-photo-list");
-    gallery.setAttribute("aria-label",photoView==="grid"?"Photo thumbnails":"Photo list");
+    const gallery=add(root,"div",viewTrash?"library-photo-trash-list":photoView==="grid"?"library-photo-grid":"library-photo-list");
+    gallery.setAttribute("aria-label",viewTrash?"Trashed photos":photoView==="grid"?"Photo thumbnails":"Photo list");
     const slice=visible.slice(page*pageSize,(page+1)*pageSize);
     for(const item of slice){
-      if(photoView==="grid")photoTile(item,gallery);else photoListItem(item,gallery);
+      if(viewTrash)photoTrashItem(item,gallery);
+      else if(photoView==="grid")photoTile(item,gallery);else photoListItem(item,gallery);
     }
     if(!visible.length)add(gallery,"p","library-gallery-empty",
       viewTrash?"Trash is empty":items.length?"No matching photos":"No project photos uploaded yet");
