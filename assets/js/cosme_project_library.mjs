@@ -376,9 +376,9 @@ export function createProjectLibrary(client,root,kind){
           location:place,asset:settings.asset,caption:settings.note.slice(0,1000),
           captured_at:capture.value,prototype:"",...details};
         if(!entry.reservation){
-          entry.reservation=check(await retry(()=>client.rpc("cosme_library_save",{
+          entry.reservation=await retry(()=>client.rpc("cosme_library_save",{
             p_kind:"photos",p_metadata:metadata
-          }).then(check)));
+          }).then(check));
           await putQueuedPhoto(entry);
         }
         if(!entry.uploaded){
