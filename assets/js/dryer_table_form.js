@@ -108,6 +108,7 @@ let photoDatabasePromise = null;
 let photoWriteChain = Promise.resolve();
 let photoPreparation = Promise.resolve();
 let photoStorageAvailable = true;
+let pendingRetryAttempts = 0;
 
 function openPhotoDatabase() {
   if (!("indexedDB" in window)) return Promise.reject(new Error("Photo storage is unavailable."));
@@ -202,7 +203,7 @@ async function compactLocalPhoto(file) {
 }
 
 function isConnectionFailure(error) {
-  return !navigator.onLine || /failed to fetch|networkerror|load failed|timeout|abort|^408 |^429 |^50[234] /i
+  return !navigator.onLine || /failed to fetch|networkerror|load failed|timeout|abort|^408 |^429 |^50[234] |Photo upload failed \\((408|429|50[234])\\)/i
     .test(String(error?.message || error || ""));
 }
 
@@ -212,6 +213,11 @@ function savePendingAction(kind, phase = null) {
   setStatus(photoStorageAvailable
     ? "Saved on phone · will sync when connected"
     : "Measurements saved. Photos could not be backed up; keep this page open.", "warning");
+  if (navigator.onLine && pendingRetryAttempts < 3) {
+    const retryDelay = 3000 * 2 ** pendingRetryAttempts;
+    pendingRetryAttempts += 1;
+    setTimeout(() => void retryPendingAction(), retryDelay);
+  }
 }
 
 function pendingActionIs(kind, phase = null) {
@@ -308,6 +314,7 @@ async function initialize() {
   }
   updateRequiredFieldStates();
   window.addEventListener("online", () => {
+    pendingRetryAttempts = 0;
     if (state.pendingAction) {
       setStatus("Connected · syncing saved entry...");
       void retryPendingAction();
@@ -1647,10 +1654,11 @@ function addSelectedPhotos(context) {
   setStatus("Saving photos on this phone...");
   photoPreparation = photoPreparation.catch(() => {}).then(async () => {
     for (const original of additions) {
-      const index = files.indexOf(original);
-      if (index < 0) continue;
+      if (!files.includes(original)) continue;
       try {
-        files[index] = await compactLocalPhoto(original);
+        const compact = await compactLocalPhoto(original);
+        const index = files.indexOf(original);
+        if (index >= 0) files[index] = compact;
       } catch (error) {
         console.warn("This photo will use its original file.", error);
       }
@@ -1752,7 +1760,8 @@ function replaceDryingPhoto() {
     files[index] = replacement;
     photoPreparation = photoPreparation.catch(() => {}).then(async () => {
       try {
-        if (files[index] === replacement) files[index] = await compactLocalPhoto(replacement);
+        const compact = await compactLocalPhoto(replacement);
+        if (files[index] === replacement) files[index] = compact;
       } catch (error) {
         console.warn("Using original dryer photo.", error);
       }
