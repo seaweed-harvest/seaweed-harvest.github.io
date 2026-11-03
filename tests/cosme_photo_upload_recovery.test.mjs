@@ -48,7 +48,8 @@ test('original images are stored in IndexedDB before uploads begin',()=>{
 test('completion can be retried against the same immutable reservation',()=>{
   const upload=src('../assets/js/cosme_project_library.mjs');
   assert.match(upload,/if\(!entry\.reservation\)\{/);
-  assert.match(upload,/entry\.reservation=check\(await retry/);
+  assert.match(upload,/entry\.reservation=await retry/);
+  assert.doesNotMatch(upload,/entry\.reservation=check\(await retry/);
   assert.match(upload,/p_id:entry\.reservation\.id/);
   assert.match(upload,/upsert:false/);
   assert.match(upload,/statusCode\|\|stored\.error\.status\)!=="409"/);
