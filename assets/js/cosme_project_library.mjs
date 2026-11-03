@@ -36,6 +36,14 @@ export function createProjectLibrary(client,root,kind){
       viewer=add(root,"dialog","library-viewer");viewer.setAttribute("aria-label",item.title);
       const head=add(viewer,"div","library-heading");add(head,"h3","",item.title);
       const actions=add(head,"div","library-actions");button(actions,"Download",()=>openFile(item,true));
+      if(kind==="photos"){
+        const visible=filterLibrary(items,filters);
+        const index=visible.findIndex(photo=>photo.id===item.id);
+        if(index>0)button(actions,"‹ Previous",()=>{viewer.close();openFile(visible[index-1])});
+        if(index>=0&&index<visible.length-1)button(actions,"Next ›",()=>{viewer.close();openFile(visible[index+1])});
+        if(canEdit)button(actions,item.is_favourite?"♥ Unfavourite":"♡ Favourite",async()=>{viewer.close();await photoAction([item.id],item.is_favourite?"unfavourite":"favourite")});
+        if(canEdit)button(actions,"Edit details",()=>{viewer.close();editor(item)});
+      }
       button(actions,"Close",()=>viewer.close());
       viewer.addEventListener("close",()=>viewer.remove());
       content=add(viewer,"div","library-viewer-content","Opening…");viewer.showModal();
@@ -55,6 +63,22 @@ export function createProjectLibrary(client,root,kind){
       const media=add(content,kind==="reports"?"iframe":"img");
       if(kind==="reports"){media.title=item.title;media.referrerPolicy="no-referrer"}else media.alt=item.title;
       media.src=data.signedUrl;
+      if(kind==="photos"){
+        const details=add(viewer,"div","library-viewer-meta");
+        if(item.captured_at)add(details,"span","","Captured: "+new Date(item.captured_at).toLocaleString());
+        if(item.location)add(details,"span","","Location: "+item.location);
+        if(item.activity)add(details,"span","","Activity: "+item.activity);
+        if(item.asset)add(details,"span","","Asset: "+item.asset);
+        if(item.caption)add(details,"p","",item.caption);
+        const gps=item.photo_metadata?.gps;
+        if(gps&&Number.isFinite(gps.latitude)&&Number.isFinite(gps.longitude)){
+          const link=add(details,"a","","View capture location on map");
+          link.href="https://maps.google.com/?q="+gps.latitude+","+gps.longitude;
+          link.target="_blank";link.rel="noopener noreferrer";
+        }
+        if(item.photo_metadata?.datetime_original&&!item.captured_at)
+          add(details,"span","","Camera time: "+item.photo_metadata.datetime_original+" (timezone not recorded)");
+      }
     }catch(e){viewer?.remove();if(ticket===epoch)status("Could not open file. "+e.message,true)}
   }
   function editor(existing=null,replace=false){
