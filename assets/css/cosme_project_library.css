@@ -41,3 +41,33 @@
  .project-library .library-heading {align-items:start}
  .project-library .library-card {padding:12px}
 }
+
+
+/* Compact COSME Project Photos gallery — keep PDFs in the existing report layout. */
+.project-library .library-photo-toolbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.project-library .library-photo-toolbar .metrics-button{font-size:.84rem;padding:8px 11px}
+.project-library .library-photo-toolbar .is-active{background:var(--text,#24332f);color:var(--panel,#fff);border-color:transparent}
+.project-library .library-photo-toolbar select{width:auto;min-width:130px;max-width:220px;padding:7px}
+.project-library .library-photo-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;align-items:start}
+.project-library .library-tile{min-width:0;aspect-ratio:1;position:relative;overflow:hidden;background:var(--bg-soft,#eef1ee)}
+.project-library .library-tile-open{display:block;position:absolute;inset:0;border:0;padding:0;width:100%;height:100%;background:transparent;cursor:pointer}
+.project-library .library-tile-open img{display:block;width:100%;height:100%;object-fit:cover}
+.project-library .library-tile.is-selected{outline:3px solid #147cbd;outline-offset:-3px}
+.project-library .library-tile-fav{position:absolute;right:3px;top:3px;z-index:1;border:0;background:rgba(10,20,20,.55);color:white;min-width:30px;min-height:30px;border-radius:50%;font-size:1.2rem;cursor:pointer}
+.project-library .library-tile-heart{position:absolute;left:4px;bottom:3px;color:white;font-size:1.1rem;text-shadow:0 1px 3px #111;pointer-events:none}
+.project-library .library-tile-check{position:absolute;left:5px;top:5px;display:grid;place-items:center;min-width:24px;min-height:24px;border:2px solid white;border-radius:50%;color:white;background:rgba(15,20,25,.25);font-weight:700}
+.project-library .is-selected .library-tile-check{background:#147cbd}
+.project-library .library-batch-form{padding:12px;border:1px solid var(--border-soft);border-radius:8px;display:grid;gap:12px}
+.project-library .library-batch-form input[type=file]{width:100%;max-width:100%}
+.project-library .library-batch-form .metrics-button.primary{justify-self:start}
+@media(min-width:900px){.project-library .library-photo-grid{grid-template-columns:repeat(8,minmax(0,1fr))}}
+@media(max-width:540px){
+ .project-library{gap:10px}
+ .project-library .library-photo-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:2px}
+ .project-library .library-heading h3{font-size:1.2rem}
+ .project-library .library-photo-toolbar select{min-width:110px;max-width:185px}
+ .project-library .library-photo-toolbar{gap:4px}
+ .project-library .library-photo-toolbar .metrics-button{padding:7px 9px;font-size:.78rem}
+ .project-library .library-filters{gap:6px}
+ .project-library .library-tile-fav{min-width:25px;min-height:25px;font-size:1rem}
+}
