@@ -251,7 +251,6 @@ export function createProjectLibrary(client,root,kind){
     const head=add(form,"div","library-heading");
     add(head,"h3","","Upload photos");
     let stopRequested=false,queued=null,entries=[],active=0,failedCount=0,errors=[],running=false;
-    let created=false;
     const cancel=button(head,"Cancel",()=>{
       if(running){stopRequested=true;cancel.disabled=true;cancel.textContent="Stopping…";}
       else form.remove();
@@ -347,7 +346,7 @@ export function createProjectLibrary(client,root,kind){
       return true;
     };
     async function saveOne(entry){
-      if(await verifySaved(entry))return;
+      if((entry.ready||entry.uploaded) && await verifySaved(entry))return;
       const settings=queued.snapshot;
       if(!entry.ready && !entry.prepared){
         const source=entry.original;
@@ -424,6 +423,7 @@ export function createProjectLibrary(client,root,kind){
     async function runUpload(){
       if(running)return;
       running=true;busy=true;stopRequested=false;active=0;failedCount=0;errors=[];
+      document.body.dataset.cosmePhotoUploading="true";
       run.disabled=true;files.disabled=true;fieldControls.forEach(control=>control.disabled=true);
       cancel.textContent="Stop remaining";cancel.disabled=false;
       run.textContent="Uploading…";
@@ -442,7 +442,6 @@ export function createProjectLibrary(client,root,kind){
             return;
           }
           queued=createdQueue.batch;
-          created=true;
           // Release the file input; all originals have been retained locally.
           files.value="";
         }
@@ -517,6 +516,7 @@ export function createProjectLibrary(client,root,kind){
         status(message,true);
       }finally{
         running=false;busy=false;
+        delete document.body.dataset.cosmePhotoUploading;
         if(form.isConnected)updateButtons();
       }
     }
