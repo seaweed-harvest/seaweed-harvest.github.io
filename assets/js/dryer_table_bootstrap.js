@@ -61,7 +61,7 @@ async function initializeDryerTablePage() {
 
     const shedLocations = await import("./dryer_table_shed_locations.js?v=3");
     await import("./dryer_table_open_edit.js?v=3");
-    await import("./dryer_table_form.js?v=5");
+    await import("./dryer_table_form.js?v=6");
     shedLocations.setupDryerShedLocations();
     await import("./dryer_table_ra_name.js?v=3");
   } catch (error) {
@@ -83,21 +83,54 @@ async function optionalSignedInProfile() {
   }
 }
 
+const DRYER_OFFLINE_ACCESS_KEY = "seaweed_dryer_verified_access_v1";
+const DRYER_OFFLINE_ACCESS_MS = 7 * 24 * 60 * 60 * 1000;
+
+function rememberDryerOfflineAccess() {
+  try {
+    localStorage.setItem(DRYER_OFFLINE_ACCESS_KEY, String(Date.now()));
+  } catch {
+    // Online form entry still works when storage is unavailable.
+  }
+}
+
+function hasRecentDryerOfflineAccess() {
+  try {
+    const validatedAt = Number(localStorage.getItem(DRYER_OFFLINE_ACCESS_KEY));
+    return Number.isFinite(validatedAt) && validatedAt > 0
+      && Date.now() - validatedAt < DRYER_OFFLINE_ACCESS_MS;
+  } catch {
+    return false;
+  }
+}
+
 async function requireDryerTableEntryAccess(profile) {
   const activeOrganisation = String(profile?.active_aggregator_code || "").trim().toUpperCase();
   const authenticatedAccess = activeOrganisation === "COSME"
     && (profile?.app_role === "system_admin" || profile?.can_access_reef_nursery)
     && Boolean(profile?.organisation_capabilities?.form_dryer_table);
-  if (authenticatedAccess) return;
+  if (authenticatedAccess) {
+    rememberDryerOfflineAccess();
+    return;
+  }
 
   const parameters = new URLSearchParams(window.location.search);
-  const context = await callPublicRpc("ag_public_form_entry_context", {
-    p_form_key: "form_dryer_table",
-    p_organisation_code: "COSME",
-    p_share_token: parameters.get("share") || null
-  });
-  if (!context?.allowed) {
-    throw new Error(context?.reason || "The Dryer Table form is not available.");
+  try {
+    const context = await callPublicRpc("ag_public_form_entry_context", {
+      p_form_key: "form_dryer_table",
+      p_organisation_code: "COSME",
+      p_share_token: parameters.get("share") || null
+    });
+    if (!context?.allowed) {
+      throw new Error(context?.reason || "The Dryer Table form is not available.");
+    }
+    rememberDryerOfflineAccess();
+  } catch (error) {
+    if ((!navigator.onLine || /failed to fetch|networkerror|load failed|timeout|abort/i
+      .test(String(error?.message || error || ""))) && hasRecentDryerOfflineAccess()) {
+      return;
+    }
+    throw error;
   }
 }
 
