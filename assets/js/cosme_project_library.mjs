@@ -1,3 +1,4 @@
+import {createQueuedBatch,putBatch,getBatch,listPendingBatches,listQueuedPhotos,putQueuedPhoto,deleteBatch,queueCounts} from "./cosme_photo_upload_queue.mjs?v=1";
 import {LIBRARY_BUCKET,PROJECTS,EXAMPLES,filterLibrary,localDateTime,libraryMetadata,validateLibraryFile} from "./cosme_project_library_core.mjs?v=2";
 import {prepareLibraryImage,captureTimestamp} from "./cosme_photo_exif.mjs?v=2";
 const make=(tag,cls="",text)=>{const n=document.createElement(tag);n.className=cls;if(text!==undefined)n.textContent=text;return n};
@@ -8,6 +9,7 @@ const check=result=>{if(result.error)throw result.error;return result.data};
 export function createProjectLibrary(client,root,kind){
   let folders=[],items=[],trashItems=[],canEdit=false,loaded=false,busy=false,epoch=0,page=0,examples=true,filtersOpen=false;
   let filters={},message="",failed=false,viewTrash=false,favoritesOnly=false,selectMode=false,selectedIds=new Set(),photoView="grid",photoSearchOpen=false;
+  let recovery=null,autoResumed=new Set();
   const noun=kind==="reports"?"report":"photo",pageSize=24;
   root.className="metrics-panel project-library";
   function clear(){epoch++;folders=[];items=[];trashItems=[];canEdit=false;loaded=false;busy=false;filters={};page=0;filtersOpen=false;viewTrash=false;favoritesOnly=false;selectMode=false;selectedIds.clear();photoSearchOpen=false;message="";failed=false;root.replaceChildren()}
@@ -20,6 +22,7 @@ export function createProjectLibrary(client,root,kind){
       const data=check(await client.rpc("cosme_library_list",{p_kind:kind}));
       if(ticket!==epoch)return;
       folders=data.folders||[];items=data.items||[];trashItems=data.trashed_items||[];canEdit=data.can_edit===true;loaded=true;message="";failed=false;draw();
+      if(kind==="photos"&&canEdit)discoverRecovery().catch(()=>{});
     }catch(e){if(ticket!==epoch)return;folders=[];items=[];canEdit=false;status("Unable to load "+kind+". "+(e.message||"Please retry."),true);draw()}
   }
   function select(root,label,values,value,change){
@@ -27,6 +30,31 @@ export function createProjectLibrary(client,root,kind){
     s.setAttribute("aria-label",label);
     for(const [v,name] of values){const o=add(s,"option","",name);o.value=v}
     s.value=value||"";s.addEventListener("change",()=>change(s.value));return s;
+  }
+
+  async function discoverRecovery(){
+    const result=await client.auth.getUser();
+    const owner=result.data?.user?.id;
+    if(!owner)return;
+    const pending=await listPendingBatches(owner);
+    recovery=null;
+    for(const queued of pending){
+      const records=await listQueuedPhotos(queued.id);
+      const counts=queueCounts(records);
+      if(!records.length||counts.waiting===0){
+        await deleteBatch(queued.id);
+        continue;
+      }
+      recovery={id:queued.id,...counts};
+      break;
+    }
+    if(!root.isConnected||busy||root.querySelector(".library-batch-form"))return;
+    draw();
+    if(recovery && !autoResumed.has(recovery.id) && !root.closest("[hidden]") &&
+      document.visibilityState==="visible" && navigator.onLine){
+      autoResumed.add(recovery.id);
+      batchUpload(recovery.id).catch(err=>status(err.message||"Could not resume photos",true));
+    }
   }
   function photoIconButton(parent,symbol,label,handler){
     const control=add(parent,"button","library-photo-icon-button",symbol);
@@ -215,194 +243,302 @@ export function createProjectLibrary(client,root,kind){
       status((result.updated||0)+" photo"+(result.updated===1?"":"s")+" updated");
     }catch(e){busy=false;status(e.message||"Could not update photos",true)}
   }
-  function batchUpload(){
+
+  async function batchUpload(resumeId=null){
     if(busy)return;
     root.querySelector(".library-batch-form")?.remove();
     const form=add(root,"form","library-batch-form");
     const head=add(form,"div","library-heading");
     add(head,"h3","","Upload photos");
-    let stopRequested=false,batch=null;
+    let stopRequested=false,queued=null,entries=[],active=0,failedCount=0,errors=[],running=false;
+    let created=false;
     const cancel=button(head,"Cancel",()=>{
-      if(busy){stopRequested=true;cancel.disabled=true;cancel.textContent="Stopping…"}
+      if(running){stopRequested=true;cancel.disabled=true;cancel.textContent="Stopping…";}
       else form.remove();
     });
     const grid=add(form,"div","library-fields");
     const chooser=add(grid,"label","","Select images");
-    const files=add(chooser,"input");files.type="file";files.multiple=true;
-    files.accept="image/jpeg,image/png,image/webp,image/heic,image/heif";files.required=true;
+    const files=add(chooser,"input");
+    files.type="file";files.multiple=true;
+    files.accept="image/jpeg,image/png,image/webp,image/heic,image/heif";
+    files.required=!resumeId;
     const noteLabel=add(grid,"label","library-batch-note-label","Batch description");
     const note=add(noteLabel,"textarea");
     note.rows=3;note.maxLength=2500;
-    note.placeholder="Describe these photos together. Use your iPhone keyboard microphone to dictate.";
+    note.placeholder="Describe these photos together. Dictation works here.";
     const project=select(grid,"Project",PROJECTS.map(v=>[v,v]),filters.project||"Whole project",()=>{});
-    const activityLabel=add(grid,"label","","Activity"),activity=add(activityLabel,"input");activity.value=filters.activity||"";
-    const locationLabel=add(grid,"label","","Location"),location=add(locationLabel,"input");location.value=filters.location||"";
-    const assetLabel=add(grid,"label","","Asset / raft"),asset=add(assetLabel,"input");asset.value=filters.asset||"";
-    add(form,"p","metrics-small-note","One note for the whole batch; ChatGPT can add individual descriptions later.");
-    const run=add(form,"button","metrics-button primary","Upload selected photos");run.type="submit";
+    const activityLabel=add(grid,"label","","Activity"),activity=add(activityLabel,"input");
+    activity.value=filters.activity||"";
+    const locationLabel=add(grid,"label","","Location"),location=add(locationLabel,"input");
+    location.value=filters.location||"";
+    const assetLabel=add(grid,"label","","Asset / raft"),asset=add(assetLabel,"input");
+    asset.value=filters.asset||"";
+    const run=add(form,"button","metrics-button primary",resumeId?"Resume upload":"Upload selected photos");
+    run.type="submit";
     const feedback=add(form,"div","library-upload-progress");
-    feedback.setAttribute("role","status");feedback.setAttribute("aria-live","polite");
+    feedback.setAttribute("role","status");
+    feedback.setAttribute("aria-live","polite");
     const countLine=add(feedback,"div","library-upload-status");
     const meter=add(feedback,"progress","library-upload-meter");
     meter.max=100;meter.value=0;meter.hidden=true;
     const savings=add(feedback,"div","library-upload-savings");
     const errorLine=add(feedback,"div","library-upload-errors");
     const formatMB=bytes=>(bytes/1048576).toFixed(1)+" MB";
-    const showProgress=()=>{
-      if(!batch)return;
-      const {saved,failed,active,sourceBytes,storedBytes,total,skipped}=batch;
-      const pending=total-saved-failed-skipped;
-      countLine.textContent=saved+" of "+(total-skipped)+" saved"+
-        (active?" · "+active+" uploading":"")+(failed?" · "+failed+" failed":"");
-      meter.hidden=false;meter.value=Math.round(100*(saved+failed+skipped)/total);
-      savings.textContent=sourceBytes?("Photos saved: "+formatMB(sourceBytes)+" original → "+
-        formatMB(storedBytes)+" stored ("+
-        Math.round(Math.abs(1-storedBytes/sourceBytes)*100)+"%"+
-        (storedBytes<=sourceBytes?" smaller":" larger")+")"):"";
-      if(batch.errors.length){
-        errorLine.textContent=batch.errors.slice(0,2).join(" · ")+
-          (batch.errors.length>2?" · +"+(batch.errors.length-2)+" more":"");
-      }else errorLine.textContent="";
+    const fieldControls=[project,activity,location,asset,note];
+    const snapshot=()=>({project:project.value,activity:activity.value.trim(),
+      location:location.value.trim(),asset:asset.value.trim(),note:note.value.trim()});
+    const setSnapshot=values=>{
+      project.value=values.project||"Whole project";
+      activity.value=values.activity||"";
+      location.value=values.location||"";
+      asset.value=values.asset||"";
+      note.value=values.note||"";
     };
-    form.addEventListener("submit",async e=>{
-      e.preventDefault();if(busy)return;
-      const isRetry=!!(batch?.remaining?.length);
-      if(!isRetry&&!files.files.length)return;
-      stopRequested=false;
-      const entries=isRetry?batch.remaining:
-        [...files.files].map((original,index)=>({original,index}));
-      let work=entries;
-      if(!isRetry){
-        const seen=new Set();
-        const unique=[];
-        let skipped=0;
-        for(const entry of entries){
-          const key=entry.original.name+"|"+entry.original.size+"|"+entry.original.lastModified;
-          if(seen.has(key)){skipped++;continue}
-          seen.add(key);unique.push(entry);
+    function showProgress(){
+      if(!queued)return;
+      const {saved,complete,waiting,metadataPending}=queueCounts(entries);
+      countLine.textContent=saved+" of "+queued.total+" saved"+
+        (active?" · "+active+" uploading":"")+
+        (waiting&&!active?" · "+waiting+" remaining":"")+
+        (queued.skipped?" · "+queued.skipped+" skipped":"");
+      meter.hidden=false;meter.value=Math.round(100*complete/Math.max(1,queued.total));
+      const ready=entries.filter(e=>e.ready);
+      const sourceBytes=ready.reduce((n,e)=>n+(e.originalBytes||0),0);
+      const storedBytes=ready.reduce((n,e)=>n+(e.storedBytes||0),0);
+      savings.textContent=sourceBytes?"Photos saved: "+formatMB(sourceBytes)+" original → "+
+        formatMB(storedBytes)+" stored ("+Math.round(100*(1-storedBytes/sourceBytes))+"% smaller)":"";
+      errorLine.textContent=errors.slice(0,2).join(" · ")||
+        (metadataPending?"Checking "+metadataPending+" photo metadata records…":"");
+    }
+    function updateButtons(){
+      const pending=queueCounts(entries).waiting;
+      run.disabled=false;files.disabled=!!queued;
+      fieldControls.forEach(control=>control.disabled=!!queued);
+      run.textContent=queued?(pending?"Resume "+pending+" remaining":"Upload complete"):"Upload selected photos";
+      run.disabled=!!queued&&!pending;
+      cancel.disabled=false;cancel.textContent=queued?"Close":"Cancel";
+    }
+    const transient=err=>{
+      const code=Number(err?.statusCode||err?.status||0);
+      return !code||[408,409,425,429].includes(code)||code>=500||
+        /timeout|network|fetch|connection|temporar/i.test(err?.message||"");
+    };
+    const retry=async(action,attempts=3)=>{
+      for(let n=0;n<attempts;n++){
+        try{return await action();}
+        catch(err){
+          if(n===attempts-1||!transient(err))throw err;
+          await new Promise(resolve=>setTimeout(resolve,350*(n+1)));
         }
-        work=unique;
-        const snapshot={project:project.value,activity:activity.value.trim(),
-          location:location.value.trim(),asset:asset.value.trim(),note:note.value.trim()};
-        batch={batchId:crypto.randomUUID(),snapshot,remaining:unique,total:entries.length,
-          skipped,saved:0,failed:0,active:0,sourceBytes:0,storedBytes:0,metadataWarnings:0,
-          startedAt:Date.now(),errors:[]};
       }
-      batch.remaining=[];
-      batch.failed=0;batch.errors=[];
-      busy=true;run.disabled=true;files.disabled=true;
-      for(const field of [project,activity,location,asset,note])field.disabled=true;
-      cancel.textContent="Stop remaining";cancel.disabled=false;
-      run.textContent="Uploading…";
-      // iPhones have limited decoding memory: prepare images one at a time,
-      // but transfer up to three smaller prepared images concurrently.
-      let prepareQueue=Promise.resolve(),next=0;
-      const prepare=original=>{
-        const p=prepareQueue.then(()=>prepareLibraryImage(original));
-        prepareQueue=p.catch(()=>{});
-        return p;
-      };
-      const transient=err=>{
-        const statusCode=Number(err?.statusCode||err?.status||0);
-        return !statusCode||[408,409,425,429].includes(statusCode)||statusCode>=500||
-          /timeout|network|fetch|connection|temporar/i.test(err?.message||"");
-      };
-      const saveOne=async({original,index})=>{
-        const settings=batch.snapshot;
-        const prep=await prepare(original);
-        const file=prep.file,details=await validateLibraryFile("photos",file);
-        const capture=captureTimestamp(prep.metadata);
-        const title=original.name.replace(/\.[^.]+$/,"").replace(/[_-]+/g," ").slice(0,180)||"Project photo";
-        const gps=prep.metadata.gps;
+    };
+    const verifySaved=async entry=>{
+      // Covers an upload completed just before Safari terminated or a lost metadata response.
+      const result=await client.rpc("cosme_library_list",{p_kind:"photos"});
+      if(result.error)return false;
+      const found=(result.data?.items||[]).find(x=>
+        x.photo_metadata?.batch_id===queued.id &&
+        x.photo_metadata?.batch_index===entry.index+1);
+      if(!found)return false;
+      entry.ready=true;entry.metadataSaved=true;entry.done=true;
+      entry.reservation??={id:found.id,revision:found.revision};
+      delete entry.original;delete entry.prepared;
+      await putQueuedPhoto(entry);
+      return true;
+    };
+    async function saveOne(entry){
+      if(await verifySaved(entry))return;
+      const settings=queued.snapshot;
+      if(!entry.ready && !entry.prepared){
+        const source=entry.original;
+        if(!source)throw Error("Original photo was not saved on this device");
+        const original=new File([source],entry.originalName,{
+          type:source.type||"image/jpeg",lastModified:entry.lastModified
+        });
+        const prep=await prepareLibraryImage(original);
+        entry.prepared=prep.file;
+        entry.exif=prep.metadata;
+        entry.optimized=prep.optimized;
+        entry.storedBytes=prep.file.size;
+        // Retain only the smaller prepared image once it is durable.
+        delete entry.original;
+        await putQueuedPhoto(entry);
+      }
+      if(!entry.ready){
+        const file=entry.prepared;
+        const details=await validateLibraryFile("photos",file);
+        const capture=captureTimestamp(entry.exif);
+        const title=entry.originalName.replace(/\.[^.]+$/,"").replace(/[_-]+/g," ").slice(0,180)||"Project photo";
+        const gps=entry.exif?.gps;
         const place=settings.location||(
           gps&&Number.isFinite(gps.latitude)&&Number.isFinite(gps.longitude)?
-          "GPS: "+gps.latitude.toFixed(6)+", "+gps.longitude.toFixed(6):""
-        );
+          "GPS: "+gps.latitude.toFixed(6)+", "+gps.longitude.toFixed(6):"");
         const metadata={title,project:settings.project,activity:settings.activity,
-          location:place,asset:settings.asset,
-          caption:settings.note.slice(0,1000),captured_at:capture.value,
-          prototype:"",...details};
-        let reservation=null,uploaded=false,ready=false;
-        for(let attempt=0;attempt<3;attempt++){
-          try{
-            if(!reservation)reservation=check(await client.rpc("cosme_library_save",{
-              p_kind:"photos",p_metadata:metadata
-            }));
-            if(!uploaded){
-              const stored=await client.storage.from(LIBRARY_BUCKET).upload(
-                reservation.object_path,file,{contentType:details.mime_type,upsert:false});
-              // On a lost upload acknowledgement, a 409 may mean our reserved
-              // immutable object exists. Finish checks the exact object and bytes.
-              if(stored.error&&String(stored.error.statusCode||stored.error.status)!=="409")
-                throw stored.error;
-              uploaded=true;
-            }
-            if(!ready){
-              check(await client.rpc("cosme_library_finish",{p_id:reservation.id}));
-              ready=true;
-            }
-            break;
-          }catch(err){
-            if(attempt===2||!transient(err))throw err;
-            // Never reserve a new object during retries, avoiding duplicates.
+          location:place,asset:settings.asset,caption:settings.note.slice(0,1000),
+          captured_at:capture.value,prototype:"",...details};
+        if(!entry.reservation){
+          entry.reservation=check(await retry(()=>client.rpc("cosme_library_save",{
+            p_kind:"photos",p_metadata:metadata
+          }).then(check)));
+          await putQueuedPhoto(entry);
+        }
+        if(!entry.uploaded){
+          await retry(async()=>{
+            const stored=await client.storage.from(LIBRARY_BUCKET).upload(
+              entry.reservation.object_path,file,{contentType:details.mime_type,upsert:false});
+            if(stored.error&&String(stored.error.statusCode||stored.error.status)!=="409")
+              throw stored.error;
+          });
+          entry.uploaded=true;
+          await putQueuedPhoto(entry);
+        }
+        await retry(()=>client.rpc("cosme_library_finish",{
+          p_id:entry.reservation.id
+        }).then(check));
+        entry.ready=true;
+        await putQueuedPhoto(entry);
+      }
+      if(!entry.metadataSaved){
+        const cameraData={...entry.exif,
+          capture_source:captureTimestamp(entry.exif).source,optimized:!!entry.optimized,
+          batch_id:queued.id,batch_index:entry.index+1,batch_total:queued.total,
+          batch_description:settings.note,original_last_modified:entry.lastModified};
+        try{
+          await retry(()=>client.rpc("cosme_library_photo_capture",{
+            p_id:entry.reservation.id,p_expected_revision:entry.reservation.revision,
+            p_metadata:cameraData,p_source:"web"
+          }).then(check),2);
+          entry.metadataSaved=true;
+        }catch(err){
+          if(!(await verifySaved(entry))) {
+            entry.lastError="Metadata still needs saving";
+            await putQueuedPhoto(entry);
+            return;
           }
         }
-        const cameraData={...prep.metadata,capture_source:capture.source,optimized:prep.optimized,
-          batch_id:batch.batchId,batch_index:index+1,batch_total:batch.total,
-          batch_description:settings.note};
-        try{
-          check(await client.rpc("cosme_library_photo_capture",{
-            p_id:reservation.id,p_expected_revision:reservation.revision,
-            p_metadata:cameraData,p_source:"web"
-          }));
-        }catch{
-          // Photo is already confirmed ready; don't retry its upload or duplicate it.
-          batch.metadataWarnings++;
-          batch.errors.push(original.name+": photo saved; extra metadata not saved");
-        }
-        batch.saved++;
-        batch.sourceBytes+=original.size;
-        batch.storedBytes+=file.size;
-      };
-      const workers=Array.from({length:Math.min(3,work.length)},async()=>{
-        while(next<work.length&&!stopRequested){
-          const entry=work[next++];
-          batch.active++;showProgress();
-          try{await saveOne(entry)}
-          catch(err){
-            batch.failed++;batch.remaining.push(entry);
-            batch.errors.push(entry.original.name+": "+(err?.message||"upload failed"));
-          }finally{batch.active--;showProgress()}
-        }
-      });
-      showProgress();
-      await Promise.all(workers);
-      if(next<work.length)batch.remaining.push(...work.slice(next));
-      busy=false;
-      const remaining=batch.remaining.length;
-      const durationSec=Math.max(1,Math.round((Date.now()-batch.startedAt)/1000));
-      const elapsed=durationSec<60?durationSec+"s":
-        Math.floor(durationSec/60)+"m "+String(durationSec%60).padStart(2,"0")+"s";
-      const summary=batch.saved+" of "+(batch.total-batch.skipped)+" photos saved"+
-        (batch.skipped?" · "+batch.skipped+" duplicate skipped":"")+
-        (remaining?" · "+remaining+" remaining":"")+
-        (batch.metadataWarnings?" · "+batch.metadataWarnings+" metadata warnings":"")+
-        " · "+elapsed;
-      run.disabled=false;
-      cancel.disabled=false;
-      cancel.textContent=remaining?"Close":"Cancel";
-      for(const field of [project,activity,location,asset,note])field.disabled=false;
-      if(remaining){
-        run.textContent="Retry "+remaining+" remaining photo"+(remaining===1?"":"s");
-        files.disabled=true;
-        status(summary,!!batch.failed);
-      }else{
-        form.remove();
-        await load();
-        status(summary,batch.metadataWarnings>0);
+        entry.done=true;entry.lastError="";
+        delete entry.original;delete entry.prepared;
+        await putQueuedPhoto(entry);
       }
-    });
-    files.focus();
+    }
+    async function runUpload(){
+      if(running)return;
+      running=true;busy=true;stopRequested=false;active=0;failedCount=0;errors=[];
+      run.disabled=true;files.disabled=true;fieldControls.forEach(control=>control.disabled=true);
+      cancel.textContent="Stop remaining";cancel.disabled=false;
+      run.textContent="Uploading…";
+      try{
+        if(!queued){
+          const session=await client.auth.getUser();
+          const owner=session.data?.user?.id;
+          if(session.error||!owner)throw Error("Sign in to save photos");
+          if(!files.files.length)throw Error("Choose photos to upload");
+          countLine.textContent="Saving selected photos on this device…";
+          const createdQueue=await createQueuedBatch({
+            owner,snapshot:snapshot(),files:[...files.files],savedItems:items
+          });
+          if(!createdQueue.batch){
+            countLine.textContent=createdQueue.skipped+" photo(s) already saved";
+            return;
+          }
+          queued=createdQueue.batch;
+          created=true;
+          // Release the file input; all originals have been retained locally.
+          files.value="";
+        }
+        entries=await listQueuedPhotos(queued.id);
+        if(!entries.length)throw Error("This photo queue is empty");
+        queued.state="running";
+        await putBatch(queued);
+        showProgress();
+        // Always reuse the same reservation when a transfer is retried.
+        const work=entries.filter(e=>!e.ready||!e.metadataSaved);
+        let next=0;
+        const preparation={current:Promise.resolve()};
+        const workers=Array.from({length:Math.min(4,work.length)},async()=>{
+          while(next<work.length&&!stopRequested){
+            if(!navigator.onLine){stopRequested=true;break;}
+            const entry=work[next++];
+            active++;showProgress();
+            try{
+              // Serial photo decoding limits peak memory usage on iPhones,
+              // while prepared files can transfer in parallel.
+              const previous=preparation.current;
+              let release;
+              preparation.current=new Promise(resolve=>{release=resolve;});
+              await previous;
+              if(!entry.prepared&&!entry.ready){
+                try {
+                  const source=new File([entry.original],entry.originalName,{
+                    type:entry.original.type||"image/jpeg",lastModified:entry.lastModified
+                  });
+                  const prep=await prepareLibraryImage(source);
+                  entry.prepared=prep.file;entry.exif=prep.metadata;
+                  entry.optimized=prep.optimized;entry.storedBytes=prep.file.size;
+                  delete entry.original;
+                  await putQueuedPhoto(entry);
+                }finally{release();}
+              }else release();
+              await saveOne(entry);
+            }catch(err){
+              failedCount++;entry.lastError=err?.message||"Transfer failed";
+              errors.push(entry.originalName+": "+entry.lastError);
+              await putQueuedPhoto(entry).catch(()=>{});
+            }finally{active--;showProgress();}
+          }
+        });
+        await Promise.all(workers);
+        const count=queueCounts(entries);
+        if(count.waiting){
+          queued.state="paused";
+          await putBatch(queued);
+          showProgress();
+          const text=count.saved+" of "+queued.total+" photos saved · "+count.waiting+" to resume";
+          status(text,failedCount>0);
+          if(!navigator.onLine)errorLine.textContent="Offline. Resume when connected.";
+          else if(stopRequested)errorLine.textContent="Paused. Your remaining photos are saved on this device.";
+        }else{
+          queued.state="complete";
+          await deleteBatch(queued.id);
+          const summary=count.saved+" photos saved"+
+            (queued.skipped?" · "+queued.skipped+" duplicates skipped":"");
+          queued=null;entries=[];
+          form.remove();busy=false;
+          await load();
+          status(summary);
+        }
+      }catch(err){
+        const message=err?.message||"Could not save upload";
+        errorLine.textContent=message;
+        if(queued){
+          queued.state="paused";
+          await putBatch(queued).catch(()=>{});
+        }
+        status(message,true);
+      }finally{
+        running=false;busy=false;
+        if(form.isConnected)updateButtons();
+      }
+    }
+    form.addEventListener("submit",e=>{e.preventDefault();runUpload().catch(err=>status(err.message,true));});
+    if(resumeId){
+      try{
+        const session=await client.auth.getUser();
+        queued=await getBatch(resumeId);
+        if(!queued||queued.owner!==session.data?.user?.id)
+          throw Error("Saved upload no longer available for this account");
+        entries=await listQueuedPhotos(queued.id);
+        files.required=false;files.disabled=true;
+        setSnapshot(queued.snapshot);
+        countLine.textContent="Recovered "+entries.length+" selected photos";
+        showProgress();
+        if(navigator.onLine)await runUpload();
+        else updateButtons();
+      }catch(err){
+        errorLine.textContent=err.message||"Cannot recover upload";
+        run.disabled=true;
+      }
+    }else files.focus();
   }
   function photoTile(item,container){
     const tile=add(container,"div","library-tile");
@@ -531,7 +667,11 @@ export function createProjectLibrary(client,root,kind){
     add(identity,"span","library-photo-count",activeItems.length+" photo"+(activeItems.length===1?"":"s")+(viewTrash?" in Trash":""));
     const actions=add(header,"div","library-gallery-actions");
     if(canEdit&&!viewTrash){
-      const upload=button(actions,"Add photos",batchUpload);
+      if(recovery?.waiting){
+        const resume=button(actions,"Resume "+recovery.waiting+" photos",()=>batchUpload(recovery.id));
+        resume.classList.add("primary","library-resume-photos");
+      }
+      const upload=button(actions,"Add photos",()=>batchUpload());
       upload.classList.add("primary","library-add-photos");
     }
     if(canEdit&&!viewTrash){
