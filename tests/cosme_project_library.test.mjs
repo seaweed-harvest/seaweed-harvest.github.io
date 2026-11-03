@@ -51,7 +51,7 @@ test('report register uses submission dates and report types independently of ph
   assert.throws(()=>libraryMetadata({title:'Report',project:'Solar Drying Tables'},'reports'),/submission|submitted/);
   const code=read('../assets/js/cosme_project_library.mjs');
   assert.match(code,/library-report-table/);assert.match(code,/Replace PDF/);assert.match(code,/file_version/);
-  assert.match(code,/if\(kind===\"photos\"\)button\(actions,\"New folder\"/);
+  assert.match(code,/library-photo-grid/);assert.match(code,/batchUpload/);assert.match(code,/photoAction/);
 });
 test('file bytes, non-empty size and size limits control accepted reports and photos',async()=>{
   const file=(name,bytes,size=bytes.length)=>({name,size,slice:()=>new Blob([new Uint8Array(bytes)])});
