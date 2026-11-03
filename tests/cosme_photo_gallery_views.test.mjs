@@ -37,3 +37,28 @@ test('reports library and private signed-photo delivery remain intact',()=>{
   assert.match(src,/cosme_library_photo_action/);
   assert.doesNotMatch(src,/getPublicUrl|innerHTML/);
 });
+
+
+test('photo viewer keeps only compact navigation above the image and actions below',()=>{
+  const src=read('../assets/js/cosme_project_library.mjs');
+  const start=src.indexOf('  async function openFile(item,download=false){');
+  const end=src.indexOf('  function editor(',start);
+  const viewer=src.slice(start,end);
+  assert.match(viewer,/library-photo-viewer-top/);
+  assert.match(viewer,/Previous photo/);assert.match(viewer,/Next photo/);
+  assert.match(viewer,/Close photo/);assert.match(viewer,/e\.target===viewer/);
+  assert.ok(viewer.indexOf('library-viewer-content') < viewer.indexOf('library-photo-viewer-footer'));
+  for(const text of ['Download photo','Favourite photo','Edit photo details'])assert.ok(viewer.includes(text));
+  assert.doesNotMatch(viewer,/button\(actions,"‹ Previous"/);
+});
+test('list uses a larger preview and caption beneath the full row, never file size',()=>{
+  const src=read('../assets/js/cosme_project_library.mjs');
+  const a=src.indexOf('  function photoListItem(');
+  const b=src.indexOf('  function photoTrashItem(',a);
+  const list=src.slice(a,b),css=read('../assets/css/cosme_project_library.css');
+  assert.ok(list.includes('add(row,"button","library-row-caption"'));
+  assert.doesNotMatch(list,/byte_size| KB| MB/);
+  assert.match(css,/grid-template-columns:112px minmax\(0,1fr\)/);
+  assert.match(css,/library-photo-row \.library-row-caption\{/);
+  assert.match(css,/grid-column:1\/-1/);
+});
