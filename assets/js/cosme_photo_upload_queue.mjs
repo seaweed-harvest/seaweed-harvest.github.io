@@ -122,8 +122,9 @@ export async function createQueuedBatch({ owner, snapshot, files, savedItems = [
   const batch = { id, owner, snapshot, total: selected.length, skipped,
     createdAt: Date.now(), state: "queued" };
   try {
-    for (const {file, index} of selected) {
-      await putQueuedPhoto({ key: id + ":" + index, batchId: id, index,
+    for (const [position, {file, index}] of selected.entries()) {
+      await putQueuedPhoto({ key: id + ":" + position, batchId: id,
+        index: position, selectionIndex: index,
         original: file, originalName: file.name, originalBytes: file.size,
         lastModified: file.lastModified, done: false, uploaded: false,
         ready: false, metadataSaved: false, savedAt: null });
