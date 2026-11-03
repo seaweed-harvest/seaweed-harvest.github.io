@@ -1,15 +1,16 @@
 import {LIBRARY_BUCKET,PROJECTS,EXAMPLES,filterLibrary,localDateTime,libraryMetadata,validateLibraryFile} from "./cosme_project_library_core.mjs?v=2";
+import {prepareLibraryImage,captureTimestamp} from "./cosme_photo_exif.mjs?v=1";
 const make=(tag,cls="",text)=>{const n=document.createElement(tag);n.className=cls;if(text!==undefined)n.textContent=text;return n};
 const add=(root,tag,cls,text)=>{const n=make(tag,cls,text);root.append(n);return n};
 const button=(root,text,fn)=>{const b=add(root,"button","metrics-button",text);b.type="button";b.addEventListener("click",fn);return b};
 const check=result=>{if(result.error)throw result.error;return result.data};
 
 export function createProjectLibrary(client,root,kind){
-  let folders=[],items=[],canEdit=false,loaded=false,busy=false,epoch=0,page=0,examples=true,filtersOpen=false;
-  let filters={},message="",failed=false;
+  let folders=[],items=[],trashItems=[],canEdit=false,loaded=false,busy=false,epoch=0,page=0,examples=true,filtersOpen=false;
+  let filters={},message="",failed=false,viewTrash=false,favoritesOnly=false,selectMode=false,selectedIds=new Set();
   const noun=kind==="reports"?"report":"photo",pageSize=24;
   root.className="metrics-panel project-library";
-  function clear(){epoch++;folders=[];items=[];canEdit=false;loaded=false;busy=false;filters={};page=0;filtersOpen=false;message="";failed=false;root.replaceChildren()}
+  function clear(){epoch++;folders=[];items=[];trashItems=[];canEdit=false;loaded=false;busy=false;filters={};page=0;filtersOpen=false;viewTrash=false;favoritesOnly=false;selectMode=false;selectedIds.clear();message="";failed=false;root.replaceChildren()}
   function status(text,error=false){message=text;failed=error;const n=root.querySelector('[data-library-status]');if(n){n.hidden=!text;n.textContent=text;n.setAttribute("role",error?"alert":"status")}}
   async function load(){
     if(busy)return;
@@ -18,7 +19,7 @@ export function createProjectLibrary(client,root,kind){
     try{
       const data=check(await client.rpc("cosme_library_list",{p_kind:kind}));
       if(ticket!==epoch)return;
-      folders=data.folders||[];items=data.items||[];canEdit=data.can_edit===true;loaded=true;message="";failed=false;draw();
+      folders=data.folders||[];items=data.items||[];trashItems=data.trashed_items||[];canEdit=data.can_edit===true;loaded=true;message="";failed=false;draw();
     }catch(e){if(ticket!==epoch)return;folders=[];items=[];canEdit=false;status("Unable to load "+kind+". "+(e.message||"Please retry."),true);draw()}
   }
   function select(root,label,values,value,change){
@@ -149,6 +150,102 @@ export function createProjectLibrary(client,root,kind){
       finally{if(ticket===epoch){busy=false;save.disabled=false}}
     });name.focus();
   }
+  async function photoAction(ids,action){
+    if(!canEdit||busy||!ids.length)return;
+    if(action==="trash"&&!confirm("Move "+ids.length+" photo"+(ids.length===1?"":"s")+" to Trash? You can restore them later."))return;
+    busy=true;
+    try{
+      const result=check(await client.rpc("cosme_library_photo_action",{p_ids:ids,p_action:action}));
+      selectedIds.clear();selectMode=false;busy=false;await load();
+      status((result.updated||0)+" photo"+(result.updated===1?"":"s")+" updated");
+    }catch(e){busy=false;status(e.message||"Could not update photos",true)}
+  }
+  function batchUpload(){
+    if(busy)return;
+    root.querySelector(".library-batch-form")?.remove();
+    const form=add(root,"form","library-batch-form");
+    const head=add(form,"div","library-heading");
+    add(head,"h3","","Upload photos");
+    button(head,"Cancel",()=>form.remove());
+    const grid=add(form,"div","library-fields");
+    const chooser=add(grid,"label","","Select images");
+    const files=add(chooser,"input");files.type="file";files.multiple=true;
+    files.accept="image/jpeg,image/png,image/webp,image/heic,image/heif";files.required=true;
+    const project=select(grid,"Project",PROJECTS.map(v=>[v,v]),filters.project||"Offshore Nursery",()=>{});
+    const activityLabel=add(grid,"label","","Activity"),activity=add(activityLabel,"input");activity.value=filters.activity||"";
+    const locationLabel=add(grid,"label","","Location"),location=add(locationLabel,"input");location.value=filters.location||"";
+    const assetLabel=add(grid,"label","","Asset / raft"),asset=add(assetLabel,"input");asset.value=filters.asset||"";
+    const note=add(form,"p","metrics-small-note","Camera date and GPS are saved when present. Images are optimised for storage.");
+    const run=add(form,"button","metrics-button primary","Upload selected photos");run.type="submit";
+    const feedback=add(form,"p","metrics-small-note");feedback.setAttribute("role","status");
+    form.addEventListener("submit",async e=>{
+      e.preventDefault();if(busy||!files.files.length)return;
+      const entries=[...files.files];busy=true;run.disabled=true;files.disabled=true;
+      let completed=0,failed=0;
+      for(let i=0;i<entries.length;i++){
+        const original=entries[i];
+        feedback.textContent="Uploading "+(i+1)+" of "+entries.length+"…";
+        try{
+          const prep=await prepareLibraryImage(original),file=prep.file;
+          const details=await validateLibraryFile("photos",file);
+          const capture=captureTimestamp(prep.metadata);
+          const title=original.name.replace(/\.[^.]+$/,"").replace(/[_-]+/g," ").slice(0,180)||"Project photo";
+          const gps=prep.metadata.gps;
+          const place=location.value.trim()||(
+            gps&&Number.isFinite(gps.latitude)&&Number.isFinite(gps.longitude)?
+            "GPS: "+gps.latitude.toFixed(6)+", "+gps.longitude.toFixed(6):""
+          );
+          const metadata={title,project:project.value,activity:activity.value.trim(),
+            location:place,asset:asset.value.trim(),caption:"",captured_at:capture.value,
+            prototype:"",...details};
+          const reservation=check(await client.rpc("cosme_library_save",{p_kind:"photos",p_metadata:metadata}));
+          const stored=await client.storage.from(LIBRARY_BUCKET).upload(reservation.object_path,file,{
+            contentType:details.mime_type,upsert:false});
+          if(stored.error)throw stored.error;
+          check(await client.rpc("cosme_library_finish",{p_id:reservation.id}));
+          const captureMeta={...prep.metadata,capture_source:capture.source,optimized:prep.optimized};
+          const saved=await client.rpc("cosme_library_photo_capture",{
+            p_id:reservation.id,p_expected_revision:reservation.revision,
+            p_metadata:captureMeta,p_source:"web"
+          });
+          if(saved.error)throw saved.error;
+          completed++;
+        }catch(err){failed++;feedback.textContent=original.name+": "+(err.message||"Upload failed")}
+      }
+      busy=false;
+      if(completed)await load();
+      feedback.textContent=completed+" of "+entries.length+" saved"+(failed?" · "+failed+" failed":"");
+      status(feedback.textContent,!!failed);
+      if(!failed){form.remove()}else{run.disabled=false;files.disabled=false}
+    });
+    files.focus();
+  }
+  function photoTile(item,container){
+    const tile=add(container,"div","library-tile");
+    const photo=add(tile,"button","library-tile-open");photo.type="button";
+    photo.setAttribute("aria-label",(selectMode?"Select ":"Open ")+item.title);
+    const img=add(photo,"img");img.alt="";img.loading="lazy";
+    const epochAtRequest=epoch;
+    client.storage.from(LIBRARY_BUCKET).createSignedUrl(item.object_path,60).then(({data,error})=>{
+      if(epoch===epochAtRequest&&img.isConnected&&!error)img.src=data.signedUrl;
+    }).catch(()=>{});
+    if(selectMode){
+      const checkmark=add(photo,"span","library-tile-check",selectedIds.has(item.id)?"✓":"");
+      if(selectedIds.has(item.id))tile.classList.add("is-selected");
+    }
+    photo.addEventListener("click",()=>{
+      if(selectMode){
+        if(selectedIds.has(item.id))selectedIds.delete(item.id);else selectedIds.add(item.id);
+        draw();
+      }else openFile(item);
+    });
+    if(item.is_favourite){const heart=add(tile,"span","library-tile-heart","♥");heart.setAttribute("aria-label","Favourite")}
+    if(canEdit&&!selectMode&&!viewTrash){
+      const star=add(tile,"button","library-tile-fav",item.is_favourite?"♥":"♡");
+      star.type="button";star.setAttribute("aria-label",item.is_favourite?"Remove favourite":"Favourite");
+      star.addEventListener("click",()=>photoAction([item.id],item.is_favourite?"unfavourite":"favourite"));
+    }
+  }
   function card(item,container){
     const article=add(container,"article","library-card"+(item.example?" library-example":""));
     if(kind==="photos"){
@@ -180,9 +277,28 @@ export function createProjectLibrary(client,root,kind){
     root.replaceChildren();
     const heading=add(root,"div","library-heading");add(heading,"h3","",kind==="reports"?"Reports":"Project photos");
     const actions=add(heading,"div","library-actions");
-    if(canEdit){button(actions,"Add "+noun,()=>editor());if(kind==="photos")button(actions,"New folder",folderForm)}
+    if(kind==="photos"){
+      if(canEdit&&!viewTrash)button(actions,"Add Photos",batchUpload).classList.add("primary");
+      if(canEdit)button(actions,selectMode?"Cancel":"Select",()=>{selectMode=!selectMode;selectedIds.clear();draw()});
+      button(actions,viewTrash?"Library":"Trash",()=>{viewTrash=!viewTrash;favoritesOnly=false;selectMode=false;selectedIds.clear();page=0;draw()});
+    }else if(canEdit)button(actions,"Add "+noun,()=>editor());
     button(actions,"Refresh",()=>{if(!busy)load()});
     const notice=add(root,"p","metrics-small-note",message);notice.hidden=!message;notice.dataset.libraryStatus="";notice.setAttribute("role",failed?"alert":"status");
+    if(kind==="photos"){
+      const toolbar=add(root,"div","library-photo-toolbar");
+      const activeFilter=(k,value,fn)=>{const b=button(toolbar,value,fn);if(k)b.classList.add("is-active");return b};
+      activeFilter(!favoritesOnly,"All",()=>{favoritesOnly=false;page=0;draw()});
+      if(!viewTrash)activeFilter(favoritesOnly,"Favourites",()=>{favoritesOnly=true;page=0;draw()});
+      if(canEdit&&selectedIds.size){
+        add(toolbar,"span","metrics-small-note",selectedIds.size+" selected");
+        if(viewTrash)button(toolbar,"Restore",()=>photoAction([...selectedIds],"restore"));
+        else{
+          button(toolbar,"Favourite",()=>photoAction([...selectedIds],"favourite"));
+          button(toolbar,"Unfavourite",()=>photoAction([...selectedIds],"unfavourite"));
+          button(toolbar,"Move to Trash",()=>photoAction([...selectedIds],"trash"));
+        }
+      }
+    }
     const controls=add(root,"div","library-filters");
     const searchLabel=add(controls,"label","","Search"),search=add(searchLabel,"input");search.type="search";search.value=filters.search||"";search.placeholder="Project, prototype, location, activity or asset";
     search.addEventListener("change",()=>{filters.search=search.value;page=0;draw()});
@@ -201,9 +317,11 @@ export function createProjectLibrary(client,root,kind){
     details.addEventListener("toggle",()=>{filtersOpen=details.open});
     const active=Object.entries(filters).filter(([k,v])=>k!=="search"&&v).length;
     details.querySelector("summary").textContent="Filters"+(active?" ("+active+")":"");
-    const selected=filterLibrary(items,filters);page=Math.min(page,Math.max(0,Math.ceil(selected.length/pageSize)-1));
+    const source=kind==="photos"&&viewTrash?trashItems:items;
+    const selected=filterLibrary(source,filters).filter(i=>kind!=="photos"||!favoritesOnly||i.is_favourite);
+    page=Math.min(page,Math.max(0,Math.ceil(selected.length/pageSize)-1));
     add(root,"p","metrics-small-note",selected.length+" "+(selected.length===1?noun:kind)+(canEdit?"":" · Read only"));
-    const list=add(root,"div",kind==="photos"?"library-gallery":"library-report-list");
+    const list=add(root,"div",kind==="photos"?"library-photo-grid":"library-report-list");
     const slice=selected.slice(page*pageSize,(page+1)*pageSize);
     if(kind==="reports"&&slice.length){
       const table=add(list,"table","library-report-table"),head=add(table,"thead"),hr=add(head,"tr");
@@ -218,10 +336,10 @@ export function createProjectLibrary(client,root,kind){
         const actions=add(cell,"div","library-actions");button(actions,"Open PDF",()=>openFile(item));button(actions,"Download",()=>openFile(item,true));
         if(canEdit){button(actions,"Edit metadata",()=>editor(item));button(actions,"Replace PDF",()=>editor(item,true))}
       }
-    }else for(const item of slice)card(item,list);
+    }else for(const item of slice)if(kind==="photos")photoTile(item,list);else card(item,list);
     if(!selected.length)add(list,"p","metrics-small-note",items.length?"No matching references.":"No "+kind+" added yet.");
     if(selected.length>pageSize){const pages=add(root,"div","library-actions");button(pages,"Previous",()=>{page--;draw()}).disabled=page===0;add(pages,"span","metrics-small-note",`Page ${page+1} of ${Math.ceil(selected.length/pageSize)}`);button(pages,"Next",()=>{page++;draw()}).disabled=(page+1)*pageSize>=selected.length}
-    if(kind==="reports")return;
+    if(kind==="reports"||kind==="photos")return;
     const sample=add(root,"details","library-examples");sample.open=examples;
     const summary=add(sample,"summary","","Examples (not saved)");
     sample.addEventListener("toggle",()=>{examples=sample.open});
