@@ -167,3 +167,12 @@
  .project-library .library-gallery-actions .metrics-button{padding:5px 6px}
  .project-library .library-gallery-category{max-width:100%;min-width:120px}
 }
+
+
+.project-library .library-photo-trash-list{display:grid;gap:0;border-top:1px solid var(--border-soft)}
+.project-library .library-trash-row{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:11px;align-items:center;min-width:0;padding:12px 2px;border-bottom:1px solid var(--border-soft)}
+.project-library .library-trash-symbol{display:grid;place-items:center;width:38px;height:38px;border-radius:8px;background:var(--bg-soft,#eaf0ec);color:var(--text-sec);font-size:1.1rem}
+.project-library .library-trash-info{display:flex;flex-direction:column;gap:3px;min-width:0}
+.project-library .library-trash-info>*{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.project-library .library-trash-row .library-restore-button{padding:6px 10px;min-height:34px;font-size:.8rem;border-radius:8px}
+@media(max-width:650px){.project-library .library-trash-row{grid-template-columns:34px minmax(0,1fr) auto;gap:8px}.project-library .library-trash-symbol{width:34px;height:34px}}
