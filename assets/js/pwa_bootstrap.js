@@ -1,3 +1,25 @@
+const standaloneMode = window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone === true;
+const resumeRouteKey = "seaweed-ag:pwa-last-route-v1";
+const resumablePages = new Set([
+  "home.html", "collection.html", "records.html", "cosme_metrics.html",
+  "dryer_table.html", "reef_nursery.html", "mawimbi_analysis.html",
+  "photos.html", "reef_nursery_records.html"
+]);
+if (standaloneMode) {
+  const page = window.location.pathname.split("/").pop() || "index.html";
+  try {
+    const previous = JSON.parse(localStorage.getItem(resumeRouteKey) || "null");
+    const coldStart = page === "collection.html" && !document.referrer &&
+      !window.location.search && previous?.page !== "collection.html" &&
+      resumablePages.has(previous?.page) &&
+      Date.now() - previous.at < 7 * 86400000;
+    if (coldStart) {
+      window.location.replace("./" + previous.page);
+    } else if (resumablePages.has(page)) {
+      localStorage.setItem(resumeRouteKey, JSON.stringify({ page, at: Date.now() }));
+    }
+  } catch { /* Browsers with disabled device storage simply use the start page. */ }
+}
 const canRegister = !globalThis.SeaweedNativeBundle
   && ["http:", "https:"].includes(window.location.protocol)
   && "serviceWorker" in navigator;
@@ -136,14 +158,8 @@ if (window.location.pathname.endsWith("/records.html")) {
 }
 
 if (canRegister) {
-  const upgradingExistingWorker = Boolean(navigator.serviceWorker.controller);
-  let reloadingForUpdate = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (!upgradingExistingWorker || reloadingForUpdate) return;
-    reloadingForUpdate = true;
-    window.location.reload();
-  });
-
+  // Never reload a live form or photo transfer merely because a new service
+  // worker took control. Updated scripts load on the next normal navigation.
   window.addEventListener("load", async () => {
     try {
       const registration = await navigator.serviceWorker.register("./service-worker.js", {
