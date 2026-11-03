@@ -368,7 +368,7 @@ export function createProjectLibrary(client,root,kind){
       const upload=button(actions,"Add photos",batchUpload);
       upload.classList.add("primary","library-add-photos");
     }
-    if(canEdit){
+    if(canEdit&&!viewTrash){
       const selecting=button(actions,selectMode?"Done":"Select",()=>{
         selectMode=!selectMode;selectedIds.clear();draw();
       });
@@ -380,7 +380,7 @@ export function createProjectLibrary(client,root,kind){
     moreSummary.setAttribute("aria-label","More photo actions");
     const menu=add(more,"div","library-more-menu-items");
     if(canEdit&&!viewTrash)button(menu,"New folder",()=>{more.open=false;folderForm()});
-    button(menu,viewTrash?"Back to library":"Trash",()=>{
+    if(canEdit)button(menu,viewTrash?"Back to library":"Trash",()=>{
       more.open=false;viewTrash=!viewTrash;favoritesOnly=false;selectMode=false;
       selectedIds.clear();page=0;draw();
     });
