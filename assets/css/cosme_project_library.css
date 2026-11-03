@@ -71,3 +71,10 @@
  .project-library .library-filters{gap:6px}
  .project-library .library-tile-fav{min-width:25px;min-height:25px;font-size:1rem}
 }
+
+.project-library .library-viewer-meta{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:.86rem;margin-top:8px;color:var(--text)}
+.project-library .library-viewer-meta p{width:100%;margin:0}
+.project-library .library-viewer-meta a{text-decoration:underline}
+.project-library .library-viewer .library-actions{gap:5px}
+.project-library .library-viewer .library-actions .metrics-button{padding:7px 9px}
+@media(max-width:540px){.project-library .library-viewer{max-width:98vw;max-height:96vh;padding:10px}}
