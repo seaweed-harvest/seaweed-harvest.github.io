@@ -253,9 +253,20 @@ export function createProjectLibrary(client,root,kind){
     photo.setAttribute("aria-label",(selectMode?"Select ":"Open ")+item.title);
     const img=add(photo,"img");img.alt="";img.loading="lazy";
     const epochAtRequest=epoch;
-    client.storage.from(LIBRARY_BUCKET).createSignedUrl(item.object_path,60).then(({data,error})=>{
-      if(epoch===epochAtRequest&&img.isConnected&&!error)img.src=data.signedUrl;
-    }).catch(()=>{});
+    const getThumbnail=()=>{
+      client.storage.from(LIBRARY_BUCKET).createSignedUrl(item.object_path,60,{
+        transform:{width:320,height:320,resize:"cover",quality:70}
+      }).then(({data,error})=>{
+        if(epoch===epochAtRequest&&img.isConnected&&!error)img.src=data.signedUrl;
+      }).catch(()=>{});
+    };
+    // Generate private signed URLs only as tiles approach the viewport.
+    if(typeof IntersectionObserver==="function"){
+      const observer=new IntersectionObserver(entries=>{
+        if(entries.some(entry=>entry.isIntersecting)){observer.disconnect();getThumbnail()}
+      },{rootMargin:"250px"});
+      observer.observe(img);
+    }else getThumbnail();
     if(selectMode){
       const checkmark=add(photo,"span","library-tile-check",selectedIds.has(item.id)?"✓":"");
       if(selectedIds.has(item.id))tile.classList.add("is-selected");
