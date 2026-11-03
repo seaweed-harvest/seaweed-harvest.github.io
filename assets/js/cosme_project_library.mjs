@@ -285,7 +285,8 @@ export function createProjectLibrary(client,root,kind){
         const snapshot={project:project.value,activity:activity.value.trim(),
           location:location.value.trim(),asset:asset.value.trim(),note:note.value.trim()};
         batch={batchId:crypto.randomUUID(),snapshot,remaining:unique,total:entries.length,
-          skipped,saved:0,failed:0,active:0,sourceBytes:0,storedBytes:0,metadataWarnings:0,errors:[]};
+          skipped,saved:0,failed:0,active:0,sourceBytes:0,storedBytes:0,metadataWarnings:0,
+          startedAt:Date.now(),errors:[]};
       }
       batch.remaining=[];
       batch.failed=0;batch.errors=[];
@@ -379,10 +380,14 @@ export function createProjectLibrary(client,root,kind){
       if(next<work.length)batch.remaining.push(...work.slice(next));
       busy=false;
       const remaining=batch.remaining.length;
+      const durationSec=Math.max(1,Math.round((Date.now()-batch.startedAt)/1000));
+      const elapsed=durationSec<60?durationSec+"s":
+        Math.floor(durationSec/60)+"m "+String(durationSec%60).padStart(2,"0")+"s";
       const summary=batch.saved+" of "+(batch.total-batch.skipped)+" photos saved"+
         (batch.skipped?" · "+batch.skipped+" duplicate skipped":"")+
         (remaining?" · "+remaining+" remaining":"")+
-        (batch.metadataWarnings?" · "+batch.metadataWarnings+" metadata warnings":"");
+        (batch.metadataWarnings?" · "+batch.metadataWarnings+" metadata warnings":"")+
+        " · "+elapsed;
       run.disabled=false;
       cancel.disabled=false;
       cancel.textContent=remaining?"Close":"Cancel";
