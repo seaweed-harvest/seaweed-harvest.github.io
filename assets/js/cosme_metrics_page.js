@@ -15,7 +15,7 @@ import { createMawimbiStockQcPanel } from "./cosme_mawimbi_stock_qc.mjs?v=1";
 import { createMawimbiTraceabilityPanel } from "./cosme_mawimbi_traceability.mjs?v=1";
 import { createMetricsTimeline } from "./cosme_metrics_timeline.mjs?v=3";
 import { createCosmeFinancesPanel } from "./cosme_finances_panel.mjs?v=7";
-import { createProjectLibrary } from "./cosme_project_library.mjs?v=10";
+import { createProjectLibrary } from "./cosme_project_library.mjs?v=11";
 import { createMetricEvidenceReview } from "./cosme_metric_evidence_review.mjs?v=1";
 import { createOperationalIndicators } from "./cosme_operational_indicators.mjs?v=2";
 import { metricDisplayName, withMetricPresentation } from "./cosme_metrics_labels.mjs?v=1";
@@ -44,6 +44,8 @@ let financesLoaded = false;
 const libraries={reports:createProjectLibrary(authClient,el("projectReports"),"reports"),photos:createProjectLibrary(authClient,el("projectPhotos"),"photos")};
 const metricEvidenceReview=createMetricEvidenceReview(authClient,el("metricLinkedPhotos"),el("metricProposalReview"));
 const librariesLoaded=new Set();
+const LAST_METRICS_TAB = "seaweed-ag:cosme-last-tab";
+let initialTabRestored = false;
 const ACTIVITY_ORDER = ["Solar Drying Tables", "Offshore Nursery", "Aggregation Hub", "Mawimbi", "Off-bottom Farming"];
 const STORAGE_KEY = "seaweed_ag:cosme_metric_columns_v2";
 const HIDDEN_KEY_PREFIX = "seaweed_ag:cosme_hidden_metric_ids_v1:";
@@ -313,6 +315,7 @@ function syncStickyScrollbar() {
 }
 function tab(name) {
   if(name==="current")name="register";
+  try { localStorage.setItem(LAST_METRICS_TAB,name); } catch {}
   if(name==="proposals" && !["owner","editor"].includes(access?.role))name="overview";
   for (const button of document.querySelectorAll(".metrics-tabs .tab")) {
     button.setAttribute("aria-selected", String(button.dataset.tab === name));
@@ -1036,6 +1039,15 @@ async function reloadAndRecheck() {
   await Promise.all([loadCurrentRopeCoverage(),loadCurrentDryerMetrics(),loadOperationalIndicators(),nurseryGrowthPanel.refresh(),mawimbiPanel.refresh(),mawimbiQcPanel.refresh(),timelinePanel.load(),...(grant.role === "owner" ? [traceabilityPanel.refresh()] : [])]);
   renderConnectionStatus();
   el("app").hidden = false;
+  if (!initialTabRestored) {
+    initialTabRestored = true;
+    let selected = new URLSearchParams(window.location.search).get("tab");
+    if (!selected) {
+      try { selected = localStorage.getItem(LAST_METRICS_TAB); } catch {}
+    }
+    if (["overview","register","timeline","finances","reports","photos","history"].includes(selected))
+      tab(selected);
+  }
   if (financesLoaded) financesPanel.load();
   for(const name of librariesLoaded)libraries[name].load();
   renderRegisterSummary();
@@ -1167,7 +1179,7 @@ document.addEventListener("click", (event) => {
   }
 });
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && access) {
+  if (!document.hidden && access && document.body.dataset.cosmePhotoUploading !== "true") {
     reloadAndRecheck().catch((error) => {
       clearPrivateState();
       setStatus(error.message, true);
