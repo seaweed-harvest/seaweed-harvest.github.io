@@ -64,19 +64,23 @@ test('list uses a larger preview and caption beneath the full row, never file si
 });
 
 
-test('browser batch upload uses parallel transfer slots with serial image preparation',()=>{
+test('browser batch upload retains files on device and resumes with bounded parallel transfer',()=>{
   const src=read('../assets/js/cosme_project_library.mjs');
-  assert.match(src,/Array\.from\(\{length:Math\.min\(3,work\.length\)\}/);
-  assert.match(src,/prepareQueue=Promise\.resolve\(\)/);
-  assert.match(src,/prepareQueue=p\.catch\(\(\)=>\{\}\)/);
+  assert.match(src,/createQueuedBatch/);
+  assert.match(src,/listPendingBatches/);
+  assert.match(src,/putQueuedPhoto\(entry\)/);
+  assert.match(src,/Array\.from\(\{length:Math\.min\(4,work\.length\)\}/);
+  assert.match(src,/preparation=\{current:Promise\.resolve\(\)\}/);
   assert.match(src,/Stop remaining/);
-  assert.match(src,/Retry \"\+remaining\+\" remaining photo/);
+  assert.match(src,/Resume \"\+pending\+\" remaining/);
+  assert.match(src,/cosme_library_finish/);
+  assert.match(src,/entry\.reservation\.object_path/);
 });
 test('voice-dictated batch descriptions remain attached to each photo for ChatGPT',()=>{
   const src=read('../assets/js/cosme_project_library.mjs');
   assert.match(src,/library-batch-note-label/);
   assert.match(src,/batch_description:settings\.note/);
-  assert.match(src,/batch_id:batch\.batchId/);
+  assert.match(src,/batch_id:queued\.id/);
   assert.match(src,/caption:settings\.note\.slice\(0,1000\)/);
   assert.match(src,/library-upload-savings/);
 });
