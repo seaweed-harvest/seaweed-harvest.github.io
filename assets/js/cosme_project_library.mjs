@@ -28,25 +28,45 @@ export function createProjectLibrary(client,root,kind){
     for(const [v,name] of values){const o=add(s,"option","",name);o.value=v}
     s.value=value||"";s.addEventListener("change",()=>change(s.value));return s;
   }
+  function photoIconButton(parent,symbol,label,handler){
+    const control=add(parent,"button","library-photo-icon-button",symbol);
+    control.type="button";
+    control.setAttribute("aria-label",label);
+    control.title=label;
+    control.addEventListener("click",handler);
+    return control;
+  }
   async function openFile(item,download=false){
     const ticket=epoch;
-    // Same-page viewer preserves phone filters and does not require popup permission.
+    // Modal stays on the page: Escape, backdrop tap or compact × closes it.
     let viewer=null,content=null;
     if(!download){
-      viewer=add(root,"dialog","library-viewer");viewer.setAttribute("aria-label",item.title);
-      const head=add(viewer,"div","library-heading");add(head,"h3","",item.title);
-      const actions=add(head,"div","library-actions");button(actions,"Download",()=>openFile(item,true));
+      viewer=add(root,"dialog",kind==="photos"?"library-viewer library-photo-viewer":"library-viewer");
+      viewer.setAttribute("aria-label",item.title);
       if(kind==="photos"){
-        const visible=filterLibrary(items,filters);
-        const index=visible.findIndex(photo=>photo.id===item.id);
-        if(index>0)button(actions,"‹ Previous",()=>{viewer.close();openFile(visible[index-1])});
-        if(index>=0&&index<visible.length-1)button(actions,"Next ›",()=>{viewer.close();openFile(visible[index+1])});
-        if(canEdit)button(actions,item.is_favourite?"♥ Unfavourite":"♡ Favourite",async()=>{viewer.close();await photoAction([item.id],item.is_favourite?"unfavourite":"favourite")});
-        if(canEdit)button(actions,"Edit details",()=>{viewer.close();editor(item)});
+        const top=add(viewer,"div","library-photo-viewer-top");
+        const title=add(top,"h3","library-photo-viewer-title",item.title);
+        title.title=item.title;
+        const navigation=add(top,"div","library-photo-viewer-navigation");
+        const visible=filterLibrary(items,filters).filter(p=>!favoritesOnly||p.is_favourite);
+        const index=visible.findIndex(p=>p.id===item.id);
+        const previous=photoIconButton(navigation,"‹","Previous photo",()=>{viewer.close();openFile(visible[index-1])});
+        previous.disabled=index<=0;
+        const next=photoIconButton(navigation,"›","Next photo",()=>{viewer.close();openFile(visible[index+1])});
+        next.disabled=index<0||index>=visible.length-1;
+        const close=photoIconButton(navigation,"×","Close photo",()=>viewer.close());
+        close.classList.add("library-photo-close");
+      }else{
+        const head=add(viewer,"div","library-heading");
+        add(head,"h3","",item.title);
+        const actions=add(head,"div","library-actions");
+        button(actions,"Download",()=>openFile(item,true));
+        button(actions,"Close",()=>viewer.close());
       }
-      button(actions,"Close",()=>viewer.close());
+      viewer.addEventListener("click",e=>{if(e.target===viewer)viewer.close()});
       viewer.addEventListener("close",()=>viewer.remove());
-      content=add(viewer,"div","library-viewer-content","Opening…");viewer.showModal();
+      content=add(viewer,"div","library-viewer-content","Opening…");
+      viewer.showModal();
     }
     try{
       const data=check(await client.storage.from(LIBRARY_BUCKET).createSignedUrl(item.object_path,60,download?{download:true}:undefined));
@@ -59,7 +79,7 @@ export function createProjectLibrary(client,root,kind){
       if(kind==="reports"&&!navigator.pdfViewerEnabled){
         add(content,"p","metrics-small-note","Download this report to read it in your PDF reader.");return;
       }
-      if(kind==="reports")add(content,"p","metrics-small-note","If the preview is unavailable, download a copy to read on your device.");
+      if(kind==="reports")add(content,"p","metrics-small-note","If the preview is unavailable, download a copy to read it in your PDF reader.");
       const media=add(content,kind==="reports"?"iframe":"img");
       if(kind==="reports"){media.title=item.title;media.referrerPolicy="no-referrer"}else media.alt=item.title;
       media.src=data.signedUrl;
@@ -78,6 +98,17 @@ export function createProjectLibrary(client,root,kind){
         }
         if(item.photo_metadata?.datetime_original&&!item.captured_at)
           add(details,"span","","Camera time: "+item.photo_metadata.datetime_original+" (timezone not recorded)");
+        const footer=add(viewer,"div","library-photo-viewer-footer");
+        photoIconButton(footer,"↓","Download photo",()=>openFile(item,true));
+        if(canEdit){
+          const favourite=photoIconButton(footer,item.is_favourite?"♥":"♡",
+            item.is_favourite?"Remove favourite":"Favourite photo",()=>{
+              viewer.close();
+              photoAction([item.id],item.is_favourite?"unfavourite":"favourite");
+            });
+          if(item.is_favourite)favourite.classList.add("is-favourite");
+          photoIconButton(footer,"✎","Edit photo details",()=>{viewer.close();editor(item)});
+        }
       }
     }catch(e){viewer?.remove();if(ticket===epoch)status("Could not open file. "+e.message,true)}
   }
@@ -323,6 +354,12 @@ export function createProjectLibrary(client,root,kind){
   function photoListItem(item,container){
     const row=add(container,"div","library-photo-row");
     photoTile(item,row);
+    const openOrSelect=()=>{
+      if(selectMode){
+        if(selectedIds.has(item.id))selectedIds.delete(item.id);else selectedIds.add(item.id);
+        draw();
+      }else openFile(item);
+    };
     const detail=add(row,"button","library-photo-row-detail");
     detail.type="button";
     detail.setAttribute("aria-label",(selectMode?"Select ":"Open ")+item.title);
@@ -330,16 +367,19 @@ export function createProjectLibrary(client,root,kind){
     add(detail,"span","library-row-context",[
       item.project,item.location||item.activity
     ].filter(Boolean).join(" · "));
-    const date=item.captured_at?new Date(item.captured_at).toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"}):null;
-    const bytes=Number(item.byte_size);
-    add(detail,"span","library-row-facts",[
-      date,Number.isFinite(bytes)&&bytes>0?(bytes>=1048576?(bytes/1048576).toFixed(1)+" MB":Math.round(bytes/1024)+" KB"):null
-    ].filter(Boolean).join(" · "));
-    if(item.caption)add(detail,"span","library-row-caption",item.caption);
-    detail.addEventListener("click",()=>{
-      if(selectMode){if(selectedIds.has(item.id))selectedIds.delete(item.id);else selectedIds.add(item.id);draw()}
-      else openFile(item);
-    });
+    if(item.captured_at){
+      const date=new Date(item.captured_at).toLocaleDateString(undefined,{
+        day:"numeric",month:"short",year:"numeric"
+      });
+      add(detail,"span","library-row-facts",date);
+    }
+    detail.addEventListener("click",openOrSelect);
+    if(item.caption){
+      const description=add(row,"button","library-row-caption",item.caption);
+      description.type="button";
+      description.setAttribute("aria-label",(selectMode?"Select ":"Read details for ")+item.title);
+      description.addEventListener("click",openOrSelect);
+    }
     if(selectedIds.has(item.id))row.classList.add("is-selected");
   }
   function photoTrashItem(item,container){
