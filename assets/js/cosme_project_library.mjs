@@ -271,6 +271,7 @@ export function createProjectLibrary(client,root,kind){
       stopRequested=false;
       const entries=isRetry?batch.remaining:
         [...files.files].map((original,index)=>({original,index}));
+      let work=entries;
       if(!isRetry){
         const seen=new Set();
         const unique=[];
@@ -280,6 +281,7 @@ export function createProjectLibrary(client,root,kind){
           if(seen.has(key)){skipped++;continue}
           seen.add(key);unique.push(entry);
         }
+        work=unique;
         const snapshot={project:project.value,activity:activity.value.trim(),
           location:location.value.trim(),asset:asset.value.trim(),note:note.value.trim()};
         batch={batchId:crypto.randomUUID(),snapshot,remaining:unique,total:entries.length,
@@ -287,7 +289,6 @@ export function createProjectLibrary(client,root,kind){
       }
       batch.remaining=[];
       batch.failed=0;batch.errors=[];
-      const work=entries.filter(e=>!isRetry||!!e);
       busy=true;run.disabled=true;files.disabled=true;
       for(const field of [project,activity,location,asset,note])field.disabled=true;
       cancel.textContent="Stop remaining";cancel.disabled=false;
