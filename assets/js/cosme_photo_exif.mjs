@@ -78,20 +78,41 @@ export function captureTimestamp(metadata){
   return {value:null,source:metadata.datetime_original?"camera_local_no_timezone":"missing"};
 }
 export async function prepareLibraryImage(file,{maxEdge=1920,quality=0.80}={}){
+  // Collect metadata from the supplied camera file before any recompression.
   const metadata=readPhotoExif(await file.slice(0,Math.min(file.size,1024*1024)).arrayBuffer());
-  const mime=file.type||'image/jpeg';
-  // Browser image-decoding support varies for HEIC. Unsupported files retain an actionable error.
+  const mime=file.type||"image/jpeg";
+  const supported=["image/jpeg","image/png","image/webp"].includes(mime);
   let bitmap;
   try{bitmap=await createImageBitmap(file)}catch{
-    if(mime==='image/jpeg'||mime==='image/png'||mime==='image/webp')return {file,metadata,dimensions:null,optimized:false};
-    throw Error('This photo format cannot be opened here. Export as JPEG and retry.');
+    if(supported)return {file,metadata:{...metadata,original_filename:file.name,original_bytes:file.size,original_mime:mime},dimensions:null,optimized:false};
+    throw Error("This photo format cannot be opened here. Export as JPEG and retry.");
   }
   const w=bitmap.width,h=bitmap.height;
   const factor=Math.min(1,maxEdge/Math.max(w,h));
-  const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(w*factor));canvas.height=Math.max(1,Math.round(h*factor));
-  canvas.getContext('2d').drawImage(bitmap,0,0,canvas.width,canvas.height);
+  const width=Math.max(1,Math.round(w*factor)),height=Math.max(1,Math.round(h*factor));
+  const photoMetadata={...metadata,original_filename:file.name,original_bytes:file.size,
+    original_mime:mime,original_width:w,original_height:h};
+  // Small images already below the target need no expensive decode/re-encode cycle.
+  if(supported&&factor===1&&file.size<=400*1024){
+    bitmap.close?.();
+    return {file,metadata:{...photoMetadata,stored_width:w,stored_height:h},dimensions:{width:w,height:h},optimized:false};
+  }
+  const canvas=document.createElement("canvas");
+  canvas.width=width;canvas.height=height;
+  const ctx=canvas.getContext("2d");
+  if(!ctx){bitmap.close?.();throw Error("Image processing is not supported on this device.");}
+  ctx.drawImage(bitmap,0,0,width,height);
   bitmap.close?.();
-  const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality));
-  const jpeg=blob&&blob.size>0?new File([blob],file.name.replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'}):file;
-  return {file:jpeg,metadata:{...metadata,original_filename:file.name,original_bytes:file.size,original_mime:mime,original_width:w,original_height:h,stored_width:canvas.width,stored_height:canvas.height},dimensions:{width:w,height:h},optimized:jpeg!==file};
+  // Preserve transparency in PNG diagrams/screenshots. JPEG is the default for photographs.
+  const targetMime=mime==="image/png"?"image/png":"image/jpeg";
+  const blob=await new Promise(resolve=>canvas.toBlob(resolve,targetMime,quality));
+  if(!blob?.size)throw Error("Could not optimise photo on this device.");
+  const candidate=new File([blob],file.name.replace(/\.[^.]+$/,"")+
+    (targetMime==="image/png"?".png":".jpg"),{type:targetMime});
+  // Never increase storage for an image already within the resolution target.
+  const keepOriginal=supported&&factor===1&&file.size<=candidate.size;
+  const result=keepOriginal?file:candidate;
+  return {file:result,metadata:{...photoMetadata,
+    stored_width:keepOriginal?w:width,stored_height:keepOriginal?h:height},
+    dimensions:{width:w,height:h},optimized:result!==file};
 }
