@@ -422,6 +422,7 @@ export function createProjectLibrary(client,root,kind){
     }
     async function runUpload(){
       if(running)return;
+      const runStartedAt=Date.now();
       running=true;busy=true;stopRequested=false;active=0;failedCount=0;errors=[];
       document.body.dataset.cosmePhotoUploading="true";
       run.disabled=true;files.disabled=true;fieldControls.forEach(control=>control.disabled=true);
@@ -492,15 +493,19 @@ export function createProjectLibrary(client,root,kind){
           queued.state="paused";
           await putBatch(queued);
           showProgress();
-          const text=count.saved+" of "+queued.total+" photos saved · "+count.waiting+" to resume";
+          const elapsed=Math.round((Date.now()-runStartedAt)/1000);
+          const text=count.saved+" of "+queued.total+" photos saved · "+count.waiting+
+            " to resume · "+(elapsed<60?elapsed+"s":Math.floor(elapsed/60)+"m "+String(elapsed%60).padStart(2,"0")+"s");
           status(text,failedCount>0);
           if(!navigator.onLine)errorLine.textContent="Offline. Resume when connected.";
           else if(stopRequested)errorLine.textContent="Paused. Your remaining photos are saved on this device.";
         }else{
           queued.state="complete";
           await deleteBatch(queued.id);
+          const elapsed=Math.round((Date.now()-runStartedAt)/1000);
           const summary=count.saved+" photos saved"+
-            (queued.skipped?" · "+queued.skipped+" duplicates skipped":"");
+            (queued.skipped?" · "+queued.skipped+" duplicates skipped":"")+
+            " · "+(elapsed<60?elapsed+"s":Math.floor(elapsed/60)+"m "+String(elapsed%60).padStart(2,"0")+"s");
           queued=null;entries=[];
           form.remove();busy=false;
           await load();
