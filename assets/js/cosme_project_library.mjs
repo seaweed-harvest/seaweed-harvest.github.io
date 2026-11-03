@@ -1,5 +1,5 @@
 import {LIBRARY_BUCKET,PROJECTS,EXAMPLES,filterLibrary,localDateTime,libraryMetadata,validateLibraryFile} from "./cosme_project_library_core.mjs?v=2";
-import {prepareLibraryImage,captureTimestamp} from "./cosme_photo_exif.mjs?v=1";
+import {prepareLibraryImage,captureTimestamp} from "./cosme_photo_exif.mjs?v=2";
 const make=(tag,cls="",text)=>{const n=document.createElement(tag);n.className=cls;if(text!==undefined)n.textContent=text;return n};
 const add=(root,tag,cls,text)=>{const n=make(tag,cls,text);root.append(n);return n};
 const button=(root,text,fn)=>{const b=add(root,"button","metrics-button",text);b.type="button";b.addEventListener("click",fn);return b};
