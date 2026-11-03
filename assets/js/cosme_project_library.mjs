@@ -171,7 +171,7 @@ export function createProjectLibrary(client,root,kind){
     const chooser=add(grid,"label","","Select images");
     const files=add(chooser,"input");files.type="file";files.multiple=true;
     files.accept="image/jpeg,image/png,image/webp,image/heic,image/heif";files.required=true;
-    const project=select(grid,"Project",PROJECTS.map(v=>[v,v]),filters.project||"Offshore Nursery",()=>{});
+    const project=select(grid,"Project",PROJECTS.map(v=>[v,v]),filters.project||"Whole project",()=>{});
     const activityLabel=add(grid,"label","","Activity"),activity=add(activityLabel,"input");activity.value=filters.activity||"";
     const locationLabel=add(grid,"label","","Location"),location=add(locationLabel,"input");location.value=filters.location||"";
     const assetLabel=add(grid,"label","","Asset / raft"),asset=add(assetLabel,"input");asset.value=filters.asset||"";
@@ -181,9 +181,12 @@ export function createProjectLibrary(client,root,kind){
     form.addEventListener("submit",async e=>{
       e.preventDefault();if(busy||!files.files.length)return;
       const entries=[...files.files];busy=true;run.disabled=true;files.disabled=true;
+      const duplicates=new Set();
       let completed=0,failed=0;
       for(let i=0;i<entries.length;i++){
         const original=entries[i];
+        if(duplicates.has(original.name+"|"+original.size+"|"+original.lastModified)){failed++;continue}
+        duplicates.add(original.name+"|"+original.size+"|"+original.lastModified);
         feedback.textContent="Uploading "+(i+1)+" of "+entries.length+"…";
         try{
           const prep=await prepareLibraryImage(original),file=prep.file;
@@ -208,15 +211,15 @@ export function createProjectLibrary(client,root,kind){
             p_id:reservation.id,p_expected_revision:reservation.revision,
             p_metadata:captureMeta,p_source:"web"
           });
-          if(saved.error)throw saved.error;
+          if(saved.error)feedback.textContent="Saved image; camera metadata could not be added: "+(saved.error.message||"Try editing later");
           completed++;
         }catch(err){failed++;feedback.textContent=original.name+": "+(err.message||"Upload failed")}
       }
       busy=false;
-      if(completed)await load();
-      feedback.textContent=completed+" of "+entries.length+" saved"+(failed?" · "+failed+" failed":"");
-      status(feedback.textContent,!!failed);
-      if(!failed){form.remove()}else{run.disabled=false;files.disabled=false}
+      const message=completed+" of "+entries.length+" saved"+(failed?" · "+failed+" failed":"");
+      if(completed){form.remove();await load()}
+      else{run.disabled=false;files.disabled=false;feedback.textContent=message}
+      status(message,!!failed);
     });
     files.focus();
   }
@@ -289,6 +292,7 @@ export function createProjectLibrary(client,root,kind){
       const activeFilter=(k,value,fn)=>{const b=button(toolbar,value,fn);if(k)b.classList.add("is-active");return b};
       activeFilter(!favoritesOnly,"All",()=>{favoritesOnly=false;page=0;draw()});
       if(!viewTrash)activeFilter(favoritesOnly,"Favourites",()=>{favoritesOnly=true;page=0;draw()});
+      select(toolbar,"Activity",[["","All activities"],...[...new Set(items.map(i=>i.project).filter(Boolean))].sort().map(v=>[v,v])],filters.project,value=>{filters.project=value;page=0;draw()});
       if(canEdit&&selectedIds.size){
         add(toolbar,"span","metrics-small-note",selectedIds.size+" selected");
         if(viewTrash)button(toolbar,"Restore",()=>photoAction([...selectedIds],"restore"));
