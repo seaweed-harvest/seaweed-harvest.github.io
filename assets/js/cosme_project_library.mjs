@@ -7,10 +7,10 @@ const check=result=>{if(result.error)throw result.error;return result.data};
 
 export function createProjectLibrary(client,root,kind){
   let folders=[],items=[],trashItems=[],canEdit=false,loaded=false,busy=false,epoch=0,page=0,examples=true,filtersOpen=false;
-  let filters={},message="",failed=false,viewTrash=false,favoritesOnly=false,selectMode=false,selectedIds=new Set();
+  let filters={},message="",failed=false,viewTrash=false,favoritesOnly=false,selectMode=false,selectedIds=new Set(),photoView="grid",photoSearchOpen=false;
   const noun=kind==="reports"?"report":"photo",pageSize=24;
   root.className="metrics-panel project-library";
-  function clear(){epoch++;folders=[];items=[];trashItems=[];canEdit=false;loaded=false;busy=false;filters={};page=0;filtersOpen=false;viewTrash=false;favoritesOnly=false;selectMode=false;selectedIds.clear();message="";failed=false;root.replaceChildren()}
+  function clear(){epoch++;folders=[];items=[];trashItems=[];canEdit=false;loaded=false;busy=false;filters={};page=0;filtersOpen=false;viewTrash=false;favoritesOnly=false;selectMode=false;selectedIds.clear();photoSearchOpen=false;message="";failed=false;root.replaceChildren()}
   function status(text,error=false){message=text;failed=error;const n=root.querySelector('[data-library-status]');if(n){n.hidden=!text;n.textContent=text;n.setAttribute("role",error?"alert":"status")}}
   async function load(){
     if(busy)return;
@@ -288,9 +288,8 @@ export function createProjectLibrary(client,root,kind){
         draw();
       }else openFile(item);
     });
-    if(item.is_favourite){const heart=add(tile,"span","library-tile-heart","♥");heart.setAttribute("aria-label","Favourite")}
     if(canEdit&&!selectMode&&!viewTrash){
-      const star=add(tile,"button","library-tile-fav",item.is_favourite?"♥":"♡");
+      const star=add(tile,"button","library-tile-fav"+(item.is_favourite?" is-favourite":""),item.is_favourite?"♥":"♡");
       star.type="button";star.setAttribute("aria-label",item.is_favourite?"Remove favourite":"Favourite");
       star.addEventListener("click",()=>photoAction([item.id],item.is_favourite?"unfavourite":"favourite"));
     }
@@ -321,8 +320,153 @@ export function createProjectLibrary(client,root,kind){
       if(canEdit)button(actions,"Edit reference",()=>editor(item));
     }
   }
+  function photoListItem(item,container){
+    const row=add(container,"div","library-photo-row");
+    photoTile(item,row);
+    const detail=add(row,"button","library-photo-row-detail");
+    detail.type="button";
+    detail.setAttribute("aria-label",(selectMode?"Select ":"Open ")+item.title);
+    add(detail,"span","library-row-title",item.title);
+    add(detail,"span","library-row-context",[
+      item.project,item.location||item.activity
+    ].filter(Boolean).join(" · "));
+    const date=item.captured_at?new Date(item.captured_at).toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"}):null;
+    const bytes=Number(item.byte_size);
+    add(detail,"span","library-row-facts",[
+      date,Number.isFinite(bytes)&&bytes>0?(bytes>=1048576?(bytes/1048576).toFixed(1)+" MB":Math.round(bytes/1024)+" KB"):null
+    ].filter(Boolean).join(" · "));
+    if(item.caption)add(detail,"span","library-row-caption",item.caption);
+    detail.addEventListener("click",()=>{
+      if(selectMode){if(selectedIds.has(item.id))selectedIds.delete(item.id);else selectedIds.add(item.id);draw()}
+      else openFile(item);
+    });
+    if(selectedIds.has(item.id))row.classList.add("is-selected");
+  }
+  function drawPhotos(){
+    root.replaceChildren();
+    const header=add(root,"div","library-gallery-header");
+    const identity=add(header,"div","library-gallery-identity");
+    add(identity,"h3","","Project photos");
+    const activeItems=viewTrash?trashItems:items;
+    add(identity,"span","library-photo-count",activeItems.length+" photo"+(activeItems.length===1?"":"s")+(viewTrash?" in Trash":""));
+    const actions=add(header,"div","library-gallery-actions");
+    if(canEdit&&!viewTrash){
+      const upload=button(actions,"Add photos",batchUpload);
+      upload.classList.add("primary","library-add-photos");
+    }
+    if(canEdit){
+      const selecting=button(actions,selectMode?"Done":"Select",()=>{
+        selectMode=!selectMode;selectedIds.clear();draw();
+      });
+      selecting.classList.add("library-select-toggle");
+      selecting.setAttribute("aria-pressed",String(selectMode));
+    }
+    const more=add(actions,"details","library-more-menu");
+    const moreSummary=add(more,"summary","","•••");
+    moreSummary.setAttribute("aria-label","More photo actions");
+    const menu=add(more,"div","library-more-menu-items");
+    if(canEdit&&!viewTrash)button(menu,"New folder",()=>{more.open=false;folderForm()});
+    button(menu,viewTrash?"Back to library":"Trash",()=>{
+      more.open=false;viewTrash=!viewTrash;favoritesOnly=false;selectMode=false;
+      selectedIds.clear();page=0;draw();
+    });
+    button(menu,"Refresh",()=>{more.open=false;if(!busy)load()});
+    const notice=add(root,"p","metrics-small-note",message);
+    notice.hidden=!message;notice.dataset.libraryStatus="";notice.setAttribute("role",failed?"alert":"status");
+    const toolbar=add(root,"div","library-gallery-toolbar");
+    const scopes=add(toolbar,"div","library-gallery-scopes");
+    const all=button(scopes,"All",()=>{favoritesOnly=false;page=0;draw()});
+    all.classList.add("library-filter-pill");all.setAttribute("aria-pressed",String(!favoritesOnly));
+    if(!viewTrash){
+      const fav=button(scopes,"Favourites",()=>{favoritesOnly=true;page=0;draw()});
+      fav.classList.add("library-filter-pill");fav.setAttribute("aria-pressed",String(favoritesOnly));
+    }
+    const category=add(toolbar,"div","library-gallery-category");
+    select(category,"Activity",[
+      ["","All activities"],
+      ...[...new Set(items.map(i=>i.project).filter(Boolean))].sort().map(v=>[v,v])
+    ],filters.project,value=>{filters.project=value;page=0;draw()});
+    const viewSwitch=add(toolbar,"div","library-gallery-view-toggle");
+    viewSwitch.setAttribute("role","group");viewSwitch.setAttribute("aria-label","Photo display mode");
+    for(const [mode,name] of [["grid","Grid"],["list","List"]]){
+      const control=button(viewSwitch,name,()=>{photoView=mode;draw()});
+      control.classList.add("library-view-button");
+      control.setAttribute("aria-pressed",String(photoView===mode));
+      control.title=name+" view";
+    }
+    const extra=add(root,"div","library-gallery-extras");
+    const quick=add(extra,"div","library-gallery-quick");
+    const searchToggle=button(quick,photoSearchOpen?"Hide search":"Search",()=>{
+      photoSearchOpen=!photoSearchOpen;draw();
+    });
+    searchToggle.setAttribute("aria-expanded",String(photoSearchOpen));
+    const activeFilters=Object.entries(filters).filter(([k,v])=>k!=="search"&&v).length;
+    const advanced=add(extra,"details","library-gallery-advanced");
+    const summary=add(advanced,"summary","","Filters"+(activeFilters?" · "+activeFilters:""));
+    advanced.open=filtersOpen;
+    advanced.addEventListener("toggle",()=>{filtersOpen=advanced.open});
+    const moreFilters=add(advanced,"div","library-filters");
+    const change=key=>value=>{filters[key]=value;page=0;draw()};
+    select(moreFilters,"Folder",[["","All folders"],...folders.map(f=>[f.id,f.name])],filters.folder,change("folder"));
+    for(const [key,label] of [["prototype","Prototype"],["location","Location"],["activity","Detail activity"],["asset","Asset"]]){
+      const values=[...new Set(items.map(i=>i[key]).filter(Boolean))].sort();
+      select(moreFilters,label,[["","All"],...values.map(v=>[v,v])],filters[key],change(key));
+    }
+    for(const [key,label] of [["from","From"],["to","To"]]){
+      const control=add(moreFilters,"label","",label),date=add(control,"input");
+      date.type="date";date.value=filters[key]||"";
+      date.addEventListener("change",()=>change(key)(date.value));
+    }
+    button(moreFilters,"Clear filters",()=>{
+      filters={};favoritesOnly=false;filtersOpen=false;page=0;draw();
+    });
+    if(photoSearchOpen){
+      const searchWrap=add(root,"label","library-gallery-search");
+      const search=add(searchWrap,"input");
+      search.type="search";search.setAttribute("aria-label","Search project photos");
+      search.placeholder="Search photos, locations or assets";
+      search.value=filters.search||"";
+      search.addEventListener("change",()=>{filters.search=search.value;page=0;draw()});
+      search.focus();
+    }
+    if(canEdit&&selectedIds.size){
+      const chosen=add(root,"div","library-selection-bar");
+      add(chosen,"span","library-selection-count",selectedIds.size+" selected");
+      if(viewTrash)button(chosen,"Restore",()=>photoAction([...selectedIds],"restore"));
+      else{
+        button(chosen,"Favourite",()=>photoAction([...selectedIds],"favourite"));
+        button(chosen,"Unfavourite",()=>photoAction([...selectedIds],"unfavourite"));
+        const trash=button(chosen,"Move to Trash",()=>photoAction([...selectedIds],"trash"));
+        trash.classList.add("library-danger-action");
+      }
+    }
+    const visible=filterLibrary(activeItems,filters).filter(i=>!favoritesOnly||i.is_favourite);
+    page=Math.min(page,Math.max(0,Math.ceil(visible.length/pageSize)-1));
+    const count=add(root,"div","library-results-line");
+    add(count,"span","",visible.length+" shown"+(!canEdit?" · Read only":""));
+    if(filters.project||filters.search||activeFilters||favoritesOnly){
+      const reset=button(count,"Clear filters",()=>{
+        filters={};favoritesOnly=false;page=0;draw();
+      });reset.classList.add("library-reset-filters");
+    }
+    const gallery=add(root,"div",photoView==="grid"?"library-photo-grid":"library-photo-list");
+    gallery.setAttribute("aria-label",photoView==="grid"?"Photo thumbnails":"Photo list");
+    const slice=visible.slice(page*pageSize,(page+1)*pageSize);
+    for(const item of slice){
+      if(photoView==="grid")photoTile(item,gallery);else photoListItem(item,gallery);
+    }
+    if(!visible.length)add(gallery,"p","library-gallery-empty",
+      viewTrash?"Trash is empty":items.length?"No matching photos":"No project photos uploaded yet");
+    if(visible.length>pageSize){
+      const pagination=add(root,"div","library-gallery-pagination");
+      button(pagination,"Previous",()=>{page--;draw()}).disabled=page===0;
+      add(pagination,"span","",`Page ${page+1} of ${Math.ceil(visible.length/pageSize)}`);
+      button(pagination,"Next",()=>{page++;draw()}).disabled=(page+1)*pageSize>=visible.length;
+    }
+  }
   function draw(){
     if(busy)return;
+    if(kind==="photos"){drawPhotos();return}
     root.replaceChildren();
     const heading=add(root,"div","library-heading");add(heading,"h3","",kind==="reports"?"Reports":"Project photos");
     const actions=add(heading,"div","library-actions");
