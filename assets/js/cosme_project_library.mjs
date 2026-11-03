@@ -230,14 +230,14 @@ export function createProjectLibrary(client,root,kind){
     const chooser=add(grid,"label","","Select images");
     const files=add(chooser,"input");files.type="file";files.multiple=true;
     files.accept="image/jpeg,image/png,image/webp,image/heic,image/heif";files.required=true;
+    const noteLabel=add(grid,"label","library-batch-note-label","Batch description");
+    const note=add(noteLabel,"textarea");
+    note.rows=3;note.maxLength=2500;
+    note.placeholder="Describe these photos together. Use your iPhone keyboard microphone to dictate.";
     const project=select(grid,"Project",PROJECTS.map(v=>[v,v]),filters.project||"Whole project",()=>{});
     const activityLabel=add(grid,"label","","Activity"),activity=add(activityLabel,"input");activity.value=filters.activity||"";
     const locationLabel=add(grid,"label","","Location"),location=add(locationLabel,"input");location.value=filters.location||"";
     const assetLabel=add(grid,"label","","Asset / raft"),asset=add(assetLabel,"input");asset.value=filters.asset||"";
-    const noteLabel=add(form,"label","library-batch-note-label","Batch description");
-    const note=add(noteLabel,"textarea");
-    note.rows=3;note.maxLength=2500;
-    note.placeholder="Describe these photos together. You can use your phone's keyboard microphone.";
     add(form,"p","metrics-small-note","One note for the whole batch; ChatGPT can add individual descriptions later.");
     const run=add(form,"button","metrics-button primary","Upload selected photos");run.type="submit";
     const feedback=add(form,"div","library-upload-progress");
