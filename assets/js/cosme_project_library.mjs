@@ -253,12 +253,23 @@ export function createProjectLibrary(client,root,kind){
     photo.setAttribute("aria-label",(selectMode?"Select ":"Open ")+item.title);
     const img=add(photo,"img");img.alt="";img.loading="lazy";
     const epochAtRequest=epoch;
+    let fallbackUsed=false;
+    const originalThumbnail=()=>{
+      if(fallbackUsed)return;
+      fallbackUsed=true;
+      client.storage.from(LIBRARY_BUCKET).createSignedUrl(item.object_path,60)
+        .then(({data,error})=>{if(epoch===epochAtRequest&&img.isConnected&&!error&&data?.signedUrl)img.src=data.signedUrl})
+        .catch(()=>{});
+    };
+    img.addEventListener("error",originalThumbnail);
     const getThumbnail=()=>{
       client.storage.from(LIBRARY_BUCKET).createSignedUrl(item.object_path,60,{
         transform:{width:320,height:320,resize:"cover",quality:70}
       }).then(({data,error})=>{
-        if(epoch===epochAtRequest&&img.isConnected&&!error)img.src=data.signedUrl;
-      }).catch(()=>{});
+        if(epoch!==epochAtRequest||!img.isConnected)return;
+        if(error||!data?.signedUrl)originalThumbnail();
+        else img.src=data.signedUrl;
+      }).catch(originalThumbnail);
     };
     // Generate private signed URLs only as tiles approach the viewport.
     if(typeof IntersectionObserver==="function"){
