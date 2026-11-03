@@ -103,11 +103,154 @@ const draftControls = [...document.querySelectorAll("[data-draft]")];
 const TABLE_PHOTO_LIMIT = 1;
 const PHASE_PHOTO_LIMIT = 2;
 const CAPTURE_PHASES = Object.freeze(["loading", "reweigh", "unloading"]);
+const PHOTO_DRAFT_DATABASE = "seaweed-dryer-photo-draft-v1";
+let photoDatabasePromise = null;
+let photoWriteChain = Promise.resolve();
+let photoPreparation = Promise.resolve();
+let photoStorageAvailable = true;
+
+function openPhotoDatabase() {
+  if (!("indexedDB" in window)) return Promise.reject(new Error("Photo storage is unavailable."));
+  if (!photoDatabasePromise) {
+    photoDatabasePromise = new Promise((resolve, reject) => {
+      const request = indexedDB.open(PHOTO_DRAFT_DATABASE, 1);
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains("drafts")) {
+          request.result.createObjectStore("drafts", { keyPath: "key" });
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error("Photo storage could not open."));
+    }).catch((error) => {
+      photoDatabasePromise = null;
+      throw error;
+    });
+  }
+  return photoDatabasePromise;
+}
+
+async function restorePhotoDraft() {
+  try {
+    const db = await openPhotoDatabase();
+    const record = await new Promise((resolve, reject) => {
+      const request = db.transaction("drafts", "readonly").objectStore("drafts").get("active");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    if (!record || record.draftId !== state.draftId) return;
+    const files = record.files || {};
+    state.files.table = Array.isArray(files.table) ? files.table : [];
+    for (const phase of CAPTURE_PHASES) {
+      state.files.captures[phase] = Array.isArray(files.captures?.[phase])
+        ? files.captures[phase] : [];
+    }
+  } catch (error) {
+    photoStorageAvailable = false;
+    console.warn("Dryer photos could not be restored from this phone.", error);
+  }
+}
+
+function queuePhotoSnapshot(record) {
+  photoWriteChain = photoWriteChain.catch(() => {}).then(async () => {
+    const db = await openPhotoDatabase();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction("drafts", "readwrite");
+      const store = tx.objectStore("drafts");
+      if (record) store.put(record);
+      else store.delete("active");
+      tx.oncomplete = () => resolve();
+      tx.onabort = () => reject(tx.error || new Error("Photo storage failed."));
+      tx.onerror = () => reject(tx.error || new Error("Photo storage failed."));
+    });
+  });
+  return photoWriteChain;
+}
+
+function savePhotoDraft() {
+  const record = {
+    key: "active",
+    draftId: state.draftId,
+    files: {
+      table: [...state.files.table],
+      captures: Object.fromEntries(CAPTURE_PHASES.map((phase) => [
+        phase, [...state.files.captures[phase]]
+      ]))
+    }
+  };
+  return queuePhotoSnapshot(record).then(() => {
+    photoStorageAvailable = true;
+  }).catch((error) => {
+    photoStorageAvailable = false;
+    throw error;
+  });
+}
+
+function clearPhotoDraft() {
+  return queuePhotoSnapshot(null).catch((error) => {
+    console.warn("The finished dryer photo draft could not be cleared.", error);
+  });
+}
+
+async function compactLocalPhoto(file) {
+  const blob = await preparePhoto(file);
+  if (blob === file) return file;
+  const stem = file.name.replace(/\.[^.]+$/, "");
+  return new File([blob], `${stem}.${photoExtension(blob.type)}`, {
+    type: blob.type,
+    lastModified: file.lastModified || Date.now()
+  });
+}
+
+function isConnectionFailure(error) {
+  return !navigator.onLine || /failed to fetch|networkerror|load failed|timeout|abort|^408 |^429 |^50[234] /i
+    .test(String(error?.message || error || ""));
+}
+
+function savePendingAction(kind, phase = null) {
+  state.pendingAction = { kind, phase };
+  saveDraft();
+  setStatus(photoStorageAvailable
+    ? "Saved on phone · will sync when connected"
+    : "Measurements saved. Photos could not be backed up; keep this page open.", "warning");
+}
+
+function pendingActionIs(kind, phase = null) {
+  return !state.pendingAction
+    || (state.pendingAction.kind === kind && state.pendingAction.phase === phase);
+}
+
+async function retryPendingAction() {
+  if (!state.pendingAction || !navigator.onLine || state.submitting) return;
+  const { kind, phase } = state.pendingAction;
+  if (kind === "capture" && ["loading", "unloading"].includes(phase)) {
+    await saveBatchCapture(phase);
+  } else if (kind === "reweigh") {
+    await saveReweighCapture();
+  } else if (kind === "submit") {
+    els.form.requestSubmit();
+  }
+}
+
+function fetchWithTimeout(url, options, timeoutMs = 30000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timer));
+}
+
+function stablePhotoObjectId(file, context, index) {
+  const input = [context, index, file.name, file.size, file.lastModified || 0].join("|");
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = Math.imul(hash ^ input.charCodeAt(i), 16777619);
+  }
+  return `p${(hash >>> 0).toString(16).padStart(8, "0")}-${index + 1}`;
+}
 
 let state = freshState();
 let draftTimer = null;
 
-initialize();
+void initialize();
 
 function freshState() {
   return {
@@ -119,6 +262,8 @@ function freshState() {
     files: { table: [], captures: { loading: [], reweigh: [], unloading: [] } },
     reweighs: [],
     pendingReweighId: null,
+    pendingAction: null,
+    draftId: createUuid(),
     submissionId: null,
     uploadToken: null,
     receiptNumber: null,
@@ -148,17 +293,43 @@ function freshState() {
   };
 }
 
-function initialize() {
+async function initialize() {
   initDryingLanguage();
   restoreDraft();
+  await restorePhotoDraft();
   loadRememberedEnumerator();
   bindEvents();
   applyLocationSelection(false);
   renderAll();
   renderTrials();
-  loadTrialSchedule();
-  loadRecords();
+  if (navigator.onLine) {
+    loadTrialSchedule();
+    loadRecords();
+  }
   updateRequiredFieldStates();
+  window.addEventListener("online", () => {
+    if (state.pendingAction) {
+      setStatus("Connected · syncing saved entry...");
+      void retryPendingAction();
+    }
+  });
+  window.addEventListener("offline", () => {
+    setStatus("Offline · work saved on this phone", "warning");
+    saveDraft();
+  });
+  window.addEventListener("pageshow", () => {
+    if (navigator.onLine && state.pendingAction) void retryPendingAction();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && navigator.onLine && state.pendingAction) void retryPendingAction();
+  });
+  window.addEventListener("pagehide", saveDraft);
+  if (state.pendingAction) {
+    setStatus("Saved on phone · waiting to sync", "warning");
+    if (navigator.onLine) setTimeout(() => void retryPendingAction(), 1200);
+  } else if (!navigator.onLine) {
+    setStatus("Offline · work saved on this phone", "warning");
+  }
 }
 
 function bindEvents() {
@@ -330,6 +501,11 @@ function restoreDraft() {
   state.savedPhotos = sanitizeSavedPhotos(draft.savedPhotos);
   state.reweighs = sanitizeReweighs(draft.reweighs);
   state.pendingReweighId = isUuid(draft.pendingReweighId) ? draft.pendingReweighId : null;
+  state.draftId = isUuid(draft.draftId) ? draft.draftId : state.draftId;
+  const action = draft.pendingAction;
+  state.pendingAction = action && ["capture", "reweigh", "submit"].includes(action.kind)
+    ? { kind: action.kind, phase: action.kind === "capture" ? action.phase : null }
+    : null;
   if (state.receiptNumber && state.submissionId && state.uploadToken) {
     rememberRecordAccess(state.receiptNumber, state.submissionId, state.uploadToken);
   }
@@ -497,7 +673,9 @@ function saveDraft() {
     recordStatus: state.recordStatus,
     savedPhotos: state.savedPhotos,
     reweighs: state.reweighs,
-    pendingReweighId: state.pendingReweighId
+    pendingReweighId: state.pendingReweighId,
+    pendingAction: state.pendingAction,
+    draftId: state.draftId
   };
   try {
     localStorage.setItem(CONFIG.draftStorageKey, JSON.stringify(draft));
@@ -1317,6 +1495,10 @@ function forgetRecordAccess(receiptNumbers) {
 }
 
 async function openSavedRecord(receiptNumber) {
+  if (state.pendingAction) {
+    setStatus("Sync this entry before opening another record.", "warning");
+    return;
+  }
   let access = recordAccessFor(receiptNumber);
   const raId = els.recordsRaId.value.trim();
   if (state.recordOpening || state.submitting) return;
@@ -1461,6 +1643,26 @@ function addSelectedPhotos(context) {
   input.value = "";
   renderAll();
   scheduleDraftSave();
+  if (!additions.length) return;
+  setStatus("Saving photos on this phone...");
+  photoPreparation = photoPreparation.catch(() => {}).then(async () => {
+    for (const original of additions) {
+      const index = files.indexOf(original);
+      if (index < 0) continue;
+      try {
+        files[index] = await compactLocalPhoto(original);
+      } catch (error) {
+        console.warn("This photo will use its original file.", error);
+      }
+    }
+    await savePhotoDraft();
+    renderAll();
+    if (!state.submitting) setStatus("Photos saved on this phone", "success");
+  }).catch((error) => {
+    photoStorageAvailable = false;
+    console.warn("Dryer photo backup failed.", error);
+    setStatus("Photo backup failed. Keep this page open.", "warning");
+  });
 }
 
 function photoInput(context) {
@@ -1546,7 +1748,22 @@ function replaceDryingPhoto() {
   const context = state.photoAction.retakeContext;
   const index = state.photoAction.retakeIndex;
   const files = context ? photoFiles(context) : null;
-  if (replacement && files?.[index]) files[index] = replacement;
+  if (replacement && files?.[index]) {
+    files[index] = replacement;
+    photoPreparation = photoPreparation.catch(() => {}).then(async () => {
+      try {
+        if (files[index] === replacement) files[index] = await compactLocalPhoto(replacement);
+      } catch (error) {
+        console.warn("Using original dryer photo.", error);
+      }
+      await savePhotoDraft();
+      renderAll();
+    }).catch((error) => {
+      photoStorageAvailable = false;
+      console.warn("Replacement photo backup failed.", error);
+      setStatus("Photo backup failed. Keep this page open.", "warning");
+    });
+  }
   state.photoAction.retakeContext = null;
   state.photoAction.retakeIndex = null;
   els.dryingPhotoRetake.value = "";
@@ -1563,10 +1780,17 @@ function deleteActiveDryingPhoto() {
   closeDryingPhotoActions();
   renderAll();
   scheduleDraftSave();
+  void savePhotoDraft().catch((error) => {
+    console.warn("Photo deletion was not backed up.", error);
+  });
 }
 
 async function saveReweighCapture() {
   if (state.submitting) return;
+  if (!pendingActionIs("reweigh")) {
+    setStatus("Previous entry needs to sync first.", "warning");
+    return;
+  }
   const bayNumbers = [...state.selectedBays.reweigh];
   const validationMessage = validateReweighCapture(bayNumbers);
   if (validationMessage) {
@@ -1586,6 +1810,11 @@ async function saveReweighCapture() {
 
   let savedEvent = null;
   try {
+    await photoPreparation;
+    if (!navigator.onLine) {
+      savePendingAction("reweigh");
+      return;
+    }
     const result = await callRpc(CONFIG.saveReweighRpc, {
       p_payload: {
         submission_id: state.submissionId,
@@ -1621,8 +1850,10 @@ async function saveReweighCapture() {
     applyReweighPhotoResult(savedEvent.id, photoResult);
 
     state.pendingReweighId = null;
+    state.pendingAction = null;
     clearCaptureCard("reweigh");
     saveDraft();
+    await savePhotoDraft();
     renderAll();
 
     const loss = reweighLossPercent(savedEvent);
@@ -1633,7 +1864,9 @@ async function saveReweighCapture() {
     loadRecords();
   } catch (error) {
     const message = simpleErrorMessage(error);
-    if (savedEvent) {
+    if (isConnectionFailure(error)) {
+      savePendingAction("reweigh");
+    } else if (savedEvent) {
       setStatus(t("capture.reweighSavedPhotoWarning", { message }), "warning");
     } else {
       setStatus(t("capture.reweighSaveFailed", { message }), "error");
@@ -1705,7 +1938,7 @@ async function uploadReweighSelectedPhotos(reweighId, bayNumbers) {
       throw new Error(`${upload.file.name} is still larger than ${formatBytes(CONFIG.maxPhotoBytes)} after compression.`);
     }
     const extension = photoExtension(blob.type);
-    const objectId = createUuid();
+    const objectId = stablePhotoObjectId(upload.file, `reweigh-${reweighId}-${upload.bayNumber}`, index);
     const objectPath = `${state.submissionId}/reweigh/${reweighId}/bay-${String(upload.bayNumber).padStart(2, "0")}/${objectId}.${extension}`;
     await uploadObject(objectPath, blob);
 
@@ -1727,6 +1960,7 @@ async function uploadReweighSelectedPhotos(reweighId, bayNumbers) {
 
   state.files.captures.reweigh = [];
   els.reweighCapturePhotos.value = "";
+  await savePhotoDraft();
 
   return {
     count: uploads.length,
@@ -1748,6 +1982,10 @@ function applyReweighPhotoResult(reweighId, result) {
 
 async function saveBatchCapture(phase) {
   if (state.submitting) return;
+  if (!pendingActionIs("capture", phase)) {
+    setStatus("Previous entry needs to sync first.", "warning");
+    return;
+  }
   const bayNumbers = [...state.selectedBays[phase]];
   const validationMessage = validateBatchCapture(phase, bayNumbers);
   if (validationMessage) {
@@ -1763,6 +2001,11 @@ async function saveBatchCapture(phase) {
   setStatus(t("capture.saving"));
   let receipt;
   try {
+    await photoPreparation;
+    if (!navigator.onLine) {
+      savePendingAction("capture", phase);
+      return;
+    }
     receipt = await callRpc(CONFIG.submitRpc, {
       p_payload: buildPayload(false),
       p_upload_token: state.uploadToken
@@ -1774,8 +2017,10 @@ async function saveBatchCapture(phase) {
       includeTable: true
     });
     applyUploadedPhotoResult(photoResult);
+    state.pendingAction = null;
     clearCaptureCard(phase);
     saveDraft();
+    await savePhotoDraft();
     renderAll();
     setStatus(t("capture.saved", {
       bays: bayNumbers.map((number) => `B${number}`).join(", "),
@@ -1783,10 +2028,14 @@ async function saveBatchCapture(phase) {
     }), "success");
     loadRecords();
   } catch (error) {
-    const receiptHint = receipt?.receipt_number
-      ? t("status.recordSavedPhotos", { receipt: receipt.receipt_number })
-      : "";
-    setStatus(`${friendlyError(error)}${receiptHint}`, receipt ? "warning" : "error");
+    if (isConnectionFailure(error)) {
+      savePendingAction("capture", phase);
+    } else {
+      const receiptHint = receipt?.receipt_number
+        ? t("status.recordSavedPhotos", { receipt: receipt.receipt_number })
+        : "";
+      setStatus(`${friendlyError(error)}${receiptHint}`, receipt ? "warning" : "error");
+    }
     saveDraft();
   } finally {
     state.submitting = false;
@@ -1838,6 +2087,10 @@ function acceptSavedReceipt(receipt) {
 async function submitForm(event) {
   event.preventDefault();
   if (state.submitting) return;
+  if (!pendingActionIs("submit")) {
+    setStatus("Previous entry needs to sync first.", "warning");
+    return;
+  }
   els.form.classList.add("was-validated");
 
   if (captureCardHasData("reweigh") || state.selectedBays.reweigh.length) {
@@ -1869,6 +2122,11 @@ async function submitForm(event) {
 
   let receipt;
   try {
+    await photoPreparation;
+    if (!navigator.onLine) {
+      savePendingAction("submit");
+      return;
+    }
     setStatus(t("status.savingRecord"));
     receipt = await callRpc(CONFIG.submitRpc, {
       p_payload: buildPayload(recordCanBeFinalized()),
@@ -1878,14 +2136,20 @@ async function submitForm(event) {
     saveDraft();
     const photoResult = await uploadSelectedPhotos();
     applyUploadedPhotoResult(photoResult);
+    state.pendingAction = null;
     localStorage.removeItem(CONFIG.draftStorageKey);
+    await clearPhotoDraft();
     showSuccess(receipt, { count: totalSavedPhotoCount(), attached: photoResult.attached });
     loadRecords();
   } catch (error) {
-    const receiptHint = receipt?.receipt_number
-      ? t("status.recordSavedPhotos", { receipt: receipt.receipt_number })
-      : "";
-    setStatus(`${friendlyError(error)}${receiptHint}`, receipt ? "warning" : "error");
+    if (isConnectionFailure(error)) {
+      savePendingAction("submit");
+    } else {
+      const receiptHint = receipt?.receipt_number
+        ? t("status.recordSavedPhotos", { receipt: receipt.receipt_number })
+        : "";
+      setStatus(`${friendlyError(error)}${receiptHint}`, receipt ? "warning" : "error");
+    }
     saveDraft();
   } finally {
     state.submitting = false;
@@ -2000,7 +2264,9 @@ async function uploadSelectedPhotos({ phaseBayNumbers = state.selectedBays, incl
     const blob = await preparePhoto(upload.file);
     if (blob.size > CONFIG.maxPhotoBytes) throw new Error(`${upload.file.name} is still larger than ${formatBytes(CONFIG.maxPhotoBytes)} after compression.`);
     const extension = photoExtension(blob.type);
-    const objectId = createUuid();
+    const objectId = stablePhotoObjectId(
+      upload.file, `${upload.kind}-${upload.phase || "table"}-${upload.bayNumber || 0}`, index
+    );
     const objectPath = upload.kind === "table"
       ? `${state.submissionId}/table/${objectId}.${extension}`
       : `${state.submissionId}/bay-${String(upload.bayNumber).padStart(2, "0")}/${upload.phase}/${objectId}.${extension}`;
@@ -2038,6 +2304,7 @@ async function uploadSelectedPhotos({ phaseBayNumbers = state.selectedBays, incl
     state.files.captures.unloading = [];
     els.unloadingCapturePhotos.value = "";
   }
+  await savePhotoDraft();
   return {
     count: uploads.length,
     attached: true,
@@ -2079,6 +2346,7 @@ function totalSavedPhotoCount() {
 }
 
 async function preparePhoto(file) {
+  if (file.type === "image/jpeg" && file.size <= CONFIG.photoTargetBytes) return file;
   if (["image/heic", "image/heif"].includes(file.type)) {
     if (file.size <= CONFIG.maxPhotoBytes) return file;
     throw new Error(`${file.name} is larger than 8 MB and this browser cannot compress HEIC photos.`);
@@ -2159,27 +2427,41 @@ function canvasToJpeg(canvas, quality) {
 
 async function uploadObject(objectPath, blob) {
   const encodedPath = objectPath.split("/").map(encodeURIComponent).join("/");
-  const response = await fetch(
-    `${CONFIG.supabaseUrl}/storage/v1/object/${encodeURIComponent(CONFIG.photoBucket)}/${encodedPath}`,
-    {
-      method: "POST",
-      headers: {
-        apikey: CONFIG.supabaseAnonKey,
-        Authorization: `Bearer ${CONFIG.supabaseAnonKey}`,
-        "Content-Type": blob.type || "image/jpeg",
-        "x-upsert": "false"
-      },
-      body: blob
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    let response;
+    try {
+      response = await fetchWithTimeout(
+        `${CONFIG.supabaseUrl}/storage/v1/object/${encodeURIComponent(CONFIG.photoBucket)}/${encodedPath}`,
+        {
+          method: "POST",
+          headers: {
+            apikey: CONFIG.supabaseAnonKey,
+            Authorization: `Bearer ${CONFIG.supabaseAnonKey}`,
+            "Content-Type": blob.type || "image/jpeg",
+            "x-upsert": "false"
+          },
+          body: blob
+        },
+        90000
+      );
+    } catch (error) {
+      if (attempt === 2 || !isConnectionFailure(error)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, (attempt + 1) * 1500));
+      continue;
     }
-  );
-  if (response.ok) return;
-  const detail = await response.text();
-  if ([400, 409].includes(response.status) && /duplicate|already exists/i.test(detail)) return;
-  throw new Error(`Photo upload failed (${response.status})${detail ? `: ${safeServerDetail(detail)}` : ""}`);
+    if (response.ok) return;
+    const detail = await response.text();
+    if ([400, 409].includes(response.status) && /duplicate|already exists/i.test(detail)) return;
+    if (attempt < 2 && [408, 429, 500, 502, 503, 504].includes(response.status)) {
+      await new Promise((resolve) => setTimeout(resolve, (attempt + 1) * 1500));
+      continue;
+    }
+    throw new Error(`Photo upload failed (${response.status})${detail ? `: ${safeServerDetail(detail)}` : ""}`);
+  }
 }
 
 async function callRpc(functionName, payload, { unwrapSingle = true } = {}) {
-  const response = await fetch(`${CONFIG.supabaseUrl}/rest/v1/rpc/${encodeURIComponent(functionName)}`, {
+  const response = await fetchWithTimeout(`${CONFIG.supabaseUrl}/rest/v1/rpc/${encodeURIComponent(functionName)}`, {
     method: "POST",
     headers: {
       apikey: CONFIG.supabaseAnonKey,
@@ -2233,15 +2515,22 @@ function setSubmittingUi(isSubmitting) {
 }
 
 function clearFormWithConfirmation() {
-  if (window.confirm(t("confirm.clear"))) resetForNewRecord();
+  const message = state.pendingAction
+    ? "This entry is only saved on this phone. Discard it and its photos?"
+    : t("confirm.clear");
+  if (window.confirm(message)) resetForNewRecord();
 }
 
 function startNewRecord() {
-  if (!formHasMeaningfulData() || window.confirm(t("confirm.newRecord"))) resetForNewRecord();
+  const message = state.pendingAction
+    ? "This entry is only saved on this phone. Discard it and its photos?"
+    : t("confirm.newRecord");
+  if (!formHasMeaningfulData() || window.confirm(message)) resetForNewRecord();
 }
 
 function resetForNewRecord({ scroll = true } = {}) {
   localStorage.removeItem(CONFIG.draftStorageKey);
+  void clearPhotoDraft();
   els.form.reset();
   els.form.classList.remove("was-validated");
   els.formPanel.hidden = false;
