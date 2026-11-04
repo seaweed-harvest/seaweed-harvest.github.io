@@ -10,9 +10,24 @@ export function createProjectLibrary(client,root,kind){
   let folders=[],items=[],trashItems=[],canEdit=false,loaded=false,busy=false,epoch=0,page=0,examples=true,filtersOpen=false;
   let filters={},message="",failed=false,viewTrash=false,favoritesOnly=false,selectMode=false,selectedIds=new Set(),photoView="grid",photoSearchOpen=false;
   let recovery=null,autoResumed=new Set();
+  let mapRenderer=null,mapState=null,mapTicket=0;
   const noun=kind==="reports"?"report":"photo",pageSize=24;
   root.className="metrics-panel project-library";
-  function clear(){epoch++;folders=[];items=[];trashItems=[];canEdit=false;loaded=false;busy=false;filters={};page=0;filtersOpen=false;viewTrash=false;favoritesOnly=false;selectMode=false;selectedIds.clear();photoSearchOpen=false;message="";failed=false;root.replaceChildren()}
+  function releasePhotoMap(){
+    mapTicket++;
+    if(mapRenderer){
+      mapState=mapRenderer.getView()||mapState;
+      mapRenderer.destroy();
+      mapRenderer=null;
+    }
+  }
+  function clear(){
+    releasePhotoMap();mapState=null;epoch++;
+    folders=[];items=[];trashItems=[];canEdit=false;loaded=false;busy=false;
+    filters={};page=0;filtersOpen=false;viewTrash=false;favoritesOnly=false;
+    selectMode=false;selectedIds.clear();photoSearchOpen=false;
+    message="";failed=false;root.replaceChildren();
+  }
   function status(text,error=false){message=text;failed=error;const n=root.querySelector('[data-library-status]');if(n){n.hidden=!text;n.textContent=text;n.setAttribute("role",error?"alert":"status")}}
   async function load(){
     if(busy)return;
@@ -664,6 +679,7 @@ export function createProjectLibrary(client,root,kind){
     }
   }
   function drawPhotos(){
+    releasePhotoMap();
     root.replaceChildren();
     const header=add(root,"div","library-gallery-header");
     const identity=add(header,"div","library-gallery-identity");
@@ -714,7 +730,7 @@ export function createProjectLibrary(client,root,kind){
     if(!viewTrash){
       const viewSwitch=add(toolbar,"div","library-gallery-view-toggle");
       viewSwitch.setAttribute("role","group");viewSwitch.setAttribute("aria-label","Photo display mode");
-      for(const [mode,name] of [["grid","Grid"],["list","List"]]){
+      for(const [mode,name] of [["grid","Grid"],["list","List"],["map","Map"]]){
         const control=button(viewSwitch,name,()=>{photoView=mode;draw()});
         control.classList.add("library-view-button");
         control.setAttribute("aria-pressed",String(photoView===mode));
@@ -776,16 +792,37 @@ export function createProjectLibrary(client,root,kind){
         filters={};favoritesOnly=false;page=0;draw();
       });reset.classList.add("library-reset-filters");
     }
-    const gallery=add(root,"div",viewTrash?"library-photo-trash-list":photoView==="grid"?"library-photo-grid":"library-photo-list");
-    gallery.setAttribute("aria-label",viewTrash?"Trashed photos":photoView==="grid"?"Photo thumbnails":"Photo list");
-    const slice=visible.slice(page*pageSize,(page+1)*pageSize);
-    for(const item of slice){
-      if(viewTrash)photoTrashItem(item,gallery);
-      else if(photoView==="grid")photoTile(item,gallery);else photoListItem(item,gallery);
+    const mapMode=!viewTrash&&photoView==="map";
+    const gallery=add(root,"div",viewTrash?"library-photo-trash-list":mapMode?
+      "library-photo-map-host":photoView==="grid"?"library-photo-grid":"library-photo-list");
+    gallery.setAttribute("aria-label",viewTrash?"Trashed photos":mapMode?
+      "Photo locations map":photoView==="grid"?"Photo thumbnails":"Photo list");
+    if(mapMode){
+      const ticket=mapTicket;
+      import("./cosme_photo_map.mjs?v=1").then(async module=>{
+        if(ticket!==mapTicket||!gallery.isConnected)return;
+        const rendered=await module.createPhotoMap({
+          client,host:gallery,photos:visible,bucket:LIBRARY_BUCKET,
+          initialView:mapState,onViewChange:view=>{if(ticket===mapTicket)mapState=view;},
+          onOpen:item=>openFile(item)
+        });
+        if(ticket!==mapTicket||!gallery.isConnected)rendered.destroy();
+        else mapRenderer=rendered;
+      }).catch(()=>{
+        if(ticket===mapTicket&&gallery.isConnected)
+          add(gallery,"p","library-map-empty","Map unavailable");
+      });
+    }else{
+      const slice=visible.slice(page*pageSize,(page+1)*pageSize);
+      for(const item of slice){
+        if(viewTrash)photoTrashItem(item,gallery);
+        else if(photoView==="grid")photoTile(item,gallery);
+        else photoListItem(item,gallery);
+      }
     }
-    if(!visible.length)add(gallery,"p","library-gallery-empty",
+    if(!visible.length&&!mapMode)add(gallery,"p","library-gallery-empty",
       viewTrash?"Trash is empty":items.length?"No matching photos":"No project photos uploaded yet");
-    if(visible.length>pageSize){
+    if(!mapMode&&visible.length>pageSize){
       const pagination=add(root,"div","library-gallery-pagination");
       button(pagination,"Previous",()=>{page--;draw()}).disabled=page===0;
       add(pagination,"span","",`Page ${page+1} of ${Math.ceil(visible.length/pageSize)}`);
