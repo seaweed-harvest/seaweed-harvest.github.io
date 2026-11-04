@@ -386,23 +386,36 @@ export function createProjectLibrary(client,root,kind){
     const fieldControls=[project,activity,location,asset,note];
     const snapshot=()=>({project:project.value,activity:activity.value.trim(),
       location:location.value.trim(),asset:asset.value.trim(),note:note.value.trim()});
-    const persistDraft=()=>serialDraft(async()=>{
-      if(running||(queued&&queued.state!=="draft"))return;
-      const result=await client.auth.getUser();
-      const owner=result.data?.user?.id;
-      if(result.error||!owner)throw Error("Sign in to save this draft");
-      if(!queued){
-        queued={id:crypto.randomUUID(),owner,snapshot:snapshot(),
-          total:0,skipped:0,createdAt:Date.now(),state:"draft"};
-      }
-      queued.snapshot=snapshot();
-      await putBatch(queued);
-      recovery={id:queued.id,state:"draft",total:queued.total,...queueCounts(entries)};
-      if(form.isConnected){
-        draftState.textContent="Draft saved on this iPhone";
-        updateButtons();
-      }
-    });
+    // Coalesce rapid keystrokes/dictation into the newest snapshot rather than
+    // queuing dozens of IndexedDB transactions for one spoken description.
+    let draftSaving=false,latestDraftSnapshot=null;
+    const persistDraft=()=>{
+      latestDraftSnapshot=snapshot();
+      if(draftSaving)return draftWrite;
+      draftSaving=true;
+      return serialDraft(async()=>{
+        try{
+          if(running||(queued&&queued.state!=="draft"))return;
+          const result=await client.auth.getUser();
+          const owner=result.data?.user?.id;
+          if(result.error||!owner)throw Error("Sign in to save this draft");
+          if(!queued){
+            queued={id:crypto.randomUUID(),owner,snapshot:latestDraftSnapshot,
+              total:0,skipped:0,createdAt:Date.now(),state:"draft"};
+          }
+          while(latestDraftSnapshot){
+            queued.snapshot=latestDraftSnapshot;
+            latestDraftSnapshot=null;
+            await putBatch(queued);
+          }
+          recovery={id:queued.id,state:"draft",total:queued.total,...queueCounts(entries)};
+          if(form.isConnected){
+            draftState.textContent="Draft saved on this iPhone";
+            updateButtons();
+          }
+        }finally{draftSaving=false}
+      });
+    };
     for(const field of fieldControls){
       field.addEventListener("input",()=>{
         persistDraft().catch(e=>{errorLine.textContent="Draft not saved: "+(e.message||"device storage unavailable")});
