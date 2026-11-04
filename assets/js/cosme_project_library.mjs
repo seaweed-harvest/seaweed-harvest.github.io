@@ -1,4 +1,4 @@
-import {createPhotoViewer,createPhotoImageCache} from "./cosme_photo_viewer.mjs?v=1";
+import {createPhotoViewer,createPhotoImageCache,createCaptionDrafts} from "./cosme_photo_viewer.mjs?v=2";
 import {createQueuedBatch,putBatch,getBatch,listPendingBatches,listQueuedPhotos,putQueuedPhoto,deleteBatch,queueCounts} from "./cosme_photo_upload_queue.mjs?v=2";
 import {LIBRARY_BUCKET,PROJECTS,EXAMPLES,filterLibrary,localDateTime,libraryMetadata,validateLibraryFile} from "./cosme_project_library_core.mjs?v=2";
 import {prepareLibraryImage,captureTimestamp} from "./cosme_photo_exif.mjs?v=2";
@@ -13,6 +13,9 @@ export function createProjectLibrary(client,root,kind){
   let recovery=null,autoResumed=new Set();
   let mapRenderer=null,mapState=null,mapTicket=0;
   const photoCache=createPhotoImageCache(client,LIBRARY_BUCKET);
+  const captionDrafts=createCaptionDrafts(
+    typeof sessionStorage==="undefined"?null:sessionStorage
+  );
   const noun=kind==="reports"?"report":"photo",pageSize=24;
   root.className="metrics-panel project-library";
   function releasePhotoMap(){
@@ -92,7 +95,7 @@ export function createProjectLibrary(client,root,kind){
       return createPhotoViewer({
         client,root,bucket:LIBRARY_BUCKET,photo:item,
         photos:filterLibrary(items,filters).filter(p=>!favoritesOnly||p.is_favourite),
-        canEdit,imageCache:photoCache,
+        canEdit,imageCache:photoCache,drafts:captionDrafts,
         onChange:()=>{if(!busy)draw()},
         onEditMetadata:current=>editor(current),
         onDownload:current=>openFile(current,true)
