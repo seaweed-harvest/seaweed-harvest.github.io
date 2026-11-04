@@ -39,17 +39,16 @@ test('reports library and private signed-photo delivery remain intact',()=>{
 });
 
 
-test('photo viewer keeps only compact navigation above the image and actions below',()=>{
-  const src=read('../assets/js/cosme_project_library.mjs');
-  const start=src.indexOf('  async function openFile(item,download=false){');
-  const end=src.indexOf('  function editor(',start);
-  const viewer=src.slice(start,end);
+test('photo viewer keeps compact navigation above the image and actions below',()=>{
+  const viewer=read('../assets/js/cosme_photo_viewer.mjs');
   assert.match(viewer,/library-photo-viewer-top/);
   assert.match(viewer,/Previous photo/);assert.match(viewer,/Next photo/);
-  assert.match(viewer,/Close photo/);assert.match(viewer,/e\.target===viewer/);
+  assert.match(viewer,/Close photo/);assert.match(viewer,/event.target===viewer/);
   assert.ok(viewer.indexOf('library-viewer-content') < viewer.indexOf('library-photo-viewer-footer'));
-  for(const text of ['Download photo','Favourite photo','Edit photo description'])assert.ok(viewer.includes(text));
-  assert.doesNotMatch(viewer,/button\(actions,"‹ Previous"/);
+  for(const text of ['Download photo','Favourite photo','Edit photo description'])
+    assert.ok(viewer.includes(text));
+  assert.match(viewer,/show\(index\)/);
+  assert.doesNotMatch(viewer,/viewer\.close\(\);openFile\(/);
 });
 test('list uses a larger preview and caption beneath the full row, never file size',()=>{
   const src=read('../assets/js/cosme_project_library.mjs');
@@ -93,18 +92,18 @@ test('image optimisation avoids increasing storage and preserves camera metadata
 });
 
 
-test('photo description is edited inside the open image viewer',()=>{
-  const src=read('../assets/js/cosme_project_library.mjs');
-  const begin=src.indexOf('  async function openFile(');
-  const end=src.indexOf('  function editor(',begin);
-  const viewer=src.slice(begin,end);
-  assert.match(viewer,/library-photo-inline-edit/);
-  assert.match(viewer,/library-photo-inline-actions/);
+test('photo description is edited in place without replacing image or metadata',()=>{
+  const viewer=read('../assets/js/cosme_photo_viewer.mjs');
+  assert.match(viewer,/currentCaption=add\(details,"p","library-viewer-caption"/);
+  assert.match(viewer,/currentCaption\.contentEditable=on\?"plaintext-only":"false"/);
   assert.match(viewer,/cosme_library_photo_patch/);
-  assert.match(viewer,/p_expected_revision:item\.revision/);
-  assert.match(viewer,/Object\.assign\(item,updated\)/);
-  assert.match(viewer,/description\.focus\(\)/);
-  assert.doesNotMatch(viewer,/viewer\.close\(\);editor\(item\)/);
+  assert.match(viewer,/p_expected_revision:photoToSave\.revision/);
+  assert.match(viewer,/Object\.assign\(photoToSave,updated\)/);
+  assert.match(viewer,/currentCaption\.focus\(\)/);
+  assert.doesNotMatch(viewer,/library-photo-inline-edit|description\.rows/);
+  const css=read('../assets/css/cosme_project_library.css');
+  assert.match(css,/max-height:59svh/);
+  assert.match(css,/library-viewer-caption\[contenteditable="plaintext-only"\]/);
 });
 test('returning from iPhone Photos and recovery discovery preserve active forms and photo viewer',()=>{
   const src=read('../assets/js/cosme_project_library.mjs');
@@ -129,4 +128,19 @@ test('selected photos and partial dictated notes are saved as drafts, never auto
   assert.match(src,/await draftWrite/);
   assert.match(src,/Drafts are never uploaded automatically/);
   assert.match(src,/Continue draft/);
+});
+
+test('swiping horizontally uses a five-image private signed cache and preloads neighbours',()=>{
+  const viewer=read('../assets/js/cosme_photo_viewer.mjs');
+  assert.match(viewer,/createPhotoImageCache/);
+  assert.match(viewer,/now\+45000/);
+  assert.match(viewer,/while\(cached\.size>5\)/);
+  assert.match(viewer,/preloadNeighbours/);
+  assert.match(viewer,/imageCache\.load\(sequence\[i\]\)/);
+  assert.match(viewer,/viewer\.addEventListener\("touchstart"/);
+  assert.match(viewer,/viewer\.addEventListener\("touchend"/);
+  assert.match(viewer,/swipeDirection\(/);
+  assert.match(viewer,/Math\.abs\(dx\)<=Math\.abs\(dy\)\*1\.4/);
+  assert.match(viewer,/viewer\.addEventListener\("keydown"/);
+  assert.doesNotMatch(viewer,/viewer\.close\(\);openFile\(/);
 });
