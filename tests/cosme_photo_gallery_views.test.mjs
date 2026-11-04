@@ -113,6 +113,7 @@ test('returning from iPhone Photos and recovery discovery preserve active forms 
   assert.match(src,/root\.querySelector\("\.library-batch-form"\)/);
   assert.match(src,/root\.querySelector\("\.library-photo-viewer\[open\]"\)/);
   assert.match(src,/if\(busy\|\|hasActiveInteraction\(\)\)return/);
+  assert.match(src,/if\(ticket!==epoch\|\|hasActiveInteraction\(\)\)return/);
   assert.match(src,/if\(!root\.isConnected\|\|busy\|\|hasActiveInteraction\(\)\)return/);
   assert.match(metrics,/!libraries\.photos\.hasActiveInteraction\?\.\(\)/);
 });
