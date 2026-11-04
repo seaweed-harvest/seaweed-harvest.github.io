@@ -175,6 +175,7 @@ export async function createPhotoMap({client,host,photos,bucket,onOpen,initialVi
   }else fitToPhotos();
   requestAnimationFrame(()=>{if(!closed){map.invalidateSize();paint()}});
   return {
+    refresh(){if(!closed){map.invalidateSize();schedule()}},
     getView(){if(closed)return null;const center=map.getCenter();
       return {lat:center.lat,lng:center.lng,zoom:map.getZoom()};},
     destroy(){if(closed)return;closed=true;cancelAnimationFrame(raf);closeSheet();map.remove();panel.remove()}
