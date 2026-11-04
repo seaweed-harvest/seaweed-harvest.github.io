@@ -322,19 +322,19 @@ export function createPhotoViewer({
   // Listen on the entire dialog, not only the image. A read-only caption has
   // contenteditable="false" and must NOT be treated as an editing control.
   const interactiveTouchTarget=target=>Boolean(
-    editing || target?.isContentEditable ||
+    target?.isContentEditable ||
     target?.closest?.('input,textarea,select,[contenteditable="true"],[contenteditable="plaintext-only"]')
   );
   let ignoreClickUntil=0;
   viewer.addEventListener("touchstart",event=>{
-    if(editing||saving||event.touches?.length!==1||interactiveTouchTarget(event.target)){
+    if(event.touches?.length!==1||interactiveTouchTarget(event.target)){
       touchStart=null;return;
     }
     const finger=event.touches[0];
     touchStart={x:finger.clientX,y:finger.clientY,at:Date.now(),horizontal:false};
   },{passive:true});
   viewer.addEventListener("touchmove",event=>{
-    if(!touchStart||editing||saving||event.touches?.length!==1)return;
+    if(!touchStart||event.touches?.length!==1)return;
     const finger=event.touches[0];
     const dx=finger.clientX-touchStart.x,dy=finger.clientY-touchStart.y;
     // Only claim a clearly horizontal gesture. Keep vertical scrolling
@@ -345,7 +345,7 @@ export function createPhotoViewer({
     if(touchStart.horizontal&&event.cancelable)event.preventDefault();
   },{passive:false});
   viewer.addEventListener("touchend",event=>{
-    if(!touchStart||editing||saving||!event.changedTouches?.length)return;
+    if(!touchStart||!event.changedTouches?.length)return;
     const finger=event.changedTouches[0];
     const direction=swipeDirection(finger.clientX-touchStart.x,
       finger.clientY-touchStart.y,Date.now()-touchStart.at);
