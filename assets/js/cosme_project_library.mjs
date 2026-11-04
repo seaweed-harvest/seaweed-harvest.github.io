@@ -29,8 +29,17 @@ export function createProjectLibrary(client,root,kind){
     message="";failed=false;root.replaceChildren();
   }
   function status(text,error=false){message=text;failed=error;const n=root.querySelector('[data-library-status]');if(n){n.hidden=!text;n.textContent=text;n.setAttribute("role",error?"alert":"status")}}
+  function hasActiveInteraction(){
+    if(kind!=="photos")return false;
+    return Boolean(root.querySelector(".library-batch-form")||
+      root.querySelector(".library-editor")||
+      root.querySelector(".library-photo-viewer[open]")||
+      root.querySelector(".library-photo-inline-edit"));
+  }
   async function load(){
-    if(busy)return;
+    // A returning iOS Photos picker or visibility refresh must never destroy
+    // unsent files, dictated notes or an open photo. User navigation stays intact.
+    if(busy||hasActiveInteraction())return;
     const ticket=++epoch;
     if(!loaded){root.replaceChildren(make("p","metrics-small-note","Loading "+kind+"…"))}
     try{
@@ -56,20 +65,25 @@ export function createProjectLibrary(client,root,kind){
     for(const queued of pending){
       const records=await listQueuedPhotos(queued.id);
       const counts=queueCounts(records);
+      if(queued.state==="draft"){
+        const hasNote=Boolean(Object.values(queued.snapshot||{}).some(v=>String(v||"").trim()));
+        if(!records.length&&!hasNote){
+          await deleteBatch(queued.id);continue;
+        }
+        recovery={id:queued.id,state:"draft",total:queued.total||0,...counts};
+        break;
+      }
       if(!records.length||counts.waiting===0){
         await deleteBatch(queued.id);
         continue;
       }
-      recovery={id:queued.id,...counts};
+      recovery={id:queued.id,state:queued.state,total:queued.total,...counts};
       break;
     }
     if(!root.isConnected||busy||root.querySelector(".library-batch-form"))return;
     draw();
-    if(recovery && !autoResumed.has(recovery.id) && !root.closest("[hidden]") &&
-      document.visibilityState==="visible" && navigator.onLine){
-      autoResumed.add(recovery.id);
-      batchUpload(recovery.id).catch(err=>status(err.message||"Could not resume photos",true));
-    }
+    // Recovery is opt-in. A photo selection/dictation draft must never start
+    // uploading on its own when the iPhone returns from another app.
   }
   function photoIconButton(parent,symbol,label,handler){
     const control=add(parent,"button","library-photo-icon-button",symbol);
@@ -688,8 +702,11 @@ export function createProjectLibrary(client,root,kind){
     add(identity,"span","library-photo-count",activeItems.length+" photo"+(activeItems.length===1?"":"s")+(viewTrash?" in Trash":""));
     const actions=add(header,"div","library-gallery-actions");
     if(canEdit&&!viewTrash){
-      if(recovery?.waiting){
-        const resume=button(actions,"Resume "+recovery.waiting+" photos",()=>batchUpload(recovery.id));
+      if(recovery && (recovery.waiting||recovery.state==="draft")){
+        const label=recovery.state==="draft"?
+          "Continue draft"+(recovery.total?" · "+recovery.total:""):
+          "Resume "+recovery.waiting+" photos";
+        const resume=button(actions,label,()=>batchUpload(recovery.id));
         resume.classList.add("primary","library-resume-photos");
       }
       const upload=button(actions,"Add photos",()=>batchUpload());
@@ -906,5 +923,5 @@ export function createProjectLibrary(client,root,kind){
     for(const item of filterLibrary(EXAMPLES.filter(x=>x.kind===kind),filters))card(item,sampleList);
     summary.setAttribute("aria-label","Illustrative "+kind+" metadata; these are not uploaded files");
   }
-  return {load,clear,refreshMap:()=>mapRenderer?.refresh?.()};
+  return {load,clear,hasActiveInteraction,refreshMap:()=>mapRenderer?.refresh?.()};
 }
