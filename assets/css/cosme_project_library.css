@@ -383,6 +383,9 @@
 }
 .project-library .library-photo-viewer{
   max-height:94svh;
+  /* Keep horizontal gestures within the open card, never the dimmed gallery. */
+  touch-action:pan-y;
+  overscroll-behavior-x:contain;
 }
 @media(max-width:650px){
  .project-library .library-photo-viewer .library-viewer-content img{
