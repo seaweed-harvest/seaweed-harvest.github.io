@@ -389,5 +389,7 @@
    max-height:59svh;
  }
  .project-library .library-photo-viewer{max-height:94svh}
- .project-library .library-viewer-meta .library-viewer-caption{line-height:1.48}
+ .project-library .library-viewer-meta .library-viewer-caption{
+   font-size:16px;line-height:1.48;
+ }
 }
