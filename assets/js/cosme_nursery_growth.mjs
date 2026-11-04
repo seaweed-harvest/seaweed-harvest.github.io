@@ -32,6 +32,10 @@ export function validateNurseryGrowth(data) {
       || !numericOrNull(row.week4_net_kg) || !numericOrNull(row.week4_initial_kg)
       || !numericOrNull(row.week4_mean_sgr_pct_per_day)
       || !numericOrNull(row.week4_mean_gain_kg_per_rope_day)
+      || !((row.gps_latitude == null && row.gps_longitude == null)
+        || (typeof row.gps_latitude === "number" && Number.isFinite(row.gps_latitude)
+          && Math.abs(row.gps_latitude) <= 90 && typeof row.gps_longitude === "number"
+          && Number.isFinite(row.gps_longitude) && Math.abs(row.gps_longitude) <= 180))
       || (row.week4_n && (!(row.week4_factor > 0) || !(row.week4_initial_kg > 0)
         || !(row.week4_net_kg > 0)))) return false;
     seen.add(row.site_code);
@@ -139,6 +143,16 @@ export function createNurseryGrowthPanel(authClient, target) {
     for(const row of model.sites) {
       const tr = element(tbody,"tr");
       const th=element(tr,"th",nurserySiteDisplayLabel(row.site_code)||row.site_code);th.scope="row";th.title=row.site_code;
+      if (row.gps_latitude != null && row.gps_longitude != null) {
+        const link = element(th,"a","Map","metrics-nursery-map-link");
+        link.href = "https://www.google.com/maps?q=" + encodeURIComponent(row.gps_latitude + "," + row.gps_longitude);
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.title = "Open " + row.site_code + " in Google Maps";
+        link.style.marginLeft = "0.45rem";
+        link.style.fontSize = "0.76rem";
+        link.style.whiteSpace = "nowrap";
+      }
       element(tr,"td",row.structure === "raft" ? "Raft" : row.structure === "shore" ? "Shore" : "Other");
       element(tr,"td",stageCount(row.week2_n,row.initial_n));
       const w2 = element(tr,"td",ratio(row.week2_factor));
