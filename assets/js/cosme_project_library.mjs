@@ -906,5 +906,5 @@ export function createProjectLibrary(client,root,kind){
     for(const item of filterLibrary(EXAMPLES.filter(x=>x.kind===kind),filters))card(item,sampleList);
     summary.setAttribute("aria-label","Illustrative "+kind+" metadata; these are not uploaded files");
   }
-  return {load,clear};
+  return {load,clear,refreshMap:()=>mapRenderer?.refresh?.()};
 }
