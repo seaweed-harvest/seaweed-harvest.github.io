@@ -44,10 +44,10 @@ export function createProjectLibrary(client,root,kind){
     if(!loaded){root.replaceChildren(make("p","metrics-small-note","Loading "+kind+"…"))}
     try{
       const data=check(await client.rpc("cosme_library_list",{p_kind:kind}));
-      if(ticket!==epoch)return;
+      if(ticket!==epoch||hasActiveInteraction())return;
       folders=data.folders||[];items=data.items||[];trashItems=data.trashed_items||[];canEdit=data.can_edit===true;loaded=true;message="";failed=false;draw();
       if(kind==="photos"&&canEdit)discoverRecovery().catch(()=>{});
-    }catch(e){if(ticket!==epoch)return;folders=[];items=[];canEdit=false;status("Unable to load "+kind+". "+(e.message||"Please retry."),true);draw()}
+    }catch(e){if(ticket!==epoch||hasActiveInteraction())return;folders=[];items=[];canEdit=false;status("Unable to load "+kind+". "+(e.message||"Please retry."),true);draw()}
   }
   function select(root,label,values,value,change){
     const l=add(root,"label","",label),s=add(l,"select");
