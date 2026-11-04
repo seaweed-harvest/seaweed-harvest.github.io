@@ -115,12 +115,12 @@ export function selectNewPhotos(files, savedItems = []) {
 }
 // Only call this after queued images have been stored. A partial write is
 // removed on failure instead of silently treating the batch as recoverable.
-export async function createQueuedBatch({ owner, snapshot, files, savedItems = [] }) {
+export async function createQueuedBatch({ owner, snapshot, files, savedItems = [], state = "queued" }) {
   const { selected, skipped } = selectNewPhotos(files, savedItems);
   if (!selected.length) return { batch: null, skipped };
   const id = crypto.randomUUID();
   const batch = { id, owner, snapshot, total: selected.length, skipped,
-    createdAt: Date.now(), state: "queued" };
+    createdAt: Date.now(), state };
   try {
     for (const [position, {file, index}] of selected.entries()) {
       await putQueuedPhoto({ key: id + ":" + position, batchId: id,
