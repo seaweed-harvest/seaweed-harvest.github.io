@@ -48,7 +48,7 @@ test('photo viewer keeps only compact navigation above the image and actions bel
   assert.match(viewer,/Previous photo/);assert.match(viewer,/Next photo/);
   assert.match(viewer,/Close photo/);assert.match(viewer,/e\.target===viewer/);
   assert.ok(viewer.indexOf('library-viewer-content') < viewer.indexOf('library-photo-viewer-footer'));
-  for(const text of ['Download photo','Favourite photo','Edit photo details'])assert.ok(viewer.includes(text));
+  for(const text of ['Download photo','Favourite photo','Edit photo description'])assert.ok(viewer.includes(text));
   assert.doesNotMatch(viewer,/button\(actions,"‹ Previous"/);
 });
 test('list uses a larger preview and caption beneath the full row, never file size',()=>{
@@ -90,4 +90,42 @@ test('image optimisation avoids increasing storage and preserves camera metadata
   assert.match(exif,/const keepOriginal=supported&&factor===1&&file\.size<=candidate\.size/);
   assert.match(exif,/const targetMime=mime==="image\/png"\?"image\/png":"image\/jpeg"/);
   assert.match(exif,/const metadata=readPhotoExif/);
+});
+
+
+test('photo description is edited inside the open image viewer',()=>{
+  const src=read('../assets/js/cosme_project_library.mjs');
+  const begin=src.indexOf('  async function openFile(');
+  const end=src.indexOf('  function editor(',begin);
+  const viewer=src.slice(begin,end);
+  assert.match(viewer,/library-photo-inline-edit/);
+  assert.match(viewer,/library-photo-inline-actions/);
+  assert.match(viewer,/cosme_library_photo_patch/);
+  assert.match(viewer,/p_expected_revision:item\.revision/);
+  assert.match(viewer,/Object\.assign\(item,updated\)/);
+  assert.match(viewer,/description\.focus\(\)/);
+  assert.doesNotMatch(viewer,/viewer\.close\(\);editor\(item\)/);
+});
+test('returning from iPhone Photos and recovery discovery preserve active forms and photo viewer',()=>{
+  const src=read('../assets/js/cosme_project_library.mjs');
+  const metrics=read('../assets/js/cosme_metrics_page.js');
+  assert.match(src,/function hasActiveInteraction\(\)/);
+  assert.match(src,/root\.querySelector\("\.library-batch-form"\)/);
+  assert.match(src,/root\.querySelector\("\.library-photo-viewer\[open\]"\)/);
+  assert.match(src,/if\(busy\|\|hasActiveInteraction\(\)\)return/);
+  assert.match(src,/if\(!root\.isConnected\|\|busy\|\|hasActiveInteraction\(\)\)return/);
+  assert.match(metrics,/!libraries\.photos\.hasActiveInteraction\?\.\(\)/);
+});
+test('selected photos and partial dictated notes are saved as drafts, never auto-uploaded',()=>{
+  const src=read('../assets/js/cosme_project_library.mjs');
+  const queue=read('../assets/js/cosme_photo_upload_queue.mjs');
+  assert.match(queue,/state = "queued"/);
+  assert.match(src,/files\.addEventListener\("change"/);
+  assert.match(src,/field\.addEventListener\("input"/);
+  assert.match(src,/state:"draft"/);
+  assert.match(src,/await createQueuedBatch\(\{owner,snapshot:snapshot\(\)/);
+  assert.match(src,/files:\[\.\.\.files\.files\],savedItems:items,state:"draft"/);
+  assert.match(src,/await draftWrite/);
+  assert.match(src,/Drafts are never uploaded automatically/);
+  assert.match(src,/Continue draft/);
 });
