@@ -280,9 +280,28 @@ export function createProjectLibrary(client,root,kind){
     const head=add(form,"div","library-heading");
     add(head,"h3","","Upload photos");
     let stopRequested=false,queued=null,entries=[],active=0,failedCount=0,errors=[],running=false;
-    const cancel=button(head,"Cancel",()=>{
-      if(running){stopRequested=true;cancel.disabled=true;cancel.textContent="Stopping…";}
-      else form.remove();
+    let draftWrite=Promise.resolve();
+    const serialDraft=task=>{
+      draftWrite=draftWrite.catch(()=>{}).then(task);
+      return draftWrite;
+    };
+    const cancel=button(head,"Cancel",async()=>{
+      if(running){stopRequested=true;cancel.disabled=true;cancel.textContent="Stopping…";return;}
+      cancel.disabled=true;
+      try {
+        await draftWrite;
+        if(queued?.state==="draft"){
+          queued.snapshot=snapshot();
+          await putBatch(queued);
+          recovery={id:queued.id,state:"draft",total:queued.total,...queueCounts(entries)};
+        }
+        form.remove();
+        if(kind==="photos")draw();
+        if(queued?.state==="draft")status("Draft saved on this device");
+      } catch(e) {
+        cancel.disabled=false;
+        errorLine.textContent=e.message||"Could not save draft";
+      }
     });
     const grid=add(form,"div","library-fields");
     const chooser=add(grid,"label","","Select images");
@@ -315,6 +334,52 @@ export function createProjectLibrary(client,root,kind){
     const fieldControls=[project,activity,location,asset,note];
     const snapshot=()=>({project:project.value,activity:activity.value.trim(),
       location:location.value.trim(),asset:asset.value.trim(),note:note.value.trim()});
+    const persistDraft=()=>serialDraft(async()=>{
+      if(running||(queued&&queued.state!=="draft"))return;
+      const result=await client.auth.getUser();
+      const owner=result.data?.user?.id;
+      if(result.error||!owner)throw Error("Sign in to save this draft");
+      if(!queued){
+        queued={id:crypto.randomUUID(),owner,snapshot:snapshot(),
+          total:0,skipped:0,createdAt:Date.now(),state:"draft"};
+      }
+      queued.snapshot=snapshot();
+      await putBatch(queued);
+      recovery={id:queued.id,state:"draft",total:queued.total,...queueCounts(entries)};
+    });
+    for(const field of fieldControls){
+      field.addEventListener("input",()=>{
+        persistDraft().catch(e=>{errorLine.textContent="Draft not saved: "+(e.message||"device storage unavailable")});
+      });
+      field.addEventListener("change",()=>{
+        persistDraft().catch(e=>{errorLine.textContent="Draft not saved: "+(e.message||"device storage unavailable")});
+      });
+    }
+    files.addEventListener("change",()=>{
+      if(!files.files.length||running)return;
+      serialDraft(async()=>{
+        countLine.textContent="Saving "+files.files.length+" selected photos on this device…";
+        const session=await client.auth.getUser();
+        const owner=session.data?.user?.id;
+        if(session.error||!owner)throw Error("Sign in to save these photos");
+        const selected=await createQueuedBatch({owner,snapshot:snapshot(),
+          files:[...files.files],savedItems:items,state:"draft"});
+        if(!selected.batch){
+          countLine.textContent=selected.skipped+" photos already in the library";
+          return;
+        }
+        const previous=queued?.state==="draft"?queued:null;
+        queued=selected.batch;
+        entries=await listQueuedPhotos(queued.id);
+        recovery={id:queued.id,state:"draft",total:queued.total,...queueCounts(entries)};
+        countLine.textContent=queued.total+" photos selected · saved on this device";
+        if(selected.skipped)countLine.textContent+=" · "+selected.skipped+" already uploaded";
+        if(previous&&previous.id!==queued.id)await deleteBatch(previous.id).catch(()=>{});
+        updateButtons();
+      }).catch(e=>{
+        errorLine.textContent="Photo selection not saved: "+(e.message||"device storage unavailable");
+      });
+    });
     const setSnapshot=values=>{
       project.value=values.project||"Whole project";
       activity.value=values.activity||"";
@@ -340,11 +405,15 @@ export function createProjectLibrary(client,root,kind){
     }
     function updateButtons(){
       const pending=queueCounts(entries).waiting;
-      run.disabled=false;files.disabled=!!queued;
-      fieldControls.forEach(control=>control.disabled=!!queued);
-      run.textContent=queued?(pending?"Resume "+pending+" remaining":"Upload complete"):"Upload selected photos";
-      run.disabled=!!queued&&!pending;
-      cancel.disabled=false;cancel.textContent=queued?"Close":"Cancel";
+      const draft=queued?.state==="draft";
+      files.disabled=!!queued&&!draft;
+      files.required=!queued?.total;
+      fieldControls.forEach(control=>control.disabled=!!queued&&!draft);
+      run.textContent=draft?(queued.total?"Upload "+queued.total+" photos":"Choose photos to upload"):
+        queued?(pending?"Resume "+pending+" remaining":"Upload complete"):
+        "Upload selected photos";
+      run.disabled=!!queued&&(draft?!queued.total:!pending);
+      cancel.disabled=false;cancel.textContent=draft?"Save for later":queued?"Close":"Cancel";
     }
     const transient=err=>{
       const code=Number(err?.statusCode||err?.status||0);
