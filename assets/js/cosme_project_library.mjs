@@ -80,7 +80,7 @@ export function createProjectLibrary(client,root,kind){
       recovery={id:queued.id,state:queued.state,total:queued.total,...counts};
       break;
     }
-    if(!root.isConnected||busy||root.querySelector(".library-batch-form"))return;
+    if(!root.isConnected||busy||hasActiveInteraction())return;
     draw();
     // Recovery is opt-in. A photo selection/dictation draft must never start
     // uploading on its own when the iPhone returns from another app.
