@@ -527,7 +527,10 @@ export function createProjectLibrary(client,root,kind){
       cancel.textContent="Stop remaining";cancel.disabled=false;
       run.textContent="Uploading…";
       try{
-        if(!queued){
+        // Complete local photo/voice-note persistence before starting network uploads.
+        await draftWrite;
+        if(!queued||queued.state==="draft"&&!queued.total){
+          const oldDraft=queued?.state==="draft"?queued:null;
           const session=await client.auth.getUser();
           const owner=session.data?.user?.id;
           if(session.error||!owner)throw Error("Sign in to save photos");
@@ -541,8 +544,14 @@ export function createProjectLibrary(client,root,kind){
             return;
           }
           queued=createdQueue.batch;
-          // Release the file input; all originals have been retained locally.
+          if(oldDraft&&oldDraft.id!==queued.id)
+            await deleteBatch(oldDraft.id).catch(()=>{});
+          // Originals are now retained in IndexedDB, not tied to the picker.
           files.value="";
+        }
+        if(queued.state==="draft"){
+          queued.snapshot=snapshot();
+          await putBatch(queued);
         }
         entries=await listQueuedPhotos(queued.id);
         if(!entries.length)throw Error("This photo queue is empty");
@@ -631,12 +640,15 @@ export function createProjectLibrary(client,root,kind){
         if(!queued||queued.owner!==session.data?.user?.id)
           throw Error("Saved upload no longer available for this account");
         entries=await listQueuedPhotos(queued.id);
-        files.required=false;files.disabled=true;
+        files.required=!queued.total;
+        files.disabled=queued.state!=="draft";
         setSnapshot(queued.snapshot);
-        countLine.textContent="Recovered "+entries.length+" selected photos";
-        showProgress();
-        if(navigator.onLine)await runUpload();
-        else updateButtons();
+        countLine.textContent=queued.total?
+          entries.length+" photos recovered · saved on this device":
+          "Draft description restored";
+        if(queued.state!=="draft")showProgress();
+        updateButtons();
+        // Drafts are never uploaded automatically on iPhone app reopen.
       }catch(err){
         errorLine.textContent=err.message||"Cannot recover upload";
         run.disabled=true;
