@@ -370,6 +370,8 @@ export function createProjectLibrary(client,root,kind){
     location.value=filters.location||"";
     const assetLabel=add(grid,"label","","Asset / raft"),asset=add(assetLabel,"input");
     asset.value=filters.asset||"";
+    const draftState=add(form,"p","library-draft-save-state");
+    draftState.setAttribute("role","status");
     const run=add(form,"button","metrics-button primary",resumeId?"Resume upload":"Upload selected photos");
     run.type="submit";
     const feedback=add(form,"div","library-upload-progress");
@@ -396,6 +398,10 @@ export function createProjectLibrary(client,root,kind){
       queued.snapshot=snapshot();
       await putBatch(queued);
       recovery={id:queued.id,state:"draft",total:queued.total,...queueCounts(entries)};
+      if(form.isConnected){
+        draftState.textContent="Draft saved on this iPhone";
+        updateButtons();
+      }
     });
     for(const field of fieldControls){
       field.addEventListener("input",()=>{
@@ -423,6 +429,7 @@ export function createProjectLibrary(client,root,kind){
         entries=await listQueuedPhotos(queued.id);
         recovery={id:queued.id,state:"draft",total:queued.total,...queueCounts(entries)};
         countLine.textContent=queued.total+" photos selected · saved on this device";
+        draftState.textContent="Draft saved on this iPhone";
         if(selected.skipped)countLine.textContent+=" · "+selected.skipped+" already uploaded";
         if(previous&&previous.id!==queued.id)await deleteBatch(previous.id).catch(()=>{});
         updateButtons();
@@ -696,6 +703,7 @@ export function createProjectLibrary(client,root,kind){
         countLine.textContent=queued.total?
           entries.length+" photos recovered · saved on this device":
           "Draft description restored";
+        if(queued.state==="draft")draftState.textContent="Draft restored";
         if(queued.state!=="draft")showProgress();
         updateButtons();
         // Drafts are never uploaded automatically on iPhone app reopen.
