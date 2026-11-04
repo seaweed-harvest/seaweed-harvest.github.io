@@ -799,7 +799,7 @@ export function createProjectLibrary(client,root,kind){
       "Photo locations map":photoView==="grid"?"Photo thumbnails":"Photo list");
     if(mapMode){
       const ticket=mapTicket;
-      import("./cosme_photo_map.mjs?v=1").then(async module=>{
+      import("./cosme_photo_map.mjs?v=2").then(async module=>{
         if(ticket!==mapTicket||!gallery.isConnected)return;
         const rendered=await module.createPhotoMap({
           client,host:gallery,photos:visible,bucket:LIBRARY_BUCKET,
