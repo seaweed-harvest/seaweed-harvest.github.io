@@ -374,3 +374,9 @@
     max-height:43dvh;
   }
 }
+
+
+.project-library .library-draft-save-state{
+  margin:0;font-size:.77rem;color:var(--text-sec,#5f786d);
+}
+.project-library .library-draft-save-state:empty{display:none}
