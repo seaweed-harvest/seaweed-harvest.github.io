@@ -380,3 +380,8 @@
   margin:0;font-size:.77rem;color:var(--text-sec,#5f786d);
 }
 .project-library .library-draft-save-state:empty{display:none}
+
+.project-library .library-photo-inline-actions .library-photo-more-details{
+  margin-left:auto;border:0;background:transparent;
+  color:var(--text-sec,#59776c);font-size:.78rem;padding:5px 3px;
+}
