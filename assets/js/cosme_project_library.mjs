@@ -158,6 +158,8 @@ export function createProjectLibrary(client,root,kind){
           inline.hidden=true;viewer.classList.remove("is-editing");
           captionDisplay.hidden=!item.caption;
         });
+        const more=button(actions,"Other details",()=>{viewer.close();editor(item)});
+        more.classList.add("library-photo-more-details");
         const editStatus=add(inline,"p","library-photo-inline-status");
         editStatus.setAttribute("role","status");
         inline.addEventListener("submit",async event=>{
