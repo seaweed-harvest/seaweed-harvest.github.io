@@ -141,12 +141,57 @@ export function createProjectLibrary(client,root,kind){
       if(kind==="reports"){media.title=item.title;media.referrerPolicy="no-referrer"}else media.alt=item.title;
       media.src=data.signedUrl;
       if(kind==="photos"){
+        // Edit the description directly under the enlarged image. Keep the
+        // photograph visible; don't navigate back to thumbnails to edit.
+        const inline=add(viewer,"form","library-photo-inline-edit");
+        inline.hidden=true;
+        const label=add(inline,"label","","Photo description");
+        const description=add(label,"textarea");
+        description.rows=4;description.maxLength=1000;
+        description.value=item.caption||"";
+        description.placeholder="Describe what this photo shows…";
+        const actions=add(inline,"div","library-photo-inline-actions");
+        const save=add(actions,"button","metrics-button primary","Save description");
+        save.type="submit";
+        const cancel=button(actions,"Cancel",()=>{
+          description.value=item.caption||"";
+          inline.hidden=true;viewer.classList.remove("is-editing");
+          captionDisplay.hidden=!item.caption;
+        });
+        const editStatus=add(inline,"p","library-photo-inline-status");
+        editStatus.setAttribute("role","status");
+        inline.addEventListener("submit",async event=>{
+          event.preventDefault();
+          if(busy||!canEdit)return;
+          const caption=description.value.trim();
+          if(caption===(item.caption||"")){
+            inline.hidden=true;viewer.classList.remove("is-editing");
+            captionDisplay.hidden=!caption;return;
+          }
+          busy=true;save.disabled=true;cancel.disabled=true;
+          editStatus.textContent="Saving…";
+          try{
+            const updated=check(await client.rpc("cosme_library_photo_patch",{
+              p_id:item.id,p_expected_revision:item.revision,
+              p_changes:{caption}
+            }));
+            Object.assign(item,updated);
+            // The returned photo is authoritative, including its new revision.
+            captionDisplay.textContent=item.caption||"";
+            captionDisplay.hidden=!item.caption;
+            inline.hidden=true;viewer.classList.remove("is-editing");
+            editStatus.textContent="";
+          }catch(err){
+            editStatus.textContent=err?.message||"Could not save description. Try again.";
+          }finally{busy=false;save.disabled=false;cancel.disabled=false}
+        });
         const details=add(viewer,"div","library-viewer-meta");
         if(item.captured_at)add(details,"span","","Captured: "+new Date(item.captured_at).toLocaleString());
         if(item.location)add(details,"span","","Location: "+item.location);
         if(item.activity)add(details,"span","","Activity: "+item.activity);
         if(item.asset)add(details,"span","","Asset: "+item.asset);
-        if(item.caption)add(details,"p","",item.caption);
+        const captionDisplay=add(details,"p","library-viewer-caption",item.caption||"");
+        captionDisplay.hidden=!item.caption;
         const gps=item.photo_metadata?.gps;
         if(gps&&Number.isFinite(gps.latitude)&&Number.isFinite(gps.longitude)){
           const link=add(details,"a","","View capture location on map");
@@ -164,7 +209,12 @@ export function createProjectLibrary(client,root,kind){
               photoAction([item.id],item.is_favourite?"unfavourite":"favourite");
             });
           if(item.is_favourite)favourite.classList.add("is-favourite");
-          photoIconButton(footer,"✎","Edit photo details",()=>{viewer.close();editor(item)});
+          photoIconButton(footer,"✎","Edit photo description",()=>{
+            inline.hidden=false;viewer.classList.add("is-editing");
+            description.value=item.caption||"";
+            captionDisplay.hidden=true;editStatus.textContent="";
+            description.focus();
+          });
         }
       }
     }catch(e){viewer?.remove();if(ticket===epoch)status("Could not open file. "+e.message,true)}
