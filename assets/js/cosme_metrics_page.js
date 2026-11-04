@@ -1180,7 +1180,11 @@ document.addEventListener("click", (event) => {
   }
 });
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && access && document.body.dataset.cosmePhotoUploading !== "true") {
+  // Returning from the iOS photo chooser or another app is not a reason
+  // to discard an open photo or an unfinished voice-dictated upload form.
+  if (!document.hidden && access &&
+      document.body.dataset.cosmePhotoUploading !== "true" &&
+      !libraries.photos.hasActiveInteraction?.()) {
     reloadAndRecheck().catch((error) => {
       clearPrivateState();
       setStatus(error.message, true);
