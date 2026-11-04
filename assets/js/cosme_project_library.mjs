@@ -1,3 +1,4 @@
+import {createPhotoViewer,createPhotoImageCache} from "./cosme_photo_viewer.mjs?v=1";
 import {createQueuedBatch,putBatch,getBatch,listPendingBatches,listQueuedPhotos,putQueuedPhoto,deleteBatch,queueCounts} from "./cosme_photo_upload_queue.mjs?v=2";
 import {LIBRARY_BUCKET,PROJECTS,EXAMPLES,filterLibrary,localDateTime,libraryMetadata,validateLibraryFile} from "./cosme_project_library_core.mjs?v=2";
 import {prepareLibraryImage,captureTimestamp} from "./cosme_photo_exif.mjs?v=2";
@@ -11,6 +12,7 @@ export function createProjectLibrary(client,root,kind){
   let filters={},message="",failed=false,viewTrash=false,favoritesOnly=false,selectMode=false,selectedIds=new Set(),photoView="grid",photoSearchOpen=false;
   let recovery=null,autoResumed=new Set();
   let mapRenderer=null,mapState=null,mapTicket=0;
+  const photoCache=createPhotoImageCache(client,LIBRARY_BUCKET);
   const noun=kind==="reports"?"report":"photo",pageSize=24;
   root.className="metrics-panel project-library";
   function releasePhotoMap(){
@@ -22,7 +24,7 @@ export function createProjectLibrary(client,root,kind){
     }
   }
   function clear(){
-    releasePhotoMap();mapState=null;epoch++;
+    releasePhotoMap();photoCache.clear();mapState=null;epoch++;
     folders=[];items=[];trashItems=[];canEdit=false;loaded=false;busy=false;
     filters={};page=0;filtersOpen=false;viewTrash=false;favoritesOnly=false;
     selectMode=false;selectedIds.clear();photoSearchOpen=false;
@@ -85,141 +87,52 @@ export function createProjectLibrary(client,root,kind){
     // Recovery is opt-in. A photo selection/dictation draft must never start
     // uploading on its own when the iPhone returns from another app.
   }
-  function photoIconButton(parent,symbol,label,handler){
-    const control=add(parent,"button","library-photo-icon-button",symbol);
-    control.type="button";
-    control.setAttribute("aria-label",label);
-    control.title=label;
-    control.addEventListener("click",handler);
-    return control;
-  }
   async function openFile(item,download=false){
-    const ticket=epoch;
-    // Modal stays on the page: Escape, backdrop tap or compact × closes it.
-    let viewer=null,content=null;
-    if(!download){
-      viewer=add(root,"dialog",kind==="photos"?"library-viewer library-photo-viewer":"library-viewer");
-      viewer.setAttribute("aria-label",item.title);
-      if(kind==="photos"){
-        const top=add(viewer,"div","library-photo-viewer-top");
-        const title=add(top,"h3","library-photo-viewer-title",item.title);
-        title.title=item.title;
-        const navigation=add(top,"div","library-photo-viewer-navigation");
-        const visible=filterLibrary(items,filters).filter(p=>!favoritesOnly||p.is_favourite);
-        const index=visible.findIndex(p=>p.id===item.id);
-        const previous=photoIconButton(navigation,"‹","Previous photo",()=>{viewer.close();openFile(visible[index-1])});
-        previous.disabled=index<=0;
-        const next=photoIconButton(navigation,"›","Next photo",()=>{viewer.close();openFile(visible[index+1])});
-        next.disabled=index<0||index>=visible.length-1;
-        const close=photoIconButton(navigation,"×","Close photo",()=>viewer.close());
-        close.classList.add("library-photo-close");
-      }else{
-        const head=add(viewer,"div","library-heading");
-        add(head,"h3","",item.title);
-        const actions=add(head,"div","library-actions");
-        button(actions,"Download",()=>openFile(item,true));
-        button(actions,"Close",()=>viewer.close());
-      }
-      viewer.addEventListener("click",e=>{if(e.target===viewer)viewer.close()});
-      viewer.addEventListener("close",()=>viewer.remove());
-      content=add(viewer,"div","library-viewer-content","Opening…");
-      viewer.showModal();
+    if(kind==="photos"&&!download){
+      return createPhotoViewer({
+        client,root,bucket:LIBRARY_BUCKET,photo:item,
+        photos:filterLibrary(items,filters).filter(p=>!favoritesOnly||p.is_favourite),
+        canEdit,imageCache:photoCache,
+        onChange:()=>{if(!busy)draw()},
+        onEditMetadata:current=>editor(current),
+        onDownload:current=>openFile(current,true)
+      });
     }
+    if(download){
+      try{
+        const data=check(await client.storage.from(LIBRARY_BUCKET)
+          .createSignedUrl(item.object_path,60,{download:true}));
+        const link=make("a");link.href=data.signedUrl;
+        link.download=item.filename||item.title||"download";
+        document.body.append(link);link.click();link.remove();
+      }catch(err){status("Could not download file. "+(err.message||""),true)}
+      return;
+    }
+    // Reports retain the lightweight document reader.
+    const ticket=epoch,viewer=add(root,"dialog","library-viewer");
+    viewer.setAttribute("aria-label",item.title);
+    const head=add(viewer,"div","library-heading");
+    add(head,"h3","",item.title);
+    const actions=add(head,"div","library-actions");
+    button(actions,"Download",()=>openFile(item,true));
+    button(actions,"Close",()=>viewer.close());
+    viewer.addEventListener("click",event=>{if(event.target===viewer)viewer.close()});
+    viewer.addEventListener("close",()=>viewer.remove());
+    const content=add(viewer,"div","library-viewer-content","Opening…");
+    viewer.showModal();
     try{
-      const data=check(await client.storage.from(LIBRARY_BUCKET).createSignedUrl(item.object_path,60,download?{download:true}:undefined));
-      if(ticket!==epoch||viewer&&!viewer.isConnected){viewer?.remove();return}
-      if(download){
-        const link=make("a");link.href=data.signedUrl;link.download=item.filename;
-        document.body.append(link);link.click();link.remove();return;
-      }
+      const data=check(await client.storage.from(LIBRARY_BUCKET)
+        .createSignedUrl(item.object_path,60));
+      if(ticket!==epoch||!viewer.isConnected)return;
       content.replaceChildren();
-      if(kind==="reports"&&!navigator.pdfViewerEnabled){
-        add(content,"p","metrics-small-note","Download this report to read it in your PDF reader.");return;
+      if(!navigator.pdfViewerEnabled)
+        add(content,"p","metrics-small-note","Download this report to open it in your PDF reader.");
+      else{
+        add(content,"p","metrics-small-note","If the preview is unavailable, download a copy.");
+        const frame=add(content,"iframe");
+        frame.title=item.title;frame.referrerPolicy="no-referrer";frame.src=data.signedUrl;
       }
-      if(kind==="reports")add(content,"p","metrics-small-note","If the preview is unavailable, download a copy to read it in your PDF reader.");
-      const media=add(content,kind==="reports"?"iframe":"img");
-      if(kind==="reports"){media.title=item.title;media.referrerPolicy="no-referrer"}else media.alt=item.title;
-      media.src=data.signedUrl;
-      if(kind==="photos"){
-        // Edit the description directly under the enlarged image. Keep the
-        // photograph visible; don't navigate back to thumbnails to edit.
-        const inline=add(viewer,"form","library-photo-inline-edit");
-        inline.hidden=true;
-        const label=add(inline,"label","","Photo description");
-        const description=add(label,"textarea");
-        description.rows=4;description.maxLength=1000;
-        description.value=item.caption||"";
-        description.placeholder="Describe what this photo shows…";
-        const actions=add(inline,"div","library-photo-inline-actions");
-        const save=add(actions,"button","metrics-button primary","Save description");
-        save.type="submit";
-        const cancel=button(actions,"Cancel",()=>{
-          description.value=item.caption||"";
-          inline.hidden=true;viewer.classList.remove("is-editing");
-          captionDisplay.hidden=!item.caption;
-        });
-        const more=button(actions,"Other details",()=>{viewer.close();editor(item)});
-        more.classList.add("library-photo-more-details");
-        const editStatus=add(inline,"p","library-photo-inline-status");
-        editStatus.setAttribute("role","status");
-        inline.addEventListener("submit",async event=>{
-          event.preventDefault();
-          if(busy||!canEdit)return;
-          const caption=description.value.trim();
-          if(caption===(item.caption||"")){
-            inline.hidden=true;viewer.classList.remove("is-editing");
-            captionDisplay.hidden=!caption;return;
-          }
-          busy=true;save.disabled=true;cancel.disabled=true;
-          editStatus.textContent="Saving…";
-          try{
-            const updated=check(await client.rpc("cosme_library_photo_patch",{
-              p_id:item.id,p_expected_revision:item.revision,
-              p_changes:{caption}
-            }));
-            Object.assign(item,updated);
-            // The returned photo is authoritative, including its new revision.
-            captionDisplay.textContent=item.caption||"";
-            captionDisplay.hidden=!item.caption;
-            inline.hidden=true;viewer.classList.remove("is-editing");
-            editStatus.textContent="";
-          }catch(err){
-            editStatus.textContent=err?.message||"Could not save description. Try again.";
-          }finally{busy=false;save.disabled=false;cancel.disabled=false}
-        });
-        const details=add(viewer,"div","library-viewer-meta");
-        if(item.captured_at)add(details,"span","","Captured: "+new Date(item.captured_at).toLocaleString());
-        if(item.location)add(details,"span","","Location: "+item.location);
-        if(item.activity)add(details,"span","","Activity: "+item.activity);
-        if(item.asset)add(details,"span","","Asset: "+item.asset);
-        const captionDisplay=add(details,"p","library-viewer-caption",item.caption||"");
-        captionDisplay.hidden=!item.caption;
-        const gps=item.photo_metadata?.gps;
-        if(gps&&Number.isFinite(gps.latitude)&&Number.isFinite(gps.longitude)){
-          const link=add(details,"a","","View capture location on map");
-          link.href="https://maps.google.com/?q="+gps.latitude+","+gps.longitude;
-          link.target="_blank";link.rel="noopener noreferrer";
-        }
-        if(item.photo_metadata?.datetime_original&&!item.captured_at)
-          add(details,"span","","Camera time: "+item.photo_metadata.datetime_original+" (timezone not recorded)");
-        const footer=add(viewer,"div","library-photo-viewer-footer");
-        photoIconButton(footer,"↓","Download photo",()=>openFile(item,true));
-        if(canEdit){
-          const favourite=photoIconButton(footer,item.is_favourite?"♥":"♡",
-            item.is_favourite?"Remove favourite":"Favourite photo",()=>{
-              viewer.close();
-              photoAction([item.id],item.is_favourite?"unfavourite":"favourite");
-            });
-          if(item.is_favourite)favourite.classList.add("is-favourite");
-          photoIconButton(footer,"✎","Edit photo description",()=>{
-            inline.hidden=false;viewer.classList.add("is-editing");
-            description.value=item.caption||"";
-            captionDisplay.hidden=true;editStatus.textContent="";
-            description.focus();
-          });
-        }
-      }
-    }catch(e){viewer?.remove();if(ticket===epoch)status("Could not open file. "+e.message,true)}
+    }catch(err){if(viewer.isConnected)content.textContent="Unable to open report"}
   }
   function editor(existing=null,replace=false){
     if(busy)return;
