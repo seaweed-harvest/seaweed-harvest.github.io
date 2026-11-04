@@ -151,7 +151,7 @@ export function createPhotoViewer({
     if(saving){++saveAttempt;saveAbort?.abort();saving=false;pencil.disabled=false;cancel.disabled=false}
     drafts.clear(current.id);
     currentCaption.textContent=current.caption||"";
-    setEditing(false);feedback.textContent="";
+    setEditing(false);feedback.textContent="";viewer.classList.remove("has-save-error");
   }
   async function saveEdit(){
     if(!editing)return true;
@@ -164,7 +164,7 @@ export function createPhotoViewer({
     const photoToSave=current,attempt=++saveAttempt;
     drafts.set(photoToSave.id,caption);
     saving=true;pencil.disabled=true;cancel.disabled=true;
-    feedback.textContent="Saving…";
+    feedback.textContent="Saving…";viewer.classList.remove("has-save-error");
     const controller=typeof AbortController==="function"?new AbortController():null;
     saveAbort=controller;
     try{
@@ -182,7 +182,7 @@ export function createPhotoViewer({
       if(typeof photoToSave.caption!=="string")photoToSave.caption=caption;
       currentCaption.textContent=photoToSave.caption;
       drafts.clear(photoToSave.id);
-      dirty=true;feedback.textContent="Saved";
+      dirty=true;feedback.textContent="Saved";viewer.classList.remove("has-save-error");
       setEditing(false);
       return true;
     }catch(err){
@@ -190,7 +190,8 @@ export function createPhotoViewer({
       controller?.abort();
       // Stay editable, retain the text, and re-enable Save / Cancel.
       drafts.set(photoToSave.id,caption);
-      feedback.textContent="Not saved — tap ✓ to retry, or close";
+      feedback.textContent="Not saved. Retry ✓ or close (draft kept).";
+      viewer.classList.add("has-save-error");
       return false;
     }finally{
       if(attempt===saveAttempt){
@@ -202,7 +203,7 @@ export function createPhotoViewer({
   function toggleEdit(){
     if(saving)return;
     if(editing){saveEdit();return}
-    feedback.textContent="";setEditing(true);
+    feedback.textContent="";viewer.classList.remove("has-save-error");setEditing(true);
     // Same caption paragraph, same order/position. No replacement editor card.
     currentCaption.focus();
   }
@@ -275,7 +276,9 @@ export function createPhotoViewer({
     title.textContent=current.title;title.title=current.title;
     viewer.setAttribute("aria-label",current.title);
     previous.disabled=index===0;next.disabled=index===sequence.length-1;
-    renderMetadata();feedback.textContent="";
+    viewer.classList.remove("has-save-error");
+    renderMetadata();
+    if(!editing)feedback.textContent="";
     viewer.scrollTop=0;
     content.classList.add("is-photo-loading");
     image.alt=current.title;
