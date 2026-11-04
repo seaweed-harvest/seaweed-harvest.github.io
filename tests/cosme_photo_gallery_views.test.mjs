@@ -8,7 +8,7 @@ test('COSME gallery provides both grid and selective list presentations',()=>{
   assert.match(src,/function drawPhotos\(\)/);
   assert.match(src,/function photoListItem\(item,container\)/);
   assert.match(src,/photoView==="grid"/);
-  assert.match(src,/\[\["grid","Grid"\],\["list","List"\]\]/);
+  assert.match(src,/\[\["grid","Grid"\],\["list","List"\],\["map","Map"\]\]/);
   for(const field of ['library-row-title','library-row-context','library-row-facts','library-row-caption'])assert.ok(src.includes(field));
   assert.match(src,/setAttribute\("aria-pressed"/);
 });
