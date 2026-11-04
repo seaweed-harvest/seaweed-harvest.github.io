@@ -89,6 +89,7 @@ async function init() {
     }
     state.context = context;
     state.sites = Array.isArray(context.sites) ? context.sites : [];
+    state.canEditSiteGps = context.can_edit_site_gps === true;
     await configureStandaloneShell();
     renderForm(form);
     cacheElements();
@@ -178,6 +179,25 @@ function renderForm(form) {
             <h3 id="reefSiteCaptureSiteHeading">Site</h3>
           </div>
         </div>
+
+        <details id="reefSiteGps" class="reef-site-gps" hidden>
+          <summary id="reefSiteGpsSummary">GPS · Not recorded</summary>
+          <div class="reef-site-gps-content">
+            <a id="reefSiteGpsMap" href="#" target="_blank" rel="noopener noreferrer" hidden>Open in Google Maps</a>
+            <div id="reefSiteGpsEditor" hidden>
+              <div class="reef-two-column-grid">
+                <label>Latitude
+                  <input id="reefSiteGpsLat" type="number" inputmode="decimal" step="any" min="-90" max="90" placeholder="-4.0000000">
+                </label>
+                <label>Longitude
+                  <input id="reefSiteGpsLon" type="number" inputmode="decimal" step="any" min="-180" max="180" placeholder="39.0000000">
+                </label>
+              </div>
+              <button id="reefSiteGpsSave" type="button" class="secondary-action">Save GPS</button>
+              <span id="reefSiteGpsStatus" class="reef-site-gps-status" aria-live="polite"></span>
+            </div>
+          </div>
+        </details>
 
         <nav id="reefSiteModeTabs" class="reef-site-mode-tabs standard-tabs" role="tablist" aria-label="Selected site data view">
           <button id="reefSampleRopeTab" class="standard-tab" type="button" role="tab" aria-selected="true">Sample Rope Register</button>
@@ -414,6 +434,7 @@ function cacheElements() {
     "reefSeaweedForm", "reefSiteCaptureRecordNumber", "reefSiteCaptureDate", "reefSiteCaptureTime",
     "reefSiteCaptureRecorder", "reefSiteCaptureTeam", "reefSiteCaptureOtherTeamField", "reefSiteCaptureOtherTeam",
     "reefSiteCaptureLocation", "reefSiteCaptureSite", "reefSiteCaptureWorkspace", "reefSiteCaptureSiteHeading",
+    "reefSiteGps", "reefSiteGpsSummary", "reefSiteGpsMap", "reefSiteGpsEditor", "reefSiteGpsLat", "reefSiteGpsLon", "reefSiteGpsSave", "reefSiteGpsStatus",
     "reefSiteCaptureTab", "reefSampleRopeTab", "reefSiteCapturePanel", "reefSampleRopePanel",
     "reefSiteCaptureDetails", "reefSiteCaptureActions",
     "reefSampleVisitRecorder", "reefSampleVisitTeam", "reefSampleVisitOtherTeamField", "reefSampleVisitOtherTeam",
@@ -434,6 +455,7 @@ function bindEvents() {
   els.reefSampleVisitTeam.addEventListener("change", syncVisitOtherTeam);
   els.reefSiteCaptureLocation.addEventListener("change", () => void handleLocationChange());
   els.reefSiteCaptureSite.addEventListener("change", () => void handleSiteChange());
+  els.reefSiteGpsSave.addEventListener("click", () => void saveSiteGps());
   els.reefSiteCaptureTab.addEventListener("click", () => setSiteMode("capture"));
   els.reefSampleRopeTab.addEventListener("click", () => setSiteMode("sample"));
 
@@ -510,6 +532,7 @@ async function handleSiteChange() {
   setSiteMode("sample");
   els.reefSiteCaptureWorkspace.hidden = false;
   els.reefSiteCaptureSiteHeading.textContent = siteLabel(selected);
+  showSiteGps(selected);
   els.reefSampleRopeSiteLabel.textContent = `Selected site: ${siteLabel(selected)}`;
   clearSiteCaptureMeasurements();
   clearHealthEnvironment();
@@ -518,6 +541,66 @@ async function handleSiteChange() {
     await loadSampleRopeRegister(requestedSite);
   } catch (error) {
     setStatus(error.message || "Sample Rope Register could not be loaded for this site.", "error");
+  }
+}
+
+function coordinatesForSite(site) {
+  if (site?.gps_latitude == null || site?.gps_longitude == null) return null;
+  const latitude = Number(site.gps_latitude);
+  const longitude = Number(site.gps_longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
+      Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
+  return { latitude, longitude };
+}
+
+function showSiteGps(site) {
+  const gps = coordinatesForSite(site);
+  els.reefSiteGps.hidden = false;
+  els.reefSiteGpsSummary.textContent = gps
+    ? `GPS · ${gps.latitude.toFixed(7)}, ${gps.longitude.toFixed(7)}`
+    : "GPS · Not recorded";
+  els.reefSiteGpsLat.value = gps ? String(gps.latitude) : "";
+  els.reefSiteGpsLon.value = gps ? String(gps.longitude) : "";
+  els.reefSiteGpsEditor.hidden = !state.canEditSiteGps;
+  els.reefSiteGpsMap.hidden = !gps;
+  if (gps) {
+    els.reefSiteGpsMap.href = `https://www.google.com/maps?q=${encodeURIComponent(`${gps.latitude},${gps.longitude}`)}`;
+  } else {
+    els.reefSiteGpsMap.removeAttribute("href");
+  }
+  els.reefSiteGps.open = !gps && state.canEditSiteGps;
+  els.reefSiteGpsStatus.textContent = "";
+}
+
+async function saveSiteGps() {
+  if (!state.canEditSiteGps) return;
+  const siteCode = els.reefSiteCaptureSite.value;
+  const site = siteByCode(siteCode);
+  if (!site) return;
+  const latText = els.reefSiteGpsLat.value.trim();
+  const lonText = els.reefSiteGpsLon.value.trim();
+  const latitude = Number(latText);
+  const longitude = Number(lonText);
+  if (!latText || !lonText || !Number.isFinite(latitude) || !Number.isFinite(longitude) ||
+      Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+    els.reefSiteGpsStatus.textContent = "Enter valid latitude and longitude.";
+    return;
+  }
+  els.reefSiteGpsSave.disabled = true;
+  els.reefSiteGpsStatus.textContent = "Saving…";
+  try {
+    const saved = await rpc("ag_reef_site_gps_save", {
+      p_site_code: siteCode, p_latitude: latitude, p_longitude: longitude
+    });
+    Object.assign(site, saved);
+    if (els.reefSiteCaptureSite.value === siteCode) {
+      showSiteGps(site);
+      els.reefSiteGpsStatus.textContent = "GPS saved.";
+    }
+  } catch (error) {
+    els.reefSiteGpsStatus.textContent = error.message || "GPS could not be saved.";
+  } finally {
+    els.reefSiteGpsSave.disabled = false;
   }
 }
 
@@ -544,6 +627,7 @@ function populateSites(location) {
 function clearSelectedSiteWorkspace() {
   els.reefSiteCaptureWorkspace.hidden = true;
   els.reefSiteCaptureSiteHeading.textContent = "Site";
+  els.reefSiteGps.hidden = true;
   els.reefSampleRopeSiteLabel.textContent = "";
   applySampleRegister({ rows: [] });
   state.sampleRegisterSiteCode = null;
@@ -1303,6 +1387,13 @@ function productionStyles() {
     .reef-observation-rows { border-top: 1px solid #dce9e7; }
     .reef-observation-row { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(150px, 260px); align-items: center; gap: 0.8rem; min-height: 42px; padding: 0.3rem 0.1rem; border-bottom: 1px solid #e2ecea; }
     .reef-observation-row input, .reef-observation-row select { width: 100%; min-height: 34px; }
+    .reef-site-gps { margin: 0.45rem 0 1rem; border: 1px solid #dce9e7; border-radius: 9px; background: #fbfefd; }
+    .reef-site-gps summary { cursor: pointer; padding: 0.7rem 0.9rem; font-size: 0.9rem; font-weight: 600; color: #285f5a; }
+    .reef-site-gps-content { padding: 0 0.9rem 0.85rem; font-size: 0.9rem; }
+    .reef-site-gps-content a { display: inline-block; margin-bottom: 0.6rem; color: #237a76; }
+    .reef-site-gps-content a[hidden], #reefSiteGpsEditor[hidden] { display: none; }
+    .reef-site-gps-content input { width: 100%; box-sizing: border-box; margin-top: 0.25rem; }
+    .reef-site-gps-status { margin-left: 0.65rem; font-size: 0.85rem; }
     .reef-seaweed-general-notes { display: block; margin: 0.9rem 0 1rem; }
     .reef-seaweed-general-notes textarea { width: 100%; box-sizing: border-box; margin-top: 0.35rem; }
     @media (max-width: 760px) {
