@@ -326,6 +326,7 @@ function tab(name) {
   if(libraries[name]&&access&&!librariesLoaded.has(name)){
     librariesLoaded.add(name);libraries[name].load();
   }
+  if(name==="photos")requestAnimationFrame(()=>libraries.photos.refreshMap?.());
   if (name === "finances" && access && !financesLoaded) {
     financesLoaded = true;
     financesPanel.load();
