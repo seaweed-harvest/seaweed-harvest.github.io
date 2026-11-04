@@ -62,9 +62,12 @@ export async function createPhotoMap({client,host,photos,bucket,onOpen,initialVi
   const map=L.map(canvas,{zoomControl:false,scrollWheelZoom:true,
     attributionControl:true,preferCanvas:false,maxZoom:18,minZoom:3});
   L.control.zoom({position:"bottomright"}).addTo(map);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",{
-    subdomains:"abcd",maxZoom:19,maxNativeZoom:19,
-    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  // CARTO raster tiles became key-gated in 2026. Use the standard
+  // OpenStreetMap tiles for this lightweight interactive project map.
+  // Browser caching and visible attribution comply with the OSM tile policy.
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{
+    maxZoom:19,maxNativeZoom:19,
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
   }).addTo(map);
   const layer=L.layerGroup().addTo(map);
   let gpsOnly=false,closed=false,raf=0;
