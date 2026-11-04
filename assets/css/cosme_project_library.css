@@ -396,3 +396,27 @@
    font-size:16px;line-height:1.48;
  }
 }
+
+/* Keep the dimmed gallery stationary during a gesture on any part of the
+   active photo card; only the dialog itself may scroll vertically. */
+html:has(dialog.library-photo-viewer[open]),
+body:has(dialog.library-photo-viewer[open]){
+  overflow:hidden;
+  overscroll-behavior:none;
+}
+.project-library .library-photo-viewer{
+  overscroll-behavior:contain;
+  touch-action:pan-y;
+}
+.project-library .library-photo-viewer.has-save-error .library-photo-viewer-footer{
+  flex-wrap:wrap;
+}
+.project-library .library-photo-viewer.has-save-error .library-photo-viewer-feedback{
+  flex:1 0 100%;
+  order:-1;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  color:#a43d35;
+  padding:0 2px 3px;
+}
