@@ -46,6 +46,9 @@ test("map uses existing Leaflet assets, protected links and the shared gallery f
   const gallery=read("../assets/js/cosme_project_library.mjs");
   const css=read("../assets/css/cosme_photo_map.css");
   assert.match(map,/leaflet\.js/);
+  assert.ok(map.includes("https://tile.openstreetmap.org/{z}/{x}/{y}.png"));
+  assert.ok(map.includes("OpenStreetMap contributors"));
+  assert.ok(!map.includes("cartocdn"),"API-key-gated CARTO tiles must not return");
   assert.match(map,/createSignedUrl\(item\.object_path/);
   assert.match(map,/clusterPhotoPositions/);
   assert.match(map,/map\.flyTo/);
