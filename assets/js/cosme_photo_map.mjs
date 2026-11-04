@@ -3,15 +3,15 @@ import {photosWithPositions,clusterPhotoPositions} from "./cosme_photo_map_core.
 let leafletReady=null;
 const THUMBNAIL_SECONDS=90;
 function loadLeaflet(){
+  if(!document.querySelector('link[data-cosme-map-style]')){
+    const link=document.createElement("link");
+    link.rel="stylesheet";
+    link.href=new URL("./assets/vendor/leaflet/leaflet.css",document.baseURI).href;
+    link.dataset.cosmeMapStyle="1";document.head.append(link);
+  }
   if(window.L?.map)return Promise.resolve(window.L);
   if(leafletReady)return leafletReady;
   leafletReady=new Promise((resolve,reject)=>{
-    if(!document.querySelector('link[data-cosme-map-style]')){
-      const link=document.createElement("link");
-      link.rel="stylesheet";
-      link.href=new URL("./assets/vendor/leaflet/leaflet.css",document.baseURI).href;
-      link.dataset.cosmeMapStyle="1";document.head.append(link);
-    }
     const script=document.createElement("script");
     script.src=new URL("./assets/vendor/leaflet/leaflet.js",document.baseURI).href;
     script.async=true;
@@ -141,7 +141,8 @@ export async function createPhotoMap({client,host,photos,bucket,onOpen,initialVi
       const icon=L.divIcon({html:face,className:"library-map-div-icon",
         iconSize:[70,80],iconAnchor:[35,78]});
       const marker=L.marker([group.lat,group.lng],{icon,title:group.photos.length===1?
-        representative.title:group.photos.length+" photos",keyboard:true}).addTo(layer);
+        representative.title+" · "+group.label:group.photos.length+" photos · "+group.label,
+        keyboard:true}).addTo(layer);
       marker.on("click",()=>{
         if(group.photos.length===1){onOpen(representative);return}
         if(map.getZoom()<16){closeSheet();map.flyTo([group.lat,group.lng],Math.min(16,map.getZoom()+2),{duration:.38})}
