@@ -57,13 +57,46 @@ export function createPhotoImageCache(client,bucket){
   }
   return {load,clear:()=>cached.clear()};
 }
+// A failed mobile save must not discard the user's dictated/typed caption.
+// Session storage is local to this browser tab; no draft is sent until Save.
+export function createCaptionDrafts(storage){
+  const memory=new Map();
+  const prefix="cosme-photo-caption-draft:";
+  return {
+    get(id){
+      try{const raw=storage?.getItem(prefix+id);
+        if(raw!==null&&raw!==undefined)return String(raw).slice(0,1000);
+      }catch{}
+      return memory.get(id)??null;
+    },
+    set(id,value){
+      const text=String(value??"").slice(0,1000);
+      memory.set(id,text);
+      try{storage?.setItem(prefix+id,text)}catch{}
+    },
+    clear(id){
+      memory.delete(id);
+      try{storage?.removeItem(prefix+id)}catch{}
+    }
+  };
+}
+export function boundedPhotoSave(task,timeoutMs=12000){
+  let timer;
+  return Promise.race([
+    Promise.resolve().then(task),
+    new Promise((_,reject)=>{
+      timer=setTimeout(()=>reject(Error("Connection timed out")),timeoutMs);
+    })
+  ]).finally(()=>clearTimeout(timer));
+}
 export function createPhotoViewer({
   client,root,bucket,photo,photos,canEdit=false,imageCache,
-  onChange=()=>{},onEditMetadata=()=>{},onDownload=()=>{}
+  onChange=()=>{},onEditMetadata=()=>{},onDownload=()=>{},drafts=createCaptionDrafts(null)
 }){
   const sequence=photos.some(p=>p.id===photo.id)?photos.slice():[photo,...photos];
   let index=sequence.findIndex(p=>p.id===photo.id);
   let current=sequence[index],editing=false,saving=false,dirty=false,requestId=0;
+  let saveAttempt=0,saveAbort=null;
   let currentCaption=null;
   const viewer=add(root,"dialog","library-viewer library-photo-viewer");
   viewer.setAttribute("aria-label",current.title);
@@ -114,7 +147,9 @@ export function createPhotoViewer({
     }
   }
   function cancelEdit(){
-    if(!editing||saving)return;
+    if(!editing)return;
+    if(saving){++saveAttempt;saveAbort?.abort();saving=false;pencil.disabled=false;cancel.disabled=false}
+    drafts.clear(current.id);
     currentCaption.textContent=current.caption||"";
     setEditing(false);feedback.textContent="";
   }
@@ -122,26 +157,46 @@ export function createPhotoViewer({
     if(!editing)return true;
     if(saving)return false;
     const caption=textValue();
-    if(caption===(current.caption||"")){setEditing(false);return true}
-    const photoToSave=current;
+    if(caption===(current.caption||"")){
+      drafts.clear(current.id);setEditing(false);feedback.textContent="";
+      return true;
+    }
+    const photoToSave=current,attempt=++saveAttempt;
+    drafts.set(photoToSave.id,caption);
     saving=true;pencil.disabled=true;cancel.disabled=true;
     feedback.textContent="Saving…";
+    const controller=typeof AbortController==="function"?new AbortController():null;
+    saveAbort=controller;
     try{
-      const updated=result(await client.rpc("cosme_library_photo_patch",{
-        p_id:photoToSave.id,p_expected_revision:photoToSave.revision,
-        p_changes:{caption}
-      }));
+      const reply=await boundedPhotoSave(()=>{
+        const request=client.rpc("cosme_library_photo_patch",{
+          p_id:photoToSave.id,p_expected_revision:photoToSave.revision,
+          p_changes:{caption}
+        });
+        return typeof request?.abortSignal==="function"&&controller?
+          request.abortSignal(controller.signal):request;
+      },12000);
+      if(attempt!==saveAttempt)return false;
+      const updated=result(reply);
       Object.assign(photoToSave,updated);
       if(typeof photoToSave.caption!=="string")photoToSave.caption=caption;
       currentCaption.textContent=photoToSave.caption;
+      drafts.clear(photoToSave.id);
       dirty=true;feedback.textContent="Saved";
       setEditing(false);
       return true;
     }catch(err){
-      feedback.textContent=err?.message||"Could not save. Try again.";
+      if(attempt!==saveAttempt)return false;
+      controller?.abort();
+      // Stay editable, retain the text, and re-enable Save / Cancel.
+      drafts.set(photoToSave.id,caption);
+      feedback.textContent="Not saved — tap ✓ to retry, or close";
       return false;
     }finally{
-      saving=false;pencil.disabled=false;cancel.disabled=false;
+      if(attempt===saveAttempt){
+        saving=false;saveAbort=null;
+        pencil.disabled=false;cancel.disabled=false;
+      }
     }
   }
   function toggleEdit(){
@@ -180,8 +235,18 @@ export function createPhotoViewer({
     if(current.activity)add(details,"span","","Activity: "+current.activity);
     if(current.asset)add(details,"span","","Asset: "+current.asset);
     currentCaption=add(details,"p","library-viewer-caption",current.caption||"");
-    currentCaption.hidden=!current.caption;
+    const draft=drafts.get(current.id);
+    if(draft!==null && draft!==(current.caption||"")){
+      currentCaption.textContent=draft;
+      currentCaption.hidden=false;
+    }else{
+      if(draft!==null)drafts.clear(current.id);
+      currentCaption.hidden=!current.caption;
+    }
     currentCaption.setAttribute("aria-label","Photo description");
+    currentCaption.addEventListener("input",()=>{
+      if(editing)drafts.set(current.id,textValue());
+    });
     const gps=current.photo_metadata?.gps;
     if(gps&&Number.isFinite(gps.latitude)&&Number.isFinite(gps.longitude)){
       const link=add(details,"a","","View capture location on map");
@@ -191,7 +256,13 @@ export function createPhotoViewer({
     if(current.photo_metadata?.datetime_original&&!current.captured_at)
       add(details,"span","","Camera time: "+current.photo_metadata.datetime_original+
         " (timezone not recorded)");
-    if(canEdit){updateFavourite();setEditing(false)}
+    if(canEdit){
+      updateFavourite();setEditing(false);
+      if(draft!==null&&draft!==(current.caption||"")){
+        setEditing(true);
+        feedback.textContent="Unsaved description restored";
+      }
+    }
   }
   function preloadNeighbours(){
     for(const i of [index-1,index+1]){
@@ -219,19 +290,28 @@ export function createPhotoViewer({
       feedback.textContent=err?.message||"Photo unavailable";
     });
   }
-  async function navigate(delta){
-    if(saving||index+delta<0||index+delta>=sequence.length)return;
-    if(editing&&!(await saveEdit()))return;
+  function preserveAndStopSave(){
+    if(editing&&changedCaption())drafts.set(current.id,textValue());
+    if(saving){
+      ++saveAttempt;
+      saveAbort?.abort();
+      saveAbort=null;saving=false;
+      if(pencil)pencil.disabled=false;
+      if(cancel)cancel.disabled=false;
+    }
+  }
+  function navigate(delta){
+    if(index+delta<0||index+delta>=sequence.length)return;
+    // Never trap navigation behind a slow or failed mobile network request.
+    preserveAndStopSave();
     show(index+delta);
   }
-  async function requestClose(){
-    if(saving)return;
-    if(editing&&!(await saveEdit()))return;
+  function requestClose(){
+    preserveAndStopSave();
     viewer.close();
   }
-  async function editMetadata(){
-    if(saving)return;
-    if(editing&&!(await saveEdit()))return;
+  function editMetadata(){
+    preserveAndStopSave();
     const target=current;editingAdvanced=true;
     viewer.close();onEditMetadata(target);
   }
@@ -239,9 +319,10 @@ export function createPhotoViewer({
   // Listen on the entire dialog, not only the image. A read-only caption has
   // contenteditable="false" and must NOT be treated as an editing control.
   const interactiveTouchTarget=target=>Boolean(
-    target?.closest?.('button,a,input,textarea,select,[contenteditable="true"],[contenteditable="plaintext-only"]')
-    ||target?.isContentEditable
+    editing || target?.isContentEditable ||
+    target?.closest?.('input,textarea,select,[contenteditable="true"],[contenteditable="plaintext-only"]')
   );
+  let ignoreClickUntil=0;
   viewer.addEventListener("touchstart",event=>{
     if(editing||saving||event.touches?.length!==1||interactiveTouchTarget(event.target)){
       touchStart=null;return;
@@ -266,8 +347,18 @@ export function createPhotoViewer({
     const direction=swipeDirection(finger.clientX-touchStart.x,
       finger.clientY-touchStart.y,Date.now()-touchStart.at);
     touchStart=null;
-    if(direction)navigate(direction);
-  },{passive:true});
+    if(direction){
+      ignoreClickUntil=Date.now()+450;
+      if(event.cancelable)event.preventDefault();
+      navigate(direction);
+    }
+  },{passive:false});
+  // Prevent an iOS synthesized tap on a button/link after a long swipe.
+  viewer.addEventListener("click",event=>{
+    if(Date.now()<ignoreClickUntil){
+      event.preventDefault();event.stopImmediatePropagation();
+    }
+  },true);
   viewer.addEventListener("touchcancel",()=>{touchStart=null},{passive:true});
   viewer.addEventListener("keydown",event=>{
     if(editing||saving||event.target?.isContentEditable)return;
@@ -280,8 +371,15 @@ export function createPhotoViewer({
   viewer.addEventListener("cancel",event=>{
     if(editing||saving){event.preventDefault();requestClose()}
   });
+  const htmlStyle=document.documentElement?.style,bodyStyle=document.body?.style;
+  const previousHtmlOverflow=htmlStyle?.overflow,previousBodyOverflow=bodyStyle?.overflow;
+  if(htmlStyle)htmlStyle.overflow="hidden";
+  if(bodyStyle)bodyStyle.overflow="hidden";
   viewer.addEventListener("close",()=>{
+    preserveAndStopSave();
     requestId++;viewer.remove();
+    if(htmlStyle)htmlStyle.overflow=previousHtmlOverflow||"";
+    if(bodyStyle)bodyStyle.overflow=previousBodyOverflow||"";
     if(dirty&&!editingAdvanced)onChange();
   });
   viewer.showModal();show(index);
