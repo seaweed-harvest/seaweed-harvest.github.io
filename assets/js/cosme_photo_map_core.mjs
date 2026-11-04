@@ -3,7 +3,7 @@
 import {TIDE_LOCATIONS} from "../../tide/assets/data/locations.js";
 
 const KEYS=["mkwiro","tumbe","bati","funzi","shangani","shangani-amani",
-  "wasini","kibuyuni","yungi-mwenjeni","chiromo","im ani",
+  "wasini","kibuyuni","yungi-mwenjeni","chiromo",
   "daima","furaha","jikaze","jimbo","kijiweni","mtimbwani",
   "siwema","tushirikiane","tunusuru","nuru"];
 // Only match a named site in the location or asset field, never a casual
@@ -13,7 +13,7 @@ const ALIASES={
   "yungi-mwenjeni":["yungi mwenjeni","yungi","mwenjeni"],
   "amka-utsamba":["amka utsamba","utsamba"]
 };
-const SITE_KEYS=new Set(KEYS.filter(k=>k!=="im ani").concat(["amka-utsamba"]));
+const SITE_KEYS=new Set(KEYS.concat(["amka-utsamba"]));
 const SITES=TIDE_LOCATIONS.filter(s=>SITE_KEYS.has(s.key)&&s.gps&&
   Number.isFinite(s.gps.lat)&&Number.isFinite(s.gps.lon)).map(s=>({
     name:s.shortName||s.name,key:s.key,lat:s.gps.lat,lng:s.gps.lon,
@@ -25,17 +25,18 @@ const num=n=>n===null||n===undefined||n===""?NaN:Number(n);
 const oneSite=(value)=>{
   const text=String(value||"").toLowerCase().normalize("NFKC");
   if(!text)return null;
-  const matches=SITES.filter(site=>site.aliases.some(name=>{
+  const matches=SITES.flatMap(site=>site.aliases.filter(name=>{
     const escaped=name.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
     return new RegExp("(?:^|[^a-z])"+escaped+"(?:$|[^a-z])","i").test(text);
-  }));
+  }).map(name=>({site,length:name.length})));
   if(!matches.length)return null;
-  // Two distinct locations in the same field are ambiguous; don't guess.
-  const distinct=matches.filter(m=>!matches.some(other=>
-    other!==m&&other.key!==m.key&&
-    (m.key==="shangani-amani"&&other.key==="shangani")&&text.includes("shangani amani")));
-  if(distinct.length!==1)return null;
-  return distinct[0];
+  matches.sort((a,b)=>b.length-a.length);
+  // Distinct simultaneous site names are ambiguous; a longer named subtype
+  // (e.g. Shangani Amani) legitimately wins over its shorter parent label.
+  if(matches.some(m=>m.site.key!==matches[0].site.key&&
+    !matches[0].site.key.startsWith(m.site.key+"-")&&
+    !m.site.key.startsWith(matches[0].site.key+"-")))return null;
+  return matches[0].site;
 };
 export function photoPosition(item){
   const gps=item?.photo_metadata?.gps;
