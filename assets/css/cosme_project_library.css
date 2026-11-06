@@ -134,7 +134,7 @@
 .project-library .library-row-context{font-size:.79rem;color:var(--text-sec);max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .project-library .library-row-facts{font-size:.75rem;color:var(--text-sec)}
 .project-library .library-row-caption{font-size:.79rem;color:var(--text-sec);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1;overflow:hidden;max-width:100%}
-.project-library .library-gallery-pagination{display:flex;align-items:center;justify-content:center;gap:12px;font-size:.81rem;color:var(--text-sec)}
+.project-library .library-gallery-load-more{display:flex;align-items:center;justify-content:center;gap:12px;min-height:44px;padding:8px 0;font-size:.81rem;color:var(--text-sec)}
 .project-library .library-gallery-empty{grid-column:1/-1;font-size:.9rem;color:var(--text-sec);margin:8px 0}
 @media(min-width:1000px){
  .project-library .library-photo-grid{grid-template-columns:repeat(auto-fill,minmax(152px,1fr))}

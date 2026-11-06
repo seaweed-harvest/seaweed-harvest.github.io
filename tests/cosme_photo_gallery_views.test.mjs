@@ -144,3 +144,17 @@ test('swiping horizontally uses a five-image private signed cache and preloads n
   assert.match(viewer,/viewer\.addEventListener\("keydown"/);
   assert.doesNotMatch(viewer,/viewer\.close\(\);openFile\(/);
 });
+
+test('photo grid and list progressively append 48 images instead of paging',()=>{
+  const src=read('../assets/js/cosme_project_library.mjs');
+  const gallery=src.slice(src.indexOf('  function drawPhotos(){'),src.indexOf('  function draw(){'));
+  assert.match(src,/photoBatchSize=48/);
+  assert.match(gallery,/visible\.slice\(0,photoLimit\)/);
+  assert.match(gallery,/visible\.slice\(start,photoLimit\)/);
+  assert.match(gallery,/photoLimit=Math\.min\(visible\.length,start\+photoBatchSize\)/);
+  assert.match(gallery,/new IntersectionObserver\(entries/);
+  assert.match(gallery,/photoLoadObserver\.observe\(loader\)/);
+  assert.match(gallery,/if\(!gallery\.isConnected\|\|!loader\.isConnected\)return/);
+  assert.match(gallery,/else button\(loader,"Load more",appendNext\)/);
+  assert.doesNotMatch(gallery,/Page \$\{page\+1\}|library-gallery-pagination/);
+});

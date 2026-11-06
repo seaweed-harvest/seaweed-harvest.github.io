@@ -16,7 +16,8 @@ export function createProjectLibrary(client,root,kind){
   const captionDrafts=createCaptionDrafts(
     typeof sessionStorage==="undefined"?null:sessionStorage
   );
-  const noun=kind==="reports"?"report":"photo",pageSize=24;
+  const noun=kind==="reports"?"report":"photo",pageSize=24,photoBatchSize=48;
+  let photoLimit=photoBatchSize,photoLoadObserver=null;
   root.className="metrics-panel project-library";
   function releasePhotoMap(){
     mapTicket++;
@@ -27,6 +28,7 @@ export function createProjectLibrary(client,root,kind){
     }
   }
   function clear(){
+    photoLoadObserver?.disconnect();photoLoadObserver=null;photoLimit=photoBatchSize;
     releasePhotoMap();photoCache.clear();mapState=null;epoch++;
     folders=[];items=[];trashItems=[];canEdit=false;loaded=false;busy=false;
     filters={};page=0;filtersOpen=false;viewTrash=false;favoritesOnly=false;
@@ -763,6 +765,7 @@ export function createProjectLibrary(client,root,kind){
     }
   }
   function drawPhotos(){
+    photoLoadObserver?.disconnect();photoLoadObserver=null;
     releasePhotoMap();
     root.replaceChildren();
     const header=add(root,"div","library-gallery-header");
@@ -796,24 +799,24 @@ export function createProjectLibrary(client,root,kind){
     if(canEdit&&!viewTrash)button(menu,"New folder",()=>{more.open=false;folderForm()});
     if(canEdit)button(menu,viewTrash?"Back to library":"Trash",()=>{
       more.open=false;viewTrash=!viewTrash;favoritesOnly=false;selectMode=false;
-      selectedIds.clear();page=0;draw();
+      selectedIds.clear();photoLimit=photoBatchSize;draw();
     });
     button(menu,"Refresh",()=>{more.open=false;if(!busy)load()});
     const notice=add(root,"p","metrics-small-note",message);
     notice.hidden=!message;notice.dataset.libraryStatus="";notice.setAttribute("role",failed?"alert":"status");
     const toolbar=add(root,"div","library-gallery-toolbar");
     const scopes=add(toolbar,"div","library-gallery-scopes");
-    const all=button(scopes,"All",()=>{favoritesOnly=false;page=0;draw()});
+    const all=button(scopes,"All",()=>{favoritesOnly=false;photoLimit=photoBatchSize;draw()});
     all.classList.add("library-filter-pill");all.setAttribute("aria-pressed",String(!favoritesOnly));
     if(!viewTrash){
-      const fav=button(scopes,"Favourites",()=>{favoritesOnly=true;page=0;draw()});
+      const fav=button(scopes,"Favourites",()=>{favoritesOnly=true;photoLimit=photoBatchSize;draw()});
       fav.classList.add("library-filter-pill");fav.setAttribute("aria-pressed",String(favoritesOnly));
     }
     const category=add(toolbar,"div","library-gallery-category");
     select(category,"Activity",[
       ["","All activities"],
       ...[...new Set(items.map(i=>i.project).filter(Boolean))].sort().map(v=>[v,v])
-    ],filters.project,value=>{filters.project=value;page=0;draw()});
+    ],filters.project,value=>{filters.project=value;photoLimit=photoBatchSize;draw()});
     if(!viewTrash){
       const viewSwitch=add(toolbar,"div","library-gallery-view-toggle");
       viewSwitch.setAttribute("role","group");viewSwitch.setAttribute("aria-label","Photo display mode");
@@ -836,7 +839,7 @@ export function createProjectLibrary(client,root,kind){
     advanced.open=filtersOpen;
     advanced.addEventListener("toggle",()=>{filtersOpen=advanced.open});
     const moreFilters=add(advanced,"div","library-filters");
-    const change=key=>value=>{filters[key]=value;page=0;draw()};
+    const change=key=>value=>{filters[key]=value;photoLimit=photoBatchSize;draw()};
     select(moreFilters,"Folder",[["","All folders"],...folders.map(f=>[f.id,f.name])],filters.folder,change("folder"));
     for(const [key,label] of [["prototype","Prototype"],["location","Location"],["activity","Detail activity"],["asset","Asset"]]){
       const values=[...new Set(items.map(i=>i[key]).filter(Boolean))].sort();
@@ -848,7 +851,7 @@ export function createProjectLibrary(client,root,kind){
       date.addEventListener("change",()=>change(key)(date.value));
     }
     button(moreFilters,"Clear filters",()=>{
-      filters={};favoritesOnly=false;filtersOpen=false;page=0;draw();
+      filters={};favoritesOnly=false;filtersOpen=false;photoLimit=photoBatchSize;draw();
     });
     if(photoSearchOpen){
       const searchWrap=add(root,"label","library-gallery-search");
@@ -856,7 +859,7 @@ export function createProjectLibrary(client,root,kind){
       search.type="search";search.setAttribute("aria-label","Search project photos");
       search.placeholder="Search photos, locations or assets";
       search.value=filters.search||"";
-      search.addEventListener("change",()=>{filters.search=search.value;page=0;draw()});
+      search.addEventListener("change",()=>{filters.search=search.value;photoLimit=photoBatchSize;draw()});
       search.focus();
     }
     if(canEdit&&selectedIds.size){
@@ -871,12 +874,11 @@ export function createProjectLibrary(client,root,kind){
       }
     }
     const visible=filterLibrary(activeItems,filters).filter(i=>!favoritesOnly||i.is_favourite);
-    page=Math.min(page,Math.max(0,Math.ceil(visible.length/pageSize)-1));
     if(filters.project||filters.search||activeFilters||favoritesOnly){
       const count=add(root,"div","library-results-line");
       add(count,"span","",visible.length+" shown"+(!canEdit?" · Read only":""));
       const reset=button(count,"Clear filters",()=>{
-        filters={};favoritesOnly=false;page=0;draw();
+        filters={};favoritesOnly=false;photoLimit=photoBatchSize;draw();
       });reset.classList.add("library-reset-filters");
     }
     const mapMode=!viewTrash&&photoView==="map";
@@ -900,8 +902,7 @@ export function createProjectLibrary(client,root,kind){
           add(gallery,"p","library-map-empty","Map unavailable");
       });
     }else{
-      const slice=visible.slice(page*pageSize,(page+1)*pageSize);
-      for(const item of slice){
+      for(const item of visible.slice(0,photoLimit)){
         if(viewTrash)photoTrashItem(item,gallery);
         else if(photoView==="grid")photoTile(item,gallery);
         else photoListItem(item,gallery);
@@ -909,11 +910,33 @@ export function createProjectLibrary(client,root,kind){
     }
     if(!visible.length&&!mapMode)add(gallery,"p","library-gallery-empty",
       viewTrash?"Trash is empty":items.length?"No matching photos":"No project photos uploaded yet");
-    if(!mapMode&&visible.length>pageSize){
-      const pagination=add(root,"div","library-gallery-pagination");
-      button(pagination,"Previous",()=>{page--;draw()}).disabled=page===0;
-      add(pagination,"span","",`Page ${page+1} of ${Math.ceil(visible.length/pageSize)}`);
-      button(pagination,"Next",()=>{page++;draw()}).disabled=(page+1)*pageSize>=visible.length;
+    if(!mapMode&&visible.length>photoLimit){
+      const loader=add(root,"div","library-gallery-load-more");
+      const count=add(loader,"span","","${photoLimit} of ${visible.length} photos");
+      const observeMore=()=>{
+        if(typeof IntersectionObserver!=="function")return;
+        photoLoadObserver=new IntersectionObserver(entries=>{
+          if(entries.some(entry=>entry.isIntersecting))appendNext();
+        },{rootMargin:"600px 0px"});
+        photoLoadObserver.observe(loader);
+      };
+      const appendNext=()=>{
+        // Append, rather than redraw, to preserve scroll position and loaded thumbnails.
+        if(!gallery.isConnected||!loader.isConnected)return;
+        photoLoadObserver?.disconnect();photoLoadObserver=null;
+        const start=photoLimit;
+        photoLimit=Math.min(visible.length,start+photoBatchSize);
+        for(const item of visible.slice(start,photoLimit)){
+          if(viewTrash)photoTrashItem(item,gallery);
+          else if(photoView==="grid")photoTile(item,gallery);
+          else photoListItem(item,gallery);
+        }
+        if(photoLimit>=visible.length){loader.remove();return}
+        count.textContent=`${photoLimit} of ${visible.length} photos`;
+        observeMore();
+      };
+      if(typeof IntersectionObserver==="function")observeMore();
+      else button(loader,"Load more",appendNext);
     }
   }
   function draw(){
