@@ -258,7 +258,7 @@ function reportHtml(rows, review = null) {
   <meta charset="utf-8">
   <title>Payment review - ${escapeHtml(assistant)} - ${escapeHtml(range)}</title>
   <style>
-    @page { size: A4 landscape; margin: 8mm; }
+    @page { size: A4 landscape; margin: 6mm; }
     * { box-sizing: border-box; }
     body {
       margin: 0;
@@ -276,8 +276,8 @@ function reportHtml(rows, review = null) {
     .subtitle { margin-top: 3px; color: #4d746f; font-size: 8pt; }
     .meta { text-align: right; white-space: nowrap; }
     .meta strong { display: block; font-size: 11pt; color: #163f3a; }
-    table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 8px; font-size: 7.5pt; }
-    th, td { border: 1px solid #c9dedb; padding: 3px 4px; vertical-align: top; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 6px; font-size: 7pt; }
+    th, td { border: 1px solid #c9dedb; padding: 2px 3px; vertical-align: top; }
     th { background: #e9f5f3; color: #315f59; text-align: left; font-size: 7pt; text-transform: uppercase; letter-spacing: .02em; }
     td.num, td.money { text-align: right; white-space: nowrap; }
     td.strong { font-weight: 700; }
@@ -294,7 +294,7 @@ function reportHtml(rows, review = null) {
     @media print {
       .toolbar { display: none; }
       body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-      .sheet { break-inside: avoid; }
+      .sheet { break-inside: auto; }
     }
   </style>
 </head>
@@ -370,8 +370,11 @@ function printSavedReview(review, existingWindow = null) {
 }
 async function openPaymentReviewReport() {
   if (!selectedReportRows().length) { window.alert("Select approved and unpaid days first."); return; }
+  const button = document.getElementById(REPORT_BUTTON_ID);
+  if (button?.disabled) return;
   const popup = window.open("", "_blank", "width=1200,height=850");
   if (!popup) { window.alert("Allow pop-ups to save and print the review."); return; }
+  if (button) button.disabled = true;
   popup.document.write("<title>Saving review</title><p>Saving payment review in ledger…</p>");
   try {
     const review = await new Promise((resolve,reject) => {
@@ -379,6 +382,7 @@ async function openPaymentReviewReport() {
     });
     printSavedReview(review,popup);
   } catch(error) { popup.close(); window.alert(error?.message || String(error)); }
+  finally { if (button) button.disabled = false; }
 }
 document.addEventListener("dryer-payment-review-open",event => printSavedReview(event.detail));
 function installReportButton() {
