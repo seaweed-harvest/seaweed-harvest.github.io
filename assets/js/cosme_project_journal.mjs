@@ -1,4 +1,5 @@
 // Project Journal — project-level field notes linked to existing COSME photographs.
+import {createPhotoViewer,createPhotoImageCache} from "./cosme_photo_viewer.mjs?v=3";
 // All data is loaded and saved through user-authenticated RPCs.
 const UUID = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const BUCKET = "cosme-project-library";
@@ -18,7 +19,8 @@ const check=reply=>{if(reply.error)throw reply.error;return reply.data;};
 export function createProjectJournal(client,root,{onSaved=()=>{},onPhotos=()=>{}}={}){
  let entries=[],total=0,ready=false,query="",activeId=null,detail=null,editing=false;
  let busy=false,error="",message="",photoLookup=null,photoLoad=null,photoBatch="",selected=new Set(),lastUser=null;
- let savedDraft=null,seq=0;
+ let savedDraft=null,seq=0,activePhotoViewer=null;
+ const photoCache=createPhotoImageCache(client,BUCKET);
  function status(value="",problem=false){message=problem?"":value;error=problem?value:"";renderStatus();}
  function renderStatus(){
    const target=root.querySelector(".journal-status");
@@ -51,6 +53,37 @@ export function createProjectJournal(client,root,{onSaved=()=>{},onPhotos=()=>{}
    try{return await photoLoad;}finally{photoLoad=null;}
  }
  function notifySaved(){try{onSaved();}catch{}}
+ async function downloadPhoto(item){
+   try{
+     const {data,error}=await client.storage.from(BUCKET).createSignedUrl(
+       item.object_path,60,{download:true});
+     if(error||!data?.signedUrl)throw error||Error("Photo unavailable");
+     const a=document.createElement("a");
+     a.href=data.signedUrl;a.download=item.filename||item.title||"photo";
+     document.body.append(a);a.click();a.remove();
+   }catch(err){status("Photo download failed: "+(err.message||""),true);}
+ }
+ function openLinkedPhoto(item,sequence){
+   if(activePhotoViewer?.viewer?.open)return;
+   const host=document.createElement("div");
+   // Uses the existing library dialog styles without switching page or tab.
+   host.className="project-library journal-photo-modal-host";
+   document.body.append(host);
+   try{
+     const instance=createPhotoViewer({
+       client,root:host,bucket:BUCKET,photo:item,photos:sequence,
+       canEdit:false,imageCache:photoCache,onDownload:downloadPhoto
+     });
+     activePhotoViewer=instance;
+     instance.viewer.addEventListener("close",()=>{
+       host.remove();
+       if(activePhotoViewer===instance)activePhotoViewer=null;
+     },{once:true});
+   }catch(err){
+     host.remove();activePhotoViewer=null;
+     status("Unable to open photo: "+(err.message||""),true);
+   }
+ }
  async function load({openId=null}={}){
    const ticket=++seq;
    status("");busy=true;render();
@@ -158,23 +191,15 @@ export function createProjectJournal(client,root,{onSaved=()=>{},onPhotos=()=>{}
    photos().then(map=>{
      if(!gallery.isConnected)return;
      gallery.replaceChildren();
-     for(const id of ids){
-       const p=map.get(id);
-       if(!p)continue;
-       const card=add(gallery,"article","journal-photo-card");
-       const link=add(card,"a","journal-photo-open");
-       link.href="#";link.setAttribute("aria-label","Open "+p.title);
-       const image=add(link,"img");image.alt=p.title;image.loading="lazy";
+     const linked=ids.map(id=>map.get(id)).filter(Boolean);
+     for(const p of linked){
+       const card=button(gallery,"",()=>openLinkedPhoto(p,linked),"journal-photo-card journal-photo-trigger");
+       card.setAttribute("aria-label","View photo: "+(p.title||p.filename||"Project photo"));
+       const preview=add(card,"span","journal-photo-open");
+       const image=add(preview,"img");image.alt="";image.loading="lazy";
        paintPhoto(image,p);
-       link.addEventListener("click",async e=>{
-         e.preventDefault();
-         try{
-           const signed=check(await client.storage.from(BUCKET).createSignedUrl(p.object_path,90));
-           window.open(signed.signedUrl,"_blank","noopener,noreferrer");
-         }catch(err){status("Photo unavailable: "+(err.message||""),true);}
-       });
+       // Captions stay accessible in the full photo viewer, not the thumbnail tiles.
        add(card,"span","journal-photo-title",p.title||p.filename||"Project photo");
-       if(p.caption)add(card,"p","journal-photo-caption",p.caption);
      }
      if(!gallery.children.length)add(gallery,"p","journal-muted","Photo references are unavailable to this account.");
    }).catch(e=>{if(gallery.isConnected)gallery.textContent=e.message||"Photos unavailable";});
@@ -337,9 +362,10 @@ export function createProjectJournal(client,root,{onSaved=()=>{},onPhotos=()=>{}
      else if(UUID.test(params.get("photo")||""))await fromPhoto(params.get("photo"));
      else await load();
    },
-   clear(){++seq;entries=[];detail=null;activeId=null;photoLookup=null;ready=false;editing=false;
+   clear(){activePhotoViewer?.close?.();activePhotoViewer=null;photoCache.clear();
+     ++seq;entries=[];detail=null;activeId=null;photoLookup=null;ready=false;editing=false;
      error="";message="";busy=false;lastUser=null;root.replaceChildren();},
-   isEditing(){return editing},
+   isEditing(){return editing||Boolean(activePhotoViewer?.viewer?.open)},
    refreshIfOpen(){if(!editing)load({openId:activeId}).catch(()=>{});}
  };
 }
