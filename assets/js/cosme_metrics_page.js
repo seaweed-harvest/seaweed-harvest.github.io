@@ -14,7 +14,7 @@ import { createMawimbiOperationsPanel } from "./cosme_mawimbi_operations.mjs?v=1
 import { createMawimbiStockQcPanel } from "./cosme_mawimbi_stock_qc.mjs?v=1";
 import { createMawimbiTraceabilityPanel } from "./cosme_mawimbi_traceability.mjs?v=1";
 import { createMetricsTimeline } from "./cosme_metrics_timeline.mjs?v=4";
-import { createProjectJournal } from "./cosme_project_journal.mjs?v=1";
+import { createProjectJournal } from "./cosme_project_journal.mjs?v=2";
 import { createCosmeFinancesPanel } from "./cosme_finances_panel.mjs?v=7";
 import { createProjectLibrary } from "./cosme_project_library.mjs?v=21";
 import { createMetricEvidenceReview } from "./cosme_metric_evidence_review.mjs?v=1";
@@ -203,6 +203,7 @@ async function requireMetrics() {
     return null;
   }
   const newUserId=session.user?.id||null;
+  journalPanel.setUser(newUserId);
   if(preferenceUserId!==newUserId){
     preferenceUserId=newUserId;
     loadHiddenMetrics();
@@ -1203,6 +1204,7 @@ document.addEventListener("visibilitychange", () => {
 });
 authClient.auth.onAuthStateChange((event) => {
   if (event === "SIGNED_OUT") {
+    journalPanel.clearDraft();
     clearPrivateState();
     setStatus("Signed out.", true);
   }
