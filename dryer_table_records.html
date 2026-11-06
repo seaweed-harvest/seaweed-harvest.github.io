@@ -94,6 +94,9 @@
       .dryer-payment-ledger-table td:first-child strong { white-space: nowrap; }
       .dryer-payment-table td { padding-top: 7px; padding-bottom: 7px; }
     }
+    #dryerRecordSelectedPayment { display:none !important; }
+    .dryer-payment-review-scroll { overflow-x: auto !important; }
+    .dryer-payment-review-table { min-width: 760px; }
     .dryer-payment-review-table th,.dryer-payment-review-table td { white-space: nowrap; }
     .dryer-payment-review-table .review-actions { display: flex; gap: 6px; flex-wrap: wrap; }
     .dryer-payment-review-table button { margin: 0; }
@@ -425,7 +428,7 @@
                 <div class="button-row compact-actions">
                   <button id="dryerSelectApprovedUnpaid" type="button">Select approved &amp; unpaid</button>
                   <button id="dryerClearPaymentSelection" type="button">Clear selection</button>
-                  <button id="dryerRecordSelectedPayment" type="button">Record payment</button>
+                  <button id="dryerRecordSelectedPayment" type="button" hidden aria-hidden="true">Record payment</button>
                 </div>
               </div>
               <div class="dryer-payment-selection-grid">
@@ -514,7 +517,7 @@
             <p id="dryerAdvanceStatus" class="admin-status" aria-live="polite"></p>
 
             <h3>Saved payment reviews</h3>
-            <div class="responsive-table-wrap">
+            <div class="responsive-table-wrap dryer-payment-review-scroll">
               <table class="management-table admin-data-table dryer-payment-review-table">
                 <thead><tr><th>Activity period</th><th>Research Assistant</th><th>Status</th><th>Amount due</th><th>Days</th><th>Batch</th><th>Actions</th></tr></thead>
                 <tbody id="dryerPaymentReviewRows"><tr><td colspan="7" class="empty-state">No saved reviews yet.</td></tr></tbody>
