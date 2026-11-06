@@ -289,7 +289,7 @@ export function createProjectJournal(client,root,{onSaved=()=>{},onPhotos=()=>{}
        const id=p.photo_metadata?.batch_id;
        if(!id||entry.photo_ids?.includes(p.id))continue;
        if(!batches.has(id))batches.set(id,{id,at:p.created_at||p.captured_at||"",count:0,
-         title:String(p.photo_metadata?.batch_description||p.activity||"Photo upload").split("\\n")[0]});
+         title:String(p.photo_metadata?.batch_description||p.activity||"Photo upload").split("\n")[0]});
        batches.get(id).count++;
      }
      for(const b of [...batches.values()].sort((x,y)=>y.at.localeCompare(x.at)).slice(0,30)){
@@ -301,7 +301,7 @@ export function createProjectJournal(client,root,{onSaved=()=>{},onPhotos=()=>{}
    const actions=add(head,"div","journal-inline-actions");
    const feedback=add(actions,"span","journal-editor-feedback");
    feedback.setAttribute("role","status");
-   const textValue=el=>String(el.innerText??el.textContent??"").replace(/\\r/g,"");
+   const textValue=el=>String(el.innerText??el.textContent??"").replace(/\r/g,"");
    function values(){
      return {
        title:textValue(heading).trim(),notes:textValue(notes),
