@@ -158,3 +158,26 @@ test('photo grid and list progressively append 48 images instead of paging',()=>
   assert.match(gallery,/else button\(loader,"Load more",appendNext\)/);
   assert.doesNotMatch(gallery,/Page \$\{page\+1\}|library-gallery-pagination/);
 });
+
+test('photo selection toggles individual tiles and the bulk bar without recreating thumbnails',()=>{
+  const src=read('../assets/js/cosme_project_library.mjs');
+  const css=read('../assets/css/cosme_project_library.css');
+  const selection=src.slice(src.indexOf('  function updatePhotoSelectionActions(){'),src.indexOf('  function card('));
+  const list=src.slice(src.indexOf('  function photoListItem('),src.indexOf('  function photoTrashItem('));
+  const gallery=src.slice(src.indexOf('  function drawPhotos(){'),src.indexOf('  function draw(){'));
+  assert.match(selection,/function togglePhotoSelection\(item,tile\)/);
+  assert.match(selection,/syncPhotoTileSelection\(tile\)/);
+  assert.match(selection,/updatePhotoSelectionActions\(\)/);
+  assert.match(selection,/tile\.classList\.toggle\("is-selected",active\)/);
+  assert.match(selection,/row\.classList\.toggle\("is-selected",active\)/);
+  assert.match(selection,/open\.setAttribute\("aria-pressed",String\(active\)\)/);
+  assert.doesNotMatch(selection,/draw\(\)/);
+  assert.match(list,/togglePhotoSelection\(item,tile\)/);
+  assert.doesNotMatch(list,/draw\(\)/);
+  assert.match(gallery,/root\.querySelectorAll\("\.library-tile"\)\.forEach\(syncPhotoTileSelection\)/);
+  assert.match(gallery,/const chosen=add\(root,"div","library-selection-bar"\)/);
+  assert.match(gallery,/updatePhotoSelectionActions\(\)/);
+  assert.match(css,/not\(\.is-select-mode\) \.library-tile-check\{display:none\}/);
+  assert.match(css,/is-select-mode \.library-tile-fav\{display:none\}/);
+  assert.match(css,/library-selection-bar\[hidden\]\{display:none\}/);
+});

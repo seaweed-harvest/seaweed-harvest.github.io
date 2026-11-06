@@ -125,6 +125,9 @@
 .project-library .library-tile-fav::before{content:"";position:absolute;width:24px;height:24px;border-radius:50%;background:#17292355;z-index:-1}
 .project-library .library-tile-fav.is-favourite{color:#fff}
 .project-library .library-tile-check{top:4px;left:4px}
+.project-library:not(.is-select-mode) .library-tile-check{display:none}
+.project-library.is-select-mode .library-tile-fav{display:none}
+.project-library .library-selection-bar[hidden]{display:none}
 .project-library .library-photo-list{display:grid;gap:0;border-top:1px solid var(--border-soft)}
 .project-library .library-photo-row{display:grid;grid-template-columns:86px minmax(0,1fr);align-items:stretch;gap:11px;padding:10px 2px;border-bottom:1px solid var(--border-soft);min-width:0}
 .project-library .library-photo-row>.library-tile{width:86px;height:86px;aspect-ratio:1}
