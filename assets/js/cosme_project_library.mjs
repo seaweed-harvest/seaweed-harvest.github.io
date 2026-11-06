@@ -912,7 +912,7 @@ export function createProjectLibrary(client,root,kind){
       viewTrash?"Trash is empty":items.length?"No matching photos":"No project photos uploaded yet");
     if(!mapMode&&visible.length>photoLimit){
       const loader=add(root,"div","library-gallery-load-more");
-      const count=add(loader,"span","","${photoLimit} of ${visible.length} photos");
+      const count=add(loader,"span","",`${photoLimit} of ${visible.length} photos`);
       const observeMore=()=>{
         if(typeof IntersectionObserver!=="function")return;
         photoLoadObserver=new IntersectionObserver(entries=>{
