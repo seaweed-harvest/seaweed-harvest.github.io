@@ -35,6 +35,7 @@
 .journal-photo-open{display:block;aspect-ratio:4/3;background:var(--surface-secondary,#edf2f0)}
 .journal-photo-open img{height:100%;width:100%;object-fit:cover}
 .journal-photo-title{display:block;padding:.45rem .55rem;font-size:.79rem;overflow-wrap:anywhere;line-height:1.3}
+.journal-photo-caption{color:var(--text-muted,#657978);font-size:.77rem;line-height:1.35;padding:0 .55rem .5rem;margin:0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;overflow-wrap:anywhere}
 .journal-editor{display:grid;gap:1rem;margin-top:1rem}
 .journal-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}
 .journal-field{display:grid;gap:.28rem;font-size:.88rem;min-width:0}
