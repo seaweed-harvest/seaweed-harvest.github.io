@@ -87,6 +87,16 @@
       margin-bottom: 14px;
     }
 
+    @media (min-width: 761px) {
+      .dryer-payment-table td:nth-child(2),
+      .dryer-payment-ledger-table td:first-child { white-space: nowrap; min-width: 144px; }
+      .dryer-payment-table td:nth-child(2) strong,
+      .dryer-payment-ledger-table td:first-child strong { white-space: nowrap; }
+      .dryer-payment-table td { padding-top: 7px; padding-bottom: 7px; }
+    }
+    .dryer-payment-review-table th,.dryer-payment-review-table td { white-space: nowrap; }
+    .dryer-payment-review-table .review-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .dryer-payment-review-table button { margin: 0; }
     .dryer-payment-table td,
     .dryer-payment-ledger-table td {
       vertical-align: top;
@@ -413,6 +423,7 @@
                   <span id="dryerPaymentSelectedCount" class="status-pill">0 days selected</span>
                 </div>
                 <div class="button-row compact-actions">
+                  <button id="dryerSelectApprovedUnpaid" type="button">Select approved &amp; unpaid</button>
                   <button id="dryerClearPaymentSelection" type="button">Clear selection</button>
                   <button id="dryerRecordSelectedPayment" type="button">Record payment</button>
                 </div>
@@ -502,6 +513,14 @@
             </form>
             <p id="dryerAdvanceStatus" class="admin-status" aria-live="polite"></p>
 
+            <h3>Saved payment reviews</h3>
+            <div class="responsive-table-wrap">
+              <table class="management-table admin-data-table dryer-payment-review-table">
+                <thead><tr><th>Activity period</th><th>Research Assistant</th><th>Status</th><th>Amount due</th><th>Days</th><th>Batch</th><th>Actions</th></tr></thead>
+                <tbody id="dryerPaymentReviewRows"><tr><td colspan="7" class="empty-state">No saved reviews yet.</td></tr></tbody>
+              </table>
+            </div>
+            <h3>Completed payments &amp; advances</h3>
             <div class="responsive-table-wrap">
               <table class="management-table admin-data-table dryer-payment-ledger-table">
                 <thead>
@@ -531,7 +550,7 @@
   <script type="module" src="./assets/js/fixed_table_scrollbar.js?v=2"></script>
   <script type="module" src="./assets/js/dryer_table_records.js?v=8"></script>
   <script type="module" src="./assets/js/dryer_table_analysis.js?v=14"></script>
-  <script type="module" src="./assets/js/dryer_table_payments.js?v=3"></script>
-  <script type="module" src="./assets/js/dryer_payment_ui_refinement.js?v=1"></script>
+  <script type="module" src="./assets/js/dryer_table_payments.js?v=4"></script>
+  <script type="module" src="./assets/js/dryer_payment_ui_refinement.js?v=2"></script>
 </body>
 </html>
