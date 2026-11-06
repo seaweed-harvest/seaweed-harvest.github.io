@@ -91,7 +91,7 @@ export function boundedPhotoSave(task,timeoutMs=12000){
 }
 export function createPhotoViewer({
   client,root,bucket,photo,photos,canEdit=false,imageCache,
-  onChange=()=>{},onEditMetadata=()=>{},onDownload=()=>{},drafts=createCaptionDrafts(null)
+  onChange=()=>{},onEditMetadata=()=>{},onDownload=()=>{},onOpenJournal=null,drafts=createCaptionDrafts(null)
 }){
   const sequence=photos.some(p=>p.id===photo.id)?photos.slice():[photo,...photos];
   let index=sequence.findIndex(p=>p.id===photo.id);
@@ -114,6 +114,8 @@ export function createPhotoViewer({
   const feedback=add(footer,"span","library-photo-viewer-feedback");
   feedback.setAttribute("role","status");
   icon(footer,"↓","Download photo",()=>onDownload(current));
+  if(typeof onOpenJournal==="function")
+    icon(footer,"▤","Open linked project journal",()=>onOpenJournal(current));
   let favourite=null,pencil=null,cancel=null;
   if(canEdit){
     favourite=icon(footer,"♡","Favourite photo",toggleFavourite);
