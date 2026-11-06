@@ -372,6 +372,11 @@ function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
           target?.append(navigationLink({
             label: "Project Metrics", href: "./cosme_metrics.html"
           }, currentFile));
+          if (activeAggregatorCode(profile) === "COSME" || isProtectedOwner(profile)) {
+            target?.append(navigationLink({
+              label: "Project Journal", href: "./cosme_metrics.html?tab=journal"
+            }, currentFile));
+          }
           group.hidden = false;
           group.classList.remove("app-nav-desktop-only");
           if (currentFile === "cosme_metrics.html") group.open = true;
