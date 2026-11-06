@@ -174,6 +174,7 @@ export function createProjectJournal(client,root,{onSaved=()=>{},onPhotos=()=>{}
          }catch(err){status("Photo unavailable: "+(err.message||""),true);}
        });
        add(card,"span","journal-photo-title",p.title||p.filename||"Project photo");
+       if(p.caption)add(card,"p","journal-photo-caption",p.caption);
      }
      if(!gallery.children.length)add(gallery,"p","journal-muted","Photo references are unavailable to this account.");
    }).catch(e=>{if(gallery.isConnected)gallery.textContent=e.message||"Photos unavailable";});
