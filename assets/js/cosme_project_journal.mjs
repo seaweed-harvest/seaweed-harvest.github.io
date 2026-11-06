@@ -204,10 +204,171 @@ export function createProjectJournal(client,root,{onSaved=()=>{},onPhotos=()=>{}
      if(!gallery.children.length)add(gallery,"p","journal-muted","Photo references are unavailable to this account.");
    }).catch(e=>{if(gallery.isConnected)gallery.textContent=e.message||"Photos unavailable";});
  }
+ function editDraftKey(id){return lastUser?"seaweed-ag:journal-edit-draft:"+lastUser+":"+id:null;}
+ function readEditDraft(entry){
+   try{
+     const key=editDraftKey(entry.id);
+     const draft=key?JSON.parse(localStorage.getItem(key)||"null"):null;
+     return draft?.revision===entry.revision?draft:null;
+   }catch{return null;}
+ }
+ function clearEditDraft(id){
+   try{const key=editDraftKey(id);if(key)localStorage.removeItem(key);}catch{}
+ }
+ function startInlineEdit(entry){
+   if(!entry||editing||busy)return;
+   const wrap=root.querySelector(".journal-detail");
+   const heading=wrap?.querySelector(".journal-title");
+   const notes=wrap?.querySelector(".journal-notes");
+   const head=wrap?.querySelector(".journal-detail-head");
+   if(!wrap||!heading||!notes||!head)return;
+   editing=true;selected.clear();
+   const old=readEditDraft(entry);
+   if(old)status("Unsaved edits restored from this device.");
+   const editAction=Array.from(head.querySelectorAll("button"))
+     .find(b=>b.textContent==="Edit entry");
+   if(editAction)editAction.hidden=true;
+   heading.contentEditable="plaintext-only";heading.setAttribute("role","textbox");
+   heading.setAttribute("aria-label","Journal title");heading.spellcheck=true;
+   notes.contentEditable="plaintext-only";notes.setAttribute("role","textbox");
+   notes.setAttribute("aria-label","Journal notes");notes.setAttribute("aria-multiline","true");
+   notes.spellcheck=true;notes.textContent=old?.notes??entry.notes??"";
+   heading.textContent=old?.title??entry.title;
+   heading.classList.add("journal-editable");
+   notes.classList.add("journal-editable");
+   notes.dataset.placeholder="Write your visit notes here…";
+   const properties=add(wrap,"details","journal-inline-properties");
+   wrap.insertBefore(properties,notes);
+   add(properties,"summary","","Entry details · date, activity, GPS and photos");
+   const fields=add(properties,"div","journal-fields");
+   const field=(label,name,type,value)=>{
+     const item=add(fields,"label","journal-field");
+     add(item,"span","",label);
+     const input=add(item,"input");
+     input.type=type;input.name=name;input.value=String(value??"");
+     if(type==="number"){input.step="any";input.inputMode="decimal";}
+     return input;
+   };
+   const when=field("Visit date","event_date","date",old?.event_date??entry.event_date);
+   const type=field("Visit type","entry_type","text",old?.entry_type??entry.entry_type);
+   const activity=field("Activity","activity","text",old?.activity??entry.activity);
+   const place=field("Location","location_label","text",old?.location_label??entry.location_label);
+   const lat=field("Latitude","latitude","number",old?.latitude??entry.latitude??"");
+   const lon=field("Longitude","longitude","number",old?.longitude??entry.longitude??"");
+   let gpsSource=old?.location_source??entry.location_source??"unknown";
+   for(const item of [lat,lon])item.addEventListener("input",()=>{gpsSource="manual";saveDraft();});
+   const photoSection=add(properties,"div","journal-photo-select");
+   add(photoSection,"h4","","Attach photos from an upload batch");
+   const batch=add(photoSection,"select");
+   add(batch,"option","","Choose a photo batch");
+   const choices=add(photoSection,"div","journal-photo-choices");
+   const drawBatch=id=>{
+     selected.clear();choices.replaceChildren();
+     const related=[...(photoLookup?.values()||[])].filter(p=>p.photo_metadata?.batch_id===id &&
+       !entry.photo_ids?.includes(p.id));
+     for(const p of related){
+       const label=add(choices,"label","journal-photo-choice");
+       const cb=add(label,"input");cb.type="checkbox";cb.checked=true;
+       selected.add(p.id);
+       cb.addEventListener("change",()=>cb.checked?selected.add(p.id):selected.delete(p.id));
+       add(label,"span","",p.title||p.filename||"Photo");
+     }
+     const found=[...(photoLookup?.values()||[])].find(p=>p.photo_metadata?.batch_id===id&&p.photo_metadata?.gps);
+     if(found){
+       button(choices,"Use GPS from this batch",()=>{
+         lat.value=String(found.photo_metadata.gps.latitude);
+         lon.value=String(found.photo_metadata.gps.longitude);
+         gpsSource="photo_exif";saveDraft();
+       },"metrics-button");
+     }
+   };
+   photos().then(map=>{
+     if(!batch.isConnected)return;
+     const batches=new Map();
+     for(const p of map.values()){
+       const id=p.photo_metadata?.batch_id;
+       if(!id||entry.photo_ids?.includes(p.id))continue;
+       if(!batches.has(id))batches.set(id,{id,at:p.created_at||p.captured_at||"",count:0,
+         title:String(p.photo_metadata?.batch_description||p.activity||"Photo upload").split("\\n")[0]});
+       batches.get(id).count++;
+     }
+     for(const b of [...batches.values()].sort((x,y)=>y.at.localeCompare(x.at)).slice(0,30)){
+       const option=add(batch,"option","",dateText(b.at.slice(0,10))+" · "+b.count+" photos · "+b.title.slice(0,50));
+       option.value=b.id;
+     }
+     batch.addEventListener("change",()=>drawBatch(batch.value));
+   }).catch(()=>add(choices,"p","journal-muted","Photo batches unavailable."));
+   const actions=add(head,"div","journal-inline-actions");
+   const feedback=add(actions,"span","journal-editor-feedback");
+   feedback.setAttribute("role","status");
+   const textValue=el=>String(el.innerText??el.textContent??"").replace(/\\r/g,"");
+   function values(){
+     return {
+       title:textValue(heading).trim(),notes:textValue(notes),
+       event_date:when.value,entry_type:type.value.trim()||"Field visit",
+       activity:activity.value.trim(),location_label:place.value.trim(),
+       latitude:lat.value,longitude:lon.value,location_source:gpsSource
+     };
+   }
+   function saveDraft(){
+     try{const key=editDraftKey(entry.id);
+       if(key)localStorage.setItem(key,JSON.stringify({...values(),revision:entry.revision}));
+     }catch{}
+   }
+   heading.addEventListener("input",saveDraft);
+   notes.addEventListener("input",saveDraft);
+   properties.addEventListener("input",saveDraft);
+   const cancel=()=>{
+     if(busy)return;
+     clearEditDraft(entry.id);editing=false;render();
+   };
+   button(actions,"Cancel",cancel,"metrics-button");
+   const save=button(actions,"Save changes",async()=>{
+     if(busy)return;
+     const data=values();
+     if(!data.title||data.title.length>180||!data.event_date||data.notes.length>30000){
+       feedback.textContent="Add a title and date. Notes must be under 30,000 characters.";return;
+     }
+     if(Boolean(data.latitude)!==Boolean(data.longitude)){
+       feedback.textContent="Enter both GPS coordinates or leave both empty.";return;
+     }
+     const changes={...data};
+     if(data.latitude&&data.longitude){
+       changes.latitude=Number(data.latitude);changes.longitude=Number(data.longitude);
+       if(!Number.isFinite(changes.latitude)||!Number.isFinite(changes.longitude)||
+         Math.abs(changes.latitude)>90||Math.abs(changes.longitude)>180){
+         feedback.textContent="GPS coordinates are outside the valid range.";return;
+       }
+     }else{changes.latitude=null;changes.longitude=null;changes.location_source="unknown";}
+     busy=true;save.disabled=true;feedback.textContent="Saving…";
+     let linkedError="";
+     try{
+       const updated=check(await client.rpc("ag_project_journal_save",{
+         p_id:entry.id,p_expected_revision:entry.revision,p_entry:changes
+       }));
+       entry.revision=updated.revision;
+       clearEditDraft(entry.id);
+       if(selected.size){
+         try{check(await client.rpc("ag_project_journal_link_photos",{
+           p_journal_id:entry.id,p_photo_ids:[...selected]
+         }));}
+         catch(err){linkedError=err.message||"Could not link photos";}
+       }
+       editing=false;notifySaved();
+       const y=window.scrollY;
+       await load({openId:entry.id});
+       window.scrollTo(0,y);
+       if(linkedError)status("Text saved, but photo links need another attempt: "+linkedError,true);
+     }catch(err){
+       feedback.textContent=(err?.message||"Could not save changes")+". Edits remain on this page.";
+     }finally{busy=false;save.disabled=false;}
+   },"metrics-button journal-primary");
+   add(head,"span","journal-inline-indicator","Editing document");
+ }
  function beginEdit(existing=null){
-   activeId=existing?.id||null;detail=existing||null;editing=true;photoBatch="";selected.clear();
-   if(!existing)savedDraft=draftData();
-   render();
+   if(existing){startInlineEdit(existing);return;}
+   activeId=null;detail=null;editing=true;photoBatch="";selected.clear();
+   savedDraft=draftData();render();
  }
  function renderEditor(){
    const existing=detail;
@@ -355,7 +516,7 @@ export function createProjectJournal(client,root,{onSaved=()=>{},onPhotos=()=>{}
  return {
    load,open,fromPhoto,
    setUser(id){if(lastUser!==id){lastUser=id||null;savedDraft=null;}},
-   clearDraft(){setDraft(null);},
+   clearDraft(){setDraft(null);if(activeId)clearEditDraft(activeId);},
    async showFromQuery(){
      const params=new URLSearchParams(location.search);
      if(UUID.test(params.get("entry")||""))await open(params.get("entry"));
