@@ -127,7 +127,10 @@ export function createProjectJournal(client,root,{onSaved=()=>{},onPhotos=()=>{}
    add(left,"p","journal-muted","Field visits, project notes, photos and locations.");
    const controls=add(top,"div","journal-heading-actions");
    button(controls,"New entry",()=>beginEdit(null),"metrics-button journal-primary");
-   button(controls,"Refresh",()=>load({openId:activeId}),"metrics-button");
+   button(controls,"Refresh",()=>{
+     if(editing){status("Save or cancel your edits before refreshing.",true);return;}
+     load({openId:activeId});
+   },"metrics-button");
  }
  function renderList(){
    const search=add(root,"label","journal-search");
@@ -509,6 +512,11 @@ export function createProjectJournal(client,root,{onSaved=()=>{},onPhotos=()=>{}
    add(root,"p","journal-status");
    renderStatus();
    if(busy&&!ready){add(root,"p","journal-muted","Loading journal…");return;}
+   if(editing&&detail&&activeId){
+     // If the page re-renders, restore the document editing surface instead
+     // of falling back to the old compact text-area form.
+     editing=false;renderDetail();startInlineEdit(detail);return;
+   }
    if(editing){renderEditor();return;}
    if(detail&&activeId){renderDetail();return;}
    renderList();
