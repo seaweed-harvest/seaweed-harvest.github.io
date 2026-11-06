@@ -211,6 +211,9 @@ export function createProjectJournal(client,root,{onSaved=()=>{},onPhotos=()=>{}
    const lat=field("Latitude (optional)","latitude","number",existing?.latitude??persisted?.latitude??"");
    const lon=field("Longitude (optional)","longitude","number",existing?.longitude??persisted?.longitude??"");
    for(const n of [lat,lon]){n.step="any";n.inputMode="decimal";}
+   // Distinguish EXIF-derived coordinates from manual location entry.
+   let gpsSource=existing?.location_source||persisted?.location_source||"manual";
+   for(const n of [lat,lon])n.addEventListener("input",()=>{gpsSource="manual";saveLocal();});
    const linkPhotos=add(form,"div","journal-photo-select");
    add(linkPhotos,"h4","","Link existing photos");
    const batchLabel=add(linkPhotos,"label","journal-field");
@@ -220,7 +223,7 @@ export function createProjectJournal(client,root,{onSaved=()=>{},onPhotos=()=>{}
    const gather=()=>({
      title:title.value.trim(),event_date:when.value,entry_type:kind.value.trim()||"Field visit",
      activity:activity.value.trim(),location_label:place.value.trim(),notes:note.value,
-     latitude:lat.value,longitude:lon.value
+     latitude:lat.value,longitude:lon.value,location_source:gpsSource
    });
    const saveLocal=()=>{
      if(!existing)setDraft(gather());
@@ -250,6 +253,7 @@ export function createProjectJournal(client,root,{onSaved=()=>{},onPhotos=()=>{}
        button(picks,"Use GPS from selected batch",()=>{
          const gps=first.photo_metadata.gps;
          lat.value=String(gps.latitude);lon.value=String(gps.longitude);
+          gpsSource="photo_exif";
          saveLocal();
        },"metrics-button");
      }
@@ -279,9 +283,13 @@ export function createProjectJournal(client,root,{onSaved=()=>{},onPhotos=()=>{}
      if(!data.title||!data.event_date){feedback.textContent="Title and date are required.";return;}
      if(Boolean(data.latitude)!==Boolean(data.longitude)){feedback.textContent="Enter both GPS coordinates, or leave both blank.";return;}
      const entry={...data,project:existing?.project||"COSME"};
-     if(data.latitude&&data.longitude){entry.latitude=Number(data.latitude);entry.longitude=Number(data.longitude);
-       entry.location_source=(lat.value!==String(existing?.latitude??"")||lon.value!==String(existing?.longitude??""))?"manual":existing?.location_source||"manual";}
-     else {delete entry.latitude;delete entry.longitude;}
+     if(data.latitude&&data.longitude){
+       entry.latitude=Number(data.latitude);entry.longitude=Number(data.longitude);
+       entry.location_source=gpsSource==="photo_exif"?"photo_exif":"manual";
+     }else{
+       // Explicit nulls clear an existing pin; omitted fields would retain it.
+       entry.latitude=null;entry.longitude=null;entry.location_source="unknown";
+     }
      if(!existing)entry.organisation_code="COSME";
      busy=true;save.disabled=true;feedback.textContent="Saving…";
      try{
