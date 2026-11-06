@@ -181,3 +181,20 @@ test('photo selection toggles individual tiles and the bulk bar without recreati
   assert.match(css,/is-select-mode \.library-tile-fav\{display:none\}/);
   assert.match(css,/library-selection-bar\[hidden\]\{display:none\}/);
 });
+
+test('upload form opens above endless photo gallery without rebuilding thumbnails',()=>{
+  const src=read('../assets/js/cosme_project_library.mjs');
+  const css=read('../assets/css/cosme_project_library.css');
+  const upload=src.slice(src.indexOf('  async function batchUpload('),src.indexOf('  function updatePhotoSelectionActions('));
+  const gallery=src.slice(src.indexOf('  function drawPhotos(){'),src.indexOf('  function draw(){'));
+  assert.match(upload,/const host=root\.querySelector\("\.library-upload-host"\)\|\|root/);
+  assert.match(upload,/const form=add\(host,"form","library-batch-form"\)/);
+  assert.match(upload,/currentForm\.scrollIntoView/);
+  assert.match(upload,/form\.scrollIntoView\(\{behavior:"smooth",block:"start"\}\)/);
+  assert.match(upload,/refreshResumeAction\(\)/);
+  assert.doesNotMatch(upload,/if\(kind==="photos"\)draw\(\)/);
+  assert.ok(gallery.indexOf('add(root,"div","library-upload-host")')<gallery.indexOf('const gallery=add(root,'));
+  assert.match(css,/library-upload-host:empty\{display:none\}/);
+  assert.match(css,/scroll-margin-top:72px/);
+  assert.match(gallery,/photoLimit\=Math\.min\(visible\.length,start\+photoBatchSize\)/);
+});

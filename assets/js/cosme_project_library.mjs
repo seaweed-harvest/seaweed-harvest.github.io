@@ -255,8 +255,13 @@ export function createProjectLibrary(client,root,kind){
 
   async function batchUpload(resumeId=null){
     if(busy)return;
-    root.querySelector(".library-batch-form")?.remove();
-    const form=add(root,"form","library-batch-form");
+    const currentForm=root.querySelector(".library-batch-form");
+    if(currentForm){
+      currentForm.scrollIntoView({behavior:"smooth",block:"start"});
+      return;
+    }
+    const host=root.querySelector(".library-upload-host")||root;
+    const form=add(host,"form","library-batch-form");
     const head=add(form,"div","library-heading");
     add(head,"h3","","Upload photos");
     let stopRequested=false,queued=null,entries=[],active=0,failedCount=0,errors=[],running=false;
@@ -276,7 +281,7 @@ export function createProjectLibrary(client,root,kind){
           recovery={id:queued.id,state:"draft",total:queued.total,...queueCounts(entries)};
         }
         form.remove();
-        if(kind==="photos")draw();
+        if(kind==="photos")refreshResumeAction();
         if(queued?.state==="draft")status("Draft saved on this device");
       } catch(e) {
         cancel.disabled=false;
@@ -654,7 +659,8 @@ export function createProjectLibrary(client,root,kind){
         errorLine.textContent=err.message||"Cannot recover upload";
         run.disabled=true;
       }
-    }else files.focus();
+    }else files.focus({preventScroll:true});
+    form.scrollIntoView({behavior:"smooth",block:"start"});
   }
   function updatePhotoSelectionActions(){
     const bar=root.querySelector(".library-selection-bar");
@@ -808,6 +814,20 @@ export function createProjectLibrary(client,root,kind){
       restore.classList.add("library-restore-button");
     }
   }
+  function refreshResumeAction(){
+    if(kind!=="photos"||!canEdit||viewTrash)return;
+    const actions=root.querySelector(".library-gallery-actions");
+    if(!actions)return;
+    actions.querySelector(".library-resume-photos")?.remove();
+    if(!recovery||(recovery.state!=="draft"&&!recovery.waiting))return;
+    const label=recovery.state==="draft"?
+      "Continue draft"+(recovery.total?" · "+recovery.total:""):
+      "Resume "+recovery.waiting+" photos";
+    const resume=button(actions,label,()=>batchUpload(recovery.id));
+    resume.classList.add("primary","library-resume-photos");
+    const upload=actions.querySelector(".library-add-photos");
+    if(upload)actions.insertBefore(resume,upload);
+  }
   function drawPhotos(){
     photoLoadObserver?.disconnect();photoLoadObserver=null;
     releasePhotoMap();
@@ -820,15 +840,9 @@ export function createProjectLibrary(client,root,kind){
     add(identity,"span","library-photo-count",activeItems.length+" photo"+(activeItems.length===1?"":"s")+(viewTrash?" in Trash":""));
     const actions=add(header,"div","library-gallery-actions");
     if(canEdit&&!viewTrash){
-      if(recovery && (recovery.waiting||recovery.state==="draft")){
-        const label=recovery.state==="draft"?
-          "Continue draft"+(recovery.total?" · "+recovery.total:""):
-          "Resume "+recovery.waiting+" photos";
-        const resume=button(actions,label,()=>batchUpload(recovery.id));
-        resume.classList.add("primary","library-resume-photos");
-      }
       const upload=button(actions,"Add photos",()=>batchUpload());
       upload.classList.add("primary","library-add-photos");
+      refreshResumeAction();
     }
     if(canEdit&&!viewTrash){
       const selecting=button(actions,selectMode?"Done":"Select",()=>{
@@ -929,6 +943,8 @@ export function createProjectLibrary(client,root,kind){
         filters={};favoritesOnly=false;photoLimit=photoBatchSize;draw();
       });reset.classList.add("library-reset-filters");
     }
+    // Keep the upload form above an indefinitely growing gallery.
+    if(!viewTrash&&canEdit)add(root,"div","library-upload-host");
     const mapMode=!viewTrash&&photoView==="map";
     const gallery=add(root,"div",viewTrash?"library-photo-trash-list":mapMode?
       "library-photo-map-host":photoView==="grid"?"library-photo-grid":"library-photo-list");
