@@ -8,6 +8,10 @@ const PAYMENT_WORKSPACE_RPC = "list_authenticated_seaweed_drying_payment_workspa
 const SAVE_DECISION_RPC = "save_authenticated_seaweed_drying_activity_day_decision";
 const RECORD_ADVANCE_RPC = "record_authenticated_seaweed_drying_phone_advance";
 const RECORD_PAYMENT_RPC = "record_authenticated_seaweed_drying_activity_payment";
+const LIST_REVIEWS_RPC = "list_authenticated_seaweed_drying_payment_reviews";
+const CREATE_REVIEW_RPC = "create_authenticated_seaweed_drying_payment_review";
+const COMPLETE_REVIEW_RPC = "complete_authenticated_seaweed_drying_payment_review";
+const CANCEL_REVIEW_RPC = "cancel_authenticated_seaweed_drying_payment_review";
 const KENYA_TIME_ZONE = "Africa/Nairobi";
 
 let autoController = null;
@@ -102,6 +106,7 @@ class DryerPaymentsController {
     this.state = {
       activityDays: [],
       payments: [],
+      reviews: [],
       assistants: [],
       activeView: "activity",
       selectedDecisionIds: new Set(),
@@ -148,6 +153,8 @@ class DryerPaymentsController {
       "dryerPaymentNote",
       "dryerRecordSelectedPayment",
       "dryerClearPaymentSelection",
+      "dryerSelectApprovedUnpaid",
+      "dryerPaymentReviewRows",
       "dryerAdvanceForm",
       "dryerAdvanceAssistant",
       "dryerAdvanceDate",
@@ -192,6 +199,10 @@ class DryerPaymentsController {
     this.els.dryerApproveSelected?.addEventListener("click", () => {
       void this.approveSelectedDays();
     });
+    this.els.dryerSelectApprovedUnpaid?.addEventListener("click", () => this.selectApprovedUnpaid());
+    document.addEventListener("dryer-payment-review-request", (event) => {
+      this.createPaymentReview().then(event.detail.resolve, event.detail.reject);
+    });
     this.els.dryerRecordSelectedPayment?.addEventListener("click", () => {
       void this.recordSelectedPayment();
     });
@@ -204,7 +215,10 @@ class DryerPaymentsController {
       void this.recordPhoneAdvance();
     });
     this.els.dryerPaymentLedgerRows?.addEventListener("click", (event) => {
-      this.handlePaymentToggle(event);
+      void this.handlePaymentToggle(event);
+    });
+    this.els.dryerPaymentReviewRows?.addEventListener("click", (event) => {
+      void this.handleReviewClick(event);
     });
   }
 
@@ -277,6 +291,8 @@ class DryerPaymentsController {
         ? data.activity_days
         : [];
       this.state.payments = Array.isArray(data?.payments) ? data.payments : [];
+      const reviews = await callPaymentRpc(LIST_REVIEWS_RPC, {p_limit: 500});
+      this.state.reviews = Array.isArray(reviews) ? reviews : [];
       this.state.assistants = Array.isArray(data?.assistants)
         ? data.assistants
         : [];
@@ -303,6 +319,7 @@ class DryerPaymentsController {
   }
 
   setBusy(busy) {
+    if (this.els.dryerSelectApprovedUnpaid) this.els.dryerSelectApprovedUnpaid.disabled = busy;
     if (this.els.dryerRecordSelectedPayment) {
       this.els.dryerRecordSelectedPayment.disabled = busy;
     }
@@ -317,13 +334,14 @@ class DryerPaymentsController {
     this.renderSummary();
     this.renderActivityDays();
     this.renderPaymentLedger();
+    this.renderPaymentReviews();
     this.setDefaultDates();
   }
 
   pruneSelection() {
     const eligibleIds = new Set(
       this.state.activityDays
-        .filter((day) => isSelectableDay(day))
+        .filter((day) => this.isAvailableDay(day))
         .map((day) => String(day.decision_id))
     );
     [...this.state.selectedDecisionIds].forEach((id) => {
@@ -364,7 +382,7 @@ class DryerPaymentsController {
       (day) => day.payment_status === "needs_review"
     ).length;
     const approvedDays = this.state.activityDays.filter(
-      (day) => isSelectableDay(day)
+      (day) => this.isAvailableDay(day)
     );
     const creditByAssistant = this.creditByAssistant();
     const dueByAssistant = new Map();
@@ -429,11 +447,13 @@ class DryerPaymentsController {
 
   activityDayRowMarkup(day) {
     const decisionId = day.decision_id ? String(day.decision_id) : "";
-    const selectable = isSelectableDay(day);
+    const selectable = this.isAvailableDay(day);
+    const reserved = this.reviewForDay(day);
     const selected = selectable && this.state.selectedDecisionIds.has(decisionId);
     const needsApproval = day.payment_status === "needs_review";
     const approvalSelected = needsApproval && this.state.selectedApprovalKeys.has(dayKey(day));
     const paid = day.payment_status === "paid";
+    const locked = paid || Boolean(reserved);
     const stale = day.source_changed_since_approval === true;
     const workValue = day.qualifies
       ? nonNegativeInteger(day.contract_amount_kes)
@@ -448,8 +468,8 @@ class DryerPaymentsController {
     const workHint = day.qualifies
       ? `Contract ${formatKes(day.contract_amount_kes)}`
       : `Reference ${formatKes(day.reference_amount_kes)}`;
-    const workReadonly = day.qualifies || paid ? " readonly" : "";
-    const controlsDisabled = paid ? " disabled" : "";
+    const workReadonly = day.qualifies || locked ? " readonly" : "";
+    const controlsDisabled = locked ? " disabled" : "";
     const buttonLabel = day.decision_id ? "Update" : "Approve";
 
     return `<tr data-payment-day-row data-assistant-key="${escapeAttribute(
@@ -512,7 +532,7 @@ class DryerPaymentsController {
         approvedTotal === null ? "—" : escapeHtml(formatKes(approvedTotal))
       }</strong></td>
       <td data-mobile-label="Payment">${this.paymentStatusMarkup(day)}${
-        paid
+        locked
           ? ""
           : `<button type="button" data-save-payment-day>${escapeHtml(
               buttonLabel
@@ -579,6 +599,8 @@ class DryerPaymentsController {
   }
 
   paymentStatusMarkup(day) {
+    const review = this.reviewForDay(day);
+    if (review) return `<span class="status-pill">Review generated</span><span class="field-hint">Batch ${escapeHtml(String(review.id).slice(0,8).toUpperCase())}</span>`;
     if (day.payment_status === "paid") {
       return `<span class="status-pill">Paid</span><span class="field-hint">${escapeHtml(
         formatKes(day.day_transfer_amount_kes)
@@ -647,7 +669,7 @@ class DryerPaymentsController {
   updateSelection(checkbox) {
     const decisionId = String(checkbox.value || "");
     const day = this.dayByDecisionId(decisionId);
-    if (!decisionId || !day || !isSelectableDay(day)) {
+    if (!decisionId || !day || !this.isAvailableDay(day)) {
       checkbox.checked = false;
       return;
     }
@@ -885,7 +907,7 @@ class DryerPaymentsController {
       (day) => (
         day.decision_id
         && this.state.selectedDecisionIds.has(String(day.decision_id))
-        && isSelectableDay(day)
+        && this.isAvailableDay(day)
       )
     );
   }
@@ -929,6 +951,117 @@ class DryerPaymentsController {
       totals.transferAmount
     );
     this.els.dryerRecordSelectedPayment.disabled = false;
+  }
+
+
+  reviewForDay(day) {
+    if (!day?.decision_id) return null;
+    return this.state.reviews.find(review => review.status === "review_generated"
+      && review.activity_day_decision_ids?.includes(String(day.decision_id))) || null;
+  }
+
+  isAvailableDay(day) {
+    return isSelectableDay(day) && !this.reviewForDay(day);
+  }
+
+  selectApprovedUnpaid() {
+    const available = this.state.activityDays.filter(day => this.isAvailableDay(day));
+    const selected = this.selectedDays();
+    const assistantKey = selected[0]?.assistant_key || available[0]?.assistant_key;
+    const days = available.filter(day => day.assistant_key === assistantKey);
+    if (!days.length) {
+      setStatus(this.els.dryerPaymentActivityStatus, "No approved and unpaid days available.");
+      return;
+    }
+    if (days.length > 100) {
+      setStatus(this.els.dryerPaymentActivityStatus, "Only 100 days can be selected in a payment batch.", "error");
+      return;
+    }
+    this.state.selectedDecisionIds = new Set(days.map(day => String(day.decision_id)));
+    this.renderActivityDays();
+    this.els.dryerPaymentSelectionPanel?.scrollIntoView({block:"nearest",behavior:"smooth"});
+  }
+
+  async createPaymentReview() {
+    const days = this.selectedDays();
+    if (!days.length) throw new Error("Select approved and unpaid activity days.");
+    const review = await callPaymentRpc(CREATE_REVIEW_RPC, {
+      p_client_request_id: randomUuid(),
+      p_activity_day_decision_ids: days.map(day => day.decision_id)
+    });
+    this.state.selectedDecisionIds.clear();
+    await this.loadWorkspace();
+    this.setPaymentView("ledger");
+    this.state.expandedPayments.add(String(review.id));
+    this.renderPaymentReviews();
+    setStatus(this.els.dryerPaymentLedgerStatus, "Payment review saved in ledger. Transfer not yet recorded.");
+    return review;
+  }
+
+  renderPaymentReviews() {
+    const target = this.els.dryerPaymentReviewRows;
+    if (!target) return;
+    const reviews = this.state.reviews.filter(r => r.status !== "cancelled");
+    target.innerHTML = reviews.length ? reviews.map(review => {
+      const open = review.status === "review_generated";
+      const ref = String(review.id).slice(0,8).toUpperCase();
+      const dates = (review.activity_days || []).map(d => d.dateKey).sort();
+      return `<tr data-review-id="${escapeAttribute(review.id)}">
+        <td><strong>${escapeHtml(formatDateKey(dates[0]))}</strong> – ${escapeHtml(formatDateKey(dates[dates.length-1]))}</td>
+        <td>${escapeHtml(review.assistant_name)}</td>
+        <td><span class="status-pill">${open ? "Review generated" : "Paid"}</span></td>
+        <td><strong>${escapeHtml(formatKes(review.transfer_amount_kes))}</strong></td>
+        <td>${(review.activity_days || []).length} days</td>
+        <td>${escapeHtml(ref)}</td>
+        <td class="review-actions"><button type="button" data-review-pdf>Review PDF</button>
+        ${open ? `<button type="button" data-review-pay>Record payment</button>
+        <button type="button" data-review-cancel>Cancel</button>` : ""}</td>
+      </tr>`;
+    }).join("") : '<tr><td colspan="7" class="empty-state">No saved reviews yet.</td></tr>';
+  }
+
+  async handleReviewClick(event) {
+    const button = event.target.closest("[data-review-pdf],[data-review-pay],[data-review-cancel]");
+    const row = button?.closest("[data-review-id]");
+    if (!row) return;
+    const review = this.state.reviews.find(r => r.id === row.dataset.reviewId);
+    if (!review) return;
+    if (button.hasAttribute("data-review-pdf")) {
+      document.dispatchEvent(new CustomEvent("dryer-payment-review-open",{detail:review}));
+      return;
+    }
+    if (button.hasAttribute("data-review-cancel")) {
+      if (!window.confirm("Cancel this review and release its approved activity days?")) return;
+      button.disabled = true;
+      try {
+        await callPaymentRpc(CANCEL_REVIEW_RPC,{p_review_id:review.id});
+        await this.loadWorkspace();
+      } catch (error) { setStatus(this.els.dryerPaymentLedgerStatus,error.message,"error"); }
+      finally { button.disabled = false; }
+      return;
+    }
+    if (button.hasAttribute("data-review-pay")) {
+      const date = window.prompt("Actual transfer date (YYYY-MM-DD)",kenyaDateKey(new Date()));
+      if (date === null) return;
+      if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)) {
+        setStatus(this.els.dryerPaymentLedgerStatus,"Enter a valid YYYY-MM-DD payment date.","error"); return;
+      }
+      const reference = window.prompt("M-Pesa or bank reference (optional)","");
+      if (reference === null) return;
+      const note = window.prompt("Payment note (optional)","");
+      if (note === null) return;
+      if (!window.confirm(`Mark ${formatKes(review.transfer_amount_kes)} to ${review.assistant_name} as transferred on ${date}?`)) return;
+      button.disabled = true;
+      try {
+        await callPaymentRpc(COMPLETE_REVIEW_RPC,{
+          p_review_id:review.id,p_payment_date:date,
+          p_reference:reference.trim()||null,p_note:note.trim()||null
+        });
+        await this.loadWorkspace();
+        setStatus(this.els.dryerPaymentLedgerStatus,"Payment recorded and batch marked paid.");
+      } catch (error) { setStatus(this.els.dryerPaymentLedgerStatus,error.message,"error"); }
+      finally { button.disabled = false; }
+    }
   }
 
   async recordSelectedPayment() {
