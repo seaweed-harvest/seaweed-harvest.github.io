@@ -13,7 +13,8 @@ import { createNurseryGrowthPanel } from "./cosme_nursery_growth.mjs?v=5";
 import { createMawimbiOperationsPanel } from "./cosme_mawimbi_operations.mjs?v=1";
 import { createMawimbiStockQcPanel } from "./cosme_mawimbi_stock_qc.mjs?v=1";
 import { createMawimbiTraceabilityPanel } from "./cosme_mawimbi_traceability.mjs?v=1";
-import { createMetricsTimeline } from "./cosme_metrics_timeline.mjs?v=3";
+import { createMetricsTimeline } from "./cosme_metrics_timeline.mjs?v=4";
+import { createProjectJournal } from "./cosme_project_journal.mjs?v=1";
 import { createCosmeFinancesPanel } from "./cosme_finances_panel.mjs?v=7";
 import { createProjectLibrary } from "./cosme_project_library.mjs?v=20";
 import { createMetricEvidenceReview } from "./cosme_metric_evidence_review.mjs?v=1";
@@ -42,6 +43,11 @@ const timelinePanel = createMetricsTimeline(authClient,el("metricsTimeline"),(id
 const financesPanel = createCosmeFinancesPanel(authClient,el("cosmeFinances"));
 let financesLoaded = false;
 const libraries={reports:createProjectLibrary(authClient,el("projectReports"),"reports"),photos:createProjectLibrary(authClient,el("projectPhotos"),"photos")};
+const journalPanel=createProjectJournal(authClient,el("projectJournal"),{
+  onSaved:()=>timelinePanel.load().catch(()=>{}),
+  onPhotos:()=>tab("photos")
+});
+let journalLoaded=false;
 const metricEvidenceReview=createMetricEvidenceReview(authClient,el("metricLinkedPhotos"),el("metricProposalReview"));
 const librariesLoaded=new Set();
 const LAST_METRICS_TAB = "seaweed-ag:cosme-last-tab";
@@ -167,6 +173,7 @@ function clearPrivateState() {
   mawimbiQcPanel.clear();
   traceabilityPanel.clear();
   timelinePanel.clear();
+  journalPanel.clear();journalLoaded=false;
   financesPanel.clear();
   financesLoaded = false;
   Object.values(libraries).forEach(panel=>panel.clear());
@@ -320,13 +327,16 @@ function tab(name) {
   for (const button of document.querySelectorAll(".metrics-tabs .tab")) {
     button.setAttribute("aria-selected", String(button.dataset.tab === name));
   }
-  for (const view of ["overview", "register", "current", "timeline", "finances", "reports", "photos", "proposals", "history"]) el(view).hidden = view !== name;
+  for (const view of ["overview", "register", "current", "timeline", "journal", "finances", "reports", "photos", "proposals", "history"]) el(view).hidden = view !== name;
   if(name==="proposals" && access && !metricEvidenceReview.draftsLoaded())
     metricEvidenceReview.loadDrafts();
   if(libraries[name]&&access&&!librariesLoaded.has(name)){
     librariesLoaded.add(name);libraries[name].load();
   }
   if(name==="photos")requestAnimationFrame(()=>libraries.photos.refreshMap?.());
+  if(name==="journal"&&access&&!journalLoaded){
+    journalLoaded=true;journalPanel.showFromQuery().catch(()=>{});
+  }
   if (name === "finances" && access && !financesLoaded) {
     financesLoaded = true;
     financesPanel.load();
@@ -1046,11 +1056,12 @@ async function reloadAndRecheck() {
     if (!selected) {
       try { selected = localStorage.getItem(LAST_METRICS_TAB); } catch {}
     }
-    if (["overview","register","timeline","finances","reports","photos","history"].includes(selected))
+    if (["overview","register","timeline","journal","finances","reports","photos","history"].includes(selected))
       tab(selected);
   }
   if (financesLoaded) financesPanel.load();
   for(const name of librariesLoaded)libraries[name].load();
+  if(journalLoaded&&!journalPanel.isEditing())journalPanel.refreshIfOpen();
   renderRegisterSummary();
   renderRows();
 }
@@ -1184,7 +1195,7 @@ document.addEventListener("visibilitychange", () => {
   // to discard an open photo or an unfinished voice-dictated upload form.
   if (!document.hidden && access &&
       document.body.dataset.cosmePhotoUploading !== "true" &&
-      !libraries.photos.hasActiveInteraction?.()) {
+      !libraries.photos.hasActiveInteraction?.() && !journalPanel.isEditing()) {
     reloadAndRecheck().catch((error) => {
       clearPrivateState();
       setStatus(error.message, true);
