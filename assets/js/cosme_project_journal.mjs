@@ -24,14 +24,18 @@ export function createProjectJournal(client,root,{onSaved=()=>{},onPhotos=()=>{}
    const target=root.querySelector(".journal-status");
    if(target){target.textContent=error||message;target.hidden=!(error||message);target.setAttribute("role",error?"alert":"status");}
  }
+ function draftKey(){return lastUser?DRAFT_KEY+":"+lastUser:null;}
  function draftData(){
-   try{const d=JSON.parse(sessionStorage.getItem(DRAFT_KEY)||"null");return d&&typeof d==="object"?d:null;}
+   if(!draftKey())return null;
+   try{const d=JSON.parse(localStorage.getItem(draftKey())||"null");
+     return d&&typeof d==="object"?d:null;}
    catch{return null;}
  }
  function setDraft(data){
    savedDraft=data;
-   try{if(data)sessionStorage.setItem(DRAFT_KEY,JSON.stringify(data));
-     else sessionStorage.removeItem(DRAFT_KEY);}catch{}
+   if(!draftKey())return;
+   try{if(data)localStorage.setItem(draftKey(),JSON.stringify(data));
+     else localStorage.removeItem(draftKey());}catch{}
  }
  const button=(parent,title,action,cls="")=>{
    const e=add(parent,"button",cls,title);e.type="button";e.addEventListener("click",action);return e;
@@ -310,6 +314,8 @@ export function createProjectJournal(client,root,{onSaved=()=>{},onPhotos=()=>{}
  }
  return {
    load,open,fromPhoto,
+   setUser(id){if(lastUser!==id){lastUser=id||null;savedDraft=null;}},
+   clearDraft(){setDraft(null);},
    async showFromQuery(){
      const params=new URLSearchParams(location.search);
      if(UUID.test(params.get("entry")||""))await open(params.get("entry"));
@@ -317,7 +323,7 @@ export function createProjectJournal(client,root,{onSaved=()=>{},onPhotos=()=>{}
      else await load();
    },
    clear(){++seq;entries=[];detail=null;activeId=null;photoLookup=null;ready=false;editing=false;
-     error="";message="";busy=false;root.replaceChildren();},
+     error="";message="";busy=false;lastUser=null;root.replaceChildren();},
    isEditing(){return editing},
    refreshIfOpen(){if(!editing)load({openId:activeId}).catch(()=>{});}
  };
