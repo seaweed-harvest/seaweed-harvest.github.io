@@ -301,8 +301,14 @@ export function createProjectJournal(client,root,{onSaved=()=>{},onPhotos=()=>{}
        if(selected.size){
          try{check(await client.rpc("ag_project_journal_link_photos",{
            p_journal_id:id,p_photo_ids:[...selected]}));}
-         catch(err){feedback.textContent="Entry saved, but photos were not linked: "+err.message;
-           busy=false;save.disabled=false;return;}
+         catch(err){
+           // The journal entry already exists: never leave the editor in
+           // create mode, which would make a retry create a duplicate.
+           setDraft(null);busy=false;editing=false;activeId=id;
+           notifySaved();await load({openId:id});
+           status("Entry saved, but photos were not linked: "+(err.message||"Please retry from Edit entry."),true);
+           return;
+         }
        }
        setDraft(null);busy=false;editing=false;activeId=id;
        notifySaved();await load({openId:id});
