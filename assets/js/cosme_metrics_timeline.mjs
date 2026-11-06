@@ -5,6 +5,7 @@ export const TIMELINE_ACTIVITIES = Object.freeze({
   "Offshore Nursery": {icon:"🌊", label:"Offshore nursery", css:"nursery"},
   "Aggregation Hub": {icon:"🏭", label:"Aggregation", css:"aggregation"},
   "Mawimbi": {icon:"🌿", label:"Mawimbi", css:"mawimbi"},
+  "Biostimulant R&D": {icon:"🌿", label:"Biostimulant R&D", css:"mawimbi"},
   "Programme": {icon:"✈️", label:"Programme / travel", css:"programme"}
 });
 
@@ -14,7 +15,7 @@ export const TIMELINE_TYPES = Object.freeze({
   "Installation & deployment":["Installation","Deployment","Repair","Construction"],
   "Trials & monitoring":["Inspection","Pilot","Testing","Monitoring","Trial"],
   "Reports & training":["Report","Training","Handover"],
-  "Travel & fieldwork":["Travel","Fieldwork","Field visit"]
+  "Travel & fieldwork":["Travel","Fieldwork","Field visit","Facility visit","Farm visit","Site visit","Field observation"]
 });
 
 export const timelineType = value =>
@@ -87,7 +88,13 @@ export function createMetricsTimeline(authClient,root,openMetric) {
   }
   function addSourceAndMetrics(parent,m) {
     const source=make("div","metrics-timeline-source");
-    source.append(make("h4","","Source & linked metrics"));
+    source.append(make("h4","",m.journal_id?"Journal & related records":"Source & linked metrics"));
+    if(m.journal_id && /^[a-f0-9-]{36}$/i.test(m.journal_id)){
+      const entry=make("a","metrics-timeline-journal-link",
+        "Open full journal"+(m.photo_count?" · "+m.photo_count+" photos":""));
+      entry.href="./cosme_metrics.html?tab=journal&entry="+encodeURIComponent(m.journal_id);
+      source.append(entry);
+    }
     const href=validHref(m.source_url);
     if(href){
       const link=make("a","",m.source_label||"Source document");
