@@ -226,7 +226,7 @@ function selectedReportRows() {
     .filter(Boolean);
 }
 
-function reportHtml(rows) {
+function reportHtml(rows, review = null) {
   const assistant = rows[0]?.assistant || "Research Assistant";
   const dates = rows.map((row) => row.dateKey).filter(Boolean).sort();
   const range = dates.length
@@ -237,9 +237,8 @@ function reportHtml(rows) {
     phoneData: sum.phoneData + row.phoneData,
     approvedTotal: sum.approvedTotal + row.approvedTotal
   }), { activityPay: 0, phoneData: 0, approvedTotal: 0 });
-  const creditApplied = parseKesAmount(document.getElementById("dryerPaymentSelectedCredit")?.textContent) || 0;
-  const transferNow = parseKesAmount(document.getElementById("dryerPaymentSelectedTransfer")?.textContent)
-    ?? Math.max(totals.approvedTotal - creditApplied, 0);
+  const creditApplied = review ? Number(review.phone_data_credit_applied_kes || 0) : (parseKesAmount(document.getElementById("dryerPaymentSelectedCredit")?.textContent) || 0);
+  const transferNow = review ? Number(review.transfer_amount_kes) : (parseKesAmount(document.getElementById("dryerPaymentSelectedTransfer")?.textContent) ?? Math.max(totals.approvedTotal - creditApplied, 0));
 
   const rowMarkup = rows.map((row) => `
     <tr>
@@ -314,6 +313,7 @@ function reportHtml(rows) {
         <strong>${escapeHtml(assistant)}</strong>
         <div>${escapeHtml(range)}</div>
         <div>${rows.length} ${rows.length === 1 ? "activity day" : "activity days"}</div>
+         ${review ? `<div>Batch ${escapeHtml(String(review.id).slice(0,8).toUpperCase())} · ${escapeHtml(review.status === "paid" ? "Paid" : "Review generated")}</div>` : ""}
       </div>
     </div>
 
@@ -349,34 +349,38 @@ function reportHtml(rows) {
     </section>
 
     <div class="footer">
-      <span>For Research Assistant review before payment. This report does not record or alter a payment.</span>
-      <span>Generated ${escapeHtml(currentKenyaTimestamp())} EAT</span>
+      <span>${review ? "Saved review; transfer is recorded only when marked paid in ledger." : "Research Assistant payment review."}</span>
+      <span>${review ? "Review generated " + escapeHtml(new Date(review.reviewed_at).toLocaleString("en-GB",{timeZone:KENYA_TIME_ZONE})) : "Generated " + escapeHtml(currentKenyaTimestamp()) + " EAT"}</span>
     </div>
   </main>
 </body>
 </html>`;
 }
 
-function openPaymentReviewReport() {
-  const rows = selectedReportRows();
-  if (!rows.length) {
-    window.alert("Select at least one approved activity day first.");
-    return;
-  }
-
-  const reportWindow = window.open("", "_blank", "width=1200,height=850");
-  if (!reportWindow) {
-    window.alert("The payment review report was blocked by the browser. Allow pop-ups for this site and try again.");
-    return;
-  }
-  reportWindow.opener = null;
-  reportWindow.document.open();
-  reportWindow.document.write(reportHtml(rows));
-  reportWindow.document.close();
-  reportWindow.focus();
-  window.setTimeout(() => reportWindow.print(), 250);
+function printSavedReview(review, existingWindow = null) {
+  const rows = (review.activity_days || []).map(row => ({...row, date:formatReportDate(row.dateKey)}));
+  const popup = existingWindow || window.open("", "_blank", "width=1200,height=850");
+  if (!popup) { window.alert("Allow pop-ups to open the review PDF."); return; }
+  popup.opener = null;
+  popup.document.open();
+  popup.document.write(reportHtml(rows,review));
+  popup.document.close();
+  popup.focus();
+  window.setTimeout(() => popup.print(),300);
 }
-
+async function openPaymentReviewReport() {
+  if (!selectedReportRows().length) { window.alert("Select approved and unpaid days first."); return; }
+  const popup = window.open("", "_blank", "width=1200,height=850");
+  if (!popup) { window.alert("Allow pop-ups to save and print the review."); return; }
+  popup.document.write("<title>Saving review</title><p>Saving payment review in ledger…</p>");
+  try {
+    const review = await new Promise((resolve,reject) => {
+      document.dispatchEvent(new CustomEvent("dryer-payment-review-request",{detail:{resolve,reject}}));
+    });
+    printSavedReview(review,popup);
+  } catch(error) { popup.close(); window.alert(error?.message || String(error)); }
+}
+document.addEventListener("dryer-payment-review-open",event => printSavedReview(event.detail));
 function installReportButton() {
   const panel = document.getElementById("dryerPaymentSelectionPanel");
   const actionRow = panel?.querySelector(".section-head .button-row.compact-actions");
@@ -386,7 +390,7 @@ function installReportButton() {
   button.id = REPORT_BUTTON_ID;
   button.type = "button";
   button.textContent = "Payment review PDF";
-  button.title = "Create a one-page review report for the selected activity days";
+  button.title = "Save this payment review in the ledger and open a printable PDF";
   button.addEventListener("click", openPaymentReviewReport);
   actionRow.insertBefore(button, actionRow.firstChild);
 
