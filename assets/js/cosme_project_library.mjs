@@ -1,4 +1,4 @@
-import {createPhotoViewer,createPhotoImageCache,createCaptionDrafts} from "./cosme_photo_viewer.mjs?v=2";
+import {createPhotoViewer,createPhotoImageCache,createCaptionDrafts} from "./cosme_photo_viewer.mjs?v=3";
 import {createQueuedBatch,putBatch,getBatch,listPendingBatches,listQueuedPhotos,putQueuedPhoto,deleteBatch,queueCounts} from "./cosme_photo_upload_queue.mjs?v=2";
 import {LIBRARY_BUCKET,PROJECTS,EXAMPLES,filterLibrary,localDateTime,libraryMetadata,validateLibraryFile} from "./cosme_project_library_core.mjs?v=2";
 import {prepareLibraryImage,captureTimestamp} from "./cosme_photo_exif.mjs?v=2";
@@ -101,7 +101,16 @@ export function createProjectLibrary(client,root,kind){
         canEdit,imageCache:photoCache,drafts:captionDrafts,
         onChange:()=>{if(!busy)draw()},
         onEditMetadata:current=>editor(current),
-        onDownload:current=>openFile(current,true)
+        onDownload:current=>openFile(current,true),
+        onOpenJournal:async current=>{
+          try{
+            const related=check(await client.rpc("ag_project_journal_for_photo",{p_photo_id:current.id}));
+            if(!Array.isArray(related)||!related.length){
+              status("No project journal is linked to this photograph.");return;
+            }
+            window.location.assign("./cosme_metrics.html?tab=journal&entry="+encodeURIComponent(related[0].id));
+          }catch(e){status("Journal unavailable: "+(e.message||"Please retry."),true);}
+        }
       });
     }
     if(download){
