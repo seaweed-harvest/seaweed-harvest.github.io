@@ -1,7 +1,7 @@
 import {
   authClient, currentSession, currentProfile, setupAccountControls
 } from "./auth_client.js?v=25";
-import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=17";
+import { populateAppSidebar, setupAppNavigation } from "./app_navigation.js?v=18";
 import {
   normalizeReleaseItems, selectMetrics,
   parseReleaseVersion, sourceLabel, displayMetricValue, metricValueType, financialContext, currentDryerWeightReduction, metricCategory
@@ -1061,7 +1061,6 @@ async function reloadAndRecheck() {
   }
   if (financesLoaded) financesPanel.load();
   for(const name of librariesLoaded)libraries[name].load();
-  if(journalLoaded&&!journalPanel.isEditing())journalPanel.refreshIfOpen();
   renderRegisterSummary();
   renderRows();
 }
