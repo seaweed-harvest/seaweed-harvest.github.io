@@ -319,6 +319,12 @@
 }
 .project-library .library-batch-form .library-fields>label:first-child{grid-column:1/-1}
 .project-library .library-upload-progress{display:grid;gap:5px;min-height:0}
+.project-library .library-upload-repair{display:grid;gap:8px;border-top:1px solid var(--border-soft);padding-top:12px}
+.project-library .library-upload-repair[hidden]{display:none}
+.project-library .library-upload-repair>label{font-weight:600}
+.project-library .library-upload-repair-names summary{cursor:pointer;font-size:.84rem;color:var(--text-sec)}
+.project-library .library-upload-repair-names p{overflow-wrap:anywhere;font-size:.77rem;color:var(--text-sec)}
+.project-library .library-upload-repair-status{font-size:.83rem;color:var(--text-sec)}
 .project-library .library-upload-status{font-size:.87rem;font-weight:600;color:var(--text)}
 .project-library .library-upload-meter{
   display:block;width:100%;height:7px;max-width:560px;

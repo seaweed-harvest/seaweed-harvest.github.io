@@ -1,5 +1,5 @@
 import {createPhotoViewer,createPhotoImageCache,createCaptionDrafts} from "./cosme_photo_viewer.mjs?v=3";
-import {createQueuedBatch,putBatch,getBatch,listPendingBatches,listQueuedPhotos,putQueuedPhoto,deleteBatch,queueCounts} from "./cosme_photo_upload_queue.mjs?v=2";
+import {createQueuedBatch,putBatch,getBatch,listPendingBatches,listQueuedPhotos,putQueuedPhoto,deleteBatch,queueCounts,matchQueuedReplacements} from "./cosme_photo_upload_queue.mjs?v=3";
 import {LIBRARY_BUCKET,PROJECTS,EXAMPLES,filterLibrary,localDateTime,libraryMetadata,validateLibraryFile} from "./cosme_project_library_core.mjs?v=2";
 import {prepareLibraryImage,captureTimestamp} from "./cosme_photo_exif.mjs?v=2";
 const make=(tag,cls="",text)=>{const n=document.createElement(tag);n.className=cls;if(text!==undefined)n.textContent=text;return n};
@@ -317,6 +317,18 @@ export function createProjectLibrary(client,root,kind){
     meter.max=100;meter.value=0;meter.hidden=true;
     const savings=add(feedback,"div","library-upload-savings");
     const errorLine=add(feedback,"div","library-upload-errors");
+    const repair=add(form,"div","library-upload-repair");
+    const repairLabel=add(repair,"label","","Re-select remaining photos");
+    const repairFiles=add(repairLabel,"input");
+    repairFiles.type="file";repairFiles.multiple=true;
+    repairFiles.accept="image/jpeg,image/png,image/webp,image/heic,image/heif";
+    repairFiles.setAttribute("aria-label","Re-select photos that failed to upload");
+    const repairNames=add(repair,"details","library-upload-repair-names");
+    add(repairNames,"summary","","Show remaining filenames");
+    const repairList=add(repairNames,"p","metrics-small-note");
+    const repairStatus=add(repair,"div","library-upload-repair-status");
+    repairStatus.setAttribute("role","status");
+    repair.hidden=true;
     const formatMB=bytes=>(bytes/1048576).toFixed(1)+" MB";
     const fieldControls=[project,activity,location,asset,note];
     const snapshot=()=>({project:project.value,activity:activity.value.trim(),
@@ -411,6 +423,10 @@ export function createProjectLibrary(client,root,kind){
     function updateButtons(){
       const pending=queueCounts(entries).waiting;
       const draft=queued?.state==="draft";
+      const outstanding=entries.filter(entry=>!entry.ready&&!entry.uploaded);
+      repair.hidden=!queued||draft||!pending||running||!outstanding.length;
+      repairFiles.disabled=running;
+      repairList.textContent=outstanding.map(entry=>entry.originalName).join(" · ");
       files.disabled=!!queued&&!draft;
       files.required=!queued?.total;
       fieldControls.forEach(control=>control.disabled=!!queued&&!draft);
@@ -420,6 +436,45 @@ export function createProjectLibrary(client,root,kind){
       run.disabled=!!queued&&(draft?!queued.total:!pending);
       cancel.disabled=false;cancel.textContent=draft?"Save for later":queued?"Close":"Cancel";
     }
+    repairFiles.addEventListener("change",async()=>{
+      if(running||!queued||!repairFiles.files.length)return;
+      const selected=[...repairFiles.files];
+      repairFiles.disabled=true;repairStatus.textContent="Checking selected photos…";
+      try{
+        const {matches,unmatched}=matchQueuedReplacements(entries,selected);
+        let restored=0;
+        for(const {entry,file} of matches){
+          try{
+            // Copy bytes now; do not keep a fragile reference to the Photos picker.
+            const bytes=await file.arrayBuffer();
+            if(!bytes.byteLength||bytes.byteLength!==file.size)throw Error("Incomplete photo");
+            entry.original=new Blob([bytes],{type:file.type||"image/jpeg"});
+            delete entry.prepared;
+            entry.exif=null;entry.optimized=false;entry.storedBytes=0;
+            entry.originalName=file.name;entry.originalBytes=file.size;
+            entry.lastModified=file.lastModified;
+            entry.needsReselect=false;entry.lastError="";
+            await putQueuedPhoto(entry);
+            restored++;
+          }catch(err){
+            entry.needsReselect=true;
+            entry.lastError="Could not read selected photo. Download it to your iPhone and re-select.";
+            await putQueuedPhoto(entry).catch(()=>{});
+          }
+        }
+        repairStatus.textContent=restored+" photos restored for upload"+
+          (unmatched.length?" · "+unmatched.length+" did not match remaining filenames":"")+
+          (restored?" · Tap Resume to upload":"");
+      }catch(err){repairStatus.textContent="Could not restore photos: "+(err.message||"Try again");}
+      finally{repairFiles.value="";repairFiles.disabled=false;updateButtons();}
+    });
+    const unavailableSource=err=>err?.code==="LOCAL_PHOTO_UNAVAILABLE"||
+      /object (?:can ?not|cannot) be found here|notfounderror|original photo was not saved|no such file|could not read photo/i.test(err?.message||"");
+    const localPhotoError=()=>{
+      const e=Error("Re-select this photo on your iPhone");
+      e.code="LOCAL_PHOTO_UNAVAILABLE";
+      return e;
+    };
     const transient=err=>{
       const code=Number(err?.statusCode||err?.status||0);
       return !code||[408,409,425,429].includes(code)||code>=500||
@@ -453,7 +508,7 @@ export function createProjectLibrary(client,root,kind){
       const settings=queued.snapshot;
       if(!entry.ready && !entry.prepared){
         const source=entry.original;
-        if(!source)throw Error("Original photo was not saved on this device");
+        if(!source)throw localPhotoError();
         const original=new File([source],entry.originalName,{
           type:source.type||"image/jpeg",lastModified:entry.lastModified
         });
@@ -478,27 +533,50 @@ export function createProjectLibrary(client,root,kind){
         const metadata={title,project:settings.project,activity:settings.activity,
           location:place,asset:settings.asset,caption:settings.note.slice(0,1000),
           captured_at:capture.value,prototype:"",...details};
-        if(!entry.reservation){
-          entry.reservation=await retry(()=>client.rpc("cosme_library_save",{
-            p_kind:"photos",p_metadata:metadata
-          }).then(check));
-          await putQueuedPhoto(entry);
-        }
-        if(!entry.uploaded){
-          await retry(async()=>{
-            const stored=await client.storage.from(LIBRARY_BUCKET).upload(
-              entry.reservation.object_path,file,{contentType:details.mime_type,upsert:false});
-            if(stored.error&&String(stored.error.statusCode||stored.error.status)!=="409")
-              throw stored.error;
+        // Immutable storage reservations accept writes only during their first hour.
+        // A long-running iPhone batch may need a fresh one for an unuploaded photo.
+        const reservedAt=Date.parse(entry.reservation?.created_at||"");
+        if(entry.reservation&&!entry.uploaded&&Number.isFinite(reservedAt)&&
+          Date.now()-reservedAt>45*60*1000){
+          const previous=await client.rpc("cosme_library_finish",{
+            p_id:entry.reservation.id
           });
-          entry.uploaded=true;
+          if(!previous.error){
+            entry.uploaded=true;entry.ready=true;
+            await putQueuedPhoto(entry);
+          }else{
+            entry.reservation=null;
+            await putQueuedPhoto(entry);
+          }
+        }
+        if(!entry.ready){
+          if(!entry.reservation){
+            entry.reservation=await retry(()=>client.rpc("cosme_library_save",{
+              p_kind:"photos",p_metadata:metadata
+            }).then(check));
+            await putQueuedPhoto(entry);
+          }
+          if(!entry.uploaded){
+            // Materialise a real ArrayBuffer first. Safari may retain invalid
+            // iCloud/Photos file references in IndexedDB after app suspension.
+            let bytes;
+            try{bytes=await file.arrayBuffer()}catch{throw localPhotoError();}
+            if(!bytes.byteLength||bytes.byteLength!==file.size)throw localPhotoError();
+            await retry(async()=>{
+              const stored=await client.storage.from(LIBRARY_BUCKET).upload(
+                entry.reservation.object_path,bytes,{contentType:details.mime_type,upsert:false});
+              if(stored.error&&String(stored.error.statusCode||stored.error.status)!=="409")
+                throw stored.error;
+            });
+            entry.uploaded=true;
+            await putQueuedPhoto(entry);
+          }
+          await retry(()=>client.rpc("cosme_library_finish",{
+            p_id:entry.reservation.id
+          }).then(check));
+          entry.ready=true;
           await putQueuedPhoto(entry);
         }
-        await retry(()=>client.rpc("cosme_library_finish",{
-          p_id:entry.reservation.id
-        }).then(check));
-        entry.ready=true;
-        await putQueuedPhoto(entry);
       }
       if(!entry.metadataSaved){
         const cameraData={...entry.exif,
@@ -581,10 +659,13 @@ export function createProjectLibrary(client,root,kind){
               await previous;
               if(!entry.prepared&&!entry.ready){
                 try {
+                  if(!entry.original)throw localPhotoError();
                   const source=new File([entry.original],entry.originalName,{
                     type:entry.original.type||"image/jpeg",lastModified:entry.lastModified
                   });
-                  const prep=await prepareLibraryImage(source);
+                  let prep;
+                  try{prep=await prepareLibraryImage(source)}
+                  catch(err){if(unavailableSource(err))throw localPhotoError();throw err}
                   entry.prepared=prep.file;entry.exif=prep.metadata;
                   entry.optimized=prep.optimized;entry.storedBytes=prep.file.size;
                   delete entry.original;
@@ -593,7 +674,10 @@ export function createProjectLibrary(client,root,kind){
               }else release();
               await saveOne(entry);
             }catch(err){
-              failedCount++;entry.lastError=err?.message||"Transfer failed";
+              failedCount++;
+              if(unavailableSource(err)){
+                entry.needsReselect=true;entry.lastError="Re-select this photo on your iPhone";
+              }else entry.lastError=err?.message||"Transfer failed";
               errors.push(entry.originalName+": "+entry.lastError);
               await putQueuedPhoto(entry).catch(()=>{});
             }finally{active--;showProgress();}

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {photoFingerprint,selectNewPhotos,queueCounts} from '../assets/js/cosme_photo_upload_queue.mjs';
+import {photoFingerprint,selectNewPhotos,queueCounts,matchQueuedReplacements} from '../assets/js/cosme_photo_upload_queue.mjs';
 
 const src=path=>readFileSync(new URL(path,import.meta.url),'utf8');
 
@@ -65,4 +65,37 @@ test('Home Screen service worker changes never force a reload during uploads',()
   assert.match(metrics,/cosme-last-tab/);
   assert.match(metrics,/cosmePhotoUploading !== "true"/);
   assert.match(metrics,/tab\(selected\)/);
+});
+
+test('reselection only restores incomplete photo references, never confirmed uploads',()=>{
+  const entries=[
+    {key:'b:0',originalName:'IMG_3239.jpeg',originalBytes:123,ready:false,uploaded:false},
+    {key:'b:1',originalName:'IMG_3240.jpeg',originalBytes:456,ready:false,uploaded:false},
+    {key:'b:2',originalName:'IMG_3000.jpeg',originalBytes:789,ready:true,uploaded:true},
+    {key:'b:3',originalName:'IMG_3239.jpeg',originalBytes:999,ready:false,uploaded:false},
+    {key:'b:4',originalName:'IMG_3239.jpeg',originalBytes:1,ready:true,uploaded:true}
+  ];
+  const result=matchQueuedReplacements(entries,[
+    {name:'img_3239.JPEG',size:999},
+    {name:'IMG_3240.jpeg',size:456},
+    {name:'IMG_3000.jpeg',size:789},
+    {name:'unrelated.jpg',size:400}
+  ]);
+  assert.deepEqual(result.matches.map(x=>x.entry.key),['b:3','b:1']);
+  assert.deepEqual(result.unmatched,['IMG_3000.jpeg','unrelated.jpg']);
+});
+test('iPhone upload recovery copies photo bytes and refreshes old reservations',()=>{
+  const queue=src('../assets/js/cosme_photo_upload_queue.mjs');
+  const upload=src('../assets/js/cosme_project_library.mjs');
+  assert.match(queue,/const bytes=await file\.arrayBuffer\(\)/);
+  assert.match(queue,/durable=new Blob\(\[bytes\]/);
+  assert.match(upload,/Re-select remaining photos/);
+  assert.match(upload,/matchQueuedReplacements\(entries,selected\)/);
+  assert.match(upload,/entry\.original=new Blob\(\[bytes\]/);
+  assert.match(upload,/Date\.now\(\)-reservedAt>45\*60\*1000/);
+  assert.match(upload,/entry\.reservation=null/);
+  assert.match(upload,/p_id:entry\.reservation\.id/);
+  assert.match(upload,/upload\(\s*entry\.reservation\.object_path,bytes,/);
+  assert.match(upload,/if\(unavailableSource\(err\)\)/);
+  assert.match(upload,/entry\.needsReselect=true/);
 });

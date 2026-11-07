@@ -123,11 +123,22 @@ export async function createQueuedBatch({ owner, snapshot, files, savedItems = [
     createdAt: Date.now(), state };
   try {
     for (const [position, {file, index}] of selected.entries()) {
+      // A picker File can become an invalid reference after Safari closes the
+      // Photos provider. Copy the actual bytes before writing to IndexedDB.
+      let durable=null,sourceError="";
+      try {
+        const bytes=await file.arrayBuffer();
+        if(!bytes.byteLength||bytes.byteLength!==file.size)throw Error("Incomplete image bytes");
+        durable=new Blob([bytes],{type:file.type||"image/jpeg"});
+      }catch(err){
+        sourceError="Re-select this photo on your iPhone";
+      }
       await putQueuedPhoto({ key: id + ":" + position, batchId: id,
         index: position, selectionIndex: index,
-        original: file, originalName: file.name, originalBytes: file.size,
+        original: durable, originalName: file.name, originalBytes: file.size,
         lastModified: file.lastModified, done: false, uploaded: false,
-        ready: false, metadataSaved: false, savedAt: null });
+        ready: false, metadataSaved: false, savedAt: null,
+        needsReselect:!!sourceError,lastError:sourceError });
     }
     await putBatch(batch);
     return { batch, skipped };
@@ -135,6 +146,23 @@ export async function createQueuedBatch({ owner, snapshot, files, savedItems = [
     await deleteBatch(id).catch(() => {});
     throw Error("Could not retain these photos on your iPhone. Select a smaller batch or free some storage. " + (error.message || ""));
   }
+}
+// Reattach only incomplete entries, never photos already confirmed on the server.
+export function matchQueuedReplacements(entries,files){
+  const waiting=entries.filter(entry=>!entry.ready&&!entry.uploaded);
+  const used=new Set(),matches=[],unmatched=[];
+  for(const file of files){
+    const name=String(file.name||"").toLowerCase();
+    const candidates=waiting.filter(entry=>!used.has(entry.key)&&
+      String(entry.originalName||"").toLowerCase()===name);
+    const exact=candidates.find(entry=>Number(entry.originalBytes)===file.size);
+    // Different byte size can signal the iOS picker returned a different export;
+    // only accept an exact name with an unambiguous single candidate.
+    const entry=exact|| (candidates.length===1?candidates[0]:null);
+    if(!entry){unmatched.push(file.name);continue}
+    used.add(entry.key);matches.push({entry,file});
+  }
+  return {matches,unmatched};
 }
 export function queueCounts(entries) {
   const saved = entries.filter(x => x.ready).length;
