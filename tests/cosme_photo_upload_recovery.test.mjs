@@ -108,6 +108,7 @@ test('prior missing-iPhone-file errors require reselection rather than endless r
   assert.match(src,/if\(missing\)repairStatus\.textContent=/);
   const exact=matchQueuedReplacements([{key:'a',originalName:'IMG_3239.jpeg',originalBytes:42,ready:false,uploaded:false}],
     [{name:'IMG_3239.jpeg',size:40}]);
-  assert.equal(exact.matches.length,0);
-  assert.deepEqual(exact.unmatched,['IMG_3239.jpeg']);
+  assert.equal(exact.matches.length,1);
+  assert.equal(exact.matches[0].entry.key,'a');
+  assert.deepEqual(exact.unmatched,[]);
 });

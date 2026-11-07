@@ -452,6 +452,10 @@ export function createProjectLibrary(client,root,kind){
             entry.original=new Blob([bytes],{type:file.type||"image/jpeg"});
             delete entry.prepared;
             entry.exif=null;entry.optimized=false;entry.storedBytes=0;
+            // A re-exported original may compress differently. Its old pending
+            // reservation has a fixed byte size, so request a new one if changed.
+            if(file.size!==Number(entry.originalBytes)&&!entry.uploaded)
+              entry.reservation=null;
             entry.originalName=file.name;entry.originalBytes=file.size;
             entry.lastModified=file.lastModified;
             entry.needsReselect=false;entry.lastError="";

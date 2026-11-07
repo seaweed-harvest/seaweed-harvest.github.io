@@ -155,9 +155,10 @@ export function matchQueuedReplacements(entries,files){
     const name=String(file.name||"").toLowerCase();
     const candidates=waiting.filter(entry=>!used.has(entry.key)&&
       String(entry.originalName||"").toLowerCase()===name);
-    // Match both original filename and original byte length to avoid assigning
-    // a different export to an existing immutable upload reservation.
-    const entry=candidates.find(entry=>Number(entry.originalBytes)===file.size);
+    // Prefer the exact file. iOS can export a different byte length from
+    // the same Photos original; a unique filename is also recoverable.
+    const exact=candidates.find(entry=>Number(entry.originalBytes)===file.size);
+    const entry=exact||(candidates.length===1?candidates[0]:null);
     if(!entry){unmatched.push(file.name);continue}
     used.add(entry.key);matches.push({entry,file});
   }
