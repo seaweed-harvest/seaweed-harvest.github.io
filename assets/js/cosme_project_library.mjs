@@ -109,6 +109,33 @@ export function createProjectLibrary(client,root,kind){
           return null;
         },
         onChange:()=>{if(!busy)draw()},
+        onFavourite:updated=>{
+          // Only change the indicator for this photo; keep all other thumbnails
+          // mounted and retain the current scroll position.
+          root.querySelectorAll(".library-tile").forEach(tile=>{
+            if(tile.dataset.photoId!==updated.id)return;
+            syncPhotoTileFavourite(tile,updated);
+            if(favoritesOnly&&!updated.is_favourite){
+              const row=tile.closest(".library-photo-row");
+              (row||tile).remove();
+            }
+          });
+          if(favoritesOnly){
+            const resultCount=root.querySelector(".library-results-line span");
+            if(resultCount)resultCount.textContent=
+              filterLibrary(items,filters).filter(p=>p.is_favourite).length+
+              " shown"+(canEdit?"":" · Read only");
+          }
+        },
+        onTrash:deleted=>{
+          // The server has already confirmed a recoverable move to Trash.
+          items=items.filter(p=>p.id!==deleted.id);
+          trashItems=[{...deleted,deleted_at:new Date().toISOString()},...trashItems];
+          selectedIds.delete(deleted.id);
+          const scroll=window.scrollY;
+          draw();
+          window.scrollTo(0,scroll);
+        },
         onEditMetadata:current=>editor(current),
         onDownload:current=>openFile(current,true),
         onOpenJournal:async current=>{
@@ -867,6 +894,13 @@ export function createProjectLibrary(client,root,kind){
     syncPhotoTileSelection(tile);
     updatePhotoSelectionActions();
   }
+  function syncPhotoTileFavourite(tile,item){
+    let heart=tile.querySelector(".library-tile-fav");
+    if(!item.is_favourite){heart?.remove();return}
+    if(!heart)heart=add(tile,"span","library-tile-fav is-favourite","♥");
+    heart.title="Favourite";
+    heart.setAttribute("aria-label","Favourite photo");
+  }
   function photoTile(item,container){
     const tile=add(container,"div","library-tile");
     tile.dataset.photoId=item.id;tile.dataset.title=item.title;
@@ -896,11 +930,7 @@ export function createProjectLibrary(client,root,kind){
       if(selectMode)togglePhotoSelection(item,tile);
       else openFile(item);
     });
-    if(canEdit&&!viewTrash){
-      const star=add(tile,"button","library-tile-fav"+(item.is_favourite?" is-favourite":""),item.is_favourite?"♥":"♡");
-      star.type="button";star.setAttribute("aria-label",item.is_favourite?"Remove favourite":"Favourite");
-      star.addEventListener("click",()=>photoAction([item.id],item.is_favourite?"unfavourite":"favourite"));
-    }
+    syncPhotoTileFavourite(tile,item);
     syncPhotoTileSelection(tile);
     return tile;
   }

@@ -24,7 +24,8 @@ test('filters and search are compact but accessible across modes',()=>{
 test('mobile photo tiles are larger and favourite hearts visually smaller',()=>{
   const css=read('../assets/css/cosme_project_library.css');
   assert.match(css,/library-photo-grid\{grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
-  assert.match(css,/library-tile-fav\{width:30px;height:30px/);
+  assert.match(css,/library-tile-fav\{left:4px;bottom:3px/);
+  assert.match(css,/library-photo-grid\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\);gap:2px/);
   assert.match(css,/library-gallery-view-toggle/);
   assert.match(css,/library-photo-list/);
   assert.match(css,/library-photo-trash-list/);
@@ -197,4 +198,17 @@ test('upload form opens above endless photo gallery without rebuilding thumbnail
   assert.match(css,/library-upload-host:empty\{display:none\}/);
   assert.match(css,/scroll-margin-top:72px/);
   assert.match(gallery,/photoLimit\=Math\.min\(visible\.length,start\+photoBatchSize\)/);
+});
+
+test('only favourite photos display hearts and toggles update a single tile',()=>{
+  const src=read('../assets/js/cosme_project_library.mjs');
+  const tile=src.slice(src.indexOf('  function syncPhotoTileFavourite('),src.indexOf('  function card('));
+  assert.match(tile,/if\(!item\.is_favourite\)\{heart\?\.remove\(\);return\}/);
+  assert.match(tile,/add\(tile,"span","library-tile-fav is-favourite","♥"\)/);
+  assert.doesNotMatch(tile,/add\(tile,"button","library-tile-fav/);
+  assert.match(src,/onFavourite:updated=>/);
+  const onchange=src.slice(src.indexOf('        onFavourite:updated=>'),src.indexOf('        onTrash:deleted=>'));
+  assert.match(onchange,/syncPhotoTileFavourite\(tile,updated\)/);
+  assert.doesNotMatch(onchange,/draw\(\)/);
+  assert.match(src,/onTrash:deleted=>/);
 });

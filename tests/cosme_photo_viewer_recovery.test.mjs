@@ -189,3 +189,49 @@ test("an expired gallery image URL fetches a fresh signature on image error",asy
     v.close();
   }finally{app.cleanup()}
 });
+
+test("favourite button updates status and Trash requires confirmation",async()=>{
+  const app=setup("success");
+  const oldConfirm=globalThis.confirm;
+  try{
+    let confirmed=false;
+    const current={id:"a",title:"Mkwiro A",caption:"",object_path:"private/a",revision:1,is_favourite:false};
+    const rpcCalls=[],favourites=[],trashed=[];
+    const client={
+      rpc:async(name,args)=>{
+        rpcCalls.push({name,args});
+        return {data:{updated:1}};
+      }
+    };
+    const root=new FakeNode("main");
+    const photos=[current];
+    const v=createPhotoViewer({client,root,bucket:"private",photo:current,photos,
+      canEdit:true,imageCache:{load:async()=>({url:"https://example.invalid/a"})},
+      thumbnailFor:()=>"https://example.invalid/a",
+      onFavourite:item=>favourites.push(item.is_favourite),
+      onTrash:item=>trashed.push(item.id)});
+    assert.ok(app.byLabel(v.viewer,"Favourite photo"));
+    assert.ok(app.byLabel(v.viewer,"Move photo to Trash"));
+    await app.byLabel(v.viewer,"Favourite photo").fire("click");
+    await tick();
+    assert.equal(current.is_favourite,true);
+    assert.deepEqual(favourites,[true]);
+    assert.equal(app.byLabel(v.viewer,"Remove favourite").attrs["aria-pressed"],"true");
+    globalThis.confirm=()=>false;
+    await app.byLabel(v.viewer,"Move photo to Trash").fire("click");
+    await tick();
+    assert.equal(rpcCalls.filter(x=>x.args.p_action==="trash").length,0);
+    assert.equal(v.viewer.open,true);
+    globalThis.confirm=()=>{confirmed=true;return true};
+    await app.byLabel(v.viewer,"Move photo to Trash").fire("click");
+    await tick();
+    assert.equal(confirmed,true);
+    assert.equal(rpcCalls.filter(x=>x.args.p_action==="trash").length,1);
+    assert.deepEqual(trashed,["a"]);
+    assert.equal(v.viewer.open,false);
+  }finally{
+    if(oldConfirm===undefined)delete globalThis.confirm;
+    else globalThis.confirm=oldConfirm;
+    app.cleanup();
+  }
+});

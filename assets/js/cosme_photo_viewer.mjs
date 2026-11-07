@@ -93,11 +93,12 @@ export function boundedPhotoSave(task,timeoutMs=12000){
 }
 export function createPhotoViewer({
   client,root,bucket,photo,photos,canEdit=false,imageCache,thumbnailFor=()=>null,
-  onChange=()=>{},onEditMetadata=()=>{},onDownload=()=>{},onOpenJournal=null,drafts=createCaptionDrafts(null)
+  onChange=()=>{},onFavourite=()=>{},onTrash=()=>{},onEditMetadata=()=>{},
+  onDownload=()=>{},onOpenJournal=null,drafts=createCaptionDrafts(null)
 }){
   const sequence=photos.some(p=>p.id===photo.id)?photos.slice():[photo,...photos];
   let index=sequence.findIndex(p=>p.id===photo.id);
-  let current=sequence[index],editing=false,saving=false,dirty=false,requestId=0;
+  let current=sequence[index],editing=false,saving=false,trashSaving=false,dirty=false,requestId=0;
   let saveAttempt=0,saveAbort=null;
   let currentCaption=null;
   const viewer=add(root,"dialog","library-viewer library-photo-viewer");
@@ -120,18 +121,34 @@ export function createPhotoViewer({
   retryPhoto.addEventListener("click",()=>show(index));
   const details=add(viewer,"div","library-viewer-meta");
   const footer=add(viewer,"div","library-photo-viewer-footer");
+  const primaryActions=add(footer,"div","library-photo-viewer-primary-actions");
+  const tools=add(footer,"div","library-photo-viewer-tools");
   const feedback=add(footer,"span","library-photo-viewer-feedback");
   feedback.setAttribute("role","status");
-  icon(footer,"↓","Download photo",()=>onDownload(current));
-  if(typeof onOpenJournal==="function")
-    icon(footer,"▤","Open linked project journal",()=>onOpenJournal(current));
-  let favourite=null,pencil=null,cancel=null;
+  let favourite=null,favSymbol=null,favLabel=null,trash=null,pencil=null,cancel=null;
   if(canEdit){
-    favourite=icon(footer,"♡","Favourite photo",toggleFavourite);
-    pencil=icon(footer,"✎","Edit photo description",toggleEdit);
-    cancel=icon(footer,"×","Cancel description edit",cancelEdit);
+    favourite=add(primaryActions,"button","library-photo-quick-action library-photo-favourite");
+    favourite.type="button";favourite.setAttribute("aria-label","Favourite photo");
+    favourite.addEventListener("click",toggleFavourite);
+    favSymbol=add(favourite,"span","library-photo-action-symbol","♡");
+    favSymbol.setAttribute("aria-hidden","true");
+    favLabel=add(favourite,"span","library-photo-action-label","Favourite");
+    trash=add(primaryActions,"button","library-photo-quick-action library-photo-trash");
+    trash.type="button";trash.title="Move to Trash";
+    trash.setAttribute("aria-label","Move photo to Trash");
+    trash.addEventListener("click",moveToTrash);
+    const trashSymbol=add(trash,"span","library-photo-action-symbol","🗑");
+    trashSymbol.setAttribute("aria-hidden","true");
+    add(trash,"span","library-photo-action-label","Move to Trash");
+  }
+  icon(tools,"↓","Download photo",()=>onDownload(current));
+  if(typeof onOpenJournal==="function")
+    icon(tools,"▤","Open linked project journal",()=>onOpenJournal(current));
+  if(canEdit){
+    pencil=icon(tools,"✎","Edit photo description",toggleEdit);
+    cancel=icon(tools,"×","Cancel description edit",cancelEdit);
     cancel.hidden=true;
-    icon(footer,"⋯","Edit other photo details",()=>editMetadata());
+    icon(tools,"⋯","Edit other photo details",()=>editMetadata());
   }
   function textValue(){
     return String(currentCaption?.innerText??currentCaption?.textContent??"")
@@ -220,24 +237,50 @@ export function createPhotoViewer({
   }
   function updateFavourite(){
     if(!favourite)return;
-    favourite.textContent=current.is_favourite?"♥":"♡";
+    favSymbol.textContent=current.is_favourite?"♥":"♡";
+    favLabel.textContent=current.is_favourite?"Favourited":"Favourite";
     favourite.title=current.is_favourite?"Remove favourite":"Favourite photo";
     favourite.setAttribute("aria-label",favourite.title);
+    favourite.setAttribute("aria-pressed",String(!!current.is_favourite));
     favourite.classList.toggle("is-favourite",!!current.is_favourite);
   }
   async function toggleFavourite(){
-    if(saving||!canEdit)return;
+    if(saving||trashSaving||!canEdit)return;
     const target=current,action=target.is_favourite?"unfavourite":"favourite";
     favourite.disabled=true;
     try{
       result(await client.rpc("cosme_library_photo_action",{
         p_ids:[target.id],p_action:action
       }));
-      target.is_favourite=action==="favourite";dirty=true;
+      target.is_favourite=action==="favourite";
+      onFavourite(target);
       if(current===target)updateFavourite();
-      feedback.textContent=target.is_favourite?"Favourite":"Removed favourite";
+      feedback.textContent=target.is_favourite?"Added to favourites":"Removed from favourites";
     }catch(err){feedback.textContent=err?.message||"Could not update favourite"}
     finally{favourite.disabled=false}
+  }
+  async function moveToTrash(){
+    if(trashSaving||saving||!canEdit)return;
+    if(editing){
+      feedback.textContent="Save or cancel description edits before moving to Trash.";
+      return;
+    }
+    const target=current;
+    if(!confirm('Move "'+target.title+'" to Trash? You can restore it later.'))return;
+    trashSaving=true;trash.disabled=true;favourite.disabled=true;
+    feedback.textContent="Moving to Trash…";
+    try{
+      result(await client.rpc("cosme_library_photo_action",{
+        p_ids:[target.id],p_action:"trash"
+      }));
+      dirty=false;
+      requestClose();
+      onTrash(target);
+    }catch(err){
+      feedback.textContent=err?.message||"Could not move photo to Trash";
+    }finally{
+      trashSaving=false;trash.disabled=false;favourite.disabled=false;
+    }
   }
   function renderMetadata(){
     details.replaceChildren();
@@ -334,7 +377,7 @@ export function createPhotoViewer({
     }
   }
   function navigate(delta){
-    if(index+delta<0||index+delta>=sequence.length)return;
+    if(trashSaving||index+delta<0||index+delta>=sequence.length)return;
     // Never trap navigation behind a slow or failed mobile network request.
     preserveAndStopSave();
     show(index+delta);

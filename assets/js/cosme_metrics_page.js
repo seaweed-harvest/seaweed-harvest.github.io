@@ -16,7 +16,7 @@ import { createMawimbiTraceabilityPanel } from "./cosme_mawimbi_traceability.mjs
 import { createMetricsTimeline } from "./cosme_metrics_timeline.mjs?v=4";
 import { createProjectJournal } from "./cosme_project_journal.mjs?v=6";
 import { createCosmeFinancesPanel } from "./cosme_finances_panel.mjs?v=7";
-import { createProjectLibrary } from "./cosme_project_library.mjs?v=30";
+import { createProjectLibrary } from "./cosme_project_library.mjs?v=31";
 import { createMetricEvidenceReview } from "./cosme_metric_evidence_review.mjs?v=1";
 import { createOperationalIndicators } from "./cosme_operational_indicators.mjs?v=2";
 import { metricDisplayName, withMetricPresentation } from "./cosme_metrics_labels.mjs?v=1";
