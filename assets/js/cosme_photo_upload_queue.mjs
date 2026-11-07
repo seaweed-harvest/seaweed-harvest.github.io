@@ -155,10 +155,9 @@ export function matchQueuedReplacements(entries,files){
     const name=String(file.name||"").toLowerCase();
     const candidates=waiting.filter(entry=>!used.has(entry.key)&&
       String(entry.originalName||"").toLowerCase()===name);
-    const exact=candidates.find(entry=>Number(entry.originalBytes)===file.size);
-    // Different byte size can signal the iOS picker returned a different export;
-    // only accept an exact name with an unambiguous single candidate.
-    const entry=exact|| (candidates.length===1?candidates[0]:null);
+    // Match both original filename and original byte length to avoid assigning
+    // a different export to an existing immutable upload reservation.
+    const entry=candidates.find(entry=>Number(entry.originalBytes)===file.size);
     if(!entry){unmatched.push(file.name);continue}
     used.add(entry.key);matches.push({entry,file});
   }

@@ -424,6 +424,7 @@ export function createProjectLibrary(client,root,kind){
       const pending=queueCounts(entries).waiting;
       const draft=queued?.state==="draft";
       const outstanding=entries.filter(entry=>!entry.ready&&!entry.uploaded);
+      const actionable=entries.some(entry=>(!entry.ready||!entry.metadataSaved)&&!entry.needsReselect);
       repair.hidden=!queued||draft||!pending||running||!outstanding.length;
       repairFiles.disabled=running;
       repairList.textContent=outstanding.map(entry=>entry.originalName).join(" · ");
@@ -431,9 +432,9 @@ export function createProjectLibrary(client,root,kind){
       files.required=!queued?.total;
       fieldControls.forEach(control=>control.disabled=!!queued&&!draft);
       run.textContent=draft?(queued.total?"Upload "+queued.total+" photos":"Choose photos to upload"):
-        queued?(pending?"Resume "+pending+" remaining":"Upload complete"):
+        queued?(pending?(actionable?"Resume "+pending+" remaining":"Re-select missing photos"):"Upload complete"):
         "Upload selected photos";
-      run.disabled=!!queued&&(draft?!queued.total:!pending);
+      run.disabled=!!queued&&(draft?!queued.total:!pending||!actionable);
       cancel.disabled=false;cancel.textContent=draft?"Save for later":queued?"Close":"Cancel";
     }
     repairFiles.addEventListener("change",async()=>{
@@ -642,7 +643,7 @@ export function createProjectLibrary(client,root,kind){
         await putBatch(queued);
         showProgress();
         // Always reuse the same reservation when a transfer is retried.
-        const work=entries.filter(e=>!e.ready||!e.metadataSaved);
+        const work=entries.filter(e=>(!e.ready||!e.metadataSaved)&&!e.needsReselect);
         let next=0;
         const preparation={current:Promise.resolve()};
         const workers=Array.from({length:Math.min(4,work.length)},async()=>{
@@ -729,6 +730,15 @@ export function createProjectLibrary(client,root,kind){
         if(!queued||queued.owner!==session.data?.user?.id)
           throw Error("Saved upload no longer available for this account");
         entries=await listQueuedPhotos(queued.id);
+        // Prior versions persisted Safari's "object cannot be found here" error
+        // without identifying that the local source needed to be re-selected.
+        for(const entry of entries){
+          if(!entry.ready&&unavailableSource({message:entry.lastError})){
+            entry.needsReselect=true;
+            entry.lastError="Re-select this photo on your iPhone";
+            await putQueuedPhoto(entry);
+          }
+        }
         files.required=!queued.total;
         files.disabled=queued.state!=="draft";
         setSnapshot(queued.snapshot);
@@ -738,6 +748,8 @@ export function createProjectLibrary(client,root,kind){
         if(queued.state==="draft")draftState.textContent="Draft restored";
         if(queued.state!=="draft")showProgress();
         updateButtons();
+        const missing=entries.filter(entry=>entry.needsReselect&&!entry.ready).length;
+        if(missing)repairStatus.textContent=missing+" photos need re-selecting to finish this batch.";
         // Drafts are never uploaded automatically on iPhone app reopen.
       }catch(err){
         errorLine.textContent=err.message||"Cannot recover upload";

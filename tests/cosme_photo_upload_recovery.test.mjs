@@ -99,3 +99,15 @@ test('iPhone upload recovery copies photo bytes and refreshes old reservations',
   assert.match(upload,/if\(unavailableSource\(err\)\)/);
   assert.match(upload,/entry\.needsReselect=true/);
 });
+
+test('prior missing-iPhone-file errors require reselection rather than endless retry',()=>{
+  const src=readFileSync(new URL('../assets/js/cosme_project_library.mjs',import.meta.url),'utf8');
+  assert.match(src,/!entry\.needsReselect\)/);
+  assert.match(src,/actionable\?"Resume "\+pending\+" remaining":"Re-select missing photos"/);
+  assert.match(src,/unavailableSource\(\{message:entry\.lastError\}\)/);
+  assert.match(src,/if\(missing\)repairStatus\.textContent=/);
+  const exact=matchQueuedReplacements([{key:'a',originalName:'IMG_3239.jpeg',originalBytes:42,ready:false,uploaded:false}],
+    [{name:'IMG_3239.jpeg',size:40}]);
+  assert.equal(exact.matches.length,0);
+  assert.deepEqual(exact.unmatched,['IMG_3239.jpeg']);
+});
