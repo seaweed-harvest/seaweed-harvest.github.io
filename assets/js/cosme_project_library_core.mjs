@@ -7,18 +7,63 @@ export const EXAMPLES=Object.freeze([
   {id:"example-meter",kind:"photos",title:"Brix meter deployed for Mawimbi",project:"Mawimbi",asset:"Brix meter",activity:"Asset deployment",caption:"Example metadata. Select the actual instrument identifier when known.",example:true}
 ]);
 const text=v=>String(v??"").trim();
+// Prefer the actual photo date. EXIF has no timezone, so parse its local wall
+// time consistently; WhatsApp's filename date is an estimate, not proof of capture.
+export function photoChronologyTime(item){
+  if(item.kind==="reports")return null;
+  if(item.captured_at){
+    const value=Date.parse(item.captured_at);
+    if(Number.isFinite(value))return value;
+  }
+  const exif=text(item.photo_metadata?.datetime_original);
+  const exifDate=exif.match(/^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+  if(exifDate){
+    const [,year,month,day,hour,minute,second]=exifDate.map((v,i)=>i?Number(v):v);
+    const value=Date.UTC(year,month-1,day,hour,minute,second);
+    const checked=new Date(value);
+    if(checked.getUTCFullYear()===year&&checked.getUTCMonth()===month-1&&
+       checked.getUTCDate()===day&&checked.getUTCHours()===hour)
+      return value;
+  }
+  // The export/received timestamp in a WhatsApp filename is approximate.
+  // Still preferable to placing an old photo at the top because it was uploaded today.
+  const file=text(item.filename);
+  const match=file.match(/^WhatsApp Image (\d{4})-(\d{2})-(\d{2})(?: at (\d{1,2})\.(\d{2})\.(\d{2})\s*(AM|PM))?/i);
+  if(match){
+    const year=Number(match[1]),month=Number(match[2]),day=Number(match[3]);
+    let hour=12,minute=0,second=0;
+    if(match[4]&&match[7]){
+      hour=Number(match[4])%12+(match[7].toUpperCase()==="PM"?12:0);
+      minute=Number(match[5]);second=Number(match[6]);
+    }
+    const value=Date.UTC(year,month-1,day,hour,minute,second);
+    const checked=new Date(value);
+    if(checked.getUTCFullYear()===year&&checked.getUTCMonth()===month-1&&
+       checked.getUTCDate()===day&&checked.getUTCHours()===hour)return value;
+  }
+  return null;
+}
 export function filterLibrary(items,filters={}){
   const query=text(filters.search).toLowerCase();
   const start=filters.from?new Date(filters.from+"T00:00:00").getTime():null;
   const end=filters.to?new Date(filters.to+"T23:59:59.999").getTime():null;
-  const dated=i=>i.kind==="reports"?(i.submitted_on?i.submitted_on+"T12:00:00":null):i.captured_at;
+  const dated=i=>i.kind==="reports"?(i.submitted_on?i.submitted_on+"T12:00:00":null):photoChronologyTime(i);
+  const stamp=i=>i.kind==="reports"?Date.parse(dated(i)||""):(dated(i)??null);
+  const added=i=>Date.parse(i.created_at||"")||0;
   return items.filter(i=>
     (!filters.folder||i.folder_id===filters.folder)&&
     ["project","prototype","location","activity","asset","report_type"].every(k=>!filters[k]||text(i[k])===filters[k])&&
     (!query||[i.title,i.project,i.report_type,i.prototype,i.location,i.activity,i.asset,i.caption,i.filename].some(v=>text(v).toLowerCase().includes(query)))&&
-    (start===null||(dated(i)&&new Date(dated(i)).getTime()>=start))&&
-    (end===null||(dated(i)&&new Date(dated(i)).getTime()<=end))
-  ).sort((a,b)=>String(b.captured_at||b.created_at||"").localeCompare(String(a.captured_at||a.created_at||""))||text(a.title).localeCompare(text(b.title)));
+    (start===null||(stamp(i)!==null&&Number.isFinite(stamp(i))&&stamp(i)>=start))&&
+    (end===null||(stamp(i)!==null&&Number.isFinite(stamp(i))&&stamp(i)<=end))
+  ).sort((a,b)=>{
+    const addedOrder=added(b)-added(a);
+    if(filters.sort==="added_desc")return addedOrder||text(a.title).localeCompare(text(b.title));
+    const aDate=stamp(a),bDate=stamp(b);
+    if(Number.isFinite(aDate)&&Number.isFinite(bDate)&&aDate!==bDate)return bDate-aDate;
+    if(Number.isFinite(aDate)!==Number.isFinite(bDate))return Number.isFinite(aDate)?-1:1;
+    return addedOrder||text(a.title).localeCompare(text(b.title));
+  });
 }
 export function localDateTime(iso){
   if(!iso)return "";

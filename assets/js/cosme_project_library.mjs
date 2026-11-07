@@ -1,6 +1,6 @@
 import {createPhotoViewer,createPhotoImageCache,createCaptionDrafts} from "./cosme_photo_viewer.mjs?v=5";
 import {createQueuedBatch,putBatch,getBatch,listPendingBatches,listQueuedPhotos,putQueuedPhoto,deleteBatch,queueCounts,matchQueuedReplacements} from "./cosme_photo_upload_queue.mjs?v=3";
-import {LIBRARY_BUCKET,PROJECTS,EXAMPLES,filterLibrary,localDateTime,libraryMetadata,validateLibraryFile} from "./cosme_project_library_core.mjs?v=2";
+import {LIBRARY_BUCKET,PROJECTS,EXAMPLES,filterLibrary,localDateTime,libraryMetadata,validateLibraryFile} from "./cosme_project_library_core.mjs?v=3";
 import {prepareLibraryImage,captureTimestamp} from "./cosme_photo_exif.mjs?v=2";
 const make=(tag,cls="",text)=>{const n=document.createElement(tag);n.className=cls;if(text!==undefined)n.textContent=text;return n};
 const add=(root,tag,cls,text)=>{const n=make(tag,cls,text);root.append(n);return n};
@@ -1093,6 +1093,10 @@ export function createProjectLibrary(client,root,kind){
     advanced.addEventListener("toggle",()=>{filtersOpen=advanced.open});
     const moreFilters=add(advanced,"div","library-filters");
     const change=key=>value=>{filters[key]=value;photoLimit=photoBatchSize;draw()};
+    select(moreFilters,"Sort",[
+      ["photo_date_desc","Photo date · newest"],
+      ["added_desc","Date added · newest"]
+    ],filters.sort||"photo_date_desc",change("sort"));
     select(moreFilters,"Folder",[["","All folders"],...folders.map(f=>[f.id,f.name])],filters.folder,change("folder"));
     for(const [key,label] of [["prototype","Prototype"],["location","Location"],["activity","Detail activity"],["asset","Asset"]]){
       const values=[...new Set(items.map(i=>i[key]).filter(Boolean))].sort();

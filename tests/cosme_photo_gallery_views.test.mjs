@@ -212,3 +212,16 @@ test('only favourite photos display hearts and toggles update a single tile',()=
   assert.doesNotMatch(onchange,/draw\(\)/);
   assert.match(src,/onTrash:deleted=>/);
 });
+
+test('photo gallery offers default newest photo date with optional newest upload date',()=>{
+  const src=read('../assets/js/cosme_project_library.mjs');
+  const core=read('../assets/js/cosme_project_library_core.mjs');
+  assert.match(src,/select\(moreFilters,"Sort"/);
+  assert.match(src,/\["photo_date_desc","Photo date · newest"\]/);
+  assert.match(src,/\["added_desc","Date added · newest"\]/);
+  assert.match(src,/filters\.sort\|\|"photo_date_desc"/);
+  assert.match(core,/export function photoChronologyTime\(item\)/);
+  assert.match(core,/photo_metadata\?\.datetime_original/);
+  assert.match(core,/WhatsApp Image/);
+  assert.match(core,/if\(filters\.sort==="added_desc"\)/);
+});

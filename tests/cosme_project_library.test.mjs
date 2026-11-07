@@ -79,3 +79,17 @@ test('both tabs share the access lifecycle; private files use immutable paths an
   const queue=read('../assets/js/cosme_photo_upload_queue.mjs');
   assert.match(queue,/indexedDB\.open/);
 });
+
+test('project photos sort by original date; old imports never rise to the top solely due to upload date',()=>{
+  const photos=[
+    {id:'recent',kind:'photos',title:'A',captured_at:'2026-11-06T08:00:00Z',created_at:'2026-11-06T09:00:00Z'},
+    {id:'exif',kind:'photos',title:'B',captured_at:null,photo_metadata:{datetime_original:'2025:09:23 15:07:56'},created_at:'2026-11-07T07:00:34Z'},
+    {id:'whatsapp',kind:'photos',title:'C',captured_at:null,filename:'WhatsApp Image 2026-10-30 at 10.10.32 AM.jpeg',created_at:'2026-11-07T07:00:35Z'},
+    {id:'undated',kind:'photos',title:'D',captured_at:null,filename:'Solar table diagram.png',created_at:'2026-11-07T07:00:36Z'},
+    {id:'earlier',kind:'photos',title:'E',captured_at:'2026-11-01T08:00:00Z',created_at:'2026-11-01T10:00:00Z'}
+  ];
+  assert.deepEqual(filterLibrary(photos).map(x=>x.id),['recent','earlier','whatsapp','exif','undated']);
+  assert.deepEqual(filterLibrary(photos,{sort:'added_desc'}).map(x=>x.id),['undated','whatsapp','exif','recent','earlier']);
+  assert.deepEqual(filterLibrary(photos,{from:'2026-10-01',to:'2026-10-31'}).map(x=>x.id),['whatsapp']);
+  assert.deepEqual(filterLibrary(photos,{from:'2025-09-23',to:'2025-09-23'}).map(x=>x.id),['exif']);
+});
