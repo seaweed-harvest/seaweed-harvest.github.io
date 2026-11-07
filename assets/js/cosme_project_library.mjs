@@ -1,4 +1,4 @@
-import {createPhotoViewer,createPhotoImageCache,createCaptionDrafts} from "./cosme_photo_viewer.mjs?v=3";
+import {createPhotoViewer,createPhotoImageCache,createCaptionDrafts} from "./cosme_photo_viewer.mjs?v=4";
 import {createQueuedBatch,putBatch,getBatch,listPendingBatches,listQueuedPhotos,putQueuedPhoto,deleteBatch,queueCounts,matchQueuedReplacements} from "./cosme_photo_upload_queue.mjs?v=3";
 import {LIBRARY_BUCKET,PROJECTS,EXAMPLES,filterLibrary,localDateTime,libraryMetadata,validateLibraryFile} from "./cosme_project_library_core.mjs?v=2";
 import {prepareLibraryImage,captureTimestamp} from "./cosme_photo_exif.mjs?v=2";
