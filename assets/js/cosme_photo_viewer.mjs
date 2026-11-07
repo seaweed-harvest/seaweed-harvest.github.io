@@ -111,6 +111,8 @@ export function createPhotoViewer({
   close.classList.add("library-photo-close");
   const content=add(viewer,"div","library-viewer-content");
   const image=add(content,"img");image.alt="";image.loading="eager";
+  let recoverImage=()=>{};
+  image.addEventListener("error",()=>recoverImage());
   const loadingHint=add(content,"span","library-photo-loading-hint","Loading photo…");
   loadingHint.setAttribute("role","status");
   const retryPhoto=add(content,"button","metrics-button library-photo-retry","Retry photo");
@@ -286,9 +288,32 @@ export function createPhotoViewer({
     viewer.scrollTop=0;
     retryPhoto.hidden=true;image.alt=current.title;
     const existing=thumbnailFor(current);
+    let requestedFresh=false;
+    const loadFresh=()=>{
+      if(requestedFresh||!viewer.isConnected||ticket!==requestId)return;
+      requestedFresh=true;
+      content.classList.add("is-photo-loading");
+      content.classList.remove("has-photo-preview");
+      loadingHint.hidden=false;
+      if(!editing)feedback.textContent="Loading photo…";
+      // Fetch only the selected photo. Full-original neighbour prefetch competes
+      // with scrolling and active uploads.
+      imageCache.load(current).then(({url})=>{
+        if(!viewer.isConnected||ticket!==requestId)return;
+        image.src=url;content.classList.remove("is-photo-loading");
+        loadingHint.hidden=true;
+        if(!editing)feedback.textContent="";
+      }).catch(err=>{
+        if(!viewer.isConnected||ticket!==requestId)return;
+        content.classList.remove("is-photo-loading");
+        loadingHint.hidden=true;retryPhoto.hidden=false;
+        feedback.textContent=err?.message||"Photo unavailable. Retry.";
+      });
+    };
+    // Previously viewed thumbnail URLs may expire after 60 seconds.
+    // Re-sign only if the browser cannot reuse the already downloaded original.
+    recoverImage=()=>{if(existing&&image.src===existing)loadFresh()};
     if(existing){
-      // Gallery thumbnails are the originals on this Free-tier project.
-      // Display the decoded image immediately, without a second signing request.
       image.src=existing;
       content.classList.remove("is-photo-loading","has-photo-preview");
       loadingHint.hidden=true;
@@ -296,22 +321,7 @@ export function createPhotoViewer({
     }
     if(typeof image.removeAttribute==="function")image.removeAttribute("src");
     else image.src="";
-    content.classList.add("is-photo-loading");
-    content.classList.remove("has-photo-preview");
-    loadingHint.hidden=false;
-    if(!editing)feedback.textContent="Loading photo…";
-    // No neighbour prefetch: those full originals compete with active uploads.
-    imageCache.load(current).then(({url})=>{
-      if(!viewer.isConnected||ticket!==requestId)return;
-      image.src=url;content.classList.remove("is-photo-loading");
-      loadingHint.hidden=true;
-      if(!editing)feedback.textContent="";
-    }).catch(err=>{
-      if(!viewer.isConnected||ticket!==requestId)return;
-      content.classList.remove("is-photo-loading");
-      loadingHint.hidden=true;retryPhoto.hidden=false;
-      feedback.textContent=err?.message||"Photo unavailable. Retry.";
-    });
+    loadFresh();
   }
   function preserveAndStopSave(){
     if(editing&&changedCaption())drafts.set(current.id,textValue());

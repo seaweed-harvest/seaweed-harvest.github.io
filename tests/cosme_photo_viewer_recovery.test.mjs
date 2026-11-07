@@ -171,3 +171,21 @@ test("viewer reuses loaded original with no additional signing or download",asyn
     v.close();
   }finally{app.cleanup()}
 });
+
+test("an expired gallery image URL fetches a fresh signature on image error",async()=>{
+  const app=setup("success");
+  try{
+    let loads=0;
+    const cache={load:async()=>{loads++;return {url:"https://example.invalid/fresh"}}};
+    const photos=[{id:"a",title:"Mkwiro A",caption:"",object_path:"private/a",revision:1}];
+    const root=new FakeNode("main");
+    const v=createPhotoViewer({client:{},root,bucket:"private",photo:photos[0],photos,
+      imageCache:cache,thumbnailFor:()=> "https://example.invalid/expired"});
+    const img=walk(v.viewer).find(n=>n.tag==="img");
+    assert.equal(loads,0);
+    await img.fire("error");await tick();
+    assert.equal(loads,1);
+    assert.equal(img.src,"https://example.invalid/fresh");
+    v.close();
+  }finally{app.cleanup()}
+});
