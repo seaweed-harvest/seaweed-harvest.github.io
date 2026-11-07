@@ -54,7 +54,8 @@ test('completion can be retried against the same immutable reservation',()=>{
   assert.match(upload,/upsert:false/);
   assert.match(upload,/statusCode\|\|stored\.error\.status\)!=="409"/);
   assert.match(upload,/cosme_library_list/);
-  assert.match(upload,/batch_index===entry\.index\+1/);
+  assert.match(upload,/savedBatchRecords=new Map/);
+  assert.match(upload,/const found=known\?\.get\(entry\.index\+1\)/);
 });
 
 test('Home Screen service worker changes never force a reload during uploads',()=>{

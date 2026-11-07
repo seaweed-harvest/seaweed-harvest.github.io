@@ -66,7 +66,7 @@ test('phone expense rows omit worksheet positions and retain dates, quantities a
   const code=read('../assets/js/cosme_finances_panel.mjs').split('const compact=')[1].split('function costSections')[0];
   assert.doesNotMatch(code,/source_row/);assert.match(code,/entry_date/);assert.match(code,/For Data Loggers/);
 });
-test('both tabs share existing access lifecycle; uploads use immutable private paths, no local data storage',()=>{
+test('both tabs share the access lifecycle; private files use immutable paths and only caption drafts use session storage',()=>{
   const page=read('../assets/js/cosme_metrics_page.js'),html=read('../cosme_metrics.html');
   assert.match(page,/libraries\[name\]&&access/);assert.match(page,/panel=>panel\.clear\(\)/);
   for(const id of ['reports','photos'])assert.match(html,new RegExp(`data-tab="${id}"`));
@@ -74,5 +74,8 @@ test('both tabs share existing access lifecycle; uploads use immutable private p
   assert.match(code,/upsert:false/);assert.match(code,/createSignedUrl\(item.object_path,60[,)]/);
   assert.match(code,/download:true/);
   assert.match(code,/viewer.showModal\(\)/);assert.match(code,/navigator.pdfViewerEnabled/);
-  assert.doesNotMatch(code,/localStorage|sessionStorage|innerHTML|getPublicUrl/);
+  assert.match(code,/sessionStorage/);
+  assert.doesNotMatch(code,/localStorage|innerHTML|getPublicUrl/);
+  const queue=read('../assets/js/cosme_photo_upload_queue.mjs');
+  assert.match(queue,/indexedDB\.open/);
 });
