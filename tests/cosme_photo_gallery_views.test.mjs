@@ -71,7 +71,7 @@ test('browser batch upload retains files on device and resumes with bounded para
   assert.match(src,/Array\.from\(\{length:Math\.min\(4,work\.length\)\}/);
   assert.match(src,/preparation=\{current:Promise\.resolve\(\)\}/);
   assert.match(src,/Stop remaining/);
-  assert.match(src,/Resume \"\+pending\+\" remaining/);
+  assert.match(src,/Resume \"\+actionableCount\+\" available/);
   assert.match(src,/cosme_library_finish/);
   assert.match(src,/entry\.reservation\.object_path/);
 });
@@ -130,13 +130,13 @@ test('selected photos and partial dictated notes are saved as drafts, never auto
   assert.match(src,/Continue draft/);
 });
 
-test('swiping horizontally uses a five-image private signed cache and preloads neighbours',()=>{
+test('swiping uses a bounded private signed cache without bandwidth-heavy neighbour prefetch',()=>{
   const viewer=read('../assets/js/cosme_photo_viewer.mjs');
   assert.match(viewer,/createPhotoImageCache/);
   assert.match(viewer,/now\+45000/);
   assert.match(viewer,/while\(cached\.size>5\)/);
-  assert.match(viewer,/preloadNeighbours/);
-  assert.match(viewer,/imageCache\.load\(sequence\[i\]\)/);
+  assert.doesNotMatch(viewer,/preloadNeighbours/);
+  assert.match(viewer,/imageCache\.load\(current\)/);
   assert.match(viewer,/viewer\.addEventListener\("touchstart"/);
   assert.match(viewer,/viewer\.addEventListener\("touchend"/);
   assert.match(viewer,/swipeDirection\(/);

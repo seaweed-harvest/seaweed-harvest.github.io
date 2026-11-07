@@ -1,0 +1,37 @@
+name: COSME photo gallery regression
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'assets/js/cosme_photo_*.mjs'
+      - 'assets/js/cosme_project_library*.mjs'
+      - 'assets/css/cosme_project_library.css'
+      - 'tests/cosme_photo_*.test.mjs'
+      - 'tests/cosme_project_library.test.mjs'
+      - '.github/workflows/cosme-photo-gallery-check.yml'
+  pull_request:
+    paths:
+      - 'assets/js/cosme_photo_*.mjs'
+      - 'assets/js/cosme_project_library*.mjs'
+      - 'assets/css/cosme_project_library.css'
+      - 'tests/cosme_photo_*.test.mjs'
+      - 'tests/cosme_project_library.test.mjs'
+      - '.github/workflows/cosme-photo-gallery-check.yml'
+
+jobs:
+  photo-regression:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check photo module syntax
+        run: |
+          node --check assets/js/cosme_project_library.mjs
+          node --check assets/js/cosme_photo_viewer.mjs
+          node --check assets/js/cosme_photo_upload_queue.mjs
+      - name: Test photo viewer, upload recovery, gallery and metadata
+        run: |
+          node --test tests/cosme_photo_viewer.test.mjs tests/cosme_photo_viewer_recovery.test.mjs tests/cosme_photo_upload_recovery.test.mjs tests/cosme_photo_gallery_views.test.mjs tests/cosme_photo_exif.test.mjs tests/cosme_project_library.test.mjs
