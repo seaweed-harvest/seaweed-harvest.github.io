@@ -99,6 +99,15 @@ export function createProjectLibrary(client,root,kind){
         client,root,bucket:LIBRARY_BUCKET,photo:item,
         photos:filterLibrary(items,filters).filter(p=>!favoritesOnly||p.is_favourite),
         canEdit,imageCache:photoCache,drafts:captionDrafts,
+        thumbnailFor:current=>{
+          const tiles=root.querySelectorAll(".library-tile");
+          for(const tile of tiles){
+            if(tile.dataset.photoId!==current.id)continue;
+            const img=tile.querySelector("img");
+            if(img?.complete&&img.naturalWidth>0)return img.currentSrc||img.src;
+          }
+          return null;
+        },
         onChange:()=>{if(!busy)draw()},
         onEditMetadata:current=>editor(current),
         onDownload:current=>openFile(current,true),

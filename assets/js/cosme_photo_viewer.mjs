@@ -36,21 +36,29 @@ export function createPhotoImageCache(client,bucket){
     }
     if(old)cached.delete(key);
     const entry={expires:now+45000,promise:null};
-    entry.promise=client.storage.from(bucket).createSignedUrl(key,60)
-      .then(({data,error})=>{
-        if(error||!data?.signedUrl)throw error||Error("Photo unavailable");
-        return new Promise((resolve,reject)=>{
-          const preloaded=new Image();
-          preloaded.onload=()=>resolve({url:data.signedUrl,preloaded});
-          preloaded.onerror=()=>reject(Error("Photo could not be loaded"));
-          preloaded.src=data.signedUrl;
-          if(preloaded.complete&&preloaded.naturalWidth>0)
-            resolve({url:data.signedUrl,preloaded});
-        });
-      }).catch(err=>{
-        if(cached.get(key)===entry)cached.delete(key);
-        throw err;
-      });
+    const signed=async transform=>{
+      const {data,error}=await client.storage.from(bucket).createSignedUrl(key,60,
+        transform?{transform}:undefined);
+      if(error||!data?.signedUrl)throw error||Error("Photo unavailable");
+      return data.signedUrl;
+    };
+    const decode=url=>new Promise((resolve,reject)=>{
+      const preloaded=new Image();
+      preloaded.onload=()=>resolve({url,preloaded});
+      preloaded.onerror=()=>reject(Error("Photo could not be loaded"));
+      preloaded.src=url;
+      if(preloaded.complete&&preloaded.naturalWidth>0)
+        resolve({url,preloaded});
+    });
+    // The on-screen preview should be sharp enough for reading details without
+    // downloading an enormous camera original over 4G. Download stays original.
+    entry.promise=(async()=>{
+      try{return await decode(await signed({width:1600,quality:76}))}
+      catch{return await decode(await signed(null))}
+    })().catch(err=>{
+      if(cached.get(key)===entry)cached.delete(key);
+      throw err;
+    });
     cached.set(key,entry);
     while(cached.size>5)cached.delete(cached.keys().next().value);
     return entry.promise;
@@ -90,7 +98,7 @@ export function boundedPhotoSave(task,timeoutMs=12000){
   ]).finally(()=>clearTimeout(timer));
 }
 export function createPhotoViewer({
-  client,root,bucket,photo,photos,canEdit=false,imageCache,
+  client,root,bucket,photo,photos,canEdit=false,imageCache,thumbnailFor=()=>null,
   onChange=()=>{},onEditMetadata=()=>{},onDownload=()=>{},onOpenJournal=null,drafts=createCaptionDrafts(null)
 }){
   const sequence=photos.some(p=>p.id===photo.id)?photos.slice():[photo,...photos];
@@ -109,6 +117,8 @@ export function createPhotoViewer({
   close.classList.add("library-photo-close");
   const content=add(viewer,"div","library-viewer-content");
   const image=add(content,"img");image.alt="";image.loading="eager";
+  const loadingHint=add(content,"span","library-photo-loading-hint","Loading photo…");
+  loadingHint.setAttribute("role","status");
   const details=add(viewer,"div","library-viewer-meta");
   const footer=add(viewer,"div","library-photo-viewer-footer");
   const feedback=add(footer,"span","library-photo-viewer-feedback");
@@ -268,6 +278,11 @@ export function createPhotoViewer({
     }
   }
   function preloadNeighbours(){
+    // On mobile data or during a batch upload, spare the bandwidth for
+    // the photo the user is actively viewing.
+    const connection=typeof navigator==="undefined"?null:navigator.connection;
+    if(connection?.saveData||["slow-2g","2g","3g"].includes(connection?.effectiveType)||
+       document.body?.dataset?.cosmePhotoUploading==="true")return;
     for(const i of [index-1,index+1]){
       if(i>=0&&i<sequence.length)imageCache.load(sequence[i]).catch(()=>{});
     }
@@ -282,16 +297,28 @@ export function createPhotoViewer({
     renderMetadata();
     if(!editing)feedback.textContent="";
     viewer.scrollTop=0;
-    content.classList.add("is-photo-loading");
+    // The gallery's already decoded thumbnail can appear immediately while
+    // the optimized full-screen image is fetched in the background.
+    const thumbnail=thumbnailFor(current);
     image.alt=current.title;
+    if(thumbnail)image.src=thumbnail;
+    else if(typeof image.removeAttribute==="function")image.removeAttribute("src");
+    else image.src="";
+    content.classList.add("is-photo-loading");
+    content.classList.toggle("has-photo-preview",Boolean(thumbnail));
+    loadingHint.hidden=Boolean(thumbnail);
+    if(!editing)feedback.textContent=thumbnail?"Loading clearer photo…":"Loading photo…";
     imageCache.load(current).then(({url})=>{
       if(!viewer.isConnected||ticket!==requestId)return;
       image.src=url;
-      content.classList.remove("is-photo-loading");
+      content.classList.remove("is-photo-loading","has-photo-preview");
+      loadingHint.hidden=true;
+      if(!editing)feedback.textContent="";
       preloadNeighbours();
     }).catch(err=>{
       if(!viewer.isConnected||ticket!==requestId)return;
-      content.classList.remove("is-photo-loading");
+      content.classList.remove("is-photo-loading","has-photo-preview");
+      loadingHint.hidden=Boolean(thumbnail);
       feedback.textContent=err?.message||"Photo unavailable";
     });
   }

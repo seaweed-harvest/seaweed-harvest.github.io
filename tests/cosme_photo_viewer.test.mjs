@@ -51,3 +51,22 @@ test("private signed photo previews prefetch once and retain a bounded decoded c
     else globalThis.Image=previousImage;
   }
 });
+
+test("full-screen images request optimized signed URLs, with original fallback",async()=>{
+  const previous=globalThis.Image;
+  class ImageOk{set src(url){this._src=url;this.complete=true;this.naturalWidth=1000;queueMicrotask(()=>this.onload?.())}}
+  globalThis.Image=ImageOk;
+  const calls=[];
+  try{
+    const client={storage:{from:()=>({createSignedUrl:async(path,expiry,options)=>{
+      calls.push({path,expiry,options});
+      return options?{data:{signedUrl:"https://example.invalid/optimized"}}:
+        {data:{signedUrl:"https://example.invalid/original"}};
+    }})}};
+    const cache=createPhotoImageCache(client,"photos");
+    const response=await cache.load({object_path:"photo/1"});
+    assert.match(response.url,/optimized/);
+    assert.deepEqual(calls[0].options,{transform:{width:1600,quality:76}});
+    assert.equal(calls.length,1);
+  }finally{if(previous===undefined)delete globalThis.Image;else globalThis.Image=previous}
+});

@@ -153,3 +153,22 @@ test("hanging caption request does not trap the close button",async()=>{
 test("network request timeout is finite",async()=>{
   await assert.rejects(boundedPhotoSave(()=>new Promise(()=>{}),20),/Connection timed out/);
 });
+
+test("viewer paints available thumbnail before full-size signed URL resolves",async()=>{
+  const app=setup("success");
+  try{
+    const pending=[];
+    const cache={load:()=>new Promise(resolve=>pending.push(resolve))};
+    const photos=[{id:"a",title:"Mkwiro A",caption:"",object_path:"private/a",revision:1}];
+    const root=new FakeNode("main");
+    const v=createPhotoViewer({client:{},root,bucket:"private",photo:photos[0],photos,
+      imageCache:cache,thumbnailFor:()=> "https://example.invalid/thumb"});
+    const img=walk(v.viewer).find(n=>n.tag==="img");
+    assert.equal(img.src,"https://example.invalid/thumb");
+    assert.match(v.viewer.children.find(n=>n.className==="library-viewer-content").className,/is-photo-loading/);
+    pending[0]({url:"https://example.invalid/sharp"});
+    await tick();
+    assert.equal(img.src,"https://example.invalid/sharp");
+    v.close();
+  }finally{app.cleanup()}
+});
