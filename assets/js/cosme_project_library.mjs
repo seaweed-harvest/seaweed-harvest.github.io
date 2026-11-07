@@ -416,9 +416,11 @@ export function createProjectLibrary(client,root,kind){
     function showProgress(){
       if(!queued)return;
       const {saved,complete,waiting,metadataPending}=queueCounts(entries);
+      const needReselect=entries.filter(e=>e.needsReselect&&!e.ready).length;
       countLine.textContent=saved+" of "+queued.total+" saved"+
         (active?" · "+active+" uploading":"")+
         (waiting&&!active?" · "+waiting+" remaining":"")+
+        (needReselect?" · "+needReselect+" need re-selection":"")+
         (queued.skipped?" · "+queued.skipped+" skipped":"");
       meter.hidden=false;meter.value=Math.round(100*complete/Math.max(1,queued.total));
       const ready=entries.filter(e=>e.ready);
@@ -433,7 +435,8 @@ export function createProjectLibrary(client,root,kind){
       const pending=queueCounts(entries).waiting;
       const draft=queued?.state==="draft";
       const outstanding=entries.filter(entry=>!entry.ready&&!entry.uploaded);
-      const actionable=entries.some(entry=>(!entry.ready||!entry.metadataSaved)&&!entry.needsReselect);
+      const actionableCount=entries.filter(entry=>(!entry.ready||!entry.metadataSaved)&&!entry.needsReselect).length;
+      const actionable=actionableCount>0;
       repair.hidden=!queued||draft||!pending||running||!outstanding.length;
       repairFiles.disabled=running;
       repairList.textContent=outstanding.map(entry=>entry.originalName).join(" · ");
@@ -441,7 +444,7 @@ export function createProjectLibrary(client,root,kind){
       files.required=!queued?.total;
       fieldControls.forEach(control=>control.disabled=!!queued&&!draft);
       run.textContent=draft?(queued.total?"Upload "+queued.total+" photos":"Choose photos to upload"):
-        queued?(pending?(actionable?"Resume "+pending+" remaining":"Re-select missing photos"):"Upload complete"):
+        queued?(pending?(actionable?"Resume "+actionableCount+" available":"Re-select missing photos"):"Upload complete"):
         "Upload selected photos";
       run.disabled=!!queued&&(draft?!queued.total:!pending||!actionable);
       cancel.disabled=false;cancel.textContent=draft?"Save for later":queued?"Close":"Cancel";
@@ -503,16 +506,27 @@ export function createProjectLibrary(client,root,kind){
         }
       }
     };
-    const verifySaved=async entry=>{
-      // Covers an upload completed just before Safari terminated or a lost metadata response.
-      const result=await client.rpc("cosme_library_list",{p_kind:"photos"});
-      if(result.error)return false;
-      const found=(result.data?.items||[]).find(x=>
-        x.photo_metadata?.batch_id===queued.id &&
-        x.photo_metadata?.batch_index===entry.index+1);
+    let savedBatchRecords=null;
+    async function refreshSavedBatch(){
+      // One catalogue request per resumed batch, not one for each remaining photo.
+      try{
+        const reply=await client.rpc("cosme_library_list",{p_kind:"photos"});
+        if(reply.error)return null;
+        savedBatchRecords=new Map((reply.data?.items||[])
+          .filter(photo=>photo.photo_metadata?.batch_id===queued.id)
+          .map(photo=>[Number(photo.photo_metadata.batch_index),photo]));
+        return savedBatchRecords;
+      }catch{return null}
+    }
+    const verifySaved=async(entry,refresh=false)=>{
+      // Covers a response lost after the server finished a photo.
+      const known=refresh?await refreshSavedBatch():
+        savedBatchRecords||await refreshSavedBatch();
+      const found=known?.get(entry.index+1);
       if(!found)return false;
-      entry.ready=true;entry.metadataSaved=true;entry.done=true;
-      entry.reservation??={id:found.id,revision:found.revision};
+      entry.ready=true;entry.uploaded=true;entry.metadataSaved=true;entry.done=true;
+      entry.needsReselect=false;entry.lastError="";
+      entry.reservation={id:found.id,revision:found.revision};
       delete entry.original;delete entry.prepared;
       await putQueuedPhoto(entry);
       return true;
@@ -604,7 +618,7 @@ export function createProjectLibrary(client,root,kind){
           }).then(check),2);
           entry.metadataSaved=true;
         }catch(err){
-          if(!(await verifySaved(entry))) {
+          if(!(await verifySaved(entry,true))) {
             entry.lastError="Metadata still needs saving";
             await putQueuedPhoto(entry);
             return;
@@ -652,6 +666,27 @@ export function createProjectLibrary(client,root,kind){
         }
         entries=await listQueuedPhotos(queued.id);
         if(!entries.length)throw Error("This photo queue is empty");
+        // Reconcile any server-confirmed images before retrying. Never upload a
+        // second copy simply because iOS terminated after an earlier success.
+        const existing=await refreshSavedBatch();
+        if(existing)for(const entry of entries){
+          if((!entry.ready||!entry.metadataSaved)&&existing.has(entry.index+1))
+            await verifySaved(entry);
+        }
+        // An iCloud placeholder or a stale IndexedDB File can fail forever.
+        // Detect that before spending time on network retries or new reservations.
+        for(const entry of entries){
+          if(entry.ready||entry.uploaded||entry.needsReselect)continue;
+          const source=entry.prepared||entry.original;
+          try{
+            if(!source||!source.size)throw localPhotoError();
+            await source.slice(0,1).arrayBuffer();
+          }catch{
+            entry.needsReselect=true;entry.lastError="Re-select this photo on your iPhone";
+            delete entry.original;delete entry.prepared;
+            await putQueuedPhoto(entry).catch(()=>{});
+          }
+        }
         queued.state="running";
         await putBatch(queued);
         showProgress();

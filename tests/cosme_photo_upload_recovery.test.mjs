@@ -103,7 +103,7 @@ test('iPhone upload recovery copies photo bytes and refreshes old reservations',
 test('prior missing-iPhone-file errors require reselection rather than endless retry',()=>{
   const src=readFileSync(new URL('../assets/js/cosme_project_library.mjs',import.meta.url),'utf8');
   assert.match(src,/!entry\.needsReselect\)/);
-  assert.match(src,/actionable\?"Resume "\+pending\+" remaining":"Re-select missing photos"/);
+  assert.match(src,/actionable\?"Resume "\+actionableCount\+" available":"Re-select missing photos"/);
   assert.match(src,/unavailableSource\(\{message:entry\.lastError\}\)/);
   assert.match(src,/if\(missing\)repairStatus\.textContent=/);
   const exact=matchQueuedReplacements([{key:'a',originalName:'IMG_3239.jpeg',originalBytes:42,ready:false,uploaded:false}],
@@ -111,4 +111,18 @@ test('prior missing-iPhone-file errors require reselection rather than endless r
   assert.equal(exact.matches.length,1);
   assert.equal(exact.matches[0].entry.key,'a');
   assert.deepEqual(exact.unmatched,[]);
+});
+
+test('batch recovery checks server catalogue once and preflights missing local files',()=>{
+  const src=readFileSync(new URL('../assets/js/cosme_project_library.mjs',import.meta.url),'utf8');
+  const fn=src.slice(src.indexOf('    let savedBatchRecords=null;'),src.indexOf('    async function saveOne('));
+  assert.match(fn,/async function refreshSavedBatch\(\)/);
+  assert.match(fn,/savedBatchRecords=new Map/);
+  assert.match(fn,/const known=refresh\?await refreshSavedBatch\(\)/);
+  assert.match(fn,/entry\.needsReselect=false/);
+  assert.match(src,/const existing=await refreshSavedBatch\(\)/);
+  assert.match(src,/if\(\(!entry\.ready\|\|!entry\.metadataSaved\)&&existing\.has\(entry\.index\+1\)\)/);
+  assert.match(src,/await source\.slice\(0,1\)\.arrayBuffer\(\)/);
+  assert.match(src,/delete entry\.original;delete entry\.prepared;/);
+  assert.match(src,/if\(!\(await verifySaved\(entry,true\)\)\)/);
 });

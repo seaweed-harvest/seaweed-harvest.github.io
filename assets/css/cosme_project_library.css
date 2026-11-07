@@ -395,7 +395,7 @@
   opacity:1;
 }
 .project-library .library-photo-loading-hint{
-  display:block;position:absolute;inset:0;
+  display:grid;position:absolute;inset:0;
   place-content:center;text-align:center;
   font-size:.8rem;color:var(--text-sec,#55766b);
   pointer-events:none;
