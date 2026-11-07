@@ -325,6 +325,7 @@
 .project-library .library-upload-repair-names summary{cursor:pointer;font-size:.84rem;color:var(--text-sec)}
 .project-library .library-upload-repair-names p{overflow-wrap:anywhere;font-size:.77rem;color:var(--text-sec)}
 .project-library .library-upload-repair-status{font-size:.83rem;color:var(--text-sec)}
+.project-library .library-upload-repair-finish{justify-self:start;font-size:.83rem;min-height:36px}
 .project-library .library-upload-status{font-size:.87rem;font-weight:600;color:var(--text)}
 .project-library .library-upload-meter{
   display:block;width:100%;height:7px;max-width:560px;
@@ -401,6 +402,8 @@
   pointer-events:none;
 }
 .project-library .library-photo-loading-hint[hidden]{display:none}
+.project-library .library-photo-retry{display:block;margin:10px auto 4px;position:relative;z-index:2}
+.project-library .library-photo-retry[hidden]{display:none}
 .project-library .library-photo-viewer .library-viewer-content img{
   max-height:min(65svh,720px);
   -webkit-user-select:none;user-select:none;

@@ -126,3 +126,23 @@ test('batch recovery checks server catalogue once and preflights missing local f
   assert.match(src,/delete entry\.original;delete entry\.prepared;/);
   assert.match(src,/if\(!\(await verifySaved\(entry,true\)\)\)/);
 });
+
+test('unsaved photos can be explicitly skipped without deleting uploaded server photos',()=>{
+  const srcCode=src('../assets/js/cosme_project_library.mjs');
+  const start=srcCode.indexOf('    const finishPartial=button(');
+  const end=srcCode.indexOf('    finishPartial.classList.add(',start);
+  const action=srcCode.slice(start,end);
+  assert.ok(start>0&&end>start);
+  assert.ok(action.includes('if(!confirm('));
+  assert.ok(action.indexOf('if(!confirm(')<action.indexOf('await deleteBatch(queued.id)'));
+  assert.match(action,/form\.remove\(\);refreshResumeAction\(\);status\(summary\)/);
+  assert.doesNotMatch(action,/client\.rpc|storage\.from/);
+  assert.match(srcCode,/finishPartial.textContent="Keep "\+queueCounts\(entries\).complete\+" saved · close batch"/);
+});
+test('photo tiles avoid a failing Free-tier transform request',()=>{
+  const srcCode=src('../assets/js/cosme_project_library.mjs');
+  const tile=srcCode.slice(srcCode.indexOf('  function photoTile('),srcCode.indexOf('  function card('));
+  assert.match(tile,/createSignedUrl\(item\.object_path,60\)/);
+  assert.doesNotMatch(tile,/transform:/);
+  assert.match(tile,/if\(requested\)return;requested=true/);
+});

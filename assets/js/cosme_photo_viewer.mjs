@@ -36,26 +36,20 @@ export function createPhotoImageCache(client,bucket){
     }
     if(old)cached.delete(key);
     const entry={expires:now+45000,promise:null};
-    const signed=async transform=>{
-      const {data,error}=await client.storage.from(bucket).createSignedUrl(key,60,
-        transform?{transform}:undefined);
+    // The live Supabase project is on Free: transformed image URLs are not available.
+    // Sign the original once rather than waiting for a transformation to fail first.
+    entry.promise=boundedPhotoSave(async()=>{
+      const {data,error}=await client.storage.from(bucket).createSignedUrl(key,60);
       if(error||!data?.signedUrl)throw error||Error("Photo unavailable");
-      return data.signedUrl;
-    };
-    const decode=url=>new Promise((resolve,reject)=>{
-      const preloaded=new Image();
-      preloaded.onload=()=>resolve({url,preloaded});
-      preloaded.onerror=()=>reject(Error("Photo could not be loaded"));
-      preloaded.src=url;
-      if(preloaded.complete&&preloaded.naturalWidth>0)
-        resolve({url,preloaded});
-    });
-    // The on-screen preview should be sharp enough for reading details without
-    // downloading an enormous camera original over 4G. Download stays original.
-    entry.promise=(async()=>{
-      try{return await decode(await signed({width:1600,quality:76}))}
-      catch{return await decode(await signed(null))}
-    })().catch(err=>{
+      return await new Promise((resolve,reject)=>{
+        const preloaded=new Image();
+        preloaded.onload=()=>resolve({url:data.signedUrl,preloaded});
+        preloaded.onerror=()=>reject(Error("Photo could not be loaded"));
+        preloaded.src=data.signedUrl;
+        if(preloaded.complete&&preloaded.naturalWidth>0)
+          resolve({url:data.signedUrl,preloaded});
+      });
+    },25000).catch(err=>{
       if(cached.get(key)===entry)cached.delete(key);
       throw err;
     });
@@ -119,6 +113,9 @@ export function createPhotoViewer({
   const image=add(content,"img");image.alt="";image.loading="eager";
   const loadingHint=add(content,"span","library-photo-loading-hint","Loading photo…");
   loadingHint.setAttribute("role","status");
+  const retryPhoto=add(content,"button","metrics-button library-photo-retry","Retry photo");
+  retryPhoto.type="button";retryPhoto.hidden=true;
+  retryPhoto.addEventListener("click",()=>show(index));
   const details=add(viewer,"div","library-viewer-meta");
   const footer=add(viewer,"div","library-photo-viewer-footer");
   const feedback=add(footer,"span","library-photo-viewer-feedback");
@@ -277,16 +274,6 @@ export function createPhotoViewer({
       }
     }
   }
-  function preloadNeighbours(){
-    // On mobile data or during a batch upload, spare the bandwidth for
-    // the photo the user is actively viewing.
-    const connection=typeof navigator==="undefined"?null:navigator.connection;
-    if(connection?.saveData||["slow-2g","2g","3g"].includes(connection?.effectiveType)||
-       document.body?.dataset?.cosmePhotoUploading==="true")return;
-    for(const i of [index-1,index+1]){
-      if(i>=0&&i<sequence.length)imageCache.load(sequence[i]).catch(()=>{});
-    }
-  }
   function show(newIndex){
     if(newIndex<0||newIndex>=sequence.length||!viewer.isConnected)return;
     index=newIndex;current=sequence[index];const ticket=++requestId;
@@ -297,29 +284,33 @@ export function createPhotoViewer({
     renderMetadata();
     if(!editing)feedback.textContent="";
     viewer.scrollTop=0;
-    // The gallery's already decoded thumbnail can appear immediately while
-    // the optimized full-screen image is fetched in the background.
-    const thumbnail=thumbnailFor(current);
-    image.alt=current.title;
-    if(thumbnail)image.src=thumbnail;
-    else if(typeof image.removeAttribute==="function")image.removeAttribute("src");
-    else image.src="";
-    content.classList.add("is-photo-loading");
-    content.classList.toggle("has-photo-preview",Boolean(thumbnail));
-    loadingHint.hidden=Boolean(thumbnail);
-    if(!editing)feedback.textContent=thumbnail?"Loading clearer photo…":"Loading photo…";
-    imageCache.load(current).then(({url})=>{
-      if(!viewer.isConnected||ticket!==requestId)return;
-      image.src=url;
+    retryPhoto.hidden=true;image.alt=current.title;
+    const existing=thumbnailFor(current);
+    if(existing){
+      // Gallery thumbnails are the originals on this Free-tier project.
+      // Display the decoded image immediately, without a second signing request.
+      image.src=existing;
       content.classList.remove("is-photo-loading","has-photo-preview");
       loadingHint.hidden=true;
+      return;
+    }
+    if(typeof image.removeAttribute==="function")image.removeAttribute("src");
+    else image.src="";
+    content.classList.add("is-photo-loading");
+    content.classList.remove("has-photo-preview");
+    loadingHint.hidden=false;
+    if(!editing)feedback.textContent="Loading photo…";
+    // No neighbour prefetch: those full originals compete with active uploads.
+    imageCache.load(current).then(({url})=>{
+      if(!viewer.isConnected||ticket!==requestId)return;
+      image.src=url;content.classList.remove("is-photo-loading");
+      loadingHint.hidden=true;
       if(!editing)feedback.textContent="";
-      preloadNeighbours();
     }).catch(err=>{
       if(!viewer.isConnected||ticket!==requestId)return;
-      content.classList.remove("is-photo-loading","has-photo-preview");
-      loadingHint.hidden=Boolean(thumbnail);
-      feedback.textContent=err?.message||"Photo unavailable";
+      content.classList.remove("is-photo-loading");
+      loadingHint.hidden=true;retryPhoto.hidden=false;
+      feedback.textContent=err?.message||"Photo unavailable. Retry.";
     });
   }
   function preserveAndStopSave(){

@@ -52,7 +52,7 @@ test("private signed photo previews prefetch once and retain a bounded decoded c
   }
 });
 
-test("full-screen images request optimized signed URLs, with original fallback",async()=>{
+test("Free-tier previews use original signed URLs without unsupported transforms",async()=>{
   const previous=globalThis.Image;
   class ImageOk{set src(url){this._src=url;this.complete=true;this.naturalWidth=1000;queueMicrotask(()=>this.onload?.())}}
   globalThis.Image=ImageOk;
@@ -65,8 +65,8 @@ test("full-screen images request optimized signed URLs, with original fallback",
     }})}};
     const cache=createPhotoImageCache(client,"photos");
     const response=await cache.load({object_path:"photo/1"});
-    assert.match(response.url,/optimized/);
-    assert.deepEqual(calls[0].options,{transform:{width:1600,quality:76}});
+    assert.match(response.url,/original/);
+    assert.equal(calls[0].options,undefined);
     assert.equal(calls.length,1);
   }finally{if(previous===undefined)delete globalThis.Image;else globalThis.Image=previous}
 });

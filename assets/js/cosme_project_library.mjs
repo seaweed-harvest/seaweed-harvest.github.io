@@ -337,6 +337,27 @@ export function createProjectLibrary(client,root,kind){
     const repairList=add(repairNames,"p","metrics-small-note");
     const repairStatus=add(repair,"div","library-upload-repair-status");
     repairStatus.setAttribute("role","status");
+    const finishPartial=button(repair,"Keep saved photos and close batch",async()=>{
+      if(running||busy||!queued)return;
+      const {complete,waiting}=queueCounts(entries);
+      if(!complete||!waiting)return;
+      if(!confirm("Keep "+complete+" saved photos and close this upload? "+
+        waiting+" unfinished photos will be removed from this device's upload queue. "+
+        "They are NOT uploaded. You can select and upload them separately later."))return;
+      finishPartial.disabled=true;
+      try{
+        await draftWrite;
+        await deleteBatch(queued.id);
+        const summary=complete+" uploaded photos kept · "+waiting+
+          " unfinished photos removed from this device's queue";
+        queued=null;entries=[];recovery=null;
+        form.remove();refreshResumeAction();status(summary);
+      }catch(err){
+        finishPartial.disabled=false;
+        repairStatus.textContent="Could not close batch: "+(err?.message||"Please retry");
+      }
+    });
+    finishPartial.classList.add("library-upload-repair-finish");
     repair.hidden=true;
     const formatMB=bytes=>(bytes/1048576).toFixed(1)+" MB";
     const fieldControls=[project,activity,location,asset,note];
@@ -439,6 +460,8 @@ export function createProjectLibrary(client,root,kind){
       const actionable=actionableCount>0;
       repair.hidden=!queued||draft||!pending||running||!outstanding.length;
       repairFiles.disabled=running;
+      finishPartial.disabled=running||busy||queueCounts(entries).complete===0;
+      finishPartial.textContent="Keep "+queueCounts(entries).complete+" saved · close batch";
       repairList.textContent=outstanding.map(entry=>entry.originalName).join(" · ");
       files.disabled=!!queued&&!draft;
       files.required=!queued?.total;
@@ -849,25 +872,17 @@ export function createProjectLibrary(client,root,kind){
     tile.dataset.photoId=item.id;tile.dataset.title=item.title;
     const photo=add(tile,"button","library-tile-open");photo.type="button";
     photo.setAttribute("aria-label",(selectMode?"Select ":"Open ")+item.title);
-    const img=add(photo,"img");img.alt="";img.loading="lazy";
+    const img=add(photo,"img");img.alt="";img.loading="lazy";img.fetchPriority="low";
     const epochAtRequest=epoch;
-    let fallbackUsed=false;
-    const originalThumbnail=()=>{
-      if(fallbackUsed)return;
-      fallbackUsed=true;
-      client.storage.from(LIBRARY_BUCKET).createSignedUrl(item.object_path,60)
-        .then(({data,error})=>{if(epoch===epochAtRequest&&img.isConnected&&!error&&data?.signedUrl)img.src=data.signedUrl})
-        .catch(()=>{});
-    };
-    img.addEventListener("error",originalThumbnail);
+    let requested=false;
     const getThumbnail=()=>{
-      client.storage.from(LIBRARY_BUCKET).createSignedUrl(item.object_path,60,{
-        transform:{width:320,height:320,resize:"cover",quality:70}
-      }).then(({data,error})=>{
-        if(epoch!==epochAtRequest||!img.isConnected)return;
-        if(error||!data?.signedUrl)originalThumbnail();
-        else img.src=data.signedUrl;
-      }).catch(originalThumbnail);
+      if(requested)return;requested=true;
+      // Image resizing is unavailable on this project's Supabase Free tier.
+      client.storage.from(LIBRARY_BUCKET).createSignedUrl(item.object_path,60)
+        .then(({data,error})=>{
+          if(epoch!==epochAtRequest||!img.isConnected||error||!data?.signedUrl)return;
+          img.src=data.signedUrl;
+        }).catch(()=>{});
     };
     // Generate private signed URLs only as tiles approach the viewport.
     if(typeof IntersectionObserver==="function"){
