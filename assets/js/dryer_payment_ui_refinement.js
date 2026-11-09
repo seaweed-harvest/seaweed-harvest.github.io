@@ -1,4 +1,4 @@
-import { calculateContractWorkAmount } from "./dryer_payment_math.js?v=1";
+import { calculateContractWorkAmount } from "./dryer_payment_math.js?v=2";
 
 const PAYMENT_TERMS_ID = "dryerPaymentTermsReference";
 const REPORT_BUTTON_ID = "dryerPaymentReviewReport";
@@ -20,11 +20,12 @@ function parseKesAmount(label) {
 
 function parseActivityCounts(row) {
   const text = row?.querySelector("td:nth-child(4)")?.textContent || "";
-  const match = text.match(/(\d+)\s*L\s*\/\s*(\d+)\s*U/i);
+  const match = text.match(/(\d+)\s*L\s*\/\s*(\d+)\s*U(?:\s*\/\s*(\d+)\s*R)?/i);
   if (!match) return null;
   return {
     loadings: Number(match[1]),
-    unloadings: Number(match[2])
+    unloadings: Number(match[2]),
+    reweighs: Number(match[3] || 0)
   };
 }
 
@@ -201,7 +202,7 @@ function selectedReportRows() {
         ? row.nextElementSibling
         : null;
       const cells = row.querySelectorAll("td");
-      const counts = parseActivityCounts(row) || { loadings: 0, unloadings: 0 };
+      const counts = parseActivityCounts(row) || { loadings: 0, unloadings: 0, reweighs: 0 };
       const activityPay = Number(row.querySelector("[data-payment-work-input]")?.value || 0);
       const phoneSelect = row.querySelector("[data-payment-phone-select]");
       const phoneData = Number(phoneSelect?.value || 0);
@@ -215,6 +216,7 @@ function selectedReportRows() {
         assistant: cells[2]?.textContent?.trim() || "—",
         loadings: counts.loadings,
         unloadings: counts.unloadings,
+        reweighs: counts.reweighs,
         minimum: cells[4]?.querySelector(".status-pill")?.textContent?.trim() || "—",
         activityPay: Number.isFinite(activityPay) ? Math.round(activityPay) : 0,
         phoneData: Number.isFinite(phoneData) ? Math.round(phoneData) : 0,
@@ -245,6 +247,7 @@ function reportHtml(rows, review = null) {
       <td>${escapeHtml(row.date)}</td>
       <td class="num">${row.loadings}</td>
       <td class="num">${row.unloadings}</td>
+      <td class="num">${row.reweighs || 0}</td>
       <td>${escapeHtml(row.minimum)}</td>
       <td class="money">${escapeHtml(row.activityPay.toLocaleString("en-KE"))}</td>
       <td class="money">${escapeHtml(row.phoneData.toLocaleString("en-KE"))}</td>
@@ -319,14 +322,15 @@ function reportHtml(rows, review = null) {
 
     <table>
       <colgroup>
-        <col style="width:10%"><col style="width:5%"><col style="width:5%"><col style="width:12%">
-        <col style="width:11%"><col style="width:11%"><col style="width:12%"><col style="width:34%">
+        <col style="width:9%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:11%">
+        <col style="width:11%"><col style="width:11%"><col style="width:12%"><col style="width:31%">
       </colgroup>
       <thead>
         <tr>
           <th>Date</th>
           <th>Load</th>
           <th>Unload</th>
+          <th>Reweigh</th>
           <th>Minimum</th>
           <th>Activity pay (KES)</th>
           <th>Phone / data (KES)</th>
@@ -492,7 +496,7 @@ function buildPayDetail(row) {
 
   const counts = parseActivityCounts(row);
   if (!counts) return;
-  const calculation = calculateContractWorkAmount(counts.loadings, counts.unloadings);
+  const calculation = calculateContractWorkAmount(counts.loadings, counts.unloadings, counts.reweighs);
 
   const detail = document.createElement("div");
   detail.className = "dryer-pay-detail";
@@ -503,6 +507,7 @@ function buildPayDetail(row) {
       <strong>Pay detail</strong>
       <ul>
         <li>Base amount (day rate): <strong>${formatKes(500)}</strong></li>
+        <li>Bay activities: ${calculation.loadingCount} load / ${calculation.unloadingCount} unload / ${calculation.reweighCount} reweigh</li>
         <li>Bay bonus: ${additionalBays} × KES 25 = <strong>${formatKes(bonus)}</strong></li>
         <li>Contract total: <strong>${formatKes(calculation.contractAmountKes)}</strong></li>
       </ul>
@@ -512,6 +517,7 @@ function buildPayDetail(row) {
       <strong>Pay detail</strong>
       <ul>
         <li>Base amount (day rate): <strong>KES 0</strong> — minimum not met</li>
+        <li>Bay activities: ${calculation.loadingCount} load / ${calculation.unloadingCount} unload / ${calculation.reweighCount} reweigh</li>
         <li>Bay reference: ${calculation.totalActivityCount} × KES 25 = <strong>${formatKes(calculation.referenceAmountKes)}</strong></li>
         <li>Reference total: <strong>${formatKes(calculation.referenceAmountKes)}</strong></li>
       </ul>
