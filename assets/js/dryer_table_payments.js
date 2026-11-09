@@ -421,7 +421,7 @@ class DryerPaymentsController {
     if (!this.state.activityDays.length) {
       this.els.dryerActivityDayRows.innerHTML = emptyRow(
         9,
-        "No dryer loading or unloading activity days are available."
+        "No dryer loading, unloading or reweigh activity days are available."
       );
       this.renderSelectionPanel();
       this.renderApprovalToolbar();
@@ -502,7 +502,7 @@ class DryerPaymentsController {
       <td data-mobile-label="Activity">${escapeHtml(
         `${formatInteger(day.loading_count)} L / ${formatInteger(
           day.unloading_count
-        )} U`
+        )} U / ${formatInteger(day.reweigh_count)} R`
       )}</td>
       <td data-mobile-label="Status">${dayQualificationPill(day)}${
         stale
@@ -552,7 +552,7 @@ class DryerPaymentsController {
             )}</strong> — ${escapeHtml(
               `${formatInteger(event.loading_count)} loadings / ${formatInteger(
                 event.unloading_count
-              )} unloadings`
+              )} unloadings / ${formatInteger(event.reweigh_count)} reweighs`
             )}</li>`
           )
           .join("")
