@@ -5,10 +5,10 @@ import assert from "node:assert/strict";
 const source = fs.readFileSync("assets/js/reef_sample_rope_data_table.js", "utf8");
 const markup = fs.readFileSync("reef_seaweed_records.html", "utf8");
 const aliases = fs.readFileSync("assets/js/reef_mkwiro_raft_labels.js", "utf8");
-const { mkwiroRaftDisplayLabel } = await import(
+const { mkwiroRaftDisplayLabel, nurserySiteDisplayLabel } = await import(
   "data:text/javascript;base64," + Buffer.from(aliases).toString("base64")
 );
-const context = {mkwiroRaftDisplayLabel, Intl, Date, Set, Map, String, Number, Array, Object};
+const context = {mkwiroRaftDisplayLabel, nurserySiteDisplayLabel, Intl, Date, Set, Map, String, Number, Array, Object};
 vm.createContext(context);
 vm.runInContext(
   source.replace(/^import[\s\S]*?from "[^"]+";\s*/gm, "").replace(/^export /gm, ""),
@@ -50,8 +50,8 @@ const records = [
 ];
 const rows=flatten(records);
 assert.equal(rows.length,3,"Only populated active ropes from all sites");
-assert.equal(rows[0].site,"MK-R2 (Cascadia Prototype) | Raft A");
-assert.equal(rows[2].site,"MK-SF2/R2 (Shore Farm 2) | Farm A");
+assert.equal(rows[0].site,"Raft A");
+assert.equal(rows[2].site,"Shore A");
 assert.equal(rows[0].week_2_date,"2026-10-13");
 assert.equal(rows[2].initial_date,"2026-09-30","Date falls back to saved provenance");
 assert.equal(rows[2].initial_recorder,"C");
