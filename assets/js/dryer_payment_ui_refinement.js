@@ -19,14 +19,24 @@ function parseKesAmount(label) {
 }
 
 function parseActivityCounts(row) {
-  const text = row?.querySelector("td:nth-child(4)")?.textContent || "";
-  const match = text.match(/(\d+)\s*L\s*\/\s*(\d+)\s*RW\s*\/\s*(\d+)\s*U/i);
-  if (!match) return null;
-  return {
-    loadings: Number(match[1]),
-    reweighs: Number(match[2]),
-    unloadings: Number(match[3])
+  if (!row) return null;
+  const fromData = ["loadingCount", "reweighCount", "unloadingCount"].map(
+    key => row.dataset[key] === undefined ? NaN : Number(row.dataset[key])
+  );
+  if (fromData.every(value => Number.isInteger(value) && value >= 0)) {
+    return { loadings:fromData[0], reweighs:fromData[1], unloadings:fromData[2] };
+  }
+  // Support previously rendered rows, including 0L / 5RW / 10U.
+  const text = row.querySelector("td:nth-child(4)")?.textContent || "";
+  const count = suffix => {
+    const match = text.match(new RegExp("(\\d+)\\s*" + suffix + "\\b", "i"));
+    return match ? Number(match[1]) : null;
   };
+  const loadings = count("L");
+  const unloadings = count("U");
+  const reweighs = count("(?:RW|R)");
+  if (loadings === null || unloadings === null) return null;
+  return {loadings, reweighs:reweighs ?? 0, unloadings};
 }
 
 function escapeHtml(value) {
@@ -202,7 +212,10 @@ function selectedReportRows() {
         ? row.nextElementSibling
         : null;
       const cells = row.querySelectorAll("td");
-      const counts = parseActivityCounts(row) || { loadings: 0, unloadings: 0, reweighs: 0 };
+      const counts = parseActivityCounts(row);
+      if (!counts) {
+        throw new Error("Could not read the loading, reweigh and unloading counts for " + (row.dataset.activityDate || "an activity day") + ". Refresh the page before generating the review.");
+      }
       const activityPay = Number(row.querySelector("[data-payment-work-input]")?.value || 0);
       const phoneSelect = row.querySelector("[data-payment-phone-select]");
       const phoneData = Number(phoneSelect?.value || 0);
@@ -296,8 +309,30 @@ function reportHtml(rows, review = null) {
     .footer { display: flex; justify-content: space-between; gap: 20px; margin-top: 7px; padding-top: 5px; border-top: 1px solid #d7e7e4; color: #67817d; font-size: 6.8pt; }
     @media print {
       .toolbar { display: none; }
-      body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      body {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+        font-size: 8pt;
+        line-height: 1.1;
+      }
       .sheet { break-inside: auto; }
+      .header { padding-bottom: 3px; gap: 12px; }
+      h1 { font-size: 15pt; line-height: 1; }
+      .subtitle { margin-top: 2px; font-size: 7.5pt; }
+      .meta strong { font-size: 10pt; }
+      table { margin-top: 4px; font-size: 7pt; }
+      th, td { padding: 1px 3px; line-height: 1.08; }
+      th { font-size: 6.6pt; line-height: 1.08; }
+      .totals {
+        margin-top: 4px;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      .totals-title { padding: 3px 5px; }
+      .total { padding: 3px 5px; }
+      .total strong { margin-top: 1px; font-size: 9pt; }
+      .transfer strong { font-size: 11pt; }
+      .footer { margin-top: 3px; padding-top: 2px; font-size: 6.3pt; }
     }
   </style>
 </head>
@@ -373,7 +408,10 @@ function printSavedReview(review, existingWindow = null) {
   window.setTimeout(() => popup.print(),300);
 }
 async function openPaymentReviewReport() {
-  if (!selectedReportRows().length) { window.alert("Select approved and unpaid days first."); return; }
+  let rows;
+  try { rows = selectedReportRows(); }
+  catch(error) { window.alert(error?.message || String(error)); return; }
+  if (!rows.length) { window.alert("Select approved and unpaid days first."); return; }
   const button = document.getElementById(REPORT_BUTTON_ID);
   if (button?.disabled) return;
   const popup = window.open("", "_blank", "width=1200,height=850");
