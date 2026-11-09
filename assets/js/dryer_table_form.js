@@ -2063,6 +2063,9 @@ function validateBatchCapture(phase, bayNumbers) {
   if (!capture.at || nullableNumber(capture.weight) === null) {
     return "Enter the measurement date, time and weight.";
   }
+  if (phase === "loading" && nullableNumber(capture.weight) <= 0) {
+    return "Enter a fresh loading weight greater than zero.";
+  }
   const weightPerBay = splitWeightAcrossBays(capture.weight, bayNumbers.length);
   for (const bayNumber of bayNumbers) {
     const bay = ensureBay(bayNumber);
