@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 const source = fs.readFileSync("assets/js/reef_sample_rope_data_table.js", "utf8");
 const markup = fs.readFileSync("reef_seaweed_records.html", "utf8");
 const aliases = fs.readFileSync("assets/js/reef_mkwiro_raft_labels.js", "utf8");
-const { mkwiroRaftDisplayLabel } = await import(
+const { mkwiroRaftDisplayLabel, nurserySiteDisplayLabel } = await import(
   "data:text/javascript;base64," + Buffer.from(aliases).toString("base64")
 );
 const storage = new Map();
@@ -15,7 +15,7 @@ const localStorage = {
   removeItem: key => storage.delete(key)
 };
 const context = {
-  mkwiroRaftDisplayLabel, window: {localStorage},
+  mkwiroRaftDisplayLabel, nurserySiteDisplayLabel, window: {localStorage},
   Intl, Date, Set, Map, Number, String, Array, Object, Promise
 };
 vm.createContext(context);
