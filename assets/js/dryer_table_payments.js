@@ -476,7 +476,7 @@ class DryerPaymentsController {
       day.assistant_key
     )}" data-activity-date="${escapeAttribute(day.activity_date)}" data-decision-id="${escapeAttribute(
       decisionId
-    )}">
+    )}" data-loading-count="${formatInteger(day.loading_count)}" data-reweigh-count="${formatInteger(day.reweigh_count)}" data-unloading-count="${formatInteger(day.unloading_count)}">
       <td class="selection-cell">${
         selectable
           ? `<input type="checkbox" data-payment-day-select value="${escapeAttribute(
