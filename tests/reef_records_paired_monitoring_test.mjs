@@ -78,7 +78,7 @@ await wait();
 assert.equal(state.selectedRecords.size,1);
 assert.deepEqual(registerCalls(),[["ag_reef_sample_rope_register","MK-R2"]]);
 assert.match(content.innerHTML,/Raft A/);
-assert.doesNotMatch(content.innerHTML,/Farm A/);
+assert.doesNotMatch(content.innerHTML,/Shore A/);
 assert.match(content.innerHTML,/29 Sept 2026/);
 assert.match(content.innerHTML,/Stage photos/,"Single selected register has stage photos below the table");
 assert.match(content.innerHTML,/first.jpg|signed\/sample-ropes/);
@@ -93,7 +93,7 @@ await wait();
 assert.equal(state.selectedRecords.size,2);
 assert.deepEqual(registerCalls(),[["ag_reef_sample_rope_register","MK-R2"],["ag_reef_sample_rope_register","MK-SF2/R2"]]);
 assert.match(content.innerHTML,/Raft A/);
-assert.match(content.innerHTML,/Farm A/);
+assert.match(content.innerHTML,/Shore A/);
 assert.match(content.innerHTML,/No rope measurements recorded yet/);
 assert.doesNotMatch(content.innerHTML,/reef-rope-photo-gallery/,"Comparing multiple records hides photo thumbnails");
 
@@ -104,14 +104,14 @@ assert.equal(state.selectedRecords.size,1);
 
 
 assert.doesNotMatch(content.innerHTML,/Cascadia Prototype/);
-assert.match(content.innerHTML,/Shore Farm 2/);
+assert.match(content.innerHTML,/Shore A/);
 
 // Selecting a Site Capture in the records list can coexist with the farm.
 context.toggleSelectedRecord("site_capture","capture-1","Capture 3",true);
 await wait();
 assert.equal(state.selectedRecords.size,2);
 assert.match(content.innerHTML,/Capture 3/);
-assert.match(content.innerHTML,/Farm A/);
+assert.match(content.innerHTML,/Shore A/);
 assert(calls.some(([method])=>method==="ag_public_cosme_reef_site_capture_detail"));
 
 // Existing list row checkbox is tied to the same selection, not a duplicate.
