@@ -6,7 +6,8 @@ create table if not exists private.seaweed_drying_measurement_revisions (
   id bigint generated always as identity primary key,
   submission_id uuid not null,
   bay_number smallint,
-  entity_type text not null check (entity_type in ('submission','bay')),
+  reweigh_id uuid,
+  entity_type text not null check (entity_type in ('submission','bay','reweigh_event','reweigh_bay')),
   action text not null check (action in ('baseline','insert','update','delete')),
   changed_at timestamptz not null default now(),
   request_actor text,
@@ -17,6 +18,8 @@ create table if not exists private.seaweed_drying_measurement_revisions (
 );
 create index if not exists seaweed_drying_measurement_revisions_lookup
   on private.seaweed_drying_measurement_revisions (submission_id, bay_number, changed_at, id);
+create index if not exists seaweed_drying_measurement_revisions_reweigh
+  on private.seaweed_drying_measurement_revisions (reweigh_id, changed_at, id);
 alter table private.seaweed_drying_measurement_revisions enable row level security;
 revoke all on private.seaweed_drying_measurement_revisions from public, anon, authenticated;
 revoke all on sequence private.seaweed_drying_measurement_revisions_id_seq from public, anon, authenticated;
@@ -59,6 +62,21 @@ as $fn$
   );
 $fn$;
 
+create or replace function private.seaweed_drying_reweigh_version(p_row public.seaweed_drying_reweigh_events)
+returns jsonb language sql stable set search_path = ''
+as $fn$
+  select jsonb_build_object('id',p_row.id,'submission_id',p_row.submission_id,
+    'reweigh_at',p_row.reweigh_at,'weather',p_row.weather,'notes',p_row.notes);
+$fn$;
+
+create or replace function private.seaweed_drying_reweigh_bay_version(p_row public.seaweed_drying_reweigh_bay_records)
+returns jsonb language sql stable set search_path = ''
+as $fn$
+  select jsonb_build_object('reweigh_id',p_row.reweigh_id,
+    'submission_id',p_row.submission_id,'bay_number',p_row.bay_number,
+    'weight_g',p_row.weight_g);
+$fn$;
+
 create or replace function private.seaweed_drying_audit_revision()
 returns trigger
 language plpgsql security definer
@@ -69,6 +87,7 @@ declare
   v_after jsonb;
   v_submission_id uuid;
   v_bay_number smallint;
+  v_reweigh_id uuid;
   v_actor_name text;
 begin
   if tg_table_name = 'seaweed_drying_bay_records' then
@@ -78,6 +97,22 @@ begin
       else private.seaweed_drying_bay_version(new) end;
     v_submission_id := case when tg_op = 'DELETE' then old.submission_id else new.submission_id end;
     v_bay_number := case when tg_op = 'DELETE' then old.bay_number else new.bay_number end;
+  elsif tg_table_name='seaweed_drying_reweigh_bay_records' then
+    v_before := case when tg_op='INSERT' then null
+      else private.seaweed_drying_reweigh_bay_version(old) end;
+    v_after := case when tg_op='DELETE' then null
+      else private.seaweed_drying_reweigh_bay_version(new) end;
+    v_submission_id := case when tg_op='DELETE' then old.submission_id else new.submission_id end;
+    v_bay_number := case when tg_op='DELETE' then old.bay_number else new.bay_number end;
+    v_reweigh_id := case when tg_op='DELETE' then old.reweigh_id else new.reweigh_id end;
+  elsif tg_table_name='seaweed_drying_reweigh_events' then
+    v_before := case when tg_op='INSERT' then null
+      else private.seaweed_drying_reweigh_version(old) end;
+    v_after := case when tg_op='DELETE' then null
+      else private.seaweed_drying_reweigh_version(new) end;
+    v_submission_id := case when tg_op='DELETE' then old.submission_id else new.submission_id end;
+    v_bay_number := null;
+    v_reweigh_id := case when tg_op='DELETE' then old.id else new.id end;
   else
     v_before := case when tg_op = 'INSERT' then null
       else private.seaweed_drying_submission_version(old) end;
@@ -91,10 +126,15 @@ begin
     select s.enumerator_name into v_actor_name
     from public.seaweed_drying_submissions s where s.id = v_submission_id;
     insert into private.seaweed_drying_measurement_revisions
-      (submission_id,bay_number,entity_type,action,request_actor,enumerator_name,old_state,new_state)
+      (submission_id,bay_number,reweigh_id,entity_type,action,request_actor,enumerator_name,old_state,new_state)
     values (
-      v_submission_id, v_bay_number,
-      case when tg_table_name = 'seaweed_drying_bay_records' then 'bay' else 'submission' end,
+      v_submission_id, v_bay_number, v_reweigh_id,
+      case tg_table_name
+        when 'seaweed_drying_bay_records' then 'bay'
+        when 'seaweed_drying_reweigh_events' then 'reweigh_event'
+        when 'seaweed_drying_reweigh_bay_records' then 'reweigh_bay'
+        else 'submission'
+      end,
       lower(tg_op), nullif(current_setting('request.jwt.claim.sub',true),''),
       v_actor_name, v_before, v_after
     );
@@ -113,6 +153,16 @@ for each row execute function private.seaweed_drying_audit_revision();
 drop trigger if exists seaweed_drying_audit_submission_revision on public.seaweed_drying_submissions;
 create trigger seaweed_drying_audit_submission_revision
 after insert or update or delete on public.seaweed_drying_submissions
+for each row execute function private.seaweed_drying_audit_revision();
+
+drop trigger if exists seaweed_drying_audit_reweigh_revision on public.seaweed_drying_reweigh_events;
+create trigger seaweed_drying_audit_reweigh_revision
+after insert or update or delete on public.seaweed_drying_reweigh_events
+for each row execute function private.seaweed_drying_audit_revision();
+
+drop trigger if exists seaweed_drying_audit_reweigh_bay_revision on public.seaweed_drying_reweigh_bay_records;
+create trigger seaweed_drying_audit_reweigh_bay_revision
+after insert or update or delete on public.seaweed_drying_reweigh_bay_records
 for each row execute function private.seaweed_drying_audit_revision();
 
 -- Archive one baseline of currently visible values, not a fabricated history.
@@ -139,6 +189,29 @@ where not exists (
    and h.action='baseline'
 );
 
+insert into private.seaweed_drying_measurement_revisions
+ (submission_id,reweigh_id,entity_type,action,enumerator_name,old_state,new_state)
+select r.submission_id,r.id,'reweigh_event','baseline',s.enumerator_name,
+  null,private.seaweed_drying_reweigh_version(r)
+from public.seaweed_drying_reweigh_events r
+join public.seaweed_drying_submissions s on s.id=r.submission_id
+where not exists (
+ select 1 from private.seaweed_drying_measurement_revisions h
+ where h.reweigh_id=r.id and h.entity_type='reweigh_event' and h.action='baseline'
+);
+
+insert into private.seaweed_drying_measurement_revisions
+ (submission_id,bay_number,reweigh_id,entity_type,action,enumerator_name,old_state,new_state)
+select rb.submission_id,rb.bay_number,rb.reweigh_id,'reweigh_bay','baseline',s.enumerator_name,
+  null,private.seaweed_drying_reweigh_bay_version(rb)
+from public.seaweed_drying_reweigh_bay_records rb
+join public.seaweed_drying_submissions s on s.id=rb.submission_id
+where not exists (
+ select 1 from private.seaweed_drying_measurement_revisions h
+ where h.reweigh_id=rb.reweigh_id and h.bay_number=rb.bay_number
+   and h.entity_type='reweigh_bay' and h.action='baseline'
+);
+
 -- Deferred checks see the final state of all bays after the multi-row save RPC.
 -- In-progress records and existing unchanged completed rows are left undisturbed.
 create or replace function private.seaweed_drying_assert_valid_completion()
@@ -151,6 +224,16 @@ declare
  v_status text;
  v_issue text;
 begin
+ -- Photo-only updates and harmless submission touch events must not be blocked
+ -- by historic bad measurements. They still receive their own audit if changed.
+ if tg_op='UPDATE' and tg_table_name='seaweed_drying_bay_records'
+    and new.loading_at is not distinct from old.loading_at
+    and new.loading_weight_g is not distinct from old.loading_weight_g
+    and new.unloading_at is not distinct from old.unloading_at
+    and new.unloading_weight_g is not distinct from old.unloading_weight_g then return new; end if;
+ if tg_op='UPDATE' and tg_table_name='seaweed_drying_submissions'
+    and new.record_status is not distinct from old.record_status
+    and new.confirmed_accurate is not distinct from old.confirmed_accurate then return new; end if;
  v_id := case
    when tg_table_name='seaweed_drying_submissions'
      then case when tg_op='DELETE' then old.id else new.id end
@@ -182,6 +265,10 @@ begin
     b.loading_weight_g <= 0 or b.unloading_weight_g >= b.loading_weight_g)
  order by b.bay_number limit 1;
 
+ if not exists (select 1 from public.seaweed_drying_bay_records where submission_id=v_id) then
+   raise exception 'A completed dryer submission must have at least one bay measurement'
+     using errcode='23514';
+ end if;
  if v_issue is not null then
    raise exception 'Dryer record cannot be marked complete: %. Save as in progress and correct the measurement.',v_issue
      using errcode='23514';
