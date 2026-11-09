@@ -1,11 +1,13 @@
-export function calculateContractWorkAmount(loadings, unloadings) {
+export function calculateContractWorkAmount(loadings, unloadings, reweighs = 0) {
   const loadingCount = nonNegativeInteger(loadings);
   const unloadingCount = nonNegativeInteger(unloadings);
-  const totalActivityCount = loadingCount + unloadingCount;
-  const qualifies = loadingCount >= 8 || unloadingCount >= 8;
+  const reweighCount = nonNegativeInteger(reweighs);
+  const totalActivityCount = loadingCount + unloadingCount + reweighCount;
+  const qualifies = loadingCount >= 8 || unloadingCount >= 8 || reweighCount >= 8;
   return {
     loadingCount,
     unloadingCount,
+    reweighCount,
     totalActivityCount,
     qualifies,
     contractAmountKes: qualifies
