@@ -1,5 +1,7 @@
 -- Block approving or paying unresolved dryer anomalies without rewriting historic decisions.
 -- An owner must correct/confirm source measurements before reapproval.
+-- Historical partial submissions (loading-only or unloading-only) are not treated
+-- as false measurements by default; an explicit unresolved flag still holds review.
 create table if not exists private.seaweed_drying_data_quality_flags (
   id uuid primary key default gen_random_uuid(),
   submission_id uuid not null references public.seaweed_drying_submissions(id) on delete restrict,
@@ -42,9 +44,9 @@ as $fn$
       and (
         (b.loading_at is not null and (b.loading_weight_g is null or b.loading_weight_g <= 0))
         or
-        (b.unloading_at is not null and (
-          b.loading_at is null or b.loading_weight_g is null or
-          b.unloading_weight_g is null or b.unloading_weight_g < 0 or
+        (b.unloading_at is not null and b.loading_at is not null and (
+          b.loading_weight_g is null or b.unloading_weight_g is null
+          or b.unloading_weight_g < 0 or
           b.unloading_weight_g >= b.loading_weight_g or
           b.unloading_at < b.loading_at + interval '12 hours'
         ))
