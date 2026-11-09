@@ -6,7 +6,7 @@ const raw = fs.readFileSync("assets/js/reef_seaweed_records_page.js", "utf8");
 const markup = fs.readFileSync("reef_seaweed_records.html", "utf8");
 const entry = fs.readFileSync("assets/js/reef_nursery_site_capture.js", "utf8");
 const aliases = fs.readFileSync("assets/js/reef_mkwiro_raft_labels.js", "utf8");
-const { mkwiroRaftDisplayLabel } = await import(
+const { mkwiroRaftDisplayLabel, nurserySiteDisplayLabel } = await import(
   "data:text/javascript;base64," + Buffer.from(aliases).toString("base64")
 );
 const calls = [];
@@ -25,6 +25,7 @@ const sites = {
 };
 const context = {
   mkwiroRaftDisplayLabel,
+  nurserySiteDisplayLabel,
   authClient:{
     storage:{from: bucket=>{
       assert.equal(bucket,"reef-seaweed-record-photos");
@@ -82,7 +83,7 @@ assert.match(content.innerHTML,/29 Sept 2026/);
 assert.match(content.innerHTML,/Stage photos/,"Single selected register has stage photos below the table");
 assert.match(content.innerHTML,/first.jpg|signed\/sample-ropes/);
 assert.match(content.innerHTML,/reef-register-date-row/);
-assert.equal((content.innerHTML.match(/<h4>MK-R2 \(Cascadia Prototype\) \| Raft A<\/h4>/g) || []).length,1,"No duplicated record heading");
+assert.equal((content.innerHTML.match(/<h4>Raft A<\/h4>/g) || []).length,1,"No duplicated record heading");
 assert(!content.innerHTML.includes("Time: 11:30"), "Optional recording time not displayed");
 
 
