@@ -1,4 +1,5 @@
 import { DRYING_FORM_CONFIG as CONFIG } from "./dryer_table_config.js?v=5";
+import { dryingCycleIssue, dryerCycleIssueMessage } from "./dryer_cycle_integrity.js?v=1";
 import {
   configurationParts,
   getLocale,
@@ -2059,14 +2060,17 @@ function validateBatchCapture(phase, bayNumbers) {
   if (!bayNumbers.length) return t("capture.selectAtLeastOneBay");
   if (!captureCardHasData(phase)) return t("capture.enterMeasurement");
   const capture = captureCardData(phase);
+  const weightPerBay = splitWeightAcrossBays(capture.weight, bayNumbers.length);
   for (const bayNumber of bayNumbers) {
     const bay = ensureBay(bayNumber);
-    const loadingAt = phase === "loading" ? capture.at : bay.loading_at;
-    const unloadingAt = phase === "unloading" ? capture.at : bay.unloading_at;
-    if (loadingAt && unloadingAt
-        && new Date(unloadingAt).getTime() < new Date(loadingAt).getTime()) {
-      return t("validation.timeOrder", { bay: bayNumber });
-    }
+    const candidate = {
+      loading_at: phase === "loading" ? capture.at : bay.loading_at,
+      loading_weight_kg: phase === "loading" ? weightPerBay : bay.loading_weight_kg,
+      unloading_at: phase === "unloading" ? capture.at : bay.unloading_at,
+      unloading_weight_kg: phase === "unloading" ? weightPerBay : bay.unloading_weight_kg
+    };
+    const issue = dryingCycleIssue(candidate);
+    if (issue) return dryerCycleIssueMessage(issue, bayNumber);
   }
   return "";
 }
@@ -2179,11 +2183,8 @@ function validateForm() {
 
   for (const bayNumber of enteredBays) {
     const bay = ensureBay(bayNumber);
-    const loadingAt = new Date(bay.loading_at).getTime();
-    const unloadingAt = new Date(bay.unloading_at).getTime();
-    if (Number.isFinite(loadingAt) && Number.isFinite(unloadingAt) && unloadingAt < loadingAt) {
-      return t("validation.timeOrder", { bay: bayNumber });
-    }
+    const issue = dryingCycleIssue(bay);
+    if (issue) return dryerCycleIssueMessage(issue, bayNumber);
   }
   return "";
 }
