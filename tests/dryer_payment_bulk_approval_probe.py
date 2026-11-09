@@ -109,6 +109,9 @@ def fixture_js():
             phone_data_credit_balance_kes:0}]
         }),{status:200,headers:{"Content-Type":"application/json"}});
       }
+      if (rpc==="list_authenticated_seaweed_drying_payment_reviews") {
+        return new Response(JSON.stringify([]),{status:200,headers:{"Content-Type":"application/json"}});
+      }
       if (rpc==="save_authenticated_seaweed_drying_activity_day_decision") {
         const payload=JSON.parse(options.body);
         window.__approvals.push(payload);
