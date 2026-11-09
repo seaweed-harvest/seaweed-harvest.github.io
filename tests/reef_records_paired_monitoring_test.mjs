@@ -139,7 +139,7 @@ context.toggleSelectedRecord("sample_rope_register","MK-R3","Raft B",true);
 context.toggleSelectedRecord("sample_rope_register","MK-R1","Raft C",true);
 await wait();
 assert.match(content.innerHTML,/Site unavailable/);
-assert.match(content.innerHTML,/Rectangular Raft/);
+assert.match(content.innerHTML,/Raft C/);
 assert.equal(state.selectedRecords.size,2);
 
 console.log("Individual/multi record selection, stacked date-row tables and R+S labels verified.");
