@@ -25,6 +25,7 @@ def run_cycles():
           {...valid,unloading_weight_kg:46},
           {...valid,unloading_at:null,unloading_weight_kg:null},
           {...valid,loading_weight_kg:0},
+          {...valid,loading_at:null,loading_weight_kg:null},
           {...valid,unloading_weight_kg:0}
         ];
         console.log(JSON.stringify(cases.map(c => m.dryingCycleIssue(c))));
@@ -39,7 +40,7 @@ class DryerIntegrityTest(unittest.TestCase):
         import json
         self.assertEqual(json.loads(run_cycles()), [
             None, "time_order", "short_duration", "no_weight_loss",
-            "no_weight_loss", None, "invalid_weight", None,
+            "no_weight_loss", None, "invalid_weight", "missing_loading", None,
         ])
 
     def test_form_validates_both_capture_and_finalization(self):
