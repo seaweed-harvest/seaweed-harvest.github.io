@@ -39,11 +39,15 @@ as $fn$
   or exists (
     select 1 from public.seaweed_drying_bay_records b
     where b.submission_id=e.submission_id
-      and b.loading_at is not null and b.unloading_at is not null
       and (
-        b.loading_weight_g is null or b.unloading_weight_g is null or
-        b.loading_weight_g <= 0 or b.unloading_weight_g >= b.loading_weight_g or
-        b.unloading_at < b.loading_at + interval '12 hours'
+        (b.loading_at is not null and (b.loading_weight_g is null or b.loading_weight_g <= 0))
+        or
+        (b.unloading_at is not null and (
+          b.loading_at is null or b.loading_weight_g is null or
+          b.unloading_weight_g is null or b.unloading_weight_g < 0 or
+          b.unloading_weight_g >= b.loading_weight_g or
+          b.unloading_at < b.loading_at + interval '12 hours'
+        ))
       )
   );
 $fn$;
