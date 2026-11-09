@@ -36,9 +36,11 @@ Observed production issues motivating this work: one 8-bay same-time 59.1 kg loa
 - `tests/dryer_cycle_integrity_test.py`: synthetic cases and static controls.
 
 ## Verification
-- Pure JavaScript cycle-validation cases run in a V8 isolate: valid 3-day cycle accepted; equal time, 6-minute duration and no weight loss rejected; incomplete draft accepted. All eight test cases returned expected values.
+- Pure JavaScript cycle-validation cases run in a V8 isolate: valid 3-day cycle accepted; equal time, 6-minute duration and no weight loss rejected; incomplete draft accepted. All nine test cases returned expected values, including unloading without a prior loading.
 - Static integration check of form imports and both save/finalization validation sites passed.
 - PostgreSQL migration execution and migration-specific permission/rollback tests **not yet run**. Run against an isolated database before deployment.
+- Draft PR #163 GitHub checks: frontend-contract, two verify jobs, and layout passed; validate failed on an untouched reef sample-rope assertion; browser-regression failed on an untouched dryer bulk-approval probe. Root causes remain unverified; both are blocking under the repository policy.
+- Read-only proposed payment-gate impact check: three unpaid approved days (17, 29, 30 October 2026). No production decision or transaction was changed.
 - Browser/device offline UI probe, positive/negative owner payment tests and service-worker regression **pending**.
 - No database migration applied to the live project as part of this branch; no historic records or payment values changed.
 
