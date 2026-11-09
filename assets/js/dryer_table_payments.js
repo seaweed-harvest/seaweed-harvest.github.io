@@ -500,9 +500,7 @@ class DryerPaymentsController {
       </td>
       <td>${escapeHtml(day.assistant_name || day.assistant_key || "—")}</td>
       <td data-mobile-label="Activity">${escapeHtml(
-        `${formatInteger(day.loading_count)} L / ${formatInteger(
-          day.unloading_count
-        )} U / ${formatInteger(day.reweigh_count)} R`
+        `${formatInteger(day.loading_count)}L / ${formatInteger(day.reweigh_count)}RW / ${formatInteger(day.unloading_count)}U`
       )}</td>
       <td data-mobile-label="Status">${dayQualificationPill(day)}${
         stale
@@ -550,9 +548,7 @@ class DryerPaymentsController {
             (event) => `<li><strong>${escapeHtml(
               event.table_location || event.receipt_number || "Drying event"
             )}</strong> — ${escapeHtml(
-              `${formatInteger(event.loading_count)} loadings / ${formatInteger(
-                event.unloading_count
-              )} unloadings / ${formatInteger(event.reweigh_count)} reweighs`
+              `${formatInteger(event.loading_count)} loadings / ${formatInteger(event.reweigh_count)} reweighs / ${formatInteger(event.unloading_count)} unloadings`
             )}</li>`
           )
           .join("")
