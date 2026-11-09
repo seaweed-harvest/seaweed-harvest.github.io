@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v182-permissions-tide";
+const CACHE_VERSION = "seaweed-harvest-collection-v183-dryer-integrity";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
@@ -112,6 +112,7 @@ const APP_SHELL = [
   "./assets/js/dryer_table_shed_locations.js",
   "./assets/js/dryer_table_config.js",
   "./assets/js/dryer_table_form.js",
+  "./assets/js/dryer_cycle_integrity.js",
   "./assets/js/dryer_table_language.js",
   "./assets/js/records_page.js",
   "./assets/js/mawimbi_analysis.js",

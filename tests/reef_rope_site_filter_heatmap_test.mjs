@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 const source = fs.readFileSync("assets/js/reef_sample_rope_data_table.js", "utf8");
 const markup = fs.readFileSync("reef_seaweed_records.html", "utf8");
 const aliases = fs.readFileSync("assets/js/reef_mkwiro_raft_labels.js", "utf8");
-const { mkwiroRaftDisplayLabel } = await import(
+const { mkwiroRaftDisplayLabel, nurserySiteDisplayLabel } = await import(
   "data:text/javascript;base64," + Buffer.from(aliases).toString("base64")
 );
 const storage = new Map();
@@ -15,7 +15,7 @@ const localStorage = {
   removeItem: key => storage.delete(key)
 };
 const context = {
-  mkwiroRaftDisplayLabel, window: {localStorage},
+  mkwiroRaftDisplayLabel, nurserySiteDisplayLabel, window: {localStorage},
   Intl, Date, Set, Map, Number, String, Array, Object, Promise
 };
 vm.createContext(context);
@@ -44,7 +44,7 @@ assert(markup.includes('id="reefSampleRopeSitesNone"'));
 assert(markup.includes("reef-rope-heat-legend"));
 assert(markup.includes('reef-rope-site-filter-menu'));
 assert(markup.includes("Rope Weight excluded"));
-assert(markup.includes('reef_seaweed_records_page.js?v=9'));
+assert(markup.includes('reef_seaweed_records_page.js?v=12'));
 
 function makeControl() {
   const handlers={};
@@ -87,8 +87,8 @@ assert.equal(grid.state.rows.length,3);
 assert.equal(grid.state.availableSites.length,2);
 assert.equal(grid.state.selectedSites,null,"All sites visible by default");
 assert.match(elements.reefSampleRopeSiteFilterLabel.textContent,/Sites · All \(2\)/);
-assert.match(elements.reefSampleRopeSiteChoices.innerHTML,/MK-R2 \(Cascadia Prototype\) \| Raft A/);
-assert.match(elements.reefSampleRopeSiteChoices.innerHTML,/MK-SF2\/R2 \(Shore Farm 2\) \| Farm A/);
+assert.match(elements.reefSampleRopeSiteChoices.innerHTML,/Raft A/);
+assert.match(elements.reefSampleRopeSiteChoices.innerHTML,/Shore A/);
 assert.match(elements.reefSampleRopeDataBody.innerHTML,/hsl\(0 68% 88%\)/);
 assert.match(elements.reefSampleRopeDataBody.innerHTML,/hsl\(60 68% 88%\)/);
 assert.match(elements.reefSampleRopeDataBody.innerHTML,/hsl\(120 68% 88%\)/);
@@ -103,8 +103,8 @@ const mkRaftToggle={
 elements.reefSampleRopeSiteChoices.emit("change",mkRaftToggle);
 assert.deepEqual([...grid.state.selectedSites],["MK-SF2/R2"]);
 assert.match(elements.reefSampleRopeSiteFilterLabel.textContent,/1 of 2/);
-assert(!elements.reefSampleRopeDataBody.innerHTML.includes("Cascadia Prototype"));
-assert(elements.reefSampleRopeDataBody.innerHTML.includes("Shore Farm 2"));
+assert(!elements.reefSampleRopeDataBody.innerHTML.includes("Raft A"));
+assert(elements.reefSampleRopeDataBody.innerHTML.includes("Shore A"));
 assert.equal(JSON.parse(storage.get("reefSampleRopeSiteFilterV1"))[0],"MK-SF2/R2");
 
 // Header dropdown button controls same site filter.
@@ -123,7 +123,7 @@ assert.deepEqual(JSON.parse(storage.get("reefSampleRopeSiteFilterV1")),[]);
 elements.reefSampleRopeSitesAll.emit("click");
 assert.equal(grid.state.selectedSites,null);
 assert.equal(storage.has("reefSampleRopeSiteFilterV1"),false);
-assert(elements.reefSampleRopeDataBody.innerHTML.includes("Cascadia Prototype"));
+assert(elements.reefSampleRopeDataBody.innerHTML.includes("Raft A"));
 assert.equal(calls.length,3,"Site toggling is client-side, without new paid reads");
 
 // A new table instance remembers previously selected sites.
@@ -132,6 +132,6 @@ const persistedControls=Object.fromEntries(idList.map(id=>[id,makeControl()]));
 const second=initialize({authClient,root:{querySelector:selector=>persistedControls[selector.slice(1)]}});
 await second.refresh();
 assert.deepEqual([...second.state.selectedSites],["MK-R2"]);
-assert(!persistedControls.reefSampleRopeDataBody.innerHTML.includes("Shore Farm 2"));
+assert(!persistedControls.reefSampleRopeDataBody.innerHTML.includes("Shore A"));
 console.log("Multi-site dropdown filtering, persistence, and per-row low-to-high R+S heatmap passed.");
 await import("./reef_sample_rope_stage_photos_test.mjs");

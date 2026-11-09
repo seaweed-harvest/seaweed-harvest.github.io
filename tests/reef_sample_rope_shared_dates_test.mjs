@@ -158,17 +158,17 @@ const raftLabelsSource = fs.readFileSync("assets/js/reef_mkwiro_raft_labels.js",
 const { mkwiroRaftDisplayLabel } = await import(
   "data:text/javascript;base64," + Buffer.from(raftLabelsSource).toString("base64")
 );
-assert.equal(mkwiroRaftDisplayLabel("MK-R1", "Rectangular Raft"), "MK-R1 (Rectangular Raft) | Raft C");
-assert.equal(mkwiroRaftDisplayLabel("MK-R2", "Cascadia Prototype"), "MK-R2 (Cascadia Prototype) | Raft A");
-assert.equal(mkwiroRaftDisplayLabel("MK-R3", "LM / PIK Raft"), "MK-R3 (LM / PIK Raft) | Raft B");
-assert.equal(mkwiroRaftDisplayLabel("MK-R1"), "MK-R1 (Rectangular Raft) | Raft C");
-assert.equal(mkwiroRaftDisplayLabel("MK-SF1/R1", "Shore Farm 1"), "MK-SF1/R1 (Shore Farm 1) | Farm C");
-assert.equal(mkwiroRaftDisplayLabel("MK-SF2/R2", "Shore Farm 2"), "MK-SF2/R2 (Shore Farm 2) | Farm A");
-assert.equal(mkwiroRaftDisplayLabel("MK-SF3/R3", "Shore Farm 3"), "MK-SF3/R3 (Shore Farm 3) | Farm B");
+assert.equal(mkwiroRaftDisplayLabel("MK-R1", "Rectangular Raft"), "Raft C");
+assert.equal(mkwiroRaftDisplayLabel("MK-R2", "Cascadia Prototype"), "Raft A");
+assert.equal(mkwiroRaftDisplayLabel("MK-R3", "LM / PIK Raft"), "Raft B");
+assert.equal(mkwiroRaftDisplayLabel("MK-R1"), "Raft C");
+assert.equal(mkwiroRaftDisplayLabel("MK-SF1/R1", "Shore Farm 1"), "Shore C");
+assert.equal(mkwiroRaftDisplayLabel("MK-SF2/R2", "Shore Farm 2"), "Shore A");
+assert.equal(mkwiroRaftDisplayLabel("MK-SF3/R3", "Shore Farm 3"), "Shore B");
 assert.equal(mkwiroRaftDisplayLabel("TB-R1", "Prototype"), null);
 assert.match(source, /mkwiroRaftDisplayLabel\(site\.site_code, site\.site_name\)/);
 const recordsSource = fs.readFileSync("assets/js/reef_seaweed_records_page.js", "utf8");
-assert.match(recordsSource, /mkwiroRaftDisplayLabel\(record\.site_code, record\.site_name\)/);
-assert.match(recordsSource, /mkwiroRaftDisplayLabel\(register\.site_code \|\| code, register\.site_name\)/);
+assert.match(recordsSource, /nurserySiteDisplayLabel\(record\.site_code, record\.site_name\)/);
+assert.match(recordsSource, /nurserySiteDisplayLabel\(register\.site_code \|\| code, register\.site_name\)/);
 console.log("Mkwiro raft and shore-farm C/A/B labels verified in form and records.");
 await import("./reef_records_paired_monitoring_test.mjs");

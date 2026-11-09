@@ -6,7 +6,7 @@ const raw = fs.readFileSync("assets/js/reef_seaweed_records_page.js", "utf8");
 const markup = fs.readFileSync("reef_seaweed_records.html", "utf8");
 const entry = fs.readFileSync("assets/js/reef_nursery_site_capture.js", "utf8");
 const aliases = fs.readFileSync("assets/js/reef_mkwiro_raft_labels.js", "utf8");
-const { mkwiroRaftDisplayLabel } = await import(
+const { mkwiroRaftDisplayLabel, nurserySiteDisplayLabel } = await import(
   "data:text/javascript;base64," + Buffer.from(aliases).toString("base64")
 );
 const calls = [];
@@ -25,6 +25,7 @@ const sites = {
 };
 const context = {
   mkwiroRaftDisplayLabel,
+  nurserySiteDisplayLabel,
   authClient:{
     storage:{from: bucket=>{
       assert.equal(bucket,"reef-seaweed-record-photos");
@@ -77,12 +78,12 @@ await wait();
 assert.equal(state.selectedRecords.size,1);
 assert.deepEqual(registerCalls(),[["ag_reef_sample_rope_register","MK-R2"]]);
 assert.match(content.innerHTML,/Raft A/);
-assert.doesNotMatch(content.innerHTML,/Farm A/);
+assert.doesNotMatch(content.innerHTML,/Shore A/);
 assert.match(content.innerHTML,/29 Sept 2026/);
 assert.match(content.innerHTML,/Stage photos/,"Single selected register has stage photos below the table");
 assert.match(content.innerHTML,/first.jpg|signed\/sample-ropes/);
 assert.match(content.innerHTML,/reef-register-date-row/);
-assert.equal((content.innerHTML.match(/<h4>MK-R2 \(Cascadia Prototype\) \| Raft A<\/h4>/g) || []).length,1,"No duplicated record heading");
+assert.equal((content.innerHTML.match(/<h4>Raft A<\/h4>/g) || []).length,1,"No duplicated record heading");
 assert(!content.innerHTML.includes("Time: 11:30"), "Optional recording time not displayed");
 
 
@@ -92,7 +93,7 @@ await wait();
 assert.equal(state.selectedRecords.size,2);
 assert.deepEqual(registerCalls(),[["ag_reef_sample_rope_register","MK-R2"],["ag_reef_sample_rope_register","MK-SF2/R2"]]);
 assert.match(content.innerHTML,/Raft A/);
-assert.match(content.innerHTML,/Farm A/);
+assert.match(content.innerHTML,/Shore A/);
 assert.match(content.innerHTML,/No rope measurements recorded yet/);
 assert.doesNotMatch(content.innerHTML,/reef-rope-photo-gallery/,"Comparing multiple records hides photo thumbnails");
 
@@ -103,14 +104,14 @@ assert.equal(state.selectedRecords.size,1);
 
 
 assert.doesNotMatch(content.innerHTML,/Cascadia Prototype/);
-assert.match(content.innerHTML,/Shore Farm 2/);
+assert.match(content.innerHTML,/Shore A/);
 
 // Selecting a Site Capture in the records list can coexist with the farm.
 context.toggleSelectedRecord("site_capture","capture-1","Capture 3",true);
 await wait();
 assert.equal(state.selectedRecords.size,2);
 assert.match(content.innerHTML,/Capture 3/);
-assert.match(content.innerHTML,/Farm A/);
+assert.match(content.innerHTML,/Shore A/);
 assert(calls.some(([method])=>method==="ag_public_cosme_reef_site_capture_detail"));
 
 // Existing list row checkbox is tied to the same selection, not a duplicate.
@@ -138,7 +139,7 @@ context.toggleSelectedRecord("sample_rope_register","MK-R3","Raft B",true);
 context.toggleSelectedRecord("sample_rope_register","MK-R1","Raft C",true);
 await wait();
 assert.match(content.innerHTML,/Site unavailable/);
-assert.match(content.innerHTML,/Rectangular Raft/);
+assert.match(content.innerHTML,/Raft C/);
 assert.equal(state.selectedRecords.size,2);
 
 console.log("Individual/multi record selection, stacked date-row tables and R+S labels verified.");
