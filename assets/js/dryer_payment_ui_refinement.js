@@ -20,12 +20,12 @@ function parseKesAmount(label) {
 
 function parseActivityCounts(row) {
   const text = row?.querySelector("td:nth-child(4)")?.textContent || "";
-  const match = text.match(/(\d+)\s*L\s*\/\s*(\d+)\s*U(?:\s*\/\s*(\d+)\s*R)?/i);
+  const match = text.match(/(\d+)\s*L\s*\/\s*(\d+)\s*RW\s*\/\s*(\d+)\s*U/i);
   if (!match) return null;
   return {
     loadings: Number(match[1]),
-    unloadings: Number(match[2]),
-    reweighs: Number(match[3] || 0)
+    reweighs: Number(match[2]),
+    unloadings: Number(match[3])
   };
 }
 
@@ -246,8 +246,8 @@ function reportHtml(rows, review = null) {
     <tr>
       <td>${escapeHtml(row.date)}</td>
       <td class="num">${row.loadings}</td>
-      <td class="num">${row.unloadings}</td>
       <td class="num">${row.reweighs || 0}</td>
+      <td class="num">${row.unloadings}</td>
       <td>${escapeHtml(row.minimum)}</td>
       <td class="money">${escapeHtml(row.activityPay.toLocaleString("en-KE"))}</td>
       <td class="money">${escapeHtml(row.phoneData.toLocaleString("en-KE"))}</td>
@@ -329,8 +329,8 @@ function reportHtml(rows, review = null) {
         <tr>
           <th>Date</th>
           <th>Load</th>
-          <th>Unload</th>
           <th>Reweigh</th>
+          <th>Unload</th>
           <th>Minimum</th>
           <th>Activity pay (KES)</th>
           <th>Phone / data (KES)</th>
@@ -507,7 +507,7 @@ function buildPayDetail(row) {
       <strong>Pay detail</strong>
       <ul>
         <li>Base amount (day rate): <strong>${formatKes(500)}</strong></li>
-        <li>Bay activities: ${calculation.loadingCount} load / ${calculation.unloadingCount} unload / ${calculation.reweighCount} reweigh</li>
+        <li>Bay activities: ${calculation.loadingCount}L / ${calculation.reweighCount}RW / ${calculation.unloadingCount}U</li>
         <li>Bay bonus: ${additionalBays} × KES 25 = <strong>${formatKes(bonus)}</strong></li>
         <li>Contract total: <strong>${formatKes(calculation.contractAmountKes)}</strong></li>
       </ul>
