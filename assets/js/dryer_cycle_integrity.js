@@ -13,8 +13,10 @@ export function dryingCycleIssue(bay, minimumHours = MIN_DRYING_HOURS) {
   const unloadAt = bay?.unloading_at;
   const wet = finiteWeight(bay?.loading_weight_kg);
   const dry = finiteWeight(bay?.unloading_weight_kg);
-  // An in-progress capture is allowed; payment/complete validation is separate.
-  if (!loadAt || !unloadAt || wet === null || dry === null) return null;
+  // A fresh loading may be saved without a subsequent unload.
+  if (!unloadAt) return null;
+  if (!loadAt || wet === null) return "missing_loading";
+  if (dry === null) return "invalid_weight";
   const start = Date.parse(loadAt);
   const finish = Date.parse(unloadAt);
   if (!Number.isFinite(start) || !Number.isFinite(finish)) return "invalid_time";
@@ -29,6 +31,7 @@ export function dryerCycleIssueMessage(issue, bayNumber) {
   const name = `Bay ${bayNumber}`;
   switch (issue) {
     case "invalid_time": return `${name}: check the measurement dates and times.`;
+    case "missing_loading": return `${name}: record a loading date and fresh weight before unloading.`;
     case "time_order": return `${name}: unloading must be after loading.`;
     case "short_duration": return `${name}: less than 12 hours of drying. Check the dates.`;
     case "invalid_weight": return `${name}: check the loading and unloading weights.`;
