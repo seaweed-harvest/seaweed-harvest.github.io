@@ -2060,6 +2060,9 @@ function validateBatchCapture(phase, bayNumbers) {
   if (!bayNumbers.length) return t("capture.selectAtLeastOneBay");
   if (!captureCardHasData(phase)) return t("capture.enterMeasurement");
   const capture = captureCardData(phase);
+  if (!capture.at || nullableNumber(capture.weight) === null) {
+    return "Enter the measurement date, time and weight.";
+  }
   const weightPerBay = splitWeightAcrossBays(capture.weight, bayNumbers.length);
   for (const bayNumber of bayNumbers) {
     const bay = ensureBay(bayNumber);
