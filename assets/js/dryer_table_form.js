@@ -6,7 +6,8 @@ import {
   initDryingLanguage,
   t,
   tableLabel
-} from "./dryer_table_language.js?v=5";
+} from "./dryer_table_language.js?v=6";
+import { baysForPhase, sameBaySelection } from "./dryer_table_levels.js?v=1";
 
 const $ = (id) => document.getElementById(id);
 
@@ -384,6 +385,10 @@ function bindEvents() {
     captureElement(phase, "BaySelector").addEventListener("click", (event) => {
       const button = event.target.closest("button[data-bay]");
       if (button) toggleCaptureBay(phase, Number(button.dataset.bay));
+    });
+    $(`${phase}LevelShortcuts`).addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-select-level]");
+      if (button && !state.submitting) selectCaptureLevel(phase, button.dataset.selectLevel);
     });
     if (phase === "reweigh") {
       captureElement(phase, "Save").addEventListener("click", saveReweighCapture);
@@ -802,11 +807,57 @@ function renderBatchBaySelectors() {
       container.append(button);
     }
   });
+  renderCaptureLevelShortcuts();
+}
+
+function recordedBayPhaseNumbers() {
+  const loaded = [];
+  const unloaded = [];
+  activeBayNumbers().forEach((number) => {
+    const bay = ensureBay(number);
+    if (bay.loading_at && nullableNumber(bay.loading_weight_kg) !== null) loaded.push(number);
+    if (bay.unloading_at && nullableNumber(bay.unloading_weight_kg) !== null) unloaded.push(number);
+  });
+  return { loaded, unloaded };
+}
+
+function renderCaptureLevelShortcuts() {
+  CAPTURE_PHASES.forEach((phase) => {
+    const group = $(`${phase}LevelShortcuts`);
+    group.hidden = state.bayCount !== 8;
+    if (group.hidden) return;
+    const { loaded, unloaded } = recordedBayPhaseNumbers();
+    group.querySelectorAll("button[data-select-level]").forEach((button) => {
+      const expected = baysForPhase(button.dataset.selectLevel, state.bayCount, phase, loaded, unloaded);
+      button.setAttribute("aria-pressed", String(expected.length > 0
+        && sameBaySelection(state.selectedBays[phase], expected)));
+    });
+  });
 }
 
 function renderBayStatus() {
   const entered = activeBayNumbers().filter((bayNumber) => bayHasData(bayNumber)).length;
   els.bayProgress.textContent = t("bay.progress", { entered, total: state.bayCount });
+}
+
+function selectCaptureLevel(phase, level) {
+  const { loaded, unloaded } = recordedBayPhaseNumbers();
+  const next = baysForPhase(level, state.bayCount, phase, loaded, unloaded);
+  if (!next.length) {
+    setStatus(t("capture.levelNeedsLoading"), "warning");
+    return;
+  }
+  if (sameBaySelection(state.selectedBays[phase], next)) return;
+
+  // A previous total must not silently become a total for a different level.
+  captureElement(phase, "Weight").value = "";
+  state.selectedBays[phase] = next;
+  state.editingCaptureBays[phase] = [];
+  renderBatchBaySelectors();
+  renderWeightSplit(phase);
+  if (phase !== "reweigh") renderCaptureEditingState(phase);
+  updateRequiredFieldStates();
+  scheduleDraftSave();
 }
 
 function toggleCaptureBay(phase, bayNumber) {
