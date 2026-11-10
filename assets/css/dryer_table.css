@@ -2463,3 +2463,32 @@
     filter: grayscale(100%) contrast(110%);
   }
 }
+
+/* Optional one-tap grouping keeps the existing individual-bay workflow intact. */
+.capture-level-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 7px 0 5px;
+}
+.capture-level-shortcuts[hidden] { display: none; }
+.capture-level-shortcuts button {
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid #b9cfca;
+  border-radius: 7px;
+  background: #fff;
+  color: var(--text-sec);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+.capture-level-shortcuts button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: #e1f4ed;
+  color: #165c4e;
+}
+.capture-level-hint {
+  margin: 0 0 8px;
+  color: var(--text-sec);
+  font-size: 0.74rem;
+}
