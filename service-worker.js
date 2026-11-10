@@ -1,4 +1,4 @@
-const CACHE_VERSION = "seaweed-harvest-collection-v184-dryer-level-weights";
+const CACHE_VERSION = "seaweed-harvest-collection-v185-nursery-cycles";
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   "./",
