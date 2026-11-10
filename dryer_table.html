@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title data-i18n="meta.title">Seaweed Drying Record - Seaweed Harvest</title>
   <link rel="stylesheet" href="./assets/css/ag.css">
-  <link rel="stylesheet" href="./assets/css/dryer_table.css?v=5">
+  <link rel="stylesheet" href="./assets/css/dryer_table.css?v=6">
   <link rel="stylesheet" href="./assets/css/form_foundation.css?v=2">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -231,6 +231,12 @@
                       <span class="dry-key"><i></i><span data-i18n="capture.drySaved">Dry saved</span></span>
                     </span>
                   </div>
+                  <div id="loadingLevelShortcuts" class="capture-level-shortcuts" role="group" aria-label="Quick-select drying level" data-i18n-aria-label="capture.levelShortcutAria">
+                    <button type="button" data-select-level="all" data-i18n="capture.allBays" aria-pressed="false">Whole table</button>
+                    <button type="button" data-select-level="upper" data-i18n="capture.upperLevel" aria-pressed="false">Upper (B1–B4)</button>
+                    <button type="button" data-select-level="lower" data-i18n="capture.lowerLevel" aria-pressed="false">Lower (B5–B8)</button>
+                  </div>
+                  <p class="capture-level-hint" data-i18n="capture.levelHint">Enter the total weight for selected bays only.</p>
                   <div id="loadingBaySelector" class="batch-bay-selector" aria-label="Select loading bays"></div>
                 </div>
                 <div class="required-field photo-field camera-field phase-photo">
@@ -278,6 +284,12 @@
                       <span class="dry-key"><i></i><span data-i18n="capture.drySaved">Dry saved</span></span>
                     </span>
                   </div>
+                  <div id="reweighLevelShortcuts" class="capture-level-shortcuts" role="group" aria-label="Quick-select drying level" data-i18n-aria-label="capture.levelShortcutAria">
+                    <button type="button" data-select-level="all" data-i18n="capture.allLoadedBays" aria-pressed="false">All active bays</button>
+                    <button type="button" data-select-level="upper" data-i18n="capture.upperLevel" aria-pressed="false">Upper (B1–B4)</button>
+                    <button type="button" data-select-level="lower" data-i18n="capture.lowerLevel" aria-pressed="false">Lower (B5–B8)</button>
+                  </div>
+                  <p class="capture-level-hint" data-i18n="capture.levelHint">Enter the total weight for selected bays only.</p>
                   <div id="reweighBaySelector" class="batch-bay-selector" aria-label="Select reweigh bays"></div>
                 </div>
                 <label class="required-field">
@@ -325,6 +337,12 @@
                       <span class="dry-key"><i></i><span data-i18n="capture.drySaved">Dry saved</span></span>
                     </span>
                   </div>
+                  <div id="unloadingLevelShortcuts" class="capture-level-shortcuts" role="group" aria-label="Quick-select drying level" data-i18n-aria-label="capture.levelShortcutAria">
+                    <button type="button" data-select-level="all" data-i18n="capture.allLoadedBays" aria-pressed="false">All active bays</button>
+                    <button type="button" data-select-level="upper" data-i18n="capture.upperLevel" aria-pressed="false">Upper (B1–B4)</button>
+                    <button type="button" data-select-level="lower" data-i18n="capture.lowerLevel" aria-pressed="false">Lower (B5–B8)</button>
+                  </div>
+                  <p class="capture-level-hint" data-i18n="capture.levelHint">Enter the total weight for selected bays only.</p>
                   <div id="unloadingBaySelector" class="batch-bay-selector" aria-label="Select unloading bays"></div>
                 </div>
                 <label class="required-field">
@@ -617,6 +635,6 @@
     </article>
   </section>
 
-  <script type="module" src="./assets/js/dryer_table_bootstrap.js?v=7"></script>
+  <script type="module" src="./assets/js/dryer_table_bootstrap.js?v=8"></script>
 </body>
 </html>
