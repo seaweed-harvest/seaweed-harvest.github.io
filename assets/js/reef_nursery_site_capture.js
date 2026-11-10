@@ -46,6 +46,7 @@ const state = {
   sampleStageEdits: new Set(),
   sampleSavedValues: new Map(),
   stagePhotos: null,
+  historyRows: [],
   currentLocation: "",
   saving: false
 };
@@ -93,6 +94,7 @@ async function init() {
     await configureStandaloneShell();
     renderForm(form);
     cacheElements();
+    els.reefStartSiteTrial.hidden = state.context?.access_mode !== "authenticated";
     bindEvents();
     initializeNewCapture({ preservePeople: true, useStoredPeople: true });
 
@@ -284,6 +286,7 @@ function renderForm(form) {
             </div>
             <div class="reef-sample-rope-save-wrap">
               <button id="reefSampleRopeSave" type="button">Save</button>
+              <button id="reefStartSiteTrial" class="secondary-action" type="button" hidden>Start New Trial — Whole Site</button>
               <span id="reefSampleRopeStatus" class="reef-help" aria-live="polite"></span>
             </div>
           </div>
@@ -325,6 +328,36 @@ function renderForm(form) {
               </tr></tfoot>
             </table>
           </div>
+          <details id="reefSampleHistoryPanel" class="reef-sample-history" hidden>
+            <summary>Previous trials — review or correct saved measurements</summary>
+            <p class="reef-help">Previous cycles are retained separately. Editing a past measurement will not change the current trial.</p>
+            <label>Previous sample rope cycle
+              <select id="reefSampleHistoryCycle" aria-label="Choose a previous sample rope cycle">
+                <option value="">Choose a previous trial</option>
+              </select>
+            </label>
+            <div id="reefSampleHistoryFields" class="reef-sample-history-fields" hidden>
+              <label>Species
+                <select data-history-field="species"><option value="">Select</option><option value="spinosum">Spinosum</option><option value="cottonii">Cottonii</option></select>
+              </label>
+              <label>Initial date <input data-history-field="date_seeded" type="date"></label>
+              <label>Rope weight (kg) <input data-history-field="rope_weight_kg" type="number" min="0" max="100000" step="0.001"></label>
+              <label>Initial weight (kg) <input data-history-field="initial_weight_kg" type="number" min="0" max="100000" step="0.001"></label>
+              <label>Week 2 date <input data-history-field="week_2_date" type="date"></label>
+              <label>Week 2 weight (kg) <input data-history-field="week_2_kg" type="number" min="0" max="100000" step="0.001"></label>
+              <label>Week 4 date <input data-history-field="week_4_date" type="date"></label>
+              <label>Week 4 weight (kg) <input data-history-field="week_4_kg" type="number" min="0" max="100000" step="0.001"></label>
+              <label>Week 6 date <input data-history-field="week_6_date" type="date"></label>
+              <label>Week 6 weight (kg) <input data-history-field="week_6_kg" type="number" min="0" max="100000" step="0.001"></label>
+              <label class="reef-sample-history-note">Correction note (optional)
+                <input id="reefSampleHistoryReason" type="text" maxlength="240" placeholder="Why was this corrected?">
+              </label>
+              <div class="reef-sample-history-actions">
+                <button id="reefSaveHistoryCorrection" class="secondary-action" type="button">Save correction to previous trial</button>
+              </div>
+            </div>
+            <p id="reefSampleHistoryStatus" class="reef-help" role="status" aria-live="polite"></p>
+          </details>
         </section>
 
         <div id="reefSiteCaptureDetails" hidden>
@@ -440,7 +473,9 @@ function cacheElements() {
     "reefSampleVisitRecorder", "reefSampleVisitTeam", "reefSampleVisitOtherTeamField", "reefSampleVisitOtherTeam",
     "reefSiteCaptureSpecies", "reefSiteCaptureLines", "reefSiteCaptureSeedWeight", "reefSiteCaptureSeedUnit",
     "reefSiteCaptureSeedPerLine", "reefSiteCaptureHarvestWeight", "reefSiteCaptureHarvestUnit", "reefSiteCaptureHarvestPerLine",
-    "reefSampleRopeSave", "reefSampleRopeStatus", "reefSampleRopeSiteLabel",
+    "reefSampleRopeSave", "reefSampleRopeStatus", "reefSampleRopeSiteLabel", "reefStartSiteTrial",
+    "reefSampleHistoryPanel", "reefSampleHistoryCycle", "reefSampleHistoryFields", "reefSampleHistoryReason",
+    "reefSampleHistoryStatus", "reefSaveHistoryCorrection",
     "reefSiteCaptureHealthEnvironment", "reefEnvironmentWaterTemperature", "reefEnvironmentWaterClarity",
     "reefEnvironmentTide", "reefEnvironmentWeather", "reefEnvironmentCurrentStrength", "reefSiteCaptureGeneralNotes",
     "reefSiteCaptureTakePhoto", "reefSiteCaptureChoosePhoto", "reefSiteCaptureCameraInput", "reefSiteCaptureGalleryInput",
@@ -474,6 +509,9 @@ function bindEvents() {
   els.reefSampleRopePanel.addEventListener("change", markSampleRegisterDirty);
   els.reefSampleRopePanel.addEventListener("click", handleSampleRopeClick);
   els.reefSampleRopeSave.addEventListener("click", () => void saveSampleRopeRegister());
+  els.reefStartSiteTrial.addEventListener("click", () => void startNewSiteTrial());
+  els.reefSampleHistoryCycle.addEventListener("change", showSelectedHistoryCycle);
+  els.reefSaveHistoryCorrection.addEventListener("click", () => void saveHistoricalCorrection());
   state.stagePhotos = createSampleStagePhotoController({
     authClient, root:els.reefSampleRopePanel, preparePhoto,
     onChange:(count,error) => setSampleStatus(error || (count ? `${count} photo(s) queued. Save to upload.` : "Saved data loaded."), error ? "error" : "")
@@ -657,10 +695,12 @@ async function loadSampleRopeRegister(siteCode) {
     state.sampleRegisterSiteCode = siteCode;
     state.sampleRegisterDirty = false;
     setSampleStatus("Saved data loaded.");
+    await loadCycleHistory(siteCode);
   } catch (error) {
     state.sampleRegisterSiteCode = null;
     state.sampleRegisterDirty = false;
     applySampleRegister({ rows: [] });
+    clearCycleHistory();
     setSampleStatus(error.message || "Sample Rope Register could not be loaded.", "error");
     throw error;
   } finally {
@@ -722,6 +762,8 @@ async function handleSampleRopeClick(event) {
   try {
     if (state.sampleRegisterDirty) {
       await saveSampleRopeRegister({ siteCode, silent: true });
+    } else if (state.stagePhotos?.count()) {
+      await saveSampleRopeRegister({ siteCode, silent: true });
     }
     const result = await rpc("ag_reef_sample_rope_start_new", {
       p_site_code: siteCode,
@@ -731,10 +773,128 @@ async function handleSampleRopeClick(event) {
     state.sampleRegisterSiteCode = siteCode;
     state.sampleRegisterDirty = false;
     setSampleStatus(`Rope ${ropeNumber} started as Cycle ${result.new_cycle_number}. Previous cycle retained.`, "success");
+    await loadCycleHistory(siteCode);
   } catch (error) {
     setSampleStatus(error.message || `Rope ${ropeNumber} could not be started.`, "error");
   } finally {
     setSampleControlsDisabled(false);
+  }
+}
+
+
+function clearCycleHistory(message = "") {
+  state.historyRows = [];
+  if (!els.reefSampleHistoryPanel) return;
+  els.reefSampleHistoryPanel.hidden = true;
+  els.reefSampleHistoryCycle.replaceChildren(new Option("Choose a previous trial", ""));
+  els.reefSampleHistoryFields.hidden = true;
+  els.reefSampleHistoryStatus.textContent = message;
+}
+
+async function loadCycleHistory(siteCode, keepCycleId = "") {
+  if (state.context?.access_mode !== "authenticated" || !siteCode) {
+    clearCycleHistory();
+    return;
+  }
+  try {
+    const response = await rpc("ag_reef_sample_rope_cycle_history", { p_site_code: siteCode });
+    if (els.reefSiteCaptureSite.value !== siteCode) return;
+    state.historyRows = (Array.isArray(response?.rows) ? response.rows : [])
+      .filter(row => row.status === "closed");
+    const select = els.reefSampleHistoryCycle;
+    select.replaceChildren(new Option("Choose a previous trial", ""));
+    for (const row of state.historyRows) {
+      const seeded = row.date_seeded ? " — seeded " + row.date_seeded : "";
+      select.add(new Option("Rope " + row.rope_number + " · Cycle " + row.cycle_number + seeded, row.cycle_id));
+    }
+    els.reefSampleHistoryPanel.hidden = false;
+    els.reefSampleHistoryStatus.textContent = state.historyRows.length
+      ? state.historyRows.length + " previous rope cycle(s) available for review."
+      : "No previous cycles yet. Use Start New after the current trial.";
+    select.value = state.historyRows.some(row => row.cycle_id === keepCycleId) ? keepCycleId : "";
+    showSelectedHistoryCycle();
+  } catch (error) {
+    clearCycleHistory("Previous trials could not load: " + (error.message || "Please retry."));
+    // Current trial remains usable even if the optional history lookup is unavailable.
+  }
+}
+
+function showSelectedHistoryCycle() {
+  const row = state.historyRows.find(item => item.cycle_id === els.reefSampleHistoryCycle.value);
+  els.reefSampleHistoryFields.hidden = !row;
+  if (!row) return;
+  els.reefSampleHistoryFields.querySelectorAll("[data-history-field]").forEach(input => {
+    input.value = row[input.dataset.historyField] ?? "";
+  });
+  els.reefSampleHistoryReason.value = "";
+  els.reefSampleHistoryStatus.textContent = "Review Rope " + row.rope_number
+    + ", Cycle " + row.cycle_number + ". Edits here affect only this previous cycle.";
+}
+
+async function saveHistoricalCorrection() {
+  const row = state.historyRows.find(item => item.cycle_id === els.reefSampleHistoryCycle.value);
+  if (!row || !els.reefSiteCaptureSite.value) return;
+  const changes = {};
+  for (const input of els.reefSampleHistoryFields.querySelectorAll("[data-history-field]")) {
+    const field = input.dataset.historyField;
+    if (String(input.value ?? "") !== String(row[field] ?? "")) {
+      changes[field] = input.value || null;
+    }
+  }
+  if (!Object.keys(changes).length) {
+    els.reefSampleHistoryStatus.textContent = "No corrections to save.";
+    return;
+  }
+  if (!window.confirm("Save " + Object.keys(changes).length
+      + " corrected field(s) to Rope " + row.rope_number
+      + ", Cycle " + row.cycle_number + "? The current trial will not change.")) return;
+  const button = els.reefSaveHistoryCorrection;
+  button.disabled = true;
+  els.reefSampleHistoryStatus.textContent = "Saving previous trial correction…";
+  try {
+    await rpc("ag_reef_sample_rope_correct_closed_cycle", {
+      p_cycle_id: row.cycle_id,
+      p_expected_updated_at: row.updated_at,
+      p_changes: changes,
+      p_reason: els.reefSampleHistoryReason.value || null
+    });
+    await loadCycleHistory(els.reefSiteCaptureSite.value, row.cycle_id);
+    els.reefSampleHistoryStatus.textContent = "Previous trial corrected. Changes recorded in audit history.";
+  } catch (error) {
+    els.reefSampleHistoryStatus.textContent = "Correction not saved: " + (error.message || "Please retry.");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function startNewSiteTrial() {
+  const siteCode = els.reefSiteCaptureSite.value;
+  if (!siteCode || state.context?.access_mode !== "authenticated") return;
+  const active = [...state.sampleSavedRows.values()].filter(row => row.initial_weight_kg != null);
+  const missing = active.filter(row => row.week_6_kg == null).length;
+  const warning = missing ? "\n\nImportant: " + missing
+    + " rope(s) still have no Week 6 weight. Save those values first if they are available." : "";
+  if (!window.confirm("Start a new trial for ALL sample ropes at " + siteCode
+      + "? Existing measurements will be preserved as previous cycles and fresh rows created."
+      + warning)) return;
+  els.reefStartSiteTrial.disabled = true;
+  try {
+    if (state.sampleRegisterDirty) {
+      await saveSampleRopeRegister({ siteCode, silent: true });
+    } else if (state.stagePhotos?.count()) {
+      await saveSampleRopeRegister({ siteCode, silent: true });
+    }
+    const result = await rpc("ag_reef_sample_rope_start_new_site", { p_site_code: siteCode });
+    applySampleRegister(result.register || { rows: [] });
+    state.sampleRegisterSiteCode = siteCode;
+    state.sampleRegisterDirty = false;
+    await loadCycleHistory(siteCode);
+    setSampleStatus("New trial ready: " + result.new_rope_cycles
+      + " rope cycle(s) started. All previous measurements are retained.", "success");
+  } catch (error) {
+    setSampleStatus("New trial not started: " + (error.message || "Please retry."), "error");
+  } finally {
+    els.reefStartSiteTrial.disabled = false;
   }
 }
 
@@ -785,6 +945,8 @@ function applySampleRegister(register) {
     }
     row.dataset.cycleNumber = data.cycle_number ?? "";
     row.dataset.historyCount = data.history_count ?? 0;
+    const label = row.querySelector("[data-rope-cycle-label]");
+    if (label) label.textContent = data.cycle_number ? "Cycle " + data.cycle_number : "New rope";
   });
   for (const stage of SAMPLE_STAGES) {
     const measured = [...state.sampleSavedRows.values()].filter(row => row[sampleStageField(stage)] != null);
@@ -834,6 +996,7 @@ function markSampleRegisterDirty(event) {
 
 function setSampleControlsDisabled(disabled) {
   els.reefSampleRopeSave.disabled = disabled;
+  els.reefStartSiteTrial.disabled = disabled;
   els.reefSampleRopePanel.querySelectorAll("input, select, button").forEach((control) => {
     if (control === els.reefSampleRopeSave) return;
     control.disabled = disabled;
@@ -1297,7 +1460,7 @@ function sampleRopeRowMarkup(ropeNumber) {
   const label = `Rope ${ropeNumber}`;
   return `
     <tr data-sample-rope-row data-rope-number="${ropeNumber}">
-      <th scope="row">${label}</th>
+      <th scope="row">${label}<small data-rope-cycle-label class="reef-rope-cycle-label"></small></th>
       <td><select data-rope-field="species" aria-label="${label} species"><option value="">Select</option><option value="spinosum">Spinosum</option><option value="cottonii">Cottonii</option></select></td>
       <td><input data-rope-field="rope_weight_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} rope weight kg"></td>
       <td><input data-rope-field="initial_weight_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} initial seeded weight kg"></td>
@@ -1354,7 +1517,16 @@ function productionStyles() {
     }
     .reef-sample-rope-toolbar { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin: 0 0 0.65rem; }
     .reef-sample-rope-toolbar h4 { margin: 0 0 0.15rem; color: #355f5b; }
-    .reef-sample-rope-save-wrap { display: flex; align-items: center; gap: 0.65rem; }
+    .reef-sample-rope-save-wrap { display: flex; align-items: center; gap: 0.65rem; flex-wrap:wrap; }
+    .reef-rope-cycle-label { display:block; font-size:0.7rem; color:#64817b; font-weight:400; margin-top:3px; }
+    .reef-sample-history { margin:1rem 0; padding:0.8rem; border:1px solid #cfe1de; border-radius:8px; background:#fbfefd; }
+    .reef-sample-history summary { cursor:pointer; color:#245f58; font-weight:700; }
+    .reef-sample-history select { margin-top:0.3rem; max-width:100%; }
+    .reef-sample-history-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:0.7rem; margin-top:0.8rem; }
+    .reef-sample-history-fields label { font-size:0.78rem; font-weight:600; }
+    .reef-sample-history-fields input, .reef-sample-history-fields select { display:block; width:100%; box-sizing:border-box; margin-top:0.25rem; }
+    .reef-sample-history-note { grid-column:1/-1; }
+    .reef-sample-history-actions { grid-column:1/-1; }
     .reef-sample-rope-table-wrap { overflow-x: auto; }
     .reef-sample-rope-table { width: 100%; min-width: 980px; border-collapse: collapse; background: #fff; font-size: 0.84rem; }
     .reef-sample-rope-table th, .reef-sample-rope-table td { border: 1px solid #d9e6e4; padding: 0.38rem 0.42rem; vertical-align: middle; }
