@@ -13,6 +13,26 @@ export function createProjectLibrary(client,root,kind){
   let recovery=null,autoResumed=new Set();
   let mapRenderer=null,mapState=null,mapTicket=0;
   const photoCache=createPhotoImageCache(client,LIBRARY_BUCKET);
+  // Reuse identical short-lived private URLs so redraws can hit the browser/CDN
+  // cache rather than signing and downloading the same thumbnails repeatedly.
+  const thumbnailUrls=new Map();
+  const THUMBNAIL_SECONDS=300;
+  function thumbnailUrl(path){
+    const now=Date.now(),cached=thumbnailUrls.get(path);
+    if(cached&&cached.expires>now)return cached.promise;
+    const entry={expires:now+(THUMBNAIL_SECONDS-30)*1000,promise:null};
+    entry.promise=client.storage.from(LIBRARY_BUCKET).createSignedUrl(path,THUMBNAIL_SECONDS)
+      .then(({data,error})=>{
+        if(error||!data?.signedUrl)throw error||Error("Photo thumbnail unavailable");
+        return data.signedUrl;
+      }).catch(error=>{
+        if(thumbnailUrls.get(path)===entry)thumbnailUrls.delete(path);
+        throw error;
+      });
+    thumbnailUrls.set(path,entry);
+    while(thumbnailUrls.size>1000)thumbnailUrls.delete(thumbnailUrls.keys().next().value);
+    return entry.promise;
+  }
   const captionDrafts=createCaptionDrafts(
     typeof sessionStorage==="undefined"?null:sessionStorage
   );
@@ -29,7 +49,7 @@ export function createProjectLibrary(client,root,kind){
   }
   function clear(){
     photoLoadObserver?.disconnect();photoLoadObserver=null;photoLimit=photoBatchSize;
-    releasePhotoMap();photoCache.clear();mapState=null;epoch++;
+    releasePhotoMap();photoCache.clear();thumbnailUrls.clear();mapState=null;epoch++;
     folders=[];items=[];trashItems=[];canEdit=false;loaded=false;busy=false;
     filters={};page=0;filtersOpen=false;viewTrash=false;favoritesOnly=false;
     selectMode=false;selectedIds.clear();photoSearchOpen=false;
@@ -53,9 +73,24 @@ export function createProjectLibrary(client,root,kind){
     try{
       const data=check(await client.rpc("cosme_library_list",{p_kind:kind}));
       if(ticket!==epoch||hasActiveInteraction())return;
-      folders=data.folders||[];items=data.items||[];trashItems=data.trashed_items||[];canEdit=data.can_edit===true;loaded=true;message="";failed=false;draw();
+      const nextFolders=data.folders||[],nextItems=data.items||[],
+        nextTrash=data.trashed_items||[],nextCanEdit=data.can_edit===true;
+      // An unchanged server refresh must not remount the gallery or reload its images.
+      const unchanged=kind==="photos"&&loaded&&
+        JSON.stringify([folders,items,trashItems,canEdit])===
+        JSON.stringify([nextFolders,nextItems,nextTrash,nextCanEdit]);
+      folders=nextFolders;
+      if(!unchanged){items=nextItems;trashItems=nextTrash}
+      canEdit=nextCanEdit;loaded=true;message="";failed=false;
+      if(unchanged)status("");
+      else draw();
       if(kind==="photos"&&canEdit)discoverRecovery().catch(()=>{});
-    }catch(e){if(ticket!==epoch||hasActiveInteraction())return;folders=[];items=[];canEdit=false;status("Unable to load "+kind+". "+(e.message||"Please retry."),true);draw()}
+    }catch(e){
+      if(ticket!==epoch||hasActiveInteraction())return;
+      const errorMessage="Unable to refresh "+kind+". "+(e.message||"Please retry.");
+      if(loaded){status(errorMessage+" Showing previously loaded items.",true);return}
+      folders=[];items=[];trashItems=[];canEdit=false;message=errorMessage;failed=true;draw();
+    }
   }
   function select(root,label,values,value,change){
     const l=add(root,"label","",label),s=add(l,"select");
@@ -65,6 +100,7 @@ export function createProjectLibrary(client,root,kind){
   }
 
   async function discoverRecovery(){
+    const previousRecovery=JSON.stringify(recovery);
     const result=await client.auth.getUser();
     const owner=result.data?.user?.id;
     if(!owner)return;
@@ -89,7 +125,8 @@ export function createProjectLibrary(client,root,kind){
       break;
     }
     if(!root.isConnected||busy||hasActiveInteraction())return;
-    draw();
+    // Do not redraw hundreds of photos just because the upload queue was checked.
+    if(JSON.stringify(recovery)!==previousRecovery)draw();
     // Recovery is opt-in. A photo selection/dictation draft must never start
     // uploading on its own when the iPhone returns from another app.
   }
@@ -907,16 +944,15 @@ export function createProjectLibrary(client,root,kind){
     const photo=add(tile,"button","library-tile-open");photo.type="button";
     photo.setAttribute("aria-label",(selectMode?"Select ":"Open ")+item.title);
     const img=add(photo,"img");img.alt="";img.loading="lazy";img.fetchPriority="low";
-    const epochAtRequest=epoch;
+    const objectPath=item.object_path;
     let requested=false;
     const getThumbnail=()=>{
       if(requested)return;requested=true;
-      // Image resizing is unavailable on this project's Supabase Free tier.
-      client.storage.from(LIBRARY_BUCKET).createSignedUrl(item.object_path,60)
-        .then(({data,error})=>{
-          if(epoch!==epochAtRequest||!img.isConnected||error||!data?.signedUrl)return;
-          img.src=data.signedUrl;
-        }).catch(()=>{});
+      // Image resizing is unavailable on the Supabase Free tier.
+      thumbnailUrl(objectPath).then(url=>{
+        // A metadata refresh may complete while an already mounted tile is loading.
+        if(img.isConnected&&item.object_path===objectPath)img.src=url;
+      }).catch(()=>{requested=false});
     };
     // Generate private signed URLs only as tiles approach the viewport.
     if(typeof IntersectionObserver==="function"){
