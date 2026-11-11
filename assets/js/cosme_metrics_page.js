@@ -1038,8 +1038,6 @@ async function reloadAndRecheck() {
   if (!grant) return;
   access = grant;
   el("accessRole").textContent = "Metrics " + grant.role;
-  const proposalsTab=document.querySelector(".metrics-tabs [data-tab=proposals]");
-  proposalsTab.hidden=!["owner","editor"].includes(grant.role);
   await prepareNavigation();
   // Follow the latest release pointer on return, but preserve a deliberately
   // opened historical release for comparison.
