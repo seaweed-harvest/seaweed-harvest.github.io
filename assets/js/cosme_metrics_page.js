@@ -1149,7 +1149,8 @@ async function refreshLiveFeeds() {
 }
 // Recheck live sources while an authorised user has this page open.
 setInterval(()=>{
-  if(access && !document.hidden && navigator.onLine)
+  // Photo browsing should not issue unrelated live-metrics RPCs every five minutes.
+  if(access && !document.hidden && navigator.onLine && !el("register").hidden)
     refreshLiveFeeds().catch(()=>{});
 },300000);
 const metricScrollArea=el("metricScrollArea");
@@ -1191,16 +1192,14 @@ document.addEventListener("click", (event) => {
   }
 });
 document.addEventListener("visibilitychange", () => {
-  // Returning from the iOS photo chooser or another app is not a reason
-  // to discard an open photo or an unfinished voice-dictated upload form.
-  if (!document.hidden && access &&
+  // Supabase manages session token refresh. A background-tab return is NOT a
+  // sign-out and must not recheck releases, discard the entire app on an auth
+  // refresh race, or remount hundreds of private photo thumbnails.
+  // Live indicators can be refreshed without touching the photo library.
+  if (!document.hidden && access && navigator.onLine && !el("register").hidden &&
       document.body.dataset.cosmePhotoUploading !== "true" &&
-      !libraries.photos.hasActiveInteraction?.() && !journalPanel.isEditing()) {
-    reloadAndRecheck().catch((error) => {
-      clearPrivateState();
-      setStatus(error.message, true);
-    });
-  }
+      !libraries.photos.hasActiveInteraction?.() && !journalPanel.isEditing())
+    refreshLiveFeeds().catch(()=>{});
 });
 authClient.auth.onAuthStateChange((event) => {
   if (event === "SIGNED_OUT") {
