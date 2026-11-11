@@ -1061,7 +1061,7 @@ async function reloadAndRecheck() {
       tab(selected);
   }
   if (financesLoaded) financesPanel.load();
-  for(const name of librariesLoaded)libraries[name].load();
+  // Restored tabs already requested their library on selection; do not request it twice.
   renderRegisterSummary();
   renderRows();
 }
