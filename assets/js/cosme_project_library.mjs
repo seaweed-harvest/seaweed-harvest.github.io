@@ -145,7 +145,12 @@ export function createProjectLibrary(client,root,kind){
           }
           return null;
         },
-        onChange:()=>{if(!busy)draw()},
+        onChange:()=>{
+          // A caption/favourite edit does not change the grid's image tiles.
+          // Preserve decoded thumbnails instead of remounting the entire grid
+          // when the viewer closes. Search and list views need updated text.
+          if(!busy&&(photoView!=="grid"||Boolean(filters.search)))draw();
+        },
         onFavourite:updated=>{
           // Only change the indicator for this photo; keep all other thumbnails
           // mounted and retain the current scroll position.
