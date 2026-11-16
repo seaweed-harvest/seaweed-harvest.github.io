@@ -307,7 +307,7 @@ function renderForm(form) {
                       <input id="reefSampleVisitOtherTeam" type="text" maxlength="160">
                     </label>
                   </div>
-                  <small class="reef-help">R+S = Rope + Seaweed weight. Each weight column has its own date; unchanged weeks keep their previous details.</small>
+                  <small class="reef-help">R+S = Rope + Seaweed weight. Seed count = attached seeded positions on the rope; leave blank if not counted. Each stage has its own date; unchanged weeks keep their previous details.</small>
                 </th></tr>
                 <tr>
                   <th>Sample Rope</th>
@@ -349,6 +349,7 @@ function renderForm(form) {
               <label>Week 4 weight (kg) <input data-history-field="week_4_kg" type="number" min="0" max="100000" step="0.001"></label>
               <label>Week 6 date <input data-history-field="week_6_date" type="date"></label>
               <label>Week 6 weight (kg) <input data-history-field="week_6_kg" type="number" min="0" max="100000" step="0.001"></label>
+              <p id="reefSampleHistorySeedCounts" class="reef-sample-history-seeds reef-help"></p>
               <label class="reef-sample-history-note">Correction note (optional)
                 <input id="reefSampleHistoryReason" type="text" maxlength="240" placeholder="Why was this corrected?">
               </label>
@@ -474,7 +475,7 @@ function cacheElements() {
     "reefSiteCaptureSpecies", "reefSiteCaptureLines", "reefSiteCaptureSeedWeight", "reefSiteCaptureSeedUnit",
     "reefSiteCaptureSeedPerLine", "reefSiteCaptureHarvestWeight", "reefSiteCaptureHarvestUnit", "reefSiteCaptureHarvestPerLine",
     "reefSampleRopeSave", "reefSampleRopeStatus", "reefSampleRopeSiteLabel", "reefStartSiteTrial",
-    "reefSampleHistoryPanel", "reefSampleHistoryCycle", "reefSampleHistoryFields", "reefSampleHistoryReason",
+    "reefSampleHistoryPanel", "reefSampleHistoryCycle", "reefSampleHistoryFields", "reefSampleHistorySeedCounts", "reefSampleHistoryReason",
     "reefSampleHistoryStatus", "reefSaveHistoryCorrection",
     "reefSiteCaptureHealthEnvironment", "reefEnvironmentWaterTemperature", "reefEnvironmentWaterClarity",
     "reefEnvironmentTide", "reefEnvironmentWeather", "reefEnvironmentCurrentStrength", "reefSiteCaptureGeneralNotes",
@@ -689,9 +690,12 @@ async function loadSampleRopeRegister(siteCode) {
   setSampleControlsDisabled(true);
   setSampleStatus("Loading…");
   try {
-    const register = await rpc("ag_reef_sample_rope_register", { p_site_code: siteCode });
+    const [register, counts] = await Promise.all([
+      rpc("ag_reef_sample_rope_register", { p_site_code: siteCode }),
+      rpc("ag_reef_sample_rope_seed_counts", { p_site_code: siteCode })
+    ]);
     if (els.reefSiteCaptureSite.value !== siteCode) return;
-    applySampleRegister(register);
+    applySampleRegister(mergeSampleSeedCounts(register, counts));
     state.sampleRegisterSiteCode = siteCode;
     state.sampleRegisterDirty = false;
     setSampleStatus("Saved data loaded.");
@@ -715,6 +719,13 @@ async function saveSampleRopeRegister({ siteCode = null, silent = false } = {}) 
   if (state.sampleRegisterLoading) throw new Error("Wait for the Sample Rope Register to finish loading.");
 
   const rows = collectSampleRopeRows();
+  let seedChanges;
+  try {
+    seedChanges = collectSampleSeedChanges();
+  } catch (error) {
+    setSampleStatus(error.message || "Enter valid seed counts.", "error");
+    throw error;
+  }
   const visit = validatedSampleVisit(rows);
   if (!visit) throw new Error("Complete the Sample Rope recording date, recorder and monitoring team.");
   const uploadDates = Object.fromEntries(SAMPLE_STAGES.map(stage => [stage, visit.stage_dates[stage]?.date]));
@@ -726,8 +737,18 @@ async function saveSampleRopeRegister({ siteCode = null, silent = false } = {}) 
       p_rows: rows,
       p_visit: visit
     });
+    if (seedChanges.length) {
+      const cycles = new Map((register.rows || []).map(row => [Number(row.rope_number), row.cycle_id]));
+      const seedRows = seedChanges.map(({ rope_number, changes }) => {
+        const cycle_id = cycles.get(rope_number);
+        if (!cycle_id) throw new Error(`Enter and save the initial rope details for Rope ${rope_number} before its seed count.`);
+        return { cycle_id, ...changes };
+      });
+      await rpc("ag_reef_sample_rope_seed_counts_save", { p_site_code: targetSite, p_rows: seedRows });
+    }
+    const counts = await rpc("ag_reef_sample_rope_seed_counts", { p_site_code: targetSite });
     if (els.reefSiteCaptureSite.value === targetSite) {
-      applySampleRegister(register);
+      applySampleRegister(mergeSampleSeedCounts(register, counts));
       state.sampleRegisterSiteCode = targetSite;
       state.sampleRegisterDirty = false;
       if (state.stagePhotos?.count()) {
@@ -738,7 +759,7 @@ async function saveSampleRopeRegister({ siteCode = null, silent = false } = {}) 
     }
     return register;
   } catch (error) {
-    setSampleStatus(`Save incomplete: ${error.message || "Please retry."} Any remaining photos are still queued.`, "error");
+    setSampleStatus(`Save incomplete: ${error.message || "Please retry."} Weights may already be saved; seed counts and queued photos should be checked before retrying.`, "error");
     throw error;
   } finally {
     els.reefSampleRopeSave.disabled = false;
@@ -769,7 +790,8 @@ async function handleSampleRopeClick(event) {
       p_site_code: siteCode,
       p_rope_number: ropeNumber
     });
-    applySampleRegister(result.register || { rows: [] });
+    const counts = await rpc("ag_reef_sample_rope_seed_counts", { p_site_code: siteCode });
+    applySampleRegister(mergeSampleSeedCounts(result.register || { rows: [] }, counts));
     state.sampleRegisterSiteCode = siteCode;
     state.sampleRegisterDirty = false;
     setSampleStatus(`Rope ${ropeNumber} started as Cycle ${result.new_cycle_number}. Previous cycle retained.`, "success");
@@ -797,9 +819,12 @@ async function loadCycleHistory(siteCode, keepCycleId = "") {
     return;
   }
   try {
-    const response = await rpc("ag_reef_sample_rope_cycle_history", { p_site_code: siteCode });
+    const [response, counts] = await Promise.all([
+      rpc("ag_reef_sample_rope_cycle_history", { p_site_code: siteCode }),
+      rpc("ag_reef_sample_rope_seed_counts", { p_site_code: siteCode })
+    ]);
     if (els.reefSiteCaptureSite.value !== siteCode) return;
-    state.historyRows = (Array.isArray(response?.rows) ? response.rows : [])
+    state.historyRows = mergeSampleSeedCounts(response, counts).rows
       .filter(row => row.status === "closed");
     const select = els.reefSampleHistoryCycle;
     select.replaceChildren(new Option("Choose a previous trial", ""));
@@ -826,6 +851,11 @@ function showSelectedHistoryCycle() {
   els.reefSampleHistoryFields.querySelectorAll("[data-history-field]").forEach(input => {
     input.value = row[input.dataset.historyField] ?? "";
   });
+  const namedStages = { initial_count:"Initial", week_2_count:"Wk2", week_4_count:"Wk4", week_6_count:"Wk6" };
+  const counts = SAMPLE_SEED_FIELDS.filter(field => row[field] != null)
+    .map(field => `${namedStages[field]}: ${row[field]}`);
+  els.reefSampleHistorySeedCounts.textContent = counts.length
+    ? `Saved seed counts — ${counts.join(" · ")}` : "Seed counts were not recorded for this cycle.";
   els.reefSampleHistoryReason.value = "";
   els.reefSampleHistoryStatus.textContent = "Review Rope " + row.rope_number
     + ", Cycle " + row.cycle_number + ". Edits here affect only this previous cycle.";
@@ -885,7 +915,8 @@ async function startNewSiteTrial() {
       await saveSampleRopeRegister({ siteCode, silent: true });
     }
     const result = await rpc("ag_reef_sample_rope_start_new_site", { p_site_code: siteCode });
-    applySampleRegister(result.register || { rows: [] });
+    const counts = await rpc("ag_reef_sample_rope_seed_counts", { p_site_code: siteCode });
+    applySampleRegister(mergeSampleSeedCounts(result.register || { rows: [] }, counts));
     state.sampleRegisterSiteCode = siteCode;
     state.sampleRegisterDirty = false;
     await loadCycleHistory(siteCode);
@@ -933,13 +964,39 @@ function collectSampleRopeRows() {
   });
 }
 
+const SAMPLE_SEED_FIELDS = Object.freeze(["initial_count", "week_2_count", "week_4_count", "week_6_count"]);
+
+function collectSampleSeedChanges() {
+  return [...els.reefSampleRopePanel.querySelectorAll("[data-sample-rope-row]")].flatMap(row => {
+    const rope_number = Number(row.dataset.ropeNumber);
+    const previous = state.sampleSavedRows.get(rope_number) || {};
+    const changes = {};
+    for (const field of SAMPLE_SEED_FIELDS) {
+      const raw = row.querySelector(`[data-rope-field="${field}"]`)?.value ?? "";
+      if (raw !== "" && (!/^\d+$/.test(raw) || Number(raw) > 10000)) {
+        throw new Error(`Rope ${rope_number}: seed counts must be whole numbers between 0 and 10000.`);
+      }
+      if (raw !== String(previous[field] ?? "")) changes[field] = raw === "" ? null : Number(raw);
+    }
+    return Object.keys(changes).length ? [{ rope_number, changes }] : [];
+  });
+}
+
+function mergeSampleSeedCounts(register, response) {
+  const byCycle = new Map((response?.rows || []).map(row => [row.cycle_id, row]));
+  return {
+    ...register,
+    rows: (register?.rows || []).map(row => ({ ...row, ...(byCycle.get(row.cycle_id) || {}) }))
+  };
+}
+
 function applySampleRegister(register) {
   state.sampleSavedRows = new Map((Array.isArray(register?.rows) ? register.rows : []).map((row) => [Number(row.rope_number), row]));
   state.sampleStageEdits.clear();
   els.reefSampleRopePanel.querySelectorAll("[data-sample-rope-row]").forEach((row) => {
     const ropeNumber = Number(row.dataset.ropeNumber);
     const data = state.sampleSavedRows.get(ropeNumber) || {};
-    for (const field of ["species", "rope_weight_kg", "initial_weight_kg", "week_2_kg", "week_4_kg", "week_6_kg"]) {
+    for (const field of ["species", "rope_weight_kg", "initial_weight_kg", "week_2_kg", "week_4_kg", "week_6_kg", ...SAMPLE_SEED_FIELDS]) {
       const control = row.querySelector(`[data-rope-field="${field}"]`);
       if (control) control.value = data[field] ?? "";
     }
@@ -1438,7 +1495,7 @@ function syncVisitOtherTeam() {
 function sampleStageHeaderMarkup(stage, label) {
   return `<th class="reef-stage-date-header" data-stage-header="${stage}">
     ${label}
-    <small class="reef-rope-rs-label" title="Rope + Seaweed">R+S</small>
+    <small class="reef-rope-rs-label" title="Rope + Seaweed weight and attached seed count">Weight (kg) &nbsp;·&nbsp; Seed count</small>
     <label>Date <input data-stage-date="${stage}" type="date" aria-label="${label} date"></label>
     
     <small class="reef-stage-mixed" data-stage-mixed="${stage}" hidden></small>
@@ -1458,15 +1515,19 @@ function stagePhotoFooterMarkup(stage) {
 
 function sampleRopeRowMarkup(ropeNumber) {
   const label = `Rope ${ropeNumber}`;
+  const stageCell = (weightField, countField, stageName) => `<td><div class="reef-sample-stage-entry">
+    <input data-rope-field="${weightField}" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} ${stageName} weight kg">
+    <input data-rope-field="${countField}" type="number" min="0" max="10000" step="1" inputmode="numeric" aria-label="${label} ${stageName} seed count" title="${stageName} seed count (optional)">
+  </div></td>`;
   return `
     <tr data-sample-rope-row data-rope-number="${ropeNumber}">
       <th scope="row">${label}<small data-rope-cycle-label class="reef-rope-cycle-label"></small></th>
       <td><select data-rope-field="species" aria-label="${label} species"><option value="">Select</option><option value="spinosum">Spinosum</option><option value="cottonii">Cottonii</option></select></td>
       <td><input data-rope-field="rope_weight_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} rope weight kg"></td>
-      <td><input data-rope-field="initial_weight_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} initial seeded weight kg"></td>
-      <td><input data-rope-field="week_2_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} week 2 weight kg"></td>
-      <td><input data-rope-field="week_4_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} week 4 weight kg"></td>
-      <td><input data-rope-field="week_6_kg" type="number" min="0" step="0.001" inputmode="decimal" aria-label="${label} week 6 weight kg"></td>
+      ${stageCell("initial_weight_kg", "initial_count", "initial")}
+      ${stageCell("week_2_kg", "week_2_count", "week 2")}
+      ${stageCell("week_4_kg", "week_4_count", "week 4")}
+      ${stageCell("week_6_kg", "week_6_count", "week 6")}
       <td><button class="secondary-action sample-rope-start-new" type="button" data-start-new-rope="${ropeNumber}">Start New</button></td>
     </tr>`;
 }
@@ -1527,12 +1588,17 @@ function productionStyles() {
     .reef-sample-history-fields input, .reef-sample-history-fields select { display:block; width:100%; box-sizing:border-box; margin-top:0.25rem; }
     .reef-sample-history-note { grid-column:1/-1; }
     .reef-sample-history-actions { grid-column:1/-1; }
+    .reef-sample-history-seeds { grid-column:1/-1; margin:0; }
     .reef-sample-rope-table-wrap { overflow-x: auto; }
     .reef-sample-rope-table { width: 100%; min-width: 980px; border-collapse: collapse; background: #fff; font-size: 0.84rem; }
     .reef-sample-rope-table th, .reef-sample-rope-table td { border: 1px solid #d9e6e4; padding: 0.38rem 0.42rem; vertical-align: middle; }
     .reef-sample-rope-table thead th { background: #f1f7f6; color: #365f5b; text-align: center; font-weight: 700; }
     .reef-sample-rope-table tbody th { white-space: nowrap; text-align: left; font-weight: 600; color: #355f5b; }
     .reef-sample-rope-table input, .reef-sample-rope-table select { width: 100%; min-width: 92px; box-sizing: border-box; padding: 0.4rem 0.45rem !important; min-height: 32px; font-size: 0.82rem; }
+    .reef-sample-stage-entry { display:flex; align-items:center; gap:5px; min-width:0; }
+    .reef-sample-rope-table .reef-sample-stage-entry input { min-width:0; width:0; }
+    .reef-sample-rope-table .reef-sample-stage-entry input:first-child { flex:1 1 0; min-width:68px; }
+    .reef-sample-rope-table .reef-sample-stage-entry input:last-child { flex:0 0 59px; text-align:center; padding-left:2px !important; padding-right:2px !important; background-color:#f5faf7; }
     .reef-sample-rope-table input[type="date"] { min-width: 132px; }
     .sample-rope-start-new { white-space: nowrap; }
     .reef-health-environment { margin: 1rem 0; border: 1px solid #cfe1de; border-radius: 9px; background: #fbfefd; overflow: hidden; }
