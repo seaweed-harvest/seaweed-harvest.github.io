@@ -32,6 +32,26 @@ class ProtectedRetirementContractTest(unittest.TestCase):
         self.assertNotIn('value="BATI"', page)
         self.assertIn('value="SANDBOX"> Sandbox', page)
 
+    def test_benched_experiments_are_absent_from_user_settings(self):
+        users = read("assets/js/users_page.js")
+        permissions = users.split("const permissionDefinitions = [", 1)[1].split("];", 1)[0]
+        tools = users.split("const organisationCapabilityDefinitions = {", 1)[1].split("const state =", 1)[0]
+        for key in ("can_view_notifications", "can_manage_notifications", "can_manage_sms_settings"):
+            self.assertNotIn(key, permissions)
+        for key in ("tool_qr_tags", "tool_sms", "tool_form_builder", "tool_notifications"):
+            self.assertNotIn(key, tools)
+        self.assertIn('"tool_pricing"', tools)
+
+    def test_farmer_preferences_offer_email_but_not_sms(self):
+        html = read("my_details.html")
+        controller = read("assets/js/my_details_page.js")
+        self.assertIn('<option value="email">Email</option>', html)
+        for token in ('<option value="sms">', '<option value="both">', 'id="myReceiptPhone"', 'id="myReceiptNotifications"'):
+            self.assertNotIn(token, html)
+        self.assertIn('p_receipt_email: els.myReceiptEmail.value.trim() || null', controller)
+        self.assertIn('p_receipt_phone: storedReceiptPhone', controller)
+        self.assertIn('p_allow_transaction_notifications: storedTransactionNotifications', controller)
+
     def test_bati_farming_community_and_sandbox_ledger_are_retained(self):
         self.assertIn('Bati (Table 1)', read("dryer_table.html"))
         self.assertIn("historical_records.html", read("assets/js/app_navigation.js"))
