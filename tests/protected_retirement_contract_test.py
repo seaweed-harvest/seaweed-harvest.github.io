@@ -52,6 +52,13 @@ class ProtectedRetirementContractTest(unittest.TestCase):
         self.assertIn('p_receipt_phone: storedReceiptPhone', controller)
         self.assertIn('p_allow_transaction_notifications: storedTransactionNotifications', controller)
 
+    def test_login_fallback_never_opens_benched_tools(self):
+        auth = read("assets/js/auth_client.js")
+        routing = auth.split("export function routeForProfile(profile)", 1)[1].split("function currentPage()", 1)[0]
+        for retired in ("./admin_builder.html", "./admin_notifications.html", "./admin_seaweedke.html"):
+            self.assertNotIn(retired, routing)
+        self.assertIn('return "./my_details.html";', routing)
+
     def test_bati_farming_community_and_sandbox_ledger_are_retained(self):
         self.assertIn('Bati (Table 1)', read("dryer_table.html"))
         self.assertIn("historical_records.html", read("assets/js/app_navigation.js"))
