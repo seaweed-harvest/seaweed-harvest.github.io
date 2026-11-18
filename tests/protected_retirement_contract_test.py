@@ -38,24 +38,21 @@ class ProtectedRetirementContractTest(unittest.TestCase):
         self.assertTrue((ROOT / "assets/js/historical_records_page.js").exists())
         self.assertIn("ag_historical_ledger_rows", read("scripts/retire_bati_organisation_and_green_space.sql"))
 
-    def test_sql_targets_only_one_organisation_and_experiment(self):
+    def test_sql_is_read_only_post_retirement_verification(self):
         sql = read("scripts/retire_bati_organisation_and_green_space.sql")
         self.assertIn("59f5db4c-c85f-4a49-ae4e-11232e95ac02", sql)
         self.assertIn("aggregator_code = 'BATI'", sql)
-        self.assertIn("shared.community_id = bc.community_id", sql)
-        self.assertIn("shared.farmer_id = bf.farmer_id", sql)
-        self.assertIn("v_preserved_mawimbi_collections", sql)
-        self.assertIn("v_preserved_mawimbi_receipts", sql)
-        self.assertIn("v_preserved_cosme_memberships", sql)
-        self.assertIn("v_preserved_ledger <> 1704", sql)
-        self.assertIn("raise exception 'BATI counts changed since audit; aborting.'", sql)
-        self.assertIn("commit;", sql)
+        self.assertIn("green_storage_bucket_absent", sql)
+        self.assertIn("sandbox_historical_ledger_preserved", sql)
+        self.assertIn("mawimbi_collections_preserved", sql)
+        self.assertIn("mawimbi_receipts_preserved", sql)
+        self.assertIn("shared_communities_preserved", sql)
+        self.assertIn("shared_farmers_preserved", sql)
         for forbidden in (
-            "delete from public.collections", "delete from public.ag_communities",
-            "delete from public.ag_farmers", "delete from public.ag_historical_ledger_rows",
+            "delete from", "update public.", "truncate ", "drop table",
+            "commit;", "delete from storage.objects",
         ):
             self.assertNotIn(forbidden, sql.lower())
-        self.assertNotIn("delete from storage.objects", sql.lower())
 
     def test_feedback_and_app_routing_are_retired(self):
         app_map = json.loads(read(".automation/app-map.yml"))
