@@ -50,8 +50,9 @@ class OrganisationPermissionsStaticTest(unittest.TestCase):
         self.assertIn('id="organisationToolPermissions"', self.page)
         self.assertIn("ag_admin_organisation_permissions", self.users)
         self.assertIn("ag_admin_save_organisation_permissions", self.users)
-        self.assertIn("QR code tags", self.users)
-        self.assertIn("Text messaging", self.users)
+        self.assertNotIn("QR code tags", self.users)
+        self.assertNotIn("Text messaging", self.users)
+        self.assertIn("Pricing matrix", self.users)
         self.assertIn('id="organisationPermissionsSelect"', self.page)
         self.assertNotIn("A form and its records are one permission", self.page)
 
