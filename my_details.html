@@ -51,11 +51,9 @@
         <label>Date of birth<input id="myDetailsDateOfBirth" type="date" autocomplete="bday"></label>
         <fieldset id="myReceiptPreferences" class="my-details-preferences" hidden>
           <legend>Receipt delivery</legend>
-          <label>Send receipts by<select id="myReceiptDelivery"><option value="none">Do not send</option><option value="email">Email</option><option value="sms">SMS</option><option value="both">Email and SMS</option></select></label>
+          <label>Send receipts by<select id="myReceiptDelivery"><option value="none">Do not send</option><option value="email">Email</option></select></label>
           <label>Receipt email<input id="myReceiptEmail" type="email" autocomplete="email"></label>
-          <label>Receipt phone<input id="myReceiptPhone" type="tel" autocomplete="tel"></label>
           <label>Receipt language<select id="myReceiptLanguage"><option value="en">English</option><option value="sw">Kiswahili</option></select></label>
-          <label class="check-row"><input id="myReceiptNotifications" type="checkbox" checked> Allow transaction notifications</label>
         </fieldset>
         <fieldset id="myDashboardPreferences" class="my-details-preferences" hidden>
           <legend>Dashboard display</legend>
@@ -82,6 +80,6 @@
     </section>
   </main>
 
-  <script type="module" src="./assets/js/my_details_page.js?v=23"></script>
+  <script type="module" src="./assets/js/my_details_page.js?v=24"></script>
 </body>
 </html>
