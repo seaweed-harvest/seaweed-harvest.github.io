@@ -52,7 +52,6 @@ def main() -> None:
     )
     assert set(app_map["targets"]["seaweed-harvest"]["source_app_values"]) == {
         "aggregation",
-        "green_space",
     }
     assert app_map["targets"]["seaweed-tide-planner"]["source_repository"] == (
         "bosunjm-cloud/Seaweed_Ag_Hub"

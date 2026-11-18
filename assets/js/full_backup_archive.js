@@ -43,7 +43,7 @@ export function mountFullBackupArchive({ client, profile }) {
   };
   const sourceName = (bucket) => ({ "collection-photos":"Collections", "process-record-photos":"Process records",
     "reef-nursery-photos":"Reef nursery", "reef-seaweed-record-photos":"Reef monitoring",
-    "green-space-photos":"Green spaces", "seaweed-drying-photos":"Drying trials",
+    "seaweed-drying-photos":"Drying trials",
     "site-feedback-photos":"Site feedback" })[bucket] ?? bucket;
   const bytes = (n) =>
     new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(

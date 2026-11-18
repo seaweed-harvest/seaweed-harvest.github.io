@@ -65,7 +65,8 @@ def main():
                 """
             },
         )
-        page = f"http://127.0.0.1:{port}/green-space/index.html"
+        # Green Space has been retired; exercise the retained Harvest widget.
+        page = f"http://127.0.0.1:{port}/collection.html"
         session = {
             "access_token": "authenticated-test-token",
             "user": {

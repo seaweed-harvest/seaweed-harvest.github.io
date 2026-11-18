@@ -591,16 +591,16 @@ export function routeForProfile(profile) {
   if (profile?.app_role === "farmer_viewer") return "./farmer.html";
   if (profile?.app_role === "field_collector") return "./collector_dashboard.html";
   if (profile?.app_role === "community_viewer") return "./my_details.html";
-  if (profile?.app_role === "green_space_teacher") return "./green-space/ledger.html";
   if (profile?.app_role === "system_admin" || profile?.can_view_dashboard) return "./home.html";
   if (profile?.can_view_registry) return "./admin_member_registry.html";
   if (profile?.can_view_map) return "./admin_map.html";
   if (profile?.can_view_data) return "./today.html";
   if (profile?.can_view_finance) return "./admin_finance.html";
   if (profile?.can_manage_users) return "./admin_users.html";
-  if (profile?.can_manage_settings) return "./admin_builder.html";
-  if (profile?.can_view_notifications) return "./admin_notifications.html";
-  if (profile?.can_manage_sms_settings) return "./admin_seaweedke.html";
+  // Bench legacy experiments: no account should land on an unmaintained tool.
+  if (profile?.can_manage_settings || profile?.can_view_notifications || profile?.can_manage_sms_settings) {
+    return "./my_details.html";
+  }
   if (profile?.can_submit_collection) return "./collector_dashboard.html";
   return "./access_pending.html";
 }

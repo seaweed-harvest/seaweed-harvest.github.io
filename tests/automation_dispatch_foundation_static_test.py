@@ -57,10 +57,10 @@ def main() -> None:
     assert "automation_paused" in repaired_routing
     assert "state in ('shadow_assessment_pending', 'held', 'failed', 'cancelled')" in repaired_routing
 
-    assert 'source_app: "aggregation" | "green_space" | "tide"' in site_feedback
-    assert '["aggregation", "green_space", "tide"]' in site_feedback
-    assert 'payload.source_app === "green_space"' in site_feedback
-    assert '"Green Space Log"' in site_feedback
+    assert 'source_app: "aggregation" | "tide"' in site_feedback
+    assert '["aggregation", "tide"]' in site_feedback
+    assert 'payload.source_app === "green_space"' not in site_feedback
+    assert '"Green Space Log"' not in site_feedback
     assert "trustedOwnerEnabled" in site_feedback
     assert "dispatchAuthenticatedSuggestion(feedback.id)" in site_feedback
     assert 'raw?.action === "retry_assessment"' in site_feedback

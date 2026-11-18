@@ -104,7 +104,7 @@ def main():
             assert capability_state[key] is False, (key, capability_state)
         assert capability_state["form_reef_nursery"] is True
         assert capability_state["form_dryer_table"] is True
-        assert capability_state["form_green_space"] is False
+        assert "form_green_space" not in capability_state
 
         organisation_options = driver.execute_script(
             """
@@ -120,15 +120,9 @@ def main():
         Select(
             driver.find_element(By.ID, "organisationPermissionsSelect")
         ).select_by_value(sandbox["value"])
-        wait.until(
-            lambda current: current.execute_script(
-                """
-                return document.querySelector(
-                  '[data-organisation-capability="form_green_space"]'
-                )?.checked === true;
-                """
-            )
-        )
+        wait.until(lambda current: current.find_element(
+            By.ID, "organisationPermissionsSelect"
+        ).get_attribute("value") == sandbox["value"])
         sandbox_state = driver.execute_script(
             """
             return Object.fromEntries(
@@ -137,7 +131,7 @@ def main():
             );
             """
         )
-        assert sandbox_state["form_green_space"] is True
+        assert "form_green_space" not in sandbox_state
         for key in (
             "form_site_water_samples",
             "form_intake_collection",
