@@ -64,8 +64,6 @@ class OrganisationPermissionsStaticTest(unittest.TestCase):
             "form_process_record",
             "form_reef_nursery",
             "form_dryer_table",
-            "tool_qr_tags",
-            "tool_sms",
         ):
             self.assertIn(f'capability: "{capability}"', self.navigation)
         self.assertIn('label: "Organisations"', self.navigation)
@@ -75,6 +73,7 @@ class OrganisationPermissionsStaticTest(unittest.TestCase):
         self.assertNotIn('"form_green_space"', self.users)
         self.assertNotIn('value="green_space_teacher"', self.page)
         self.assertNotIn('value="BATI"', self.page)
+        self.assertNotIn('label: "SMS Settings"', self.navigation)
 
     def test_browser_and_database_guards_share_capability_names(self):
         self.assertIn("requireOrganisationCapability", self.auth)

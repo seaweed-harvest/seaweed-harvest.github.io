@@ -344,17 +344,11 @@ function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
     ...(isProtectedOwner(profile)
       ? [{ label: "Mawimbi Process Flow", href: "./mawimbi_process_flow.html", requiredAggregator: "MAWIMBI", className: "app-nav-desktop-only" }]
       : []),
-    { label: "Finance Review", href: "./admin_finance.html", permission: "can_view_finance", capability: "form_intake_collection", className: "app-nav-desktop-only" },
     { label: "Receipts", href: "./admin_receipts.html", permission: "can_view_data", capability: "form_intake_collection", className: "app-nav-desktop-only" },
-    { label: "Notifications", href: "./admin_notifications.html", permission: "can_view_notifications", capability: "tool_notifications", className: "app-nav-desktop-only" },
     ...(isProtectedOwner(profile)
       ? [{ label: "Suggestions", href: "./admin_suggestions.html", className: "app-nav-desktop-only" }]
       : []),
-    { label: "Tags", href: "./tags.html", permission: "can_access_admin", capability: "tool_qr_tags" },
-    { label: "Form Manager", href: "./admin_forms.html", permission: "can_manage_settings", capability: "tool_form_builder" },
-    { label: "Form Builder", href: "./admin_builder.html", permission: "can_manage_settings", capability: "tool_form_builder" },
-    { label: "Pricing Matrix", href: "./admin_pricing.html", permission: "can_view_finance", capability: "tool_pricing" },
-    { label: "SMS Settings", href: "./admin_seaweedke.html", permission: "can_manage_sms_settings", capability: "tool_sms" }
+    { label: "Pricing Matrix", href: "./admin_pricing.html", permission: "can_view_finance", capability: "tool_pricing" }
   ]);
   // Metrics are granted independently of the active organisation. Keep the
   // shortcut hidden until the server verifies this account's dedicated grant.
@@ -370,13 +364,8 @@ function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
           if (error || !data?.can_view || !group.isConnected) return;
           const target = group.querySelector(".admin-menu-group-links");
           target?.append(navigationLink({
-            label: "Project Metrics", href: "./cosme_metrics.html"
+            label: "Project Summary", href: "./cosme_metrics.html"
           }, currentFile));
-          if (activeAggregatorCode(profile) === "COSME" || isProtectedOwner(profile)) {
-            target?.append(navigationLink({
-              label: "Project Journal", href: "./cosme_metrics.html?tab=journal"
-            }, currentFile));
-          }
           group.hidden = false;
           group.classList.remove("app-nav-desktop-only");
           if (currentFile === "cosme_metrics.html") group.open = true;
