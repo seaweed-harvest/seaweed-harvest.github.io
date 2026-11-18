@@ -30,8 +30,7 @@ const permissionDefinitions = [
   ["can_view_user_activity", "View recent activity", "View login and administrator action history. The page shows the newest 20 events."],
   ["can_view_notifications", "View notification content", "Includes recipient names, masked phone numbers, message text and delivery history."],
   ["can_manage_notifications", "Manage notification delivery", "Retry or cancel messages and perform notification operations that may incur costs."],
-  ["can_manage_sms_settings", "Configure SMS settings", "Change SMS provider mode, cost limits, retries and balance settings."],
-  ["can_manage_green_space", "Manage Green Space ledger", "View, edit, publish, unpublish and delete Green Space records only. This does not grant access to other Sandbox forms."]
+  ["can_manage_sms_settings", "Configure SMS settings", "Change SMS provider mode, cost limits, retries and balance settings."]
 ];
 
 // Invitation templates only: existing account permissions are never rewritten.
@@ -88,7 +87,6 @@ const roleLabels = {
   community_viewer: "Community viewer",
   farmer_viewer: "Farmer",
   read_only_auditor: "Read-only auditor",
-  green_space_teacher: "Green Space teacher",
   platform_user: "Platform application user",
   system_admin: "System admin"
 };
@@ -100,8 +98,7 @@ const organisationCapabilityDefinitions = {
     ["form_stock_record", "3. Stock Record", "BioStim stock form and connected stock records."],
     ["form_process_record", "4. Process Record", "Processing form and connected process records."],
     ["form_reef_nursery", "Reef Nursery", "COSME nursery form, photos and connected records."],
-    ["form_dryer_table", "Dryer Table", "COSME dryer form and the connected Station dataset."],
-    ["form_green_space", "Green Space Log", "Green Space project form, map, photos and reflection records."]
+    ["form_dryer_table", "Dryer Table", "COSME dryer form and the connected Station dataset."]
   ],
   tools: [
     ["tool_qr_tags", "QR code tags", "Generate and print QR identification tags.", "development"],
@@ -1438,31 +1435,19 @@ function renderCommunityOptions() {
 
 function renderAggregatorInputs(prefix, selectedIds = [], allAggregators = false, formAccess = undefined) {
   const container = prefix === "invite" ? els.inviteAggregators : els.editAggregators;
-  const role = prefix === "invite" ? els.inviteRole.value : els.editUserRole.value;
-  const greenSpaceOnly = role === "green_space_teacher";
-  const rows = greenSpaceOnly
-    ? state.aggregators.filter((row) => String(row.aggregator_code || "").toUpperCase() === "SANDBOX")
-    : state.aggregators;
-  const selected = greenSpaceOnly
-    ? new Set(rows.map((row) => String(row.id)))
-    : new Set((selectedIds || []).map(String));
-  if (allAggregators && !greenSpaceOnly) {
+  const rows = state.aggregators;
+  const selected = new Set((selectedIds || []).map(String));
+  if (allAggregators) {
     container.innerHTML = '<label class="aggregator-access-option"><input type="checkbox" checked disabled> All current and future organisations</label>';
     renderUserFormAccess(prefix, {});
     return;
   }
   container.innerHTML = rows.map((row) => `
     <label class="aggregator-access-option">
-      <input type="checkbox" data-aggregator-access="${prefix}" value="${escapeHtml(row.id)}" ${selected.has(String(row.id)) ? "checked" : ""} ${greenSpaceOnly ? "disabled" : ""}>
+      <input type="checkbox" data-aggregator-access="${prefix}" value="${escapeHtml(row.id)}" ${selected.has(String(row.id)) ? "checked" : ""}>
       ${escapeHtml(row.aggregator_code)} - ${escapeHtml(row.organisation_name)}
     </label>
-  `).join("") || '<span class="admin-status">The Green Space Sandbox is not available to this administrator.</span>';
-  if (greenSpaceOnly && rows.length) {
-    container.insertAdjacentHTML(
-      "beforeend",
-      '<span class="field-help">Green Space teachers are limited to the Green Space form and ledger within SANDBOX.</span>'
-    );
-  }
+  `).join("") || '<span class="admin-status">No organisations are available to this administrator.</span>';
   renderUserFormAccess(prefix, formAccess);
   updateOrganisationPermissionEligibility(prefix);
 }
@@ -1687,7 +1672,6 @@ function rolePreset(role) {
   if (role === "finance_admin") Object.assign(values, { can_access_admin: true, can_view_dashboard: true, can_view_map: true, can_view_data: true, can_view_finance: true, can_manage_pricing: true, can_export_data: true, can_view_notifications: true });
   if (role === "field_collector") values.can_submit_collection = true;
   if (role === "read_only_auditor") Object.assign(values, { can_access_admin: true, can_view_dashboard: true, can_view_registry: true, can_view_map: true, can_view_data: true, can_view_finance: true, can_view_notifications: true });
-  if (role === "green_space_teacher") values.can_manage_green_space = true;
   return values;
 }
 

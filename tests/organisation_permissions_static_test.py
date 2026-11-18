@@ -63,7 +63,6 @@ class OrganisationPermissionsStaticTest(unittest.TestCase):
             "form_process_record",
             "form_reef_nursery",
             "form_dryer_table",
-            "form_green_space",
             "tool_qr_tags",
             "tool_sms",
         ):
@@ -71,7 +70,10 @@ class OrganisationPermissionsStaticTest(unittest.TestCase):
         self.assertIn('label: "Organisations"', self.navigation)
         self.assertIn('label: "Permissions"', self.navigation)
         self.assertIn("CATEGORY_CAPABILITIES", self.records)
-        self.assertIn('label: "Green Space Log"', self.navigation)
+        self.assertNotIn('label: "Green Space Log"', self.navigation)
+        self.assertNotIn('"form_green_space"', self.users)
+        self.assertNotIn('value="green_space_teacher"', self.page)
+        self.assertNotIn('value="BATI"', self.page)
 
     def test_browser_and_database_guards_share_capability_names(self):
         self.assertIn("requireOrganisationCapability", self.auth)
@@ -128,14 +130,20 @@ class OrganisationPermissionsStaticTest(unittest.TestCase):
         self.assertIn('id="editFormAccess"', self.page)
         self.assertIn("organisation_form_access: readUserFormAccess", self.users)
         self.assertIn("ag_admin_user_form_access", self.users)
-        self.assertIn("form_access: organisationFormAccess", self.admin_users)
-        self.assertIn("ag_effective_organisation_capabilities", self.admin_users)
+        admin_edge = ROOT / "supabase/functions/admin-users/index.ts"
+        if not admin_edge.exists():
+            self.skipTest("Admin-users Edge Function source is not in this publish checkout")
+        admin_users = admin_edge.read_text(encoding="utf-8")
+        self.assertIn("form_access: organisationFormAccess", admin_users)
+        self.assertIn("ag_effective_organisation_capabilities", admin_users)
         self.assertIn(
             "You cannot grant form access you do not have",
-            self.admin_users,
+            admin_users,
         )
 
-    def test_sandbox_defaults_to_green_space_only(self):
+    def test_original_sandbox_capabilities_are_historically_isolated(self):
+        # Historical migrations are immutable; the current runtime disables
+        # Green Space through its organisation setting and removal script.
         sandbox = self.scoping_migration.split("when 'SANDBOX'", 1)[1].split(
             "else jsonb_build_object", 1
         )[0]

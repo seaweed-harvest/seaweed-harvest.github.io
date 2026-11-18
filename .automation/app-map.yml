@@ -10,17 +10,11 @@
       "deployment_enabled": false,
       "mapping_status": "source_and_deployment_confirmed",
       "source_app_values": [
-        "aggregation",
-        "green_space"
+        "aggregation"
       ],
       "applications": {
         "aggregation": {
           "display_name": "Seaweed Harvest",
-          "repository_scope": ".",
-          "suggestion_route": "seaweed-harvest"
-        },
-        "green_space": {
-          "display_name": "Green Space Log",
           "repository_scope": ".",
           "suggestion_route": "seaweed-harvest"
         }

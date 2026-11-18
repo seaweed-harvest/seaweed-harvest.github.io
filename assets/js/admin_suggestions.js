@@ -285,7 +285,6 @@ function reviewLabel(value) {
 function productLabel(value) {
   return {
     aggregation: "Seaweed Harvest",
-    green_space: "Green Space Log",
     tide: "Tide Planner"
   }[value] || value || "Unknown";
 }

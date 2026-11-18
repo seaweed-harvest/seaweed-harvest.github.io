@@ -26,7 +26,7 @@ const ALLOWED_ORIGINS = new Set([
 
 type FeedbackPayload = {
   submission_id: string;
-  source_app: "aggregation" | "green_space" | "tide";
+  source_app: "aggregation" | "tide";
   source_page: string;
   page_url: string | null;
   feedback_type: "improvement" | "change" | "problem";
@@ -360,7 +360,7 @@ async function retryAssessment(
 function validatePayload(value: Record<string, unknown>): FeedbackPayload {
   const submissionId = requiredUuid(value.submission_id, "Invalid submission identifier.");
   const sourceApp = String(value.source_app ?? "").trim();
-  if (!["aggregation", "green_space", "tide"].includes(sourceApp)) {
+  if (!["aggregation", "tide"].includes(sourceApp)) {
     throw new PublicError(400, "Unknown source application.");
   }
 
@@ -449,9 +449,7 @@ function slackMessage(
 ) {
   const app = payload.source_app === "tide"
     ? "Seaweed Tide Planner"
-    : payload.source_app === "green_space"
-      ? "Green Space Log"
-      : "Seaweed Harvest";
+    : "Seaweed Harvest";
   const type = {
     improvement: "Improvement",
     change: "Change request",

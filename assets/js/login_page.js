@@ -227,8 +227,6 @@ async function routeSignedInUser(options = {}) {
     ? Boolean(applications?.[requestedApp])
     : requestedFile === "my_details.html"
       || requestedFile === "report_subscriptions.html"
-      || (requestedFile === "green-space/ledger.html"
-        && (profile?.app_role === "system_admin" || profile?.can_manage_green_space))
       || profile?.app_role === "system_admin"
       || profile?.can_access_admin
       || (requestedFile === "collection.html" && profile?.can_submit_collection)
@@ -308,7 +306,6 @@ function signInErrorMessage(error) {
 
 function safePage(value) {
   const file = String(value || "").replace(/^\.\//, "");
-  if (file === "green-space/ledger.html") return file;
   if (/^tide\/[a-z0-9_.-]+(?:\?[a-z0-9_.=&%+-]*)?$/i.test(file)) return file;
   return /^[a-z0-9_.?=&%-]+$/i.test(file) ? file : "home.html";
 }

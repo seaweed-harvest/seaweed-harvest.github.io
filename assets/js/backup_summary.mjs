@@ -7,7 +7,6 @@ export const LEDGER_LABELS = Object.freeze({
   ag_reef_site_captures: "Site captures", ag_historical_ledger_rows: "Historical ledger",
   ag_historical_stock_refilter_groups: "Historical refiltering",
   ag_historical_unidentified_stock_disposals: "Historical stock disposals",
-  girls_green_spaces: "Green spaces", girls_reflection_entries: "Green space reflections",
   seaweed_drying_submissions: "Dryer records", seaweed_drying_reweigh_events: "Dryer reweighs",
   ag_deleted_records: "Deleted-record archive",
 });

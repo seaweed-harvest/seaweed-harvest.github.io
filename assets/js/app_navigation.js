@@ -442,12 +442,6 @@ function formLinks(profile, currentFile = "") {
     { label: "Stock", href: "./stabilization_packing.html", permission: "can_submit_collection", capability: "form_stock_record" },
     { label: "Process", href: "./process_record.html", permission: "can_submit_collection", capability: "form_process_record" }
   ];
-  links.push({
-    label: "Green Space Log",
-    href: "./green-space/",
-    requiredAggregator: "SANDBOX",
-    capability: "form_green_space"
-  });
   if (anonymousReefNursery) {
     links.push({ label: "Nursery - Training", href: "./reef_nursery.html", publicFallback: true });
     links.push({ label: "Nursery - Seaweed Data", href: "./reef_nursery_seaweed_data.html", publicFallback: true });
