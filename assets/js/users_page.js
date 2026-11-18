@@ -27,10 +27,7 @@ const permissionDefinitions = [
   ["can_manage_users", "Invite and edit users", "View user emails and manage non-admin accounts."],
   ["can_manage_organisation_permissions", "Manage organisation permissions", "Choose which forms, records and tools are available to organisations you administer. Requires access to at least two organisations."],
   ["can_manage_admin_users", "Add or edit admin users", "Grant or change administrator access, except the protected owner."],
-  ["can_view_user_activity", "View recent activity", "View login and administrator action history. The page shows the newest 20 events."],
-  ["can_view_notifications", "View notification content", "Includes recipient names, masked phone numbers, message text and delivery history."],
-  ["can_manage_notifications", "Manage notification delivery", "Retry or cancel messages and perform notification operations that may incur costs."],
-  ["can_manage_sms_settings", "Configure SMS settings", "Change SMS provider mode, cost limits, retries and balance settings."]
+  ["can_view_user_activity", "View recent activity", "View login and administrator action history. The page shows the newest 20 events."]
 ];
 
 // Invitation templates only: existing account permissions are never rewritten.
@@ -75,8 +72,7 @@ const permissionDependencies = [
   ["can_manage_pricing", "can_view_finance"],
   ["can_manage_admin_users", "can_manage_users"],
   ["can_manage_organisation_permissions", "can_manage_users"],
-  ["can_view_user_activity", "can_manage_users"],
-  ["can_manage_notifications", "can_view_notifications"]
+  ["can_view_user_activity", "can_manage_users"]
 ];
 
 const roleLabels = {
@@ -101,11 +97,7 @@ const organisationCapabilityDefinitions = {
     ["form_dryer_table", "Dryer Table", "COSME dryer form and the connected Station dataset."]
   ],
   tools: [
-    ["tool_qr_tags", "QR code tags", "Generate and print QR identification tags.", "development"],
-    ["tool_sms", "Text messaging", "SMS configuration and delivery tools.", "development"],
-    ["tool_form_builder", "Form builder", "Configure form fields, grades and seaweed types.", "development"],
-    ["tool_pricing", "Pricing matrix", "Set organisation pricing rules."],
-    ["tool_notifications", "Notifications", "View and manage notification delivery."]
+    ["tool_pricing", "Pricing matrix", "Set organisation pricing rules."]
   ]
 };
 
@@ -1667,11 +1659,11 @@ function configureInviteContactMode() {
 
 function rolePreset(role) {
   const values = Object.fromEntries(permissionDefinitions.map(([key]) => [key, false]));
-  if (role === "company_admin") Object.assign(values, { can_access_admin: true, can_submit_collection: true, can_view_dashboard: true, can_view_registry: true, can_edit_registry: true, can_view_map: true, can_view_data: true, can_edit_collections: true, can_view_finance: true, can_manage_pricing: true, can_export_data: true, can_manage_settings: true, can_manage_users: true, can_view_notifications: true, can_manage_notifications: true });
+  if (role === "company_admin") Object.assign(values, { can_access_admin: true, can_submit_collection: true, can_view_dashboard: true, can_view_registry: true, can_edit_registry: true, can_view_map: true, can_view_data: true, can_edit_collections: true, can_view_finance: true, can_manage_pricing: true, can_export_data: true, can_manage_settings: true, can_manage_users: true });
   if (role === "registry_admin") Object.assign(values, { can_access_admin: true, can_submit_collection: true, can_view_dashboard: true, can_view_registry: true, can_edit_registry: true, can_view_map: true, can_view_data: true });
-  if (role === "finance_admin") Object.assign(values, { can_access_admin: true, can_view_dashboard: true, can_view_map: true, can_view_data: true, can_view_finance: true, can_manage_pricing: true, can_export_data: true, can_view_notifications: true });
+  if (role === "finance_admin") Object.assign(values, { can_access_admin: true, can_view_dashboard: true, can_view_map: true, can_view_data: true, can_view_finance: true, can_manage_pricing: true, can_export_data: true });
   if (role === "field_collector") values.can_submit_collection = true;
-  if (role === "read_only_auditor") Object.assign(values, { can_access_admin: true, can_view_dashboard: true, can_view_registry: true, can_view_map: true, can_view_data: true, can_view_finance: true, can_view_notifications: true });
+  if (role === "read_only_auditor") Object.assign(values, { can_access_admin: true, can_view_dashboard: true, can_view_registry: true, can_view_map: true, can_view_data: true, can_view_finance: true });
   return values;
 }
 
