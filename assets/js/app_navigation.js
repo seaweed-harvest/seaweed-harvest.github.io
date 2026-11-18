@@ -345,11 +345,9 @@ function appendNavigationLinks(drawer, profile, dashboardHref, currentFile) {
       ? [{ label: "Mawimbi Process Flow", href: "./mawimbi_process_flow.html", requiredAggregator: "MAWIMBI", className: "app-nav-desktop-only" }]
       : []),
     { label: "Receipts", href: "./admin_receipts.html", permission: "can_view_data", capability: "form_intake_collection", className: "app-nav-desktop-only" },
-    { label: "Notifications", href: "./admin_notifications.html", permission: "can_view_notifications", capability: "tool_notifications", className: "app-nav-desktop-only" },
     ...(isProtectedOwner(profile)
       ? [{ label: "Suggestions", href: "./admin_suggestions.html", className: "app-nav-desktop-only" }]
       : []),
-    { label: "Tags", href: "./tags.html", permission: "can_access_admin", capability: "tool_qr_tags" },
     { label: "Pricing Matrix", href: "./admin_pricing.html", permission: "can_view_finance", capability: "tool_pricing" }
   ]);
   // Metrics are granted independently of the active organisation. Keep the

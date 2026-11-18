@@ -34,10 +34,10 @@ test("handover Tools retain operational entries and bench experiments", () => {
     .split("]);\n  // Metrics are granted independently")[0];
   assert.ok(toolSection);
   for (const label of ["Dataset Dashboard", "Backups", "Mawimbi Process Flow", "Receipts",
-    "Notifications", "Suggestions", "Tags", "Pricing Matrix"]) {
+    "Suggestions", "Pricing Matrix"]) {
     assert.ok(toolSection.includes(`label: "${label}"`), `${label} remains`);
   }
-  for (const label of ["Finance Review", "Form Manager", "Form Builder", "SMS Settings"]) {
+  for (const label of ["Finance Review", "Form Manager", "Form Builder", "SMS Settings", "Notifications", "Tags"]) {
     assert.ok(!toolSection.includes(`label: "${label}"`), `${label} is hidden`);
   }
 });

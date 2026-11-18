@@ -63,7 +63,6 @@ class OrganisationPermissionsStaticTest(unittest.TestCase):
             "form_process_record",
             "form_reef_nursery",
             "form_dryer_table",
-            "tool_qr_tags",
         ):
             self.assertIn(f'capability: "{capability}"', self.navigation)
         self.assertIn('label: "Organisations"', self.navigation)

@@ -18,11 +18,12 @@ separate owner approval for merge/deployment. No protected-path changes.
 
 - Sandbox retains the Ledger Transcriptions record shortcut; the Green Space
   form link is removed from desktop and mobile shared navigation.
-- Tools hides Finance Review, Form Manager, Form Builder and SMS Settings.
+- Tools hides Finance Review, Form Manager, Form Builder, SMS Settings,
+  Notifications and Tags.
   Existing pages, databases, jobs, permissions and stored records are not
   changed in this navigation-only release.
-- Dataset Dashboard, Backups, Mawimbi Process Flow, Receipts, Notifications,
-  Suggestions, Tags and Pricing Matrix retain their previous permission and
+- Dataset Dashboard, Backups, Mawimbi Process Flow, Receipts,
+  Suggestions and Pricing Matrix retain their previous permission and
   organisation gates until their operational scope is agreed.
 - A metrics-authorised user sees exactly one `Project Summary` shortcut to
   the existing COSME metrics page; the Project Journal tab and its records
@@ -43,8 +44,9 @@ separate owner approval for merge/deployment. No protected-path changes.
   three farmer relationships. Removing or deactivating an organisation touches
   the tenant boundary (Lane C), so that is **not** included in this UI branch.
 - Tags has 30 reserved IDs and no recorded printing; Notifications has 644
-  suppressed SMS requests. Retain the history and current menu entries while
-  the owner decides if these are operationally useful.
+  suppressed SMS requests. On 18 November the owner expressly decided to
+  bench both navigation entries, retaining their underlying data and code
+  pending separately approved protected cleanup.
 - Do not retire Mawimbi's independent daily/weekly/monthly summary emails,
   current backup paths or active process/collection forms.
 
@@ -80,3 +82,8 @@ three existing tests, two new tests and this plan. Lane B remains appropriate.
 
 Status: implementation prepared for a draft PR; not approved for merge or live
 release. Browser/UI verification remains an explicit release gate.
+
+Follow-up (18 November): owner authorised permanent retirement of the Bati
+organisation, Green Space records/pages and experimental SMS/settings. Those
+are protected tenant, privacy and backend changes and remain outside this
+navigation PR until a separate reviewed plan/test/rollback gate is approved.

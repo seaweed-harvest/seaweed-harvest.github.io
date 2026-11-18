@@ -76,14 +76,14 @@ with sync_playwright() as playwright:
                     [...group.querySelectorAll('a')].map(link => link.textContent)]))"""
             )
             all_labels = [label for links in groups.values() for label in links]
-            for hidden in ("Green Space Log", "Finance Review", "Form Manager", "Form Builder", "SMS Settings", "Project Journal"):
+            for hidden in ("Green Space Log", "Finance Review", "Form Manager", "Form Builder", "SMS Settings", "Notifications", "Tags", "Project Journal"):
                 assert hidden not in all_labels, (code, width, hidden)
             assert groups["Tools"].count("Project Summary") == 1, (code, width)
             if code == "SANDBOX":
                 assert groups["Forms"] == [], (width, groups["Forms"])
                 assert groups["Records"] == ["Ledger Transcriptions"], (width, groups["Records"])
             elif code == "MAWIMBI":
-                for label in ("Dataset Dashboard", "Backups", "Mawimbi Process Flow", "Receipts", "Notifications", "Suggestions", "Tags", "Pricing Matrix"):
+                for label in ("Dataset Dashboard", "Backups", "Mawimbi Process Flow", "Receipts", "Suggestions", "Pricing Matrix"):
                     assert label in groups["Tools"], (width, label)
             if width == 390:
                 page.locator(".mobile-menu-toggle").click()
