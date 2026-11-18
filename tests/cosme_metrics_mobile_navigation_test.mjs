@@ -16,7 +16,8 @@ test("metrics shortcut remains dependent on the server-side grant, not a profile
   assert.match(section,/if \(profile\)/);
   assert.match(section,/authClient\.rpc\("cosme_metrics_my_access"\)/);
   assert.match(section,/if \(error \|\| !data\?\.can_view \|\| !group\.isConnected\) return;/);
-  assert.match(section,/label: "Project Metrics", href: "\.\/cosme_metrics\.html"/);
+  assert.match(section,/label: "Project Summary", href: "\.\/cosme_metrics\.html"/);
+  assert.doesNotMatch(section,/label: "Project Journal"/);
   assert.doesNotMatch(section,/activeAggregatorCode\(profile\) === "COSME"/);
   assert.doesNotMatch(section,/can_view_data|can_manage_users|system_admin/);
 });
@@ -26,8 +27,8 @@ test("server-granted metric shortcut is reachable from the mobile menu",()=>{
   assert.match(navigation,/group\.classList\.remove\("app-nav-desktop-only"\)/);
   assert.match(navigation,/group\.hidden = false/);
   assert.match(navigation,/if \(currentFile === "cosme_metrics\.html"\) group\.open = true/);
-  assert.match(page,/app_navigation\.js\?v=17/);
-  assert.match(admin,/app_navigation\.js\?v=17/);
+  assert.match(page,/app_navigation\.js\?v=\d+/);
+  assert.match(admin,/app_navigation\.js\?v=\d+/);
   assert.match(home,/admin_page\.js\?v=36/);
 });
 

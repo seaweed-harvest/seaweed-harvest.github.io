@@ -37,10 +37,10 @@ class FormManagerStaticTest(unittest.TestCase):
             "supabase/functions/green-space-log/index.ts"
         )
 
-    def test_manager_is_a_separate_tools_page(self):
+    def test_manager_is_benched_from_navigation_but_preserved_as_a_page(self):
         self.assertIn("<h2>Form Manager</h2>", self.page)
-        self.assertIn('label: "Form Manager"', self.navigation)
-        self.assertIn('label: "Form Builder"', self.navigation)
+        self.assertNotIn('label: "Form Manager"', self.navigation)
+        self.assertNotIn('label: "Form Builder"', self.navigation)
         self.assertIn('"admin_forms.html": "can_manage_settings"', self.admin)
         self.assertIn('"admin_forms.html": "tool_form_builder"', self.admin)
 
