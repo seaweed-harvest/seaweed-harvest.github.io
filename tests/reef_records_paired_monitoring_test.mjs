@@ -68,7 +68,7 @@ assert(!markup.includes('data-select-reef-site='), "Only records-list selections
 assert(markup.includes('id="reefSampleRopeDataTab"'), "Sample Rope Data tab exists");
 assert(markup.includes("<th scope=\"col\">Show</th>"));
 assert(markup.includes("Clear selection"));
-assert.match(entry,/reef-rope-rs-label[^>]*>R\+S/);
+assert.match(entry,/reef-rope-rs-label[^>]*>Weight \(kg\)[\s\S]*Seed count/);
 assert.match(entry,/R\+S = Rope \+ Seaweed weight/);
 assert(!entry.includes("data-rope-meta=\""),"Saved measurement captions should remain hidden");
 
