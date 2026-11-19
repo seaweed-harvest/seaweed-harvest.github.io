@@ -1,6 +1,15 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {recordedPhotoCounts,lastCompletedBackup} from '../../assets/js/backup_summary.mjs';
+import {recordedPhotoCounts,lastCompletedBackup,visibleBackupOrganisations} from '../../assets/js/backup_summary.mjs';
+test('internal archive organisation is excluded only from display choices and the source inventory is unchanged',()=>{
+ const archived={id:'f207d31e-0b35-4f21-b405-2588d2347b7f',name:'Green Space Project Sandbox',record_count:1704};
+ const active={id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',name:'COSME',record_count:80};
+ const rows=[active,archived];
+ assert.deepEqual(visibleBackupOrganisations(rows),[active]);
+ assert.equal(rows.length,2,'Full archive data must remain untouched');
+ assert.equal(rows.reduce((count,row)=>count+row.record_count,0),1784);
+ assert.deepEqual(visibleBackupOrganisations(null),[]);
+});
 test('new-or-changed photo counts compare versions, identity, size and known checksum without claiming disk verification',()=>{
  const row={object_id:'one',object_version:'v1',bucket_id:'photos',object_path:'one.jpg',byte_size:3,archive:{sha256:'right'}};
  const saved={...row,sha256:'right'};

@@ -10,7 +10,7 @@ import {
   verifyFile,
   writeManifest,
 } from "./archive_files.mjs";
-import { LEDGER_LABELS, recordedPhotoCounts, lastCompletedBackup } from "./backup_summary.mjs";
+import { LEDGER_LABELS, recordedPhotoCounts, lastCompletedBackup, visibleBackupOrganisations } from "./backup_summary.mjs";
 
 const PHOTO_DOWNLOAD_CONCURRENCY = 8;
 const PHOTO_IN_FLIGHT_BYTES = 32 * 1024 * 1024;
@@ -217,7 +217,7 @@ export function mountFullBackupArchive({ client, profile }) {
           note.textContent = "Some ledger entries are linked to more than one organisation. The total counts each entry once.";
           details.append(note);
         }
-        const organisations = [...(summary.organisations ?? [])];
+        const organisations = visibleBackupOrganisations(summary.organisations);
         if (summary.shared && (summary.shared.record_count || summary.shared.photo_count)) organisations.push(summary.shared);
         for (const org of organisations) {
           rows.append(tableRow([org.name, Number(org.record_count || 0).toLocaleString(), Number(org.photo_count || 0).toLocaleString()]));
@@ -289,7 +289,7 @@ export function mountFullBackupArchive({ client, profile }) {
     state.scopeKey = JSON.stringify(scope);
     const choices = q("archiveOrganisations");
     choices.replaceChildren();
-    for (const org of state.inventory.organisations ?? []) {
+    for (const org of visibleBackupOrganisations(state.inventory.organisations)) {
       const label = document.createElement("label"), input = document.createElement("input");
       input.type = "checkbox"; input.dataset.organisationId = org.id;
       input.checked = scope?.includes(org.id) ?? false;
