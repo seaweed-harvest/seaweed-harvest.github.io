@@ -403,6 +403,30 @@ test('normal summary is compact, updates with selection and only creates individ
   f.q('archivePhotoDetails').open=true;f.q('archivePhotoDetails').dispatchEvent(new window.Event('toggle'));
   assert.equal(document.querySelectorAll('[data-archive-key]').length,1);
 });
+test('retired internal archive is absent from backup organisations while all records remain in scope', async()=>{
+  const internal='f207d31e-0b35-4f21-b405-2588d2347b7f';
+  const cosme='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const orgs=[
+    {id:cosme,code:'COSME',name:'COSME',record_count:80,photo_count:2,ledgers:[{table:'collections',record_count:80}]},
+    {id:internal,code:'SANDBOX',name:'Green Space Project Sandbox',record_count:1704,photo_count:0,
+      ledgers:[{table:'ag_historical_ledger_rows',record_count:1704}]}
+  ];
+  const f=setup({objects:[],organisations:orgs,summary:{
+    record_count:1784,ledgers:[...orgs[0].ledgers,...orgs[1].ledgers],
+    organisations:orgs,shared:null,overlapping_records:0
+  }});
+  await mountFullBackupArchive({client:f.client,profile:owner});
+  assert.equal(f.q('archiveAllOrganisations').checked,true);
+  assert.match(f.q('fullBackupArchive').textContent,/Full archive \(all records\)/);
+  assert.equal(f.q('archiveOrganisations').querySelectorAll('input').length,1);
+  assert.equal(f.q('archiveOrganisations').querySelector('input').dataset.organisationId,cosme);
+  assert.doesNotMatch(f.q('archiveOrganisations').textContent,/Green Space|Sandbox/i);
+  assert.doesNotMatch(f.q('archiveSummaryRows').textContent,/Green Space|Sandbox/i);
+  assert.doesNotMatch(f.q('archiveLedgerBreakdown').textContent,/Green Space|Sandbox/i);
+  assert.match(f.q('archiveSummaryTotals').textContent,/1,784 ledger records/);
+  assert.equal(f.bodies.find(body=>body.action==='inventory').organisation_ids,null,
+    'A full archive must still request every record, including the hidden historical ledger');
+});
 test('existing-file reuse batches checkpoints instead of committing the manifest after every file',async()=>{
   const names=Array.from({length:48},(_,i)=>'saved-'+i),f=await backupFixture(undefined,names);
   for(let i=0;i<names.length;i++)f.files.set('photos/'+names[i]+'.jpg',new Blob([names[i]]));

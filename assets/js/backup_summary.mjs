@@ -10,6 +10,12 @@ export const LEDGER_LABELS = Object.freeze({
   seaweed_drying_submissions: "Dryer records", seaweed_drying_reweigh_events: "Dryer reweighs",
   ag_deleted_records: "Deleted-record archive",
 });
+// This internal archive organisation is preserved in exported records but is
+// intentionally absent from user-facing organisation choices and summaries.
+const INTERNAL_ARCHIVE_ORGANISATION_ID = "f207d31e-0b35-4f21-b405-2588d2347b7f";
+export function visibleBackupOrganisations(rows) {
+  return (rows ?? []).filter((org) => org?.id !== INTERNAL_ARCHIVE_ORGANISATION_ID);
+}
 export function recordedPhotoCounts(rows, manifest) {
   const saved = new Map((manifest?.files ?? []).map(f => [`${f.object_id}:${f.object_version}`, f]));
   let recorded = 0;

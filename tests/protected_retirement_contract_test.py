@@ -22,6 +22,7 @@ class ProtectedRetirementContractTest(unittest.TestCase):
         self.assertNotIn('label: "Green Space Log"', nav)
         self.assertNotIn("green-space/ledger.html", auth)
         self.assertNotIn("green-space/ledger.html", login)
+        self.assertNotIn("[functions.green-space-log]", read("supabase/config.toml"))
 
     def test_no_green_space_role_or_capability_in_admin_ui(self):
         users = read("assets/js/users_page.js")
