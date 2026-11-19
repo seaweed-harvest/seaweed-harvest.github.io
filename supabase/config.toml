@@ -22,9 +22,6 @@ verify_jwt = false
 [functions.site-feedback]
 verify_jwt = false
 
-[functions.green-space-log]
-verify_jwt = false
-
 [api]
 enabled = true
 # Port to use for the API URL.
